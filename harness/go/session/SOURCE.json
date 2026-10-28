@@ -196,7 +196,7 @@
       "git_blob_sha": "014cf22a92e7e417d5b8cbbd253298a6eec07ef0",
       "export_sha256": "bbd10faec6fe8f87e2a726e3a8826f836f8fe17f24748c86a3dee99e91ec0e3c",
       "destination": "harness/go/session/projection.go",
-      "destination_sha256": "05f1a890082b0a6e667bb732ba425c123268716d8cf0c9f0502d1bb0145de1d8"
+      "destination_sha256": "7b38ff0b1b97dab0ec21eeea7d590b16f7203dc0793e6739b0c02587fe6f6297"
     },
     {
       "path": "go/harness/session/publication.go",
@@ -231,7 +231,7 @@
       "git_blob_sha": "3faeb4dc0cf41075da6c8260b898b513fbbf6d65",
       "export_sha256": "724835336ff4165beb728c221e9a9d2333f638b0a0481841a14a1733bd5f1a36",
       "destination": "harness/go/session/session.go",
-      "destination_sha256": "893efd0c233f23bb9d1562eaf4234cc80e4ffd88a8160c4dd99723d8a3ffef4f"
+      "destination_sha256": "e0c78e8bb0dbd9d27b5cde3c344581b505627973aaea1414fee9f506689c67e8"
     },
     {
       "path": "go/harness/session/session_events_after_test.go",
@@ -331,7 +331,8 @@
     "Replace Point context-plan policy and historical receipt decoders with pero.context.plan.v1 generic surface plan. Reject Point receipts.",
     "Remove Host legacy dsh-session claimed-message rewrite exemption.",
     "Retain selected self-contained tests only; replace old attachment-history fixture with generic suffix fixture; remove product-specific test cases.",
-    "Retain DeepSeek MIT notice and repair its relative reference."
+    "Retain DeepSeek MIT notice and repair its relative reference.",
+    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
   ],
   "omitted_production": [
     "context_plan_v1.go",
@@ -352,5 +353,39 @@
       "Mechanical module/import/documentation layout migration from go/agent.",
       "Normalize license export to one terminal newline; notice wording unchanged."
     ]
-  }
+  },
+  "concept_splits": [
+    {
+      "destination": "harness/go/session/projection_cell.go",
+      "destination_sha256": "8455b2eec7baec29489d3d1f50eff27e15f29285d0355524586a69c64e725b53",
+      "split_from": "harness/go/session/projection.go",
+      "source_path": "go/harness/session/projection.go",
+      "source_git_blob_sha": "014cf22a92e7e417d5b8cbbd253298a6eec07ef0",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "destination": "harness/go/session/projection_definition.go",
+      "destination_sha256": "d707ac36e680663e7b4ad42a208578a45a40c9914125701ac0512dc9b226786f",
+      "split_from": "harness/go/session/projection.go",
+      "source_path": "go/harness/session/projection.go",
+      "source_git_blob_sha": "014cf22a92e7e417d5b8cbbd253298a6eec07ef0",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "destination": "harness/go/session/session_dispatch.go",
+      "destination_sha256": "195d669352aedebdd606db257cd11a83b800bc307d58d2c2be16aa6a74118b68",
+      "split_from": "harness/go/session/session.go",
+      "source_path": "go/harness/session/session.go",
+      "source_git_blob_sha": "3faeb4dc0cf41075da6c8260b898b513fbbf6d65",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "destination": "harness/go/session/session_store.go",
+      "destination_sha256": "05f707c1e7ad960b925bf7eaa5f04d9ffd122a53a0f6540d1e0e379eee24bfc1",
+      "split_from": "harness/go/session/session.go",
+      "source_path": "go/harness/session/session.go",
+      "source_git_blob_sha": "3faeb4dc0cf41075da6c8260b898b513fbbf6d65",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    }
+  ]
 }

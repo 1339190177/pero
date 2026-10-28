@@ -29,7 +29,8 @@
     "Explicit operator selectable-model declarations expose local adapter-owned catalog through existing ProviderRegistry and durable Agent.SelectModel; ACP select-option transport glue is new, not copied upstream ACP behavior. Default single-model behavior retained.",
     "Idle-only ACP model change uses command lifecycle reservation without holding session lock across subscriber/persistence callbacks; close drains it and restoration revalidates explicit uniform context/output capacities.",
     "Optional coding helpers mount explicit-root untrusted AGENTS.md context and session-backed todo_write only; plan-mode/user-question authorization remains excluded. Package-specific source pins preserved in agentinstructions/SOURCE.json and todos/SOURCE.json.",
-    "Optional complete native subagent registry/lifecycle restored; one-level in-process spawn/fork reuse existing AgentManager/Session ownership. Effective child caps are restricted, request budgets shared, ApprovalNever pinned, and parent MCP grants may be inherited. The duplicate extracted callback helper is removed; original provenance is retained under removed_files."
+    "Optional complete native subagent registry/lifecycle restored; one-level in-process spawn/fork reuse existing AgentManager/Session ownership. Effective child caps are restricted, request budgets shared, ApprovalNever pinned, and parent MCP grants may be inherited. The duplicate extracted callback helper is removed; original provenance is retained under removed_files.",
+    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
   ],
   "excluded_features": [
     "Projects",
@@ -755,10 +756,10 @@
     },
     {
       "destination": "acp/server.go",
-      "sha256": "a7e59f11fa90fbed14f40dbc7a4a555661e696f8db71307f44de05131cb8e557",
+      "sha256": "b49c85b27808136f42b8b94b7b2e919ab0134693c5efb707dc5a283e662e4ad9",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff; Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
     },
     {
       "destination": "acp/types.go",
@@ -1105,6 +1106,14 @@
       "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
       "sha256": "2294d53b310034c3dc8bda016b7521c0cc6e081ec066ef543c75200316429c7e",
       "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
+    },
+    {
+      "destination": "acp/server_history.go",
+      "sha256": "f81a5326388117a1f17093247f20b4d175f55c2c089712bb7505a3f5cfdcbc01",
+      "split_from": "acp/server.go",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
+      "source_path": "go/harness/acp/server.go",
+      "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318"
     }
   ],
   "removed_files": [

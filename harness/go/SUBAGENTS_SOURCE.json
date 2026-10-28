@@ -191,7 +191,8 @@
     "Native synthetic tests opt into registry, adapt three preexisting test helper dependencies and compare existing busy error text; external source-oracle test is not copied.",
     "One-shot provider/frontend and permission/budget restrictions tracked by subagents/SOURCE.json.",
     "CLI mounts spawn/fork only, depth one, finite 1\u201332 operator capacity, same persistence/adapter/compaction policy; no model-supplied routing/configuration.",
-    "Expose a narrow CloneBasicCompactionConfig wrapper around the existing native copier for trusted provider policy snapshots; no compaction algorithm changes."
+    "Expose a narrow CloneBasicCompactionConfig wrapper around the existing native copier for trusted provider policy snapshots; no compaction algorithm changes.",
+    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
   ],
   "excluded": [
     "External providers",
@@ -203,5 +204,53 @@
     "plugin host",
     "UI",
     "Memory"
+  ],
+  "concept_splits": [
+    {
+      "split_from": "harness/subagents_activation.go",
+      "outputs": [
+        {
+          "destination": "harness/subagents_activation.go",
+          "sha256": "c6b712a7bdda9e3c31cb2b85936a46fcbe0efca3a46cf418bc7f22cfc114b1ed"
+        },
+        {
+          "destination": "harness/subagents_activation_admission.go",
+          "sha256": "ac716fdb54ebd3a119d9ec4aeb35a85bfda6858a5073eaf8b0f1685811347e42"
+        },
+        {
+          "destination": "harness/subagents_activation_preparation.go",
+          "sha256": "ab714fbe6748540ed5480aa1bd6698550d3e466162eddc28279094012ed60bb4"
+        }
+      ],
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "split_from": "harness/subagents_activation_test.go",
+      "outputs": [
+        {
+          "destination": "harness/subagents_activation_test.go",
+          "sha256": "b6c91419a2d2443741d18141ace0b34c59dca6a7d794edae976215d7253d6bf9"
+        },
+        {
+          "destination": "harness/subagents_activation_announcement_test.go",
+          "sha256": "c1476a937d9e9e3fa1c6cdaeadda2e9d6229aef4246a327659b5d234d215a589"
+        }
+      ],
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "split_from": "harness/subagents_lifecycle.go",
+      "outputs": [
+        {
+          "destination": "harness/subagents_lifecycle.go",
+          "sha256": "c0431d7747d669dc538fbd7ee98d1517a1699eaa0c04a79d78e68c3db38f2f21"
+        },
+        {
+          "destination": "harness/subagents_disposal.go",
+          "sha256": "eb5704be09df897a9522819d4416eed0bc7f309fce5173389702040153908251"
+        }
+      ],
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    }
   ]
 }

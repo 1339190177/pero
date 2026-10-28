@@ -59,8 +59,42 @@
       "sha": "48e11794417b2bf8385e47e6e4c8fc4638a3cbc7"
     }
   ],
-  "adaptation": "Import remap to local runtime/llm; explicit environment home mandatory; renamed settings temp file prefix.",
+  "adaptation": "Import remap to local runtime/llm; explicit environment home mandatory; renamed settings temp file prefix. Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
   "new_files": [
     "explicit_environment_test.go"
+  ],
+  "concept_splits": [
+    {
+      "split_from": "config/credentials_file.go",
+      "outputs": [
+        {
+          "destination": "config/credentials_file.go",
+          "sha256": "c75d286fcf1705306576efa38bfd9b83be41653a1be2ed1f46813ac339f60e16"
+        },
+        {
+          "destination": "config/credentials_yaml.go",
+          "sha256": "ef6b75a29d909f97e00821782f34eadc43eac0f53d5852b11ecf50c79347e8bf"
+        }
+      ],
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    },
+    {
+      "split_from": "config/settings.go",
+      "outputs": [
+        {
+          "destination": "config/settings.go",
+          "sha256": "4e10ad26e11a4f2b41a6acac5102a47e21b12b1f86a3b67c03129144a29796ed"
+        },
+        {
+          "destination": "config/settings_json.go",
+          "sha256": "a88f26d2347a8011a2e43927757d33549c8e7ffdad57f3a79c476ddf2340c558"
+        },
+        {
+          "destination": "config/settings_scope.go",
+          "sha256": "e8b0e5b4e15d822546832cf583abd4368e7bd7e7faae7c0520312646354dd6cc"
+        }
+      ],
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    }
   ]
 }
