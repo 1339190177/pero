@@ -483,3 +483,82 @@ func TestAgentCancellationFinalizesSafeStreamPrefix(t *testing.T) {
 		t.Fatalf("continued=%+v calls=%d error=%v", continued, calls, err)
 	}
 }
+
+func TestMaxTokenStopContracts(t *testing.T) {
+	for _, mode := range []string{"tool", "sticky"} {
+		t.Run(mode, func(t *testing.T) {
+			responses := []Completion{{Finish: FinishMaxTokens, Message: Message{Role: RoleAssistant, Content: []ContentBlock{{Type: BlockText, Text: "limited"}}}}, {Finish: FinishStop, Message: Message{Role: RoleAssistant, Content: []ContentBlock{{Type: BlockText, Text: "complete"}}}}}
+			if mode == "tool" {
+				responses[0].Message.Content = append(responses[0].Message.Content, ContentBlock{Type: BlockToolCall, ToolCallID: "limited-call", Name: "probe", Arguments: json.RawMessage(`{}`)})
+			}
+			adapter := &scriptedAdapter{responses: responses}
+			ctx := testContext(t)
+			h, err := Boot(ctx, Options{Adapter: adapter})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer h.Dispose(context.Background())
+			var effects int
+			tool, err := h.RegisterTool(ctx, "tool/probe", Tool{Schema: ToolSchema{Name: "probe", InputSchema: json.RawMessage(`{"type":"object"}`)}, Execute: func(context.Context, json.RawMessage) (ToolResult, error) {
+				effects++
+				return ToolResult{Content: []ContentBlock{{Type: BlockText, Text: "side effect"}}}, nil
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tool.Dispose(context.Background())
+			injected := false
+			agent, err := h.Agents().Create(ctx, AgentOptions{ID: SessionID("max-token-" + mode), Provider: "test", Model: "scripted", Configure: func(_ context.Context, run *point.Run, _ *Agent) error {
+				if mode != "sticky" {
+					return nil
+				}
+				_, e := h.Hooks().TurnStopping.On(run, func(_ context.Context, in TurnStoppingInput) error {
+					if !injected {
+						injected = true
+						return in.Agent.Inject(Message{Role: RoleUser, Content: []ContentBlock{{Type: BlockText, Text: "follow up"}}})
+					}
+					return nil
+				})
+				return e
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := agent.Prompt(ctx, Message{Role: RoleUser, Content: []ContentBlock{{Type: BlockText, Text: "start"}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if effects != 0 || got.Reason != FinishMaxTokens {
+				t.Fatalf("mode=%s effects=%d reason=%s; want no effects and max_tokens", mode, effects, got.Reason)
+			}
+			for _, event := range agent.Session().Events() {
+				if event.Type == "assistant/message" {
+					var payload struct{ Message Message }
+					if err := json.Unmarshal(event.Data, &payload); err != nil {
+						t.Fatal(err)
+					}
+					if len(toolCalls(payload.Message)) != 0 {
+						t.Fatal("output-limited call persisted into committed history")
+					}
+					if len(payload.Message.Content) == 0 {
+						t.Fatal("safe text disappeared")
+					}
+				}
+				if event.Type == "turn/end" {
+					var payload struct{ Reason FinishKind }
+					json.Unmarshal(event.Data, &payload)
+					if payload.Reason != FinishMaxTokens {
+						t.Fatal("durable turn reason downgraded")
+					}
+				}
+			}
+			wantRequests := 1
+			if mode == "sticky" {
+				wantRequests = 2
+			}
+			if len(adapter.requests) != wantRequests {
+				t.Fatalf("requests=%d want=%d", len(adapter.requests), wantRequests)
+			}
+		})
+	}
+}

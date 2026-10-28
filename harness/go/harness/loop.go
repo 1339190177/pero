@@ -91,6 +91,7 @@ func (a *Agent) runTurn(ctx context.Context, initial []Message, claimNextTurn bo
 		return result, err
 	}
 	reason := FinishError
+	maxTokens := false
 	openStep := 0
 	currentStep := 0
 	defer func() {
@@ -107,6 +108,9 @@ func (a *Agent) runTurn(ctx context.Context, initial []Message, claimNextTurn bo
 				// without allowing observer failures to replace it.
 				_ = a.hooks.Error.EmitAll(ctx, AgentErrorInput{Agent: a, Turn: turn, Step: currentStep, Error: err})
 			}
+		}
+		if err == nil && maxTokens {
+			reason = FinishMaxTokens
 		}
 		result.Reason = reason
 		payload := struct {
@@ -253,6 +257,18 @@ func (a *Agent) runTurn(ctx context.Context, initial []Message, claimNextTurn bo
 		}
 		if completion.Message.Role == "" {
 			completion.Message.Role = RoleAssistant
+		}
+		if completion.Finish == FinishMaxTokens {
+			maxTokens = true
+			// Enforce the stop contract independently of the provider adapter.
+			// Unfinished calls must neither execute nor enter committed history.
+			safe := make([]ContentBlock, 0, len(completion.Message.Content))
+			for _, block := range completion.Message.Content {
+				if block.Type != BlockToolCall {
+					safe = append(safe, block)
+				}
+			}
+			completion.Message.Content = safe
 		}
 		if _, err := a.session.Append("assistant/message", struct {
 			Turn    int         `json:"turn"`
