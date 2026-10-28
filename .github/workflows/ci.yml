@@ -124,6 +124,8 @@ jobs:
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       # Outside this repo. A checkout inside it is absorbed by the Cargo workspace.
       - name: Checkout gpui-kit
