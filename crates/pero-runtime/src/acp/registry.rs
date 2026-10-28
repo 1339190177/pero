@@ -35,7 +35,10 @@ pub fn registry(root: &Path) -> Result<Vec<AgentConfig>, String> {
         AgentConfig {
             id: "codex".into(),
             name: "Codex".into(),
-            command: "codex-acp".into(),
+            command: root
+                .join("node_modules/.bin/codex-acp")
+                .to_string_lossy()
+                .into(),
             args: vec![],
             env: BTreeMap::new(),
             model: None,

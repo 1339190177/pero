@@ -27,10 +27,14 @@
     "test:remote": "node tests/e2e/remote.mjs",
     "test:github": "cd server && PERO_DESKTOP_E2E=1 go test -count=1 -run '^TestDesktopGitHub' ./internal/httpapi -v",
     "test:i18n": "node tests/e2e/i18n.mjs",
-    "test:community": "node tests/e2e/community.mjs"
+    "test:community": "node tests/e2e/community.mjs",
+    "test:connector": "cd server && PERO_DESKTOP_E2E=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
+    "test:connector:live": "cd server && PERO_DESKTOP_E2E=1 PERO_CONNECTOR_LIVE=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
+    "test:remote-settings": "node tests/e2e/remote-settings.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",
+    "@agentclientprotocol/codex-acp": "2.3.0",
     "@playwright/test": "1.64.1",
     "@types/node": "^24.0.0",
     "@typespec/compiler": "1.17.0",
