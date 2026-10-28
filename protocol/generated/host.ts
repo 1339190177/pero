@@ -4,7 +4,8 @@
  * Generated from protocol/host.tsp. Do not edit.
  */
 export type HostProtocol = HostInput | HostEvent;
-export type HostInput = EchoRequest | SetLocaleRequest | SetRemoteSettingsRequest | HostCommand | AppRequest;
+export type HostInput =
+  EchoRequest | SetLocaleRequest | SetRemoteSettingsRequest | HostCommand | AppRequest | ContributionRequest;
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
@@ -21,7 +22,12 @@ export type ThreadId = string;
 export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp;
 export type RequestId = string;
 export type AppName = string;
+export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | ContributorStateEvent
+  | ContributorSessionEvent
+  | ContributionResultEvent
+  | ContributionErrorEvent
   | SettingsEvent
   | RemoteSettingsSavedEvent
   | RemoteSettingsErrorEvent
@@ -178,6 +184,96 @@ export interface ResolveApp {
   name: AppName;
   method: "apps";
   id: RequestId;
+}
+export interface ContributionPrepare {
+  method: "contribution";
+  id: string;
+  task_id: string;
+  operation: "prepare";
+  repository: string;
+  parent: string;
+  title: string;
+  source_url: string;
+  source_revision: string;
+}
+export interface ContributionReview {
+  method: "contribution";
+  id: string;
+  task_id: string;
+  operation: "review" | "status";
+  workspace: string;
+}
+export interface ContributionPublish {
+  method: "contribution";
+  id: string;
+  task_id: string;
+  operation: "publish";
+  workspace: string;
+  review_token: string;
+}
+export interface ContributorStateEvent {
+  kind: "contributor_state";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: RemoteSnapshotPayload;
+}
+/**
+ * Main-process HTTP adapter snapshot; validated by protocol/remote.tsp.
+ */
+export interface RemoteSnapshotPayload {
+  [k: string]: unknown | undefined;
+}
+export interface ContributorSessionEvent {
+  kind: "contributor_session";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+  data: ContributorSessionData;
+}
+export interface ContributorSessionData {
+  task_id: string;
+  workspace: string;
+  agent_id?: string;
+}
+export interface ContributionResultEvent {
+  version: 1;
+  kind: "contribution_result";
+  request_id: string | null;
+  text: string;
+  data: ContributionSnapshot;
+}
+export interface ContributionSnapshot {
+  task_id: string;
+  repository: string;
+  workspace: string;
+  branch: string;
+  base: string;
+  base_head: string;
+  title: string;
+  source_url: string;
+  source_revision: string;
+  pr_url: string | null;
+  head: string;
+  review_token: string;
+  diff: string;
+  changed_files: string[];
+  status: string;
+  gh_available: boolean;
+  gh_authenticated: boolean;
+}
+export interface ContributionErrorEvent {
+  version: 1;
+  kind: "contribution_error";
+  request_id: string | null;
+  text: string;
+  data: ContributionErrorData;
+}
+export interface ContributionErrorData {
+  code: string;
+  message: string;
+  task_id: string;
 }
 /**
  * `text` is the active locale tag.
@@ -404,12 +500,6 @@ export interface RemoteStateEvent {
   request_id: string | null;
   text: string;
   data: RemoteSnapshotPayload;
-}
-/**
- * Main-process HTTP adapter snapshot; validated by protocol/remote.tsp.
- */
-export interface RemoteSnapshotPayload {
-  [k: string]: unknown | undefined;
 }
 /**
  * Open remote tasks from the native Workbench menu or keyboard.

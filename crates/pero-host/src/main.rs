@@ -4,6 +4,7 @@ use pero_contracts::{
 use std::io::{self, BufRead, Write};
 mod agents;
 mod apps;
+mod contributions;
 
 fn emit(event: HostEvent) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
@@ -34,6 +35,10 @@ fn main() -> io::Result<()> {
     for line in io::stdin().lock().lines() {
         let line = line?;
         let value: serde_json::Value = serde_json::from_str(&line).unwrap_or_default();
+        if value.get("method").and_then(|v| v.as_str()) == Some("contribution") {
+            contributions::dispatch(value);
+            continue;
+        }
         if value.get("method").and_then(|v| v.as_str()) == Some("apps") {
             emit(apps.dispatch(value))?;
             continue;

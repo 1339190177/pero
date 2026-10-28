@@ -2,6 +2,7 @@
 // Source of truth for protocol/generated/; run `npm run gen:contracts` after edits.
 import "@typespec/json-schema";
 import "./apps.tsp";
+import "./contributions.tsp";
 
 using JsonSchema;
 
@@ -90,6 +91,7 @@ union HostInput {
   SetRemoteSettingsRequest,
   HostCommand,
   Pero.Apps.AppRequest,
+  Pero.Contributions.ContributionRequest,
 }
 
 // ---------- Host events: one JSON object per stdout line ----------
@@ -201,8 +203,16 @@ union ThreadEvent {
   SessionClosedEvent,
 }
 
+model ContributorStateEvent { kind: "contributor_state"; ...EventBase; data: RemoteSnapshotPayload }
+model ContributorSessionData { task_id: string; workspace: string; agent_id?: string; ...Closed }
+model ContributorSessionEvent { kind: "contributor_session"; ...ThreadEventBase; data: ContributorSessionData }
+
 @oneOf
 union HostEvent {
+  ContributorStateEvent,
+  ContributorSessionEvent,
+  Pero.Contributions.ContributionResultEvent,
+  Pero.Contributions.ContributionErrorEvent,
   SettingsEvent,
   RemoteSettingsSavedEvent,
   RemoteSettingsErrorEvent,

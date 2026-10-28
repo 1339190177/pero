@@ -803,6 +803,468 @@
       ],
       "additionalProperties": false
     },
+    "ContributionBase": {
+      "title": "ContributionBase",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "contribution"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "method",
+        "id",
+        "task_id"
+      ]
+    },
+    "ContributionClosed": {
+      "title": "ContributionClosed",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "ContributionErrorData": {
+      "title": "ContributionErrorData",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "task_id"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionErrorEvent": {
+      "title": "ContributionErrorEvent",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "contribution_error"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ContributionErrorData"
+        }
+      },
+      "required": [
+        "version",
+        "kind",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionPrepare": {
+      "title": "ContributionPrepare",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "contribution"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "type": "string",
+          "const": "prepare"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "parent": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "source_revision": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "id",
+        "task_id",
+        "operation",
+        "repository",
+        "parent",
+        "title",
+        "source_url",
+        "source_revision"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionPublish": {
+      "title": "ContributionPublish",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "contribution"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "type": "string",
+          "const": "publish"
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "review_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "id",
+        "task_id",
+        "operation",
+        "workspace",
+        "review_token"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionRequest": {
+      "title": "ContributionRequest",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ContributionPrepare"
+        },
+        {
+          "$ref": "#/$defs/ContributionReview"
+        },
+        {
+          "$ref": "#/$defs/ContributionPublish"
+        }
+      ]
+    },
+    "ContributionResultEvent": {
+      "title": "ContributionResultEvent",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "kind": {
+          "type": "string",
+          "const": "contribution_result"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ContributionSnapshot"
+        }
+      },
+      "required": [
+        "version",
+        "kind",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionReview": {
+      "title": "ContributionReview",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "contribution"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "review"
+            },
+            {
+              "type": "string",
+              "const": "status"
+            }
+          ]
+        },
+        "workspace": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "id",
+        "task_id",
+        "operation",
+        "workspace"
+      ],
+      "additionalProperties": false
+    },
+    "ContributionSnapshot": {
+      "title": "ContributionSnapshot",
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "base": {
+          "type": "string"
+        },
+        "base_head": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "source_revision": {
+          "type": "string"
+        },
+        "pr_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "head": {
+          "type": "string"
+        },
+        "review_token": {
+          "type": "string"
+        },
+        "diff": {
+          "type": "string"
+        },
+        "changed_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string"
+        },
+        "gh_available": {
+          "type": "boolean"
+        },
+        "gh_authenticated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "repository",
+        "workspace",
+        "branch",
+        "base",
+        "base_head",
+        "title",
+        "source_url",
+        "source_revision",
+        "pr_url",
+        "head",
+        "review_token",
+        "diff",
+        "changed_files",
+        "status",
+        "gh_available",
+        "gh_authenticated"
+      ],
+      "additionalProperties": false
+    },
+    "ContributorSessionData": {
+      "title": "ContributorSessionData",
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "agent_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "workspace"
+      ],
+      "additionalProperties": false
+    },
+    "ContributorSessionEvent": {
+      "title": "ContributorSessionEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "contributor_session"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ContributorSessionData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ContributorStateEvent": {
+      "title": "ContributorStateEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "contributor_state"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/RemoteSnapshotPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
     "DisableApp": {
       "title": "DisableApp",
       "type": "object",
@@ -1059,6 +1521,18 @@
       "title": "HostEvent",
       "oneOf": [
         {
+          "$ref": "#/$defs/ContributorStateEvent"
+        },
+        {
+          "$ref": "#/$defs/ContributorSessionEvent"
+        },
+        {
+          "$ref": "#/$defs/ContributionResultEvent"
+        },
+        {
+          "$ref": "#/$defs/ContributionErrorEvent"
+        },
+        {
           "$ref": "#/$defs/SettingsEvent"
         },
         {
@@ -1161,6 +1635,9 @@
         },
         {
           "$ref": "#/$defs/AppRequest"
+        },
+        {
+          "$ref": "#/$defs/ContributionRequest"
         }
       ]
     },
