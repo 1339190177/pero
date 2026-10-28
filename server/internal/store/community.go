@@ -156,9 +156,10 @@ func publishPublicSource(ctx context.Context, tx pgx.Tx, config GitHubRepository
 
 const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.source_url,
  CASE
+  WHEN EXISTS(SELECT 1 FROM contribution_pull_requests pr WHERE pr.task_id=t.id) THEN 'submitted'
   WHEN source.closed AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'closed'
   WHEN source.changed AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'source_changed'
-  WHEN t.claimed_by_client_id IS NOT NULL AND owner.id IS NULL AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'reserved'
+  WHEN t.claimed_by_client_id IS NOT NULL AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'reserved'
   WHEN r.status='succeeded' AND EXISTS(SELECT 1 FROM community_points a JOIN community_points v ON v.reverses=a.id WHERE a.run_id=r.id) THEN 'revoked'
   ELSE COALESCE(r.status,'draft') END,
  COALESCE(r.id,''),COALESCE(credited.login,u.login,owner.login,''),COALESCE(u.id,owner.id,0),
