@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sandbox",
+    srcs = [
+        "links_unix.go",
+        "links_unsupported.go",
+        "policy.go",
+        "strict.go",
+        "workspace.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/sandbox",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "sandbox_test",
+    srcs = [
+        "strict_test.go",
+        "workspace_unix_test.go",
+    ],
+    embed = [":sandbox"],
+)
