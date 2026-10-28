@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 // README hero: the target task workflow and the project memory it feeds.
 // Self-contained navy canvas so it reads the same on light and dark GitHub themes.
-const root = new URL('../', import.meta.url);
+const root = new URL('../../', import.meta.url);
 const theme = readFileSync(new URL('DESIGN.md', root), 'utf8').split('---')[1];
 // Read only the documented flat HEX palette; regeneration needs no npm install.
 const block = (name) => theme.match(new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  \\w+:|(?![\\s\\S]))`, 'm'))?.[1] ?? '';
@@ -146,6 +146,11 @@ function render(copy, lang) {
 
 for (const [lang, copy] of Object.entries(locales)) {
   const output = new URL(`docs/assets/${copy.file}`, root);
-  writeFileSync(output, render(copy, lang));
-  console.log(`Wrote ${output.pathname}`);
+  const svg = render(copy, lang);
+  if (process.argv.includes('--check')) {
+    if (readFileSync(output, 'utf8') !== svg) throw new Error('Run npm run gen:overview');
+  } else {
+    writeFileSync(output, svg);
+    console.log(`Wrote ${output.pathname}`);
+  }
 }

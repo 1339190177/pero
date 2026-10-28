@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 // docs/ROADMAP.md target architecture. Solid outlines identify existing foundations,
 // not complete platform capabilities or accepted deployment environments.
-const root = new URL('../', import.meta.url);
+const root = new URL('../../', import.meta.url);
 const theme = readFileSync(new URL('DESIGN.md', root), 'utf8').split('---')[1];
 // Read only the documented flat HEX palette; regeneration needs no npm install.
 const light = theme.match(/^  light:\n([\s\S]*?)(?=^  \w+:)/m)?.[1];
@@ -142,7 +142,7 @@ add('</g></g></svg>\n');
 
 const svg = parts.join('\n');
 if (process.argv.includes('--check')) {
-  if (readFileSync(output, 'utf8') !== svg) throw new Error('Run node scripts/generate-architecture.mjs');
+  if (readFileSync(output, 'utf8') !== svg) throw new Error('Run npm run gen:architecture');
 } else {
   writeFileSync(output, svg);
   console.log(`Generated ${fileURLToPath(output)}`);

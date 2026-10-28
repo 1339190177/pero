@@ -77,7 +77,7 @@ The diagram at the top is the whole loop. Step by step:
 
 ![OpenPero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
 
-Solid outlines are existing foundations; dashed ones are planned. Regenerate the diagrams with `node scripts/generate-architecture.mjs` and `node scripts/generate-overview.mjs`.
+Solid outlines are existing foundations; dashed ones are planned. Regenerate the diagrams with `npm run gen:architecture` and `npm run gen:overview`.
 
 | Part | Responsibility |
 | --- | --- |

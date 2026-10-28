@@ -77,7 +77,7 @@ OpenPero 让**项目**，而不是对话，成为组织工作的基本单位。
 
 ![OpenPero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
 
-实线框表示已有基础，虚线表示规划中。重新生成图示：`node scripts/generate-architecture.mjs` 与 `node scripts/generate-overview.mjs`。
+实线框表示已有基础，虚线表示规划中。重新生成图示：`npm run gen:architecture` 与 `npm run gen:overview`。
 
 | 部分 | 职责 |
 | --- | --- |
