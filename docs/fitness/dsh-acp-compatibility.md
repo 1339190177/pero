@@ -1,61 +1,102 @@
-# Headless DSH ACP compatibility candidate
+# Headless Go ACP integration
 
-Issue: https://github.com/phodal/pero/issues/3
+Tracks [issue #3](https://github.com/phodal/pero/issues/3).
 
-Base: `codex/workbench-components`, commit
-`926e9587b73522305ed2a585684878414c345000`.
+## Ownership and executable
 
-## Existing integration boundary
+`harness/go` is the independent Go module
+`github.com/phodal/pero/harness/go`. Build its stdio entrypoint with:
 
-Reuse `pero-worker` (Rust) → `pero-runtime` ACP client → explicitly configured
-runtime process. The Go `server/` remains the Task/Run dispatch authority. Do not
-add another scheduler or couple runtime completion to task acceptance.
+```sh
+cd harness/go
+go build -o /absolute/output/pero-agent-acp ./cmd/pero-agent-acp
+```
 
-The public branch already has a headless Worker; this does **not** mean a
-standalone, Point-independent DSH executable exists. Extracting that executable
-and its dependencies is a separate prerequisite. No runtime binary, credentials,
-provider request, deployment, or user-computer access is used by these tests.
+The execution path remains **Rust `pero-worker` → `pero-runtime` ACP client →
+Go `pero-agent-acp`**. The existing Go server owns Task/Run dispatch and result
+acceptance; no second scheduler, UI, account service or deployment is added.
+Successful Agent execution is not task acceptance or contribution credit.
 
-## DSH compatibility constraints
+Configure the Worker with an explicit executable and allowed workspace. The
+Agent takes `--endpoint`, `--model`, `--session-dir`, `--api-key-env` and
+`--approval never|ask`. Provider credentials are read only from the named variable;
+keep them out of source/config examples and public events. Use a non-`PERO_*`
+credential variable: the existing Worker deliberately removes all `PERO_*`
+variables from Agent execution. The private session directory must be writable
+only by the execution identity. No DSH/Point user settings, default prompt,
+anonymous identity or telemetry initialization is inherited by this entrypoint.
 
-- ACP protocol version 1, JSON-RPC over stdio; diagnostic output must stay off stdout.
-- Use `session/new` with the allowed absolute workspace and no extra directories.
-- DSH currently returns an empty `configOptions` array and has no
-  `session/set_model` implementation. Leave `AgentConfig.model` absent/null;
-  choose the provider/model through the standalone runtime's documented startup
-  configuration once that entrypoint is available. Do not guess its CLI flags.
-- Text, tool-call, tool-result updates and the minimal permission request shape
-  are covered by deterministic synthetic protocol fixtures, not copied runtime
-  code. Unattended permission decisions remain denied by the existing Worker.
-- No automatic resume is added: the current Worker journal reconciles interrupted
-  Runs rather than replaying prompts. DSH advertising session load does not grant
-  authority to restart a cancelled or unknown execution.
-- The runtime rejects an unsupported negotiated ACP version before session setup.
+## Protocol and provider constraints
 
-## Verification boundaries
+- ACP v1 uses JSON-RPC over stdio; diagnostics belong to stderr. Unsupported
+  negotiated versions fail before session creation.
+- `session/new` receives the allowed absolute workspace. Additional directories
+  are not supported. The Go server supports its session persistence/load APIs,
+  but the Worker does **not** automatically resume or replay interrupted prompts.
+  Its existing journal reconciles uncertain Runs and reuses completion receipts.
+- Keep `AgentConfig.model` absent/null: this Agent returns empty `configOptions`
+  and does not implement `session/set_model`. Model selection is an explicit
+  startup argument, not an invented ACP extension.
+- The provider requires an explicit endpoint, credential, provider and model.
+  HTTPS is required except numeric-loopback HTTP fixtures. Redirects and SDK
+  retries are disabled; retry policy remains owned by the harness.
+- The initial provider supports text, reasoning and streamed tool calls/results.
+  Unsupported media/content and request extensions fail before HTTP dispatch;
+  there is no implicit Files API upload or fallback to another model.
+- Incomplete streams, missing finish reasons and malformed tool calls fail.
+  Response bodies are bounded to 16 MiB and SSE line buffers to 1 MiB. Upstream
+  error bodies and remote identifiers are not copied into public diagnostics.
 
-The three changed code/test files are `session.rs`, `acp_lifecycle.rs`, and
-`lifecycle-agent.mjs`. The fixtures use no credentials, tools, network requests,
-or real models. These checks do not prove independent DSH buildability, actual
-DSH-to-Worker execution, persistence/resume, or production acceptance.
+## Tool authorization is not a sandbox
 
-The public snapshot does not include issue #2's local Client/community commits
-`7a5a03f` or `87c0045` (GitHub commit lookups returned 422). It is therefore an
-earlier dispatch base, not the latest unpublished interface integration.
+The production entrypoint installs **no built-in tools**. ACP can supply MCP
+servers; their tool authorization must be reviewed separately. `--approval ask`
+is not a blanket permission gate for every MCP tool and is not an OS sandbox.
+Process groups and workspace locks do not isolate untrusted code or networks.
+Do not treat a selected directory, a connected Worker, or advertised capability
+as permission to access other resources.
 
-Verified in a private cloud workspace using Rust 1.99.1 and Node 24.22.1:
-`cargo test -p pero-runtime -p pero-worker` passed 16 runtime tests, 6 Worker unit
-tests, and 6 Worker subprocess/HTTP fixture tests. Only the verification workspace
-removed the unused `pero-host`/`pero-ui` workspace members because its GPUI source
-dependency is not present. Cargo pruned unused lock entries; all retained package
-names, versions, and sources matched the public lock (no upgrades). This is a
-focused headless test result, not a full repository build. The deliverable does
-not modify the upstream workspace manifest or lockfile.
+Unattended Worker ACP permission requests are denied. Permission verification
+uses a separate **test-only Go assembly** registering one guarded no-op tool with
+the real harness/ACP server; it does not add a fixture switch or tool to the
+production entrypoint.
 
-`node --check` and `git diff --check` passed. Clippy completed with four existing
-`collapsible_if` warnings in runtime model selection and Worker code; strict
-`-D warnings` is therefore not a pass. No unrelated lint refactor is included.
+## Verification
 
-Official protocol references:
+Focused Rust runtime/Worker tests passed (28 tests), including protocol-version
+rejection and DSH-compatible text/tool/permission messages. The headless Rust
+verification workspace excluded unrelated Host/UI members; it retained pinned
+dependency versions. This is not a full UI/workspace build. Clippy still reports
+four pre-existing `collapsible_if` warnings; strict `-D warnings` is not a pass.
+
+The extracted provider/config/media slice passed 42 focused Go race tests and
+`go vet`. HTTP tests use local stubs and fake credentials, never real providers.
+
+The real-binary Worker suite is `tests/runtime/go-acp-worker.mjs`. It runs the
+actual Rust Worker and Go ACP executable against a loopback HTTP model fixture
+and a contract-level Cloud fixture. It checks success, cancellation/late results,
+Agent process failure, completion receipt retry without re-execution,
+interrupted-claim reconciliation, and lease-loss cleanup. Permission refusal is
+tested with the separate guarded-tool Go assembly described above. The suite
+records the exact executable hashes in its result; use that record rather than
+assuming a rebuilt binary was already tested. The final verification completed
+**8/8 scenarios successfully**, including rejection of a late success receipt
+followed by reconciliation, and guarded-tool permission denial without execution.
+
+Verified SHA-256 identities:
+- Production Go ACP: `5ee6785ce37a56818843ba71af45b9d249df2ff9538c1ea2c556d62a5cc338d3`
+- Rust Worker: `9a071a14d7d7d637ebe2b24cc8dc813218cb03ae0147dadd9ec5d558d27e5c1c`
+
+The Rust runtime/Worker/contracts source used for these checks was also compared
+with master `a81af1f00551bbb65747840a773310b32d6fa98a`: the underlying source files
+were unchanged from the captured integration base, apart from this change's
+explicit ACP protocol guard and test additions.
+
+These checks do **not** establish real-model acceptance, PostgreSQL dispatch
+authorization/acceptance, production MCP policy, deployed Linux acceptance,
+untrusted-code isolation, account/OAuth integration or deployment. No model
+credentials or real-model request are required or used.
+
+Protocol references:
 - https://agentclientprotocol.com/protocol/v1/initialization
 - https://agentclientprotocol.com/protocol/v1/session-setup

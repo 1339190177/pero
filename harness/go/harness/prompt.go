@@ -1,0 +1,181 @@
+package harness
+
+import (
+	"context"
+	"errors"
+	"sort"
+	"strings"
+	"sync"
+
+	point "github.com/phodal/pero/harness/go/runtime"
+)
+
+// PromptPresentation binds instructions and dynamic context from one assembly.
+type PromptPresentation struct {
+	System                string
+	RuntimeContext        *RuntimeContextSnapshot
+	RefreshRuntimeContext func(context.Context) (*RuntimeContextSnapshot, error)
+	Release               func(context.Context) error
+}
+
+type PromptSection struct {
+	ID      string
+	Order   int
+	Content func(context.Context, *Agent) (string, error)
+	// Presentation is an alternative to Content for providers of dynamic context.
+	Presentation func(context.Context, *Agent) (PromptPresentation, error)
+}
+
+type promptEntry struct {
+	id      uint64
+	section PromptSection
+	scope   *point.Scope
+}
+
+type PromptRegistry struct {
+	mu      sync.RWMutex
+	nextID  uint64
+	entries []promptEntry
+}
+
+func NewPromptRegistry() *PromptRegistry { return &PromptRegistry{} }
+
+func (r *PromptRegistry) Register(run *point.Run, section PromptSection) (point.Dispose, error) {
+	if run == nil || !run.Active() {
+		return nil, point.ErrInactiveRun
+	}
+	if section.ID == "" || (section.Content == nil) == (section.Presentation == nil) {
+		return nil, errors.New("harness: prompt section requires id and exactly one content provider")
+	}
+	r.mu.Lock()
+	for _, entry := range r.entries {
+		if entry.section.ID == section.ID {
+			r.mu.Unlock()
+			return nil, errors.New("harness: prompt section already registered: " + section.ID)
+		}
+	}
+	r.nextID++
+	entry := promptEntry{id: r.nextID, section: section, scope: run.Scope}
+	r.entries = append(r.entries, entry)
+	r.mu.Unlock()
+
+	var once sync.Once
+	dispose := point.Dispose(func(context.Context) error {
+		once.Do(func() {
+			r.mu.Lock()
+			for index := range r.entries {
+				if r.entries[index].id == entry.id {
+					r.entries = append(r.entries[:index], r.entries[index+1:]...)
+					break
+				}
+			}
+			r.mu.Unlock()
+		})
+		return nil
+	})
+	if err := run.Defer("prompt:"+section.ID, dispose); err != nil {
+		_ = dispose(context.Background())
+		return nil, err
+	}
+	return dispose, nil
+}
+
+func (r *PromptRegistry) Assemble(ctx context.Context, agent *Agent) (string, error) {
+	value, err := r.AssemblePresentation(ctx, agent)
+	if value.Release != nil {
+		err = errors.Join(err, value.Release(context.WithoutCancel(ctx)))
+	}
+	return value.System, err
+}
+
+func (r *PromptRegistry) AssemblePresentation(ctx context.Context, agent *Agent) (PromptPresentation, error) {
+	r.mu.RLock()
+	entries := append([]promptEntry(nil), r.entries...)
+	r.mu.RUnlock()
+	sort.SliceStable(entries, func(left, right int) bool {
+		if entries[left].section.Order != entries[right].section.Order {
+			return entries[left].section.Order < entries[right].section.Order
+		}
+		return entries[left].id < entries[right].id
+	})
+	sections := make([]string, 0, len(entries))
+	var runtime *RuntimeContextSnapshot
+	var runtimeTexts []string
+	var providers []PromptPresentation
+	release := func(ctx context.Context) error {
+		var errs []error
+		for _, p := range providers {
+			if p.Release != nil {
+				errs = append(errs, p.Release(ctx))
+			}
+		}
+		return errors.Join(errs...)
+	}
+	for _, entry := range entries {
+		if !entry.scope.Contains(agent.Scope()) {
+			continue
+		}
+		var content string
+		var err error
+		if entry.section.Presentation != nil {
+			var value PromptPresentation
+			value, err = entry.section.Presentation(ctx, agent)
+			providers = append(providers, value)
+			content = value.System
+			if value.RuntimeContext != nil {
+				if runtime == nil {
+					runtime = &RuntimeContextSnapshot{}
+				}
+				runtime.Sections = append(runtime.Sections, value.RuntimeContext.Sections...)
+				if value.RuntimeContext.Text != "" {
+					runtimeTexts = append(runtimeTexts, value.RuntimeContext.Text)
+				}
+			}
+		} else {
+			content, err = entry.section.Content(ctx, agent)
+		}
+		if err != nil {
+			return PromptPresentation{}, errors.Join(err, release(context.WithoutCancel(ctx)))
+		}
+		if content = strings.TrimSpace(content); content != "" {
+			sections = append(sections, content)
+		}
+	}
+	if runtime != nil {
+		runtime.Text = strings.Join(runtimeTexts, "\n\n")
+	}
+	value := PromptPresentation{System: strings.Join(sections, "\n\n"), RuntimeContext: runtime, Release: release}
+	for _, provider := range providers {
+		if provider.RefreshRuntimeContext != nil {
+			value.RefreshRuntimeContext = func(ctx context.Context) (*RuntimeContextSnapshot, error) {
+				var result *RuntimeContextSnapshot
+				var texts []string
+				for _, p := range providers {
+					current := p.RuntimeContext
+					if p.RefreshRuntimeContext != nil {
+						var err error
+						current, err = p.RefreshRuntimeContext(ctx)
+						if err != nil {
+							return nil, err
+						}
+					}
+					if current != nil {
+						if result == nil {
+							result = &RuntimeContextSnapshot{}
+						}
+						result.Sections = append(result.Sections, current.Sections...)
+						if current.Text != "" {
+							texts = append(texts, current.Text)
+						}
+					}
+				}
+				if result != nil {
+					result.Text = strings.Join(texts, "\n\n")
+				}
+				return result, nil
+			}
+			break
+		}
+	}
+	return value, nil
+}

@@ -1,0 +1,109 @@
+{
+  "source_repository": "phodal/point",
+  "source_commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "source_directory": "go/harness/media",
+  "source_files": [
+    {
+      "path": "go/harness/media/DEEPSEEK_IMAGE_LICENSE.txt",
+      "sha": "c1f7a78e89e4e4dc7b86664c3b3c76eb5eee1785",
+      "name": "DEEPSEEK_IMAGE_LICENSE.txt"
+    },
+    {
+      "path": "go/harness/media/attachment.go",
+      "sha": "0fe4491cad496abc948dfc4ce161790a11015da2",
+      "name": "attachment.go"
+    },
+    {
+      "path": "go/harness/media/file_attachment.go",
+      "sha": "b706bfd02275da2dca25cccc147c514a46b929cc",
+      "name": "file_attachment.go"
+    },
+    {
+      "path": "go/harness/media/file_attachment_cleanup_test.go",
+      "sha": "8525f8d944c889a73409650aeeeaae67e0743951",
+      "name": "file_attachment_cleanup_test.go"
+    },
+    {
+      "path": "go/harness/media/file_attachment_test.go",
+      "sha": "77abfce5a8f2104182d402366c974dc92d13e916",
+      "name": "file_attachment_test.go"
+    },
+    {
+      "path": "go/harness/media/file_projection.go",
+      "sha": "398ce1100d5af5fde286dbaa07006ac240b54382",
+      "name": "file_projection.go"
+    },
+    {
+      "path": "go/harness/media/image_access.go",
+      "sha": "ab612d7eaf35eaa8f4e876a5222517368399d9c7",
+      "name": "image_access.go"
+    },
+    {
+      "path": "go/harness/media/image_codec_process_linux_test.go",
+      "sha": "8a7f216f862cabc524cd522dd2cf4d17c71a20bd",
+      "name": "image_codec_process_linux_test.go"
+    },
+    {
+      "path": "go/harness/media/image_codec_process_unix.go",
+      "sha": "2e8e10d696ba634d3410a07be377e960f999b572",
+      "name": "image_codec_process_unix.go"
+    },
+    {
+      "path": "go/harness/media/image_codec_process_windows.go",
+      "sha": "18094794cf01d2b247e680e8dc54d9bdac92c92d",
+      "name": "image_codec_process_windows.go"
+    },
+    {
+      "path": "go/harness/media/image_facts.go",
+      "sha": "651d39b21df0a7c40bef44f830f41bd09c692417",
+      "name": "image_facts.go"
+    },
+    {
+      "path": "go/harness/media/image_normalization.go",
+      "sha": "b3886c7771271afca9723aaebc8162b724b4ea59",
+      "name": "image_normalization.go"
+    },
+    {
+      "path": "go/harness/media/image_normalization_test.go",
+      "sha": "d8802395cd9d89c367116a761f489c41a8819618",
+      "name": "image_normalization_test.go"
+    },
+    {
+      "path": "go/harness/media/image_projection.go",
+      "sha": "3e8f6b73bdaa25307a517dcd67d69f8f9a03413f",
+      "name": "image_projection.go"
+    },
+    {
+      "path": "go/harness/media/image_projection_test.go",
+      "sha": "97d3ffeaa6355d6c98d468ea8ce7b02ac4bfd84b",
+      "name": "image_projection_test.go"
+    },
+    {
+      "path": "go/harness/media/official_image_codec.go",
+      "sha": "3f4715dcedfc5f0017955f9f3fb4eb873b0faa0b",
+      "name": "official_image_codec.go"
+    },
+    {
+      "path": "go/harness/media/official_image_codec.mjs",
+      "sha": "b8ab51a19849207c086eb2c82fb4fc17bc015d57",
+      "name": "official_image_codec.mjs"
+    },
+    {
+      "path": "go/harness/media/request_image.go",
+      "sha": "2b8e601bee296f68d4b9a2e8db1daab2482e92c9",
+      "name": "request_image.go"
+    },
+    {
+      "path": "go/harness/media/request_image_test.go",
+      "sha": "d7305a4cad4298c71a481b35c15004d49e085371",
+      "name": "request_image_test.go"
+    },
+    {
+      "path": "go/harness/media/test_helpers_test.go",
+      "sha": "2ebb1034d6e0feee42fd368994ca8a0975a524bb",
+      "name": "test_helpers_test.go"
+    }
+  ],
+  "adaptation": "Import remap to local model. Codec deployment is explicit and optional; no media enabled by text-only provider.",
+  "new_files": []
+}

@@ -1,0 +1,41 @@
+{
+  "source_repository": "phodal/point",
+  "source_commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "source_directory": "go/harness/providers/openai",
+  "source_files": [
+    {
+      "path": "go/harness/providers/openai/DEEPSEEK_LICENSE.txt",
+      "sha": "c1f7a78e89e4e4dc7b86664c3b3c76eb5eee1785",
+      "name": "DEEPSEEK_LICENSE.txt"
+    },
+    {
+      "path": "go/harness/providers/openai/adapter.go",
+      "sha": "d42f1d7b31d25bfb66b36d91f36ff39614d4477b",
+      "name": "adapter.go"
+    },
+    {
+      "path": "go/harness/providers/openai/generate.go",
+      "sha": "dc8bf2d68a6081fc71614aa0e9c4816d06025e8e",
+      "name": "generate.go"
+    },
+    {
+      "path": "go/harness/providers/openai/provider_errors.go",
+      "sha": "2ee26a82737ebd42a12c28762e7c9839f5ed9f24",
+      "name": "provider_errors.go"
+    },
+    {
+      "path": "go/harness/providers/openai/request_encode.go",
+      "sha": "a963910496d0674e66eb25781a2762198071c385",
+      "name": "request_encode.go"
+    },
+    {
+      "path": "go/harness/providers/openai/stream.go",
+      "sha": "d4757179e0bd12a307c20154af82f47470164904",
+      "name": "stream.go"
+    }
+  ],
+  "adaptation": "Subset: stream assembly/framing and error taxonomy from pinned source; new explicit text-only constructor and request encoder. Removed defaults, identity, session-log uploads, Files API, dynamic settings.",
+  "new_files": [
+    "adapter_test.go"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "source_repository": "phodal/point",
+  "source_commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "source_directory": "go/harness/config",
+  "source_files": [
+    {
+      "name": "credentials.go",
+      "path": "go/harness/config/credentials.go",
+      "sha": "538105fb98b7f419b5f576d94e99f64fd5e88ed0"
+    },
+    {
+      "name": "credentials_file.go",
+      "path": "go/harness/config/credentials_file.go",
+      "sha": "25ad0436d2b2d5b37795e17dc40541d65b97507c"
+    },
+    {
+      "name": "errors.go",
+      "path": "go/harness/config/errors.go",
+      "sha": "b0d48c3ce25651b9556c9c177032c32f46bcd1b3"
+    },
+    {
+      "name": "keys.go",
+      "path": "go/harness/config/keys.go",
+      "sha": "f265574bb5ffb69d30d34ff5c5efa3cb7dec872c"
+    },
+    {
+      "name": "launch_environment.go",
+      "path": "go/harness/config/launch_environment.go",
+      "sha": "18db1d51f734f38cc6f552a40922c9ca4ce2457a"
+    },
+    {
+      "name": "outbound_proxy.go",
+      "path": "go/harness/config/outbound_proxy.go",
+      "sha": "22c68e0b43f1383c494772209a75d937f05d845a"
+    },
+    {
+      "name": "settings.go",
+      "path": "go/harness/config/settings.go",
+      "sha": "f06d903368040abd89221097c65a5f50742a0771"
+    },
+    {
+      "name": "settings_external.go",
+      "path": "go/harness/config/settings_external.go",
+      "sha": "c49c256ba174b522ce85ee28c14507610c9a9fc7"
+    },
+    {
+      "name": "settings_file.go",
+      "path": "go/harness/config/settings_file.go",
+      "sha": "83373039a06bdf4b5d75c3a9de5f5ea740472318"
+    },
+    {
+      "name": "settings_redact.go",
+      "path": "go/harness/config/settings_redact.go",
+      "sha": "f146751eb757c2ac43a10d1da07def20fd86b694"
+    },
+    {
+      "name": "settings_watch.go",
+      "path": "go/harness/config/settings_watch.go",
+      "sha": "48e11794417b2bf8385e47e6e4c8fc4638a3cbc7"
+    }
+  ],
+  "adaptation": "Import remap to local runtime/llm; explicit environment home mandatory; renamed settings temp file prefix.",
+  "new_files": [
+    "explicit_environment_test.go"
+  ]
+}

@@ -1,0 +1,76 @@
+# Headless Go agent harness
+
+Independent Go module `github.com/phodal/pero/harness/go` (Go 1.25+).
+The native DSH-derived agent loop, durable sessions, provider routing and ACP
+stdio server are reused; this is not the Point application with its UI disabled.
+
+## Build and run
+
+```sh
+cd harness/go
+go test -count=1 ./...
+go test -race -count=1 ./...
+go vet ./...
+go build -o pero-agent-acp ./cmd/pero-agent-acp
+AGENT_PROVIDER_API_KEY='...' ./pero-agent-acp \
+  --endpoint https://YOUR-PROVIDER/v1 --model YOUR-MODEL \
+  --session-dir /private/path/to/sessions
+```
+
+No endpoint, model or credential is discovered from Point settings or accounts.
+Credentials are read only from the named environment variable (`--api-key-env`),
+not a CLI secret argument. The selected variable is cleared from this process
+after reading so MCP children do not inherit it. The explicit endpoint must be HTTPS (loopback HTTP is
+permitted for local protocol tests). Stdout is ACP NDJSON only; diagnostics use
+stderr. Session files contain prompts, tool results and model output: use a
+private directory, and define your own retention policy.
+
+This module is **not yet part of the existing Bazel pilot**. These native Go
+checks do not establish Bazel validation and do not change the server module's
+Go version or dependency versions.
+
+## ACP and authority boundary
+
+The executable supports ACP v1 initialize, new/load/resume/list/close sessions,
+prompt and cancel. Resume does not replay history; load does. Model selection is
+fixed by launch configuration: `configOptions` is empty, and clients must not
+request model selection through ACP. The current provider is explicitly
+text-only; image, audio, embedded contexts and provider extensions are not
+silently coerced into text. Unsupported inputs fail closed.
+
+No filesystem, shell, web, skills or subagent tools are registered by default.
+An ACP client can explicitly supply MCP stdio/HTTP servers in `session/new`.
+That client is trusted: MCP stdio starts the supplied executable, inherits the
+process environment with configured additions, and HTTP reaches the supplied
+URL. `cwd` is a working directory, **not a sandbox**. Do not accept MCP server
+configuration from an untrusted caller or expose this stdio process as a public
+service. Deploy process/container and network isolation separately.
+
+`--approval never` is the default; tools marked `RequiresApproval` are rejected.
+`--approval ask` asks the ACP client for allow-once/reject-once decisions. This
+policy is **not a universal tool sandbox**: upstream MCP tools are not marked
+`RequiresApproval` and an explicit MCP server grant authorizes their calls.
+The CLI does not install such servers on its own. Permission rejection is tested
+against a test-only, side-effect-free registered tool, not a production fixture
+flag.
+
+## Preserved execution and deliberate exclusions
+
+The actual loop retains tool continuation, schema validation, tool result
+projection, cancellation, retry, lifecycle/generation safety, persistence,
+compaction primitives, and durable inbox processing. ACP receives committed
+assistant output; it is not currently a token-by-token SSE passthrough.
+
+Absent: Point Projects/Hub/Pages, web/desktop UI, accountsync, product prompts,
+telemetry, workflows/jobs/schedules, subagent orchestration, plugin/skill/default
+coding assembly, automatic file upload, and Point memory/context policies.
+Generic generation-owner and compaction seams remain because the reused tool
+and cancellation lifecycle depends on them; no Point product is mounted.
+
+The module is split into `model`, `llm`, `runtime`, `session`, `harness`, `acp`,
+`providers/openai` and supporting packages. `SOURCE.json` records core extraction
+provenance and changes; foundation/provider packages have their own manifests.
+Source reuse was authorized by the repository owner. Applicable third-party
+notices are retained with their packages. This extraction does **not** assign an
+MIT (or other blanket) license to the entire module; remaining source licensing
+must be decided by its owner.
