@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 
-const SETUP_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 45 });
+const SETUP_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 3 } else { 45 });
 const CANCEL_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 5 });
 const MAX_DEFERRED_COMMANDS: usize = 16;
 

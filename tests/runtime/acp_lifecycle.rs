@@ -477,3 +477,14 @@ fn mcp_malformed_operator_json_is_rejected_without_secret_details() {
         assert!(!error.to_string().contains("fixture-header-secret"));
     }
 }
+
+#[test]
+fn initialization_timeout_remains_bounded() {
+    let started = Instant::now();
+    let (_handle, rx) = launch("initialization_hangs", None);
+    let error = until(&rx, "session_error");
+    assert!(error.text.contains("Agent initialization timed out"));
+    until(&rx, "session_closed");
+    assert!(started.elapsed() >= SETUP_TIMEOUT);
+    assert!(started.elapsed() < Duration::from_secs(5));
+}
