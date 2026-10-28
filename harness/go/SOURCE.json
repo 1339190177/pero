@@ -19,7 +19,8 @@
     "Optional explicit provider request/output/retry/reasoning budgets for bounded smoke tests; defaults retained.",
     "Explicit --use-env-proxy opt-in uses existing HTTP(S) proxy configuration; default direct transport and TLS verification unchanged.",
     "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged.",
-    "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain."
+    "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain.",
+    "ACP resume/load interprets latest supported controller receipt and requires client MCP presence when recorded; malformed/unknown receipts fail explicitly. No configuration-equivalence or secret persistence is introduced."
   ],
   "excluded_features": [
     "Projects",
@@ -738,7 +739,7 @@
     },
     {
       "destination": "acp/extraction_test.go",
-      "sha256": "5e862329e57a517bef7712e335cdb85b1cb084557a6eaf66448a63ffb04031be",
+      "sha256": "5d4d67f01c14f4f0cf000ede3fe325bd3c86c4cf0221f74448baf125b20ab4b1",
       "change": "new extraction glue or regression test"
     },
     {
@@ -750,7 +751,7 @@
     },
     {
       "destination": "acp/server.go",
-      "sha256": "6cd1b2e59d3d6ae4264fa773a4315e1d418f4e64a3bd617582c61a651fda20ac",
+      "sha256": "28a607733442d961eb283b0715226f195cdaf9017239057b8f1d6eaf7890dbbd",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
       "change": "adapted; review pinned source diff"

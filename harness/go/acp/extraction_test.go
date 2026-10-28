@@ -2,6 +2,7 @@ package acp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -247,5 +248,86 @@ func TestWorkingDirectoryValidatorIsOptional(t *testing.T) {
 	}
 	if err = s.checkWorkingDirectory("relative"); err == nil {
 		t.Fatal("relative cwd admitted")
+	}
+}
+
+func TestMCPResumeRequirementReceiptContract(t *testing.T) {
+	event := func(raw string) harness.Event {
+		return harness.Event{Type: "session/acp-controller", Data: json.RawMessage(raw)}
+	}
+	for _, test := range []struct {
+		name                string
+		events              []harness.Event
+		supplied, wantError bool
+	}{
+		{"legacy", nil, false, false},
+		{"not-required", []harness.Event{event(`{"version":1,"requiresClientMCP":false}`)}, false, false},
+		{"required-missing", []harness.Event{event(`{"version":1,"requiresClientMCP":true}`)}, false, true},
+		{"required-provided", []harness.Event{event(`{"version":1,"requiresClientMCP":true}`)}, true, false},
+		{"latest-receipt", []harness.Event{event(`{"version":1,"requiresClientMCP":true}`), event(`{"version":1,"requiresClientMCP":false}`)}, false, false},
+		{"unknown-version", []harness.Event{event(`{"version":2,"requiresClientMCP":false}`)}, true, true},
+		{"missing-boolean", []harness.Event{event(`{"version":1}`)}, true, true},
+		{"malformed", []harness.Event{event(`not-json`)}, true, true},
+		{"unreadable-latest-not-fallback", []harness.Event{event(`{"version":1,"requiresClientMCP":false}`), event(`{"version":2,"requiresClientMCP":false}`)}, true, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := checkMCPResumeRequirements(test.events, test.supplied)
+			if (err != nil) != test.wantError {
+				t.Fatalf("error=%v wantError=%v", err, test.wantError)
+			}
+		})
+	}
+}
+
+func TestMissingMCPResumeRejectedBeforeRepairOrControllerWrite(t *testing.T) {
+	ctx := t.Context()
+	cwd := t.TempDir()
+	h, err := harness.Boot(ctx, harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()) }()
+	p, err := harness.NewJSONLSessionPersistence(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := harness.NewSession("mcp-dependent", cwd)
+	if _, err = original.Append("session/acp-controller", map[string]any{"version": 1, "requiresClientMCP": true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = original.Append("turn/start", map[string]int{"turn": 1}); err != nil {
+		t.Fatal(err)
+	}
+	detach, err := p.Attach(ctx, original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = detach(); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := json.Marshal(original.Events())
+	s, err := NewServer(Options{Harness: h, Persistence: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, method := range []string{"session/resume", "session/load"} {
+		raw, _ := json.Marshal(ResumeSessionParams{SessionID: string(original.Header().ID), CWD: cwd})
+		_, failure := s.handle(ctx, request{Method: method, Params: raw})
+		if failure == nil || failure.Code != -32602 || !strings.Contains(failure.Message, "requires client-provided MCP") {
+			t.Fatalf("%s: %+v", method, failure)
+		}
+	}
+	// A nonempty list passes this presence guard, not validation of its contents.
+	err = s.resumeSession(ctx, ResumeSessionParams{SessionID: string(original.Header().ID), CWD: cwd, MCPServers: []json.RawMessage{json.RawMessage(`{"type":"unsupported","name":"fixture"}`)}})
+	if err == nil || !strings.Contains(err.Error(), "mcpServers") {
+		t.Fatalf("provided configuration was not validated: %v", err)
+	}
+	after, err := p.Load(ctx, original.Header().ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(after.Events())
+	if !bytes.Equal(before, encoded) || len(h.Agents().List()) != 0 || len(s.sessions) != 0 || len(s.activating) != 0 {
+		t.Fatal("rejected resume mutated persisted events, repaired turn, or activated an agent")
 	}
 }

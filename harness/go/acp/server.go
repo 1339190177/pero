@@ -636,6 +636,9 @@ func (s *Server) resumeSession(ctx context.Context, params ResumeSessionParams) 
 	if !sameDirectory(session.Header().CWD, params.CWD) {
 		return invalidError("session cwd does not match: " + params.CWD)
 	}
+	if err := checkMCPResumeRequirements(session.Events(), len(params.MCPServers) > 0); err != nil {
+		return err
+	}
 	servers, err := decodeMCPServers(params.MCPServers, params.CWD)
 	if err != nil {
 		return err
@@ -661,6 +664,29 @@ func (s *Server) resumeSession(ctx context.Context, params ResumeSessionParams) 
 		return err
 	}
 	return nil
+}
+
+// checkMCPResumeRequirements interprets only the latest controller receipt.
+// Presence is not configuration equivalence: current ACP callers still own the
+// explicitly supplied server configuration. No endpoints or secrets are stored.
+func checkMCPResumeRequirements(events []harness.Event, supplied bool) error {
+	for index := len(events) - 1; index >= 0; index-- {
+		if events[index].Type != "session/acp-controller" {
+			continue
+		}
+		var receipt struct {
+			Version           *int  `json:"version"`
+			RequiresClientMCP *bool `json:"requiresClientMCP"`
+		}
+		if err := json.Unmarshal(events[index].Data, &receipt); err != nil || receipt.Version == nil || *receipt.Version != 1 || receipt.RequiresClientMCP == nil {
+			return invalidError("session ACP controller requirements are unreadable or unsupported; resume refused")
+		}
+		if *receipt.RequiresClientMCP && !supplied {
+			return invalidError("session requires client-provided MCP servers; resend mcpServers to resume")
+		}
+		return nil
+	}
+	return nil // Sessions predating controller receipts retain their existing contract.
 }
 
 func (s *Server) requestApproval(ctx context.Context, request harness.ApprovalRequest) (harness.ApprovalOutcome, error) {
