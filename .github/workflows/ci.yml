@@ -28,6 +28,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # web/src/wasm/ 是构建产物（已被 gitignore），由 wasm-bindgen 生成，需要 nightly 和 wasm 工具链。
+      # 类型检查只需要声明，这里写一个最小桩，签名与 web/src/bootstrap.ts 的用法一致。
+      - name: 为 tsc 生成 wasm 类型桩
+        run: |
+          mkdir -p web/src/wasm
+          cat > web/src/wasm/pero_ui.d.ts <<'EOF2'
+          export default function init(): Promise<unknown>;
+          export function run(themes: string, dark: boolean, locale: string): void;
+          export function receive_host_event(event: string): void;
+          export function snapshot(): string;
+          EOF2
       # tsc --noEmit、theme/locales/contracts 的 --check
       - run: npm run check
 
