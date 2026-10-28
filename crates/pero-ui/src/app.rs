@@ -245,6 +245,7 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
         .with_assets(crate::assets::UiAssets)
         .with_http_client(http)
         .run_embedded(move |cx| {
+            // Catalog glyphs are bundled; arbitrary CJK text uses the canvas fallback above.
             cx.text_system()
                 .add_fonts(vec![
                     Cow::Borrowed(
@@ -258,14 +259,7 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
                         include_bytes!("../../../web/public/fonts/Workbench-bold.ttf").as_slice(),
                     ),
                     Cow::Borrowed(
-                        include_bytes!("../../../web/public/fonts/NotoSansSC-Bold.ttf").as_slice(),
-                    ),
-                    Cow::Borrowed(
                         include_bytes!("../../../web/public/fonts/IBMPlexSans-Regular.ttf")
-                            .as_slice(),
-                    ),
-                    Cow::Borrowed(
-                        include_bytes!("../../../web/public/fonts/NotoSansSC-Regular.ttf")
                             .as_slice(),
                     ),
                     Cow::Borrowed(

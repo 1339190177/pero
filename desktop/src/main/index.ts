@@ -119,8 +119,9 @@ app.whenReady().then(async () => {
   runtimeSettingsPath = process.env.PERO_SETTINGS_PATH || resolve(app.getPath('userData'), 'runtime-settings.json');
   // Local Agents must not inherit the Desktop's cloud operator/database credentials.
   const hostEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PERO_')));
-  host = spawn(resolve(root, 'target/debug/pero-host'), ['--stdio'], { cwd: root, stdio: 'pipe', env: {
-    ...hostEnvironment, PATH: [resolve(root,'node_modules/.bin'),process.env.PATH,resolve(app.getPath('home'),'.opencode/bin'),'/opt/homebrew/bin',resolve(app.getPath('home'),'.local/bin')].filter(Boolean).join(':'), PERO_LOCALE: locale,
+  host = spawn(resolve(root, app.isPackaged ? 'bin/pero-host' : 'target/debug/pero-host'), ['--stdio'], { cwd: app.isPackaged ? app.getPath('home') : root, stdio: 'pipe', env: {
+    ...hostEnvironment, PATH: [resolve(root,'bin'),resolve(root,'node_modules/.bin'),process.env.PATH,resolve(app.getPath('home'),'.opencode/bin'),'/opt/homebrew/bin',resolve(app.getPath('home'),'.local/bin')].filter(Boolean).join(':'), PERO_LOCALE: locale,
+    PERO_AGENT_ROOT: root,
     ...(process.env.PERO_AGENTS_FILE ? { PERO_AGENTS_FILE: process.env.PERO_AGENTS_FILE } : {}),
     PERO_SETTINGS_PATH: runtimeSettingsPath,
     PERO_APPS_ROOT: process.env.PERO_APPS_ROOT || resolve(app.getPath('userData'), 'apps'),

@@ -3,17 +3,22 @@ import { resolve } from 'node:path';
 import { mkdir, writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 const root=resolve(import.meta.dirname,'../..');
-const out=resolve(root,'test-results/workbench');await mkdir(out,{recursive:true});
+const packaged=process.env.PERO_PACKAGED_EXECUTABLE;
+const out=resolve(root,packaged?'test-results/package/workbench':'test-results/workbench');await mkdir(out,{recursive:true});
 const temp=await mkdtemp(resolve(tmpdir(),'pero-session-'));
 const agents=resolve(temp,'agents.json');await writeFile(agents,JSON.stringify([{id:'fixture',name:'ACP test fixture',command:process.execPath,args:[resolve(root,'tests/fixtures/acp-agent.mjs')]}]));
 const env={...process.env,PERO_DESKTOP_DATA_DIR:resolve(temp,'profile'),PERO_LOCALE:'zh-CN',PERO_SETTINGS_PATH:resolve(temp,'settings.json'),PERO_HISTORY_PATH:resolve(temp,'sessions.jsonl'),PERO_AGENTS_FILE:agents};delete env.ELECTRON_RUN_AS_NODE;
-const app=await electron.launch({args:[resolve(root,'desktop')],cwd:root,env});
+// No real credentials in this fixture; macOS must not prompt for the user's keychain.
+const args=[...(process.platform==='darwin'?['--use-mock-keychain']:[]),...(packaged?[]:[resolve(root,'desktop')])];
+const app=await electron.launch({...(packaged?{executablePath:packaged}:{}),args,cwd:packaged?temp:root,env});
 const errors=[];
 try{
  const page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
  await page.waitForFunction(()=>window.peroDiagnostics,undefined,{timeout:60000});
  const state=()=>page.evaluate(()=>window.peroDiagnostics ? JSON.parse(window.peroDiagnostics.snapshot()) : {chats:[],agents:[],renderStats:[]});
  await expect.poll(async()=>(await state()).agents?.length||0,{timeout:15000}).toBeGreaterThan(2);
+ await page.waitForFunction(()=>!document.getElementById('loading'));
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.screenshot({path:resolve(out,'overview.png')});
  await page.mouse.click(74,307);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
