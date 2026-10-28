@@ -16,26 +16,38 @@ var (
 )
 
 type Spec struct {
-	Title        string  `json:"title"`
-	Prompt       string  `json:"prompt"`
-	Acceptance   string  `json:"acceptance"`
-	ProjectID    string  `json:"project_id"`
-	WorkspaceKey string  `json:"workspace_key"`
-	AgentID      string  `json:"agent_id"`
-	Source       *Source `json:"source,omitempty"`
+	Title        string   `json:"title"`
+	Prompt       string   `json:"prompt"`
+	Acceptance   string   `json:"acceptance"`
+	ProjectID    string   `json:"project_id"`
+	WorkspaceKey string   `json:"workspace_key"`
+	AgentID      string   `json:"agent_id"`
+	Source       *Source  `json:"source,omitempty"`
+	ParentTaskID string   `json:"parent_task_id,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 // Source records provider goal data, never an execution grant or acceptance.
 type Source struct {
-	Kind         string `json:"kind"`
-	Repository   string `json:"repository"`
-	IssueNumber  int64  `json:"issue_number"`
-	URL          string `json:"url"`
-	Revision     string `json:"revision"`
-	State        string `json:"state"`
-	UpdatedAt    string `json:"updated_at,omitempty"`
-	IssueID      string `json:"issue_id"`
-	RepositoryID string `json:"repository_id"`
+	Kind            string   `json:"kind"`
+	Repository      string   `json:"repository"`
+	IssueNumber     int64    `json:"issue_number,omitempty"`
+	URL             string   `json:"url"`
+	Revision        string   `json:"revision"`
+	State           string   `json:"state"`
+	UpdatedAt       string   `json:"updated_at,omitempty"`
+	IssueID         string   `json:"issue_id,omitempty"`
+	RepositoryID    string   `json:"repository_id"`
+	Path            string   `json:"path,omitempty"`
+	ItemID          string   `json:"item_id,omitempty"`
+	ParentItemID    string   `json:"parent_item_id,omitempty"`
+	Line            int      `json:"line,omitempty"`
+	Headings        []string `json:"headings,omitempty"`
+	Tags            []string `json:"tags,omitempty"`
+	CommitSHA       string   `json:"commit_sha,omitempty"`
+	BlobSHA         string   `json:"blob_sha,omitempty"`
+	Depth           int      `json:"depth,omitempty"`
+	MissingAtCommit string   `json:"missing_at_commit,omitempty"`
 }
 
 type TaskClaimant struct {
@@ -58,6 +70,8 @@ type TaskPage struct {
 	HasMore    bool    `json:"has_more"`
 	NextCursor *string `json:"next_cursor"`
 }
+
+type TaskFilter struct{ SourceKind, Tag string }
 
 type EventTail struct {
 	Events    []Event `json:"events"`

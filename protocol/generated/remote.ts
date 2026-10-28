@@ -40,17 +40,29 @@ export interface TaskSpec {
   workspace_key: Id;
   agent_id: Id;
   source?: Source;
+  parent_task_id?: string;
+  tags?: string[];
 }
 export interface Source {
-  kind: "github";
+  kind: "github" | "roadmap";
   repository: string;
-  issue_number: number;
+  issue_number?: number;
   url: string;
   revision: string;
-  state: "open" | "closed";
+  state: "open" | "closed" | "missing";
   updated_at?: string;
-  issue_id: string;
+  issue_id?: string;
   repository_id: string;
+  path?: string;
+  item_id?: string;
+  parent_item_id?: string;
+  line?: number;
+  depth?: number;
+  headings?: string[];
+  tags?: string[];
+  commit_sha?: string;
+  blob_sha?: string;
+  missing_at_commit?: string;
 }
 export interface Task {
   title: string;
@@ -60,6 +72,8 @@ export interface Task {
   workspace_key: Id;
   agent_id: Id;
   source?: Source;
+  parent_task_id?: string;
+  tags?: string[];
   id: Id;
   state: TaskStatus;
   current_run_id?: string;
@@ -74,6 +88,7 @@ export interface Task {
       }
     | string
     | Source
+    | string[]
     | TaskStatus
     | Run
     | null
@@ -123,6 +138,9 @@ export interface RemoteState {
   detail: Detail | null;
   identity?: Identity | null;
   github?: GitHubStatus | null;
+  connection?: RemoteConnection;
+  source_kind?: "" | "github" | "roadmap";
+  tag?: string;
 }
 export interface Detail {
   task: Task;
@@ -153,6 +171,13 @@ export interface GitHubRepositoryStatus {
   last_synced_at?: string;
   partial: boolean;
   error?: string;
+  roadmap_path?: string;
+}
+export interface RemoteConnection {
+  url: string;
+  mode: "client" | "operator";
+  credential_configured: boolean;
+  persistence_available: boolean;
 }
 export interface TaskPage {
   tasks: Task[];
@@ -180,6 +205,7 @@ export interface GitHubSyncResult {
   imported: number;
   updated: number;
   dispatched: number;
+  missing?: number;
   partial: boolean;
   errors: string[];
 }
