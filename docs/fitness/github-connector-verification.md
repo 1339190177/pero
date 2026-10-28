@@ -7,9 +7,9 @@ date: 2026-10-28
 
 Implementation: [ADR 0005](../adr/0005-github-roadmap-connector.md).
 The Go control plane, Desktop connector and official project-local Codex ACP
-dependency were merged into `master` and pushed through `954efc5` before the
-public-source acceptance run. Subsequent copy/report changes do not alter the
-ROADMAP content or task intake behavior.
+dependency were merged into `master` and pushed through `0aa1064` before the
+final public-source acceptance run from the main checkout. Subsequent report
+changes do not alter the ROADMAP content or task intake behavior.
 
 ## Public repository result
 
@@ -19,7 +19,7 @@ The service ran locally; this did not deploy openpero.com.
 
 | Observed source | Result |
 | --- | --- |
-| Default-branch commit | `954efc50e715b85f974b1534236b57097d556437` |
+| Default-branch commit | `0aa1064ec7281b2eb4954d5050753f1408d12b03` |
 | Selected path | `docs/ROADMAP.md`, using `auto` fallback |
 | ROADMAP checkbox Tasks | 411: 400 unchecked and 11 checked |
 | GitHub Issues, all states, excluding PRs | 2 |
@@ -66,6 +66,11 @@ Refresh coordinate. The screenshot showed the connection form rather than the
 task list; updating that target restored the existing 51-Task pagination and
 recovery assertions without changing them.
 
+Visual review also found long titles overflowing the narrow list. Explicit
+constrained title/metadata lines fixed both widths; the fixture suite and the
+post-push public run passed with screenshots inspected. See the resolved
+[Task-row incident](../issues/2026-10-28-roadmap-task-row-overflow.md).
+
 Store regressions also cover partial snapshots, ambiguous identities, frozen
 claimed/executed goals, current source tags, scoped cursors, parent/child order
 across page boundaries, queued cancellation and complete path replacement.
@@ -88,6 +93,6 @@ an explicit server-owned label policy.
 
 Existing worktree feature integration is recorded in
 [worktree-integration.md](worktree-integration.md). Rechecking source branch
-snapshots found no newer feature commits to merge. The main checkout's local
-`AGENTS.md` and subsequent README edits from another chat were preserved without
-including them in the connector commits.
+snapshots found no newer feature commits to merge. Independent chats committed
+AGENTS/README/reference updates to `master` during completion; these commits were
+retained. Remaining local `AGENTS.md` edits are outside the connector commits.
