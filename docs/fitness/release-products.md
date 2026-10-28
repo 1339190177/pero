@@ -5,6 +5,12 @@ date: 2026-10-29
 
 # Native release products
 
+A version-tag push dispatches this workflow on the default branch, and the
+build still checks out the exact supplied tag. This keeps release cache storage
+in a reusable branch scope: GitHub does not allow one tag to restore another
+tag's caches. Manual releases use `workflow_dispatch` on the default branch.
+See [GitHub cache scope](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
+
 The release matrix has four independent native jobs:
 
 | Product | Runner | Archive |

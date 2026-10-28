@@ -36,3 +36,8 @@ working pip. The font tool health check rejected it, but the setup path skipped
 venv creation solely because python.exe existed. Invalid tool environments now
 recreate their venv with `--clear` before installing pinned fontTools. A healthy
 cached environment continues to be reused.
+
+The initial tag-triggered retries could not restore each other's Cargo caches:
+GitHub isolates tag cache scopes. Future tag events now dispatch the native build
+on the default branch, while checkout and package metadata remain pinned to the
+tag. This avoids rebuilding the same dependencies for every new release tag.
