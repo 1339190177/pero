@@ -57,3 +57,8 @@ installer, matching local development setup. Failed jobs also retain their Rust
 cache so a later packaging failure does not require another cold compilation.
 The same immutable application tag is retried through workflow dispatch; no
 failed installer was published.
+
+The corrected macOS 15 job then remained queued while the repository's current
+macOS runners started normally. Release builds now use the documented Apple
+Silicon macOS 26 image, retaining the architecture, packaged service-origin,
+signature and launch checks.

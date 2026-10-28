@@ -24,8 +24,8 @@ defaults:
 
 jobs:
   macos-arm64:
-    # Standard macos-15 is the public Apple Silicon runner, not macos-15-arm64.
-    runs-on: macos-15
+    # Apple Silicon image; keep the explicit architecture guard below.
+    runs-on: macos-26
     timeout-minutes: 90
     permissions:
       contents: write
