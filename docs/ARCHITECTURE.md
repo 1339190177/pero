@@ -8,6 +8,12 @@ OpenPero 面向研究者、Agent 与计算环境，围绕 Project 组织上下�
 `protocol/` 保存版本化契约。以下较早的 Go daemon、React 和 `cloud/` 目录规划
 保留为背景，不作为并行实现另一套执行器的依据。
 
+本地 App 机制以 [ADR 0007](adr/0007-local-app-platform.md) 为准：Rust Host
+管理安装、启停与 Python 后端，GPUI 管理导航和面板区域，Web 层承载独立来源的
+HTML iframe。`apps/virtual-cell` 是首个接入实例，`packages/app-sdk` 提供 App
+的主题、语言、活动状态和本 App 后端接口。Task/Run、Agent 工具和远程 App 部署
+尚未与此机制连接。
+
 ## 目录结构
 
 当前仓库结构：
@@ -25,6 +31,8 @@ pero/
 ├── server/             # Go 控制面
 ├── protocol/           # TypeSpec 契约
 ├── harness/            # 自研 Agent 方向，目前只有 README
+├── apps/               # 独立 Web 面板与可选领域后端
+├── packages/app-sdk/   # Web App SDK 与共享控件
 ├── pages/              # 交互原型源码
 ├── locales/            # 工作台文案
 ├── tests/
@@ -92,7 +100,7 @@ Python 后端由 Host 监督，并按领域声明工作流依赖；数据分析�
 
 **Electron + Node.js + Chromium** 组合：主进程装配窗口、浏览器与本机服务，预加载桥接提供有界接口。Agent 和科研计算运行在 Go / Python 进程或获准 Worker 中，由执行端统一管理。
 
-工作台与 App 界面采用 JavaScript / TypeScript：React 工作台和 App SDK，复用组件、主题、国际化及宿主接口。Web 与 Desktop 展示同一任务和 Session 的状态，Desktop 额外提供本机执行入口。
+当前工作台采用 GPUI Wasm；App 界面采用独立 HTML / JavaScript / TypeScript，可使用 React。App SDK 提供主题、国际化和本 App 的后端接口，Web 面板不共享工作台的 Electron 桥接对象。Desktop 通过已有 Rust Host 提供本机执行入口。
 
 当前 Pero 原型采用原生 HTML / CSS / JavaScript，通过 `pages/scripts/build.mjs` 生成中英文页面。数值示例和导出在浏览器执行；GitHub、协作者、Agent 与远程执行仍为模拟，页面状态不等同于持久 Project 数据。
 

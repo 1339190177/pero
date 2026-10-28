@@ -1,5 +1,18 @@
 # Pero Desktop
 
+## Local Apps preview
+
+Run `npm run dev:apps` from the repository root to build Desktop and open
+Virtual Cell. The first build installs its pinned frontend dependencies when
+missing. Python 3 must be available; `PERO_APP_PYTHON` may select a trusted local
+interpreter. This preview uses `target/apps-preview`, separate from your normal
+Desktop profile. Close its window to stop the preview.
+
+The normal Desktop also includes **Apps**: open Virtual Cell, or install a
+built App directory and enable it. Disable stops its backend; removing an App
+retains its data. [App package contract](../apps/README.md) and
+[verification](../docs/fitness/apps.md) describe the supported scope.
+
 Electron loads the shared GPUI Web/WASM workbench. The isolated renderer has no
 Node.js access. A bounded preload bridge connects it to `pero-host --stdio`.
 The Rust Host uses the official ACP SDK to supervise one Agent process per live
