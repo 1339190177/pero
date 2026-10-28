@@ -105,5 +105,7 @@
     }
   ],
   "adaptation": "Import remap to local model. Codec deployment is explicit and optional; no media enabled by text-only provider.",
-  "new_files": []
+  "new_files": [],
+  "test_adaptation": "Linux cancellation test pins descendant identity with pidfd and waits at most one second for the kernel exit event before checking the existing terminal /proc states. Alive-process timeout negative control remains failure. Includes ESRCH as a disappeared /proc process. No production process lifecycle or signal behavior changed.",
+  "test_adaptation_sha256": "aa4c47167e70ca46f29db7a729ba6b10db00c55f053d0078a5125fae21f36b42"
 }

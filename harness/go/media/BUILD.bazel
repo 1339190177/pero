@@ -37,5 +37,15 @@ go_test(
         "test_helpers_test.go",
     ],
     embed = [":media"],
-    deps = ["//model"],
+    deps = [
+        "//model",
+    ] + select({
+        "@rules_go//go/platform:android": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:linux": [
+            "@org_golang_x_sys//unix",
+        ],
+        "//conditions:default": [],
+    }),
 )
