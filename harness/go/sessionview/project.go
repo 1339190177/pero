@@ -1,10 +1,10 @@
 // Package sessionview projects a native Point Session log into the event
 // vocabulary the DSH conversation renders, and serves it as windows.
 //
-// It is a port of go/harness/plugins/session-projection.mjs for the embedded
-// (current frontend) profile, kept behaviorally identical: the JavaScript module
-// remains the oracle and the conformance test compares both on the same logs.
-// The historical (non-embedded) profile is not ported.
+// It was ported from Point go/harness/plugins/session-projection.mjs for the
+// embedded profile. The original JavaScript oracle and conformance tests are
+// not included in this extraction; behavioral equivalence is not established
+// here. The historical (non-embedded) profile is not ported.
 package sessionview
 
 import (

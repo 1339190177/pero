@@ -31,7 +31,8 @@
     "Optional coding helpers mount explicit-root untrusted AGENTS.md context and session-backed todo_write only; plan-mode/user-question authorization remains excluded. Package-specific source pins preserved in agentinstructions/SOURCE.json and todos/SOURCE.json.",
     "Optional complete native subagent registry/lifecycle restored; one-level in-process spawn/fork reuse existing AgentManager/Session ownership. Effective child caps are restricted, request budgets shared, ApprovalNever pinned, and parent MCP grants may be inherited. The duplicate extracted callback helper is removed; original provenance is retained under removed_files.",
     "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
-    "Official DSH behavioral review restores ACP admission cancellation, bounded physical read windows, max-token tool suppression and explicit context-overflow classification; see upstream_behavior_review record."
+    "Official DSH behavioral review restores ACP admission cancellation, bounded physical read windows, max-token tool suppression and explicit context-overflow classification; see upstream_behavior_review record.",
+    "Existing-module behavioral review restores inherited common-loop/storage contracts, fail-closed JSONL tails, precise usage/settings conversion, MCP capability discovery and shell tails; CLI explicitly selects existing DSH todo options. See module_behavior_review; not full cross-language parity."
   ],
   "excluded_features": [
     "Projects",
@@ -315,7 +316,7 @@
     },
     {
       "destination": "harness/harness_test.go",
-      "sha256": "76ebbd875ee50aff33459a622371aa2be457cdb1d6a481d8453e2ec7b95ca52a",
+      "sha256": "90ffc5b95b188fd33959a868dbaebbc753f0f2affac4d56ba71643552e80f021",
       "source_path": "go/harness/harness_test.go",
       "source_blob_sha1": "7f67ef26b2670e560cf05f31786e22c45afa263a",
       "change": "adapted; review pinned source diff"
@@ -343,10 +344,10 @@
     },
     {
       "destination": "harness/loop.go",
-      "sha256": "d7f2a670ab1181d4f44896eb8acf92853d19084d4bb24b779f891815c119a7ae",
+      "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798",
       "source_path": "go/harness/loop.go",
       "source_blob_sha1": "dcdbdf357adbae796246ec0eded51cfa2e092484",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; enforce adapter-independent max-token tool suppression and sticky turn result"
     },
     {
       "destination": "harness/main_request.go",
@@ -876,17 +877,17 @@
     },
     {
       "destination": "mcp/resources_test.go",
-      "sha256": "f6461a08ec26c7815f7e15c6eb6a607c975a595b3d2b92b1f9fa763d1ddbff6b",
+      "sha256": "677fb1fc7b2a94f5aa4f848d6939bfcd07d922a7c301d275aa79ccf7553aefff",
       "source_path": "go/harness/mcp/resources_test.go",
       "source_blob_sha1": "28281bdc04e96062541d111373cad76503e77b6c",
       "change": "imports only"
     },
     {
       "destination": "mcp/tools.go",
-      "sha256": "afe5d0872c90e6905cf98380664d71c015961c1b29307543c188b0e22fe10cc6",
+      "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc",
       "source_path": "go/harness/mcp/tools.go",
       "source_blob_sha1": "a063b2a06878fc28b99809ae0f7b03220318d70e",
-      "change": "imports only"
+      "change": "imports adapted; honor advertised tools capability before discovery"
     },
     {
       "destination": "mcp/visibility_test.go",
@@ -897,7 +898,7 @@
     },
     {
       "destination": "storage/compatibility_test.go",
-      "sha256": "3c6abe960065531267cdd3e237f197a8649aaaa893537eb72b0c824de8ec3373",
+      "sha256": "9befd0e315b431b409adf54c1359a118c2687c63b83fb9d175ceeba25a1e0bb2",
       "source_path": "go/harness/storage/compatibility_test.go",
       "source_blob_sha1": "46f81138d7f326163704e00df16e52bf83097cc8",
       "change": "imports only"
@@ -918,10 +919,10 @@
     },
     {
       "destination": "storage/json_units.go",
-      "sha256": "9c4452e07761c75bffff87a0e18355edeb4a07fb339b74163c9bf775df9d10ca",
+      "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52",
       "source_path": "go/harness/storage/json_units.go",
       "source_blob_sha1": "20f51376f2af873fe9950bedd13799350735a551",
-      "change": "imports only"
+      "change": "imports adapted; retain empty declared table initialization state"
     },
     {
       "destination": "storage/namespace.go",
@@ -1002,10 +1003,10 @@
     },
     {
       "destination": "sessionview/project.go",
-      "sha256": "5cf9c4469cb032d77c3f63ad622d5cc7383117184db6b1f8cd8a935784a09fb9",
+      "sha256": "6218982ae3d5c5c3c28b5282c3b60599b1356001723a0a66581cf3a3cfc07555",
       "source_path": "go/harness/sessionview/project.go",
       "source_blob_sha1": "c70f0c5c2b1037a0475b927e5da52ca600aa9e6b",
-      "change": "imports only"
+      "change": "imports adapted; correct unavailable JS oracle documentation"
     },
     {
       "destination": "sessionview/project_events.go",
@@ -1095,7 +1096,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/coding.go",
-      "sha256": "908258fedc9b013b898b7f8394dfdb19daaf2e0cc51c65e9a7f2c4580ccdae89",
+      "sha256": "6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583",
       "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
     },
     {
@@ -1105,7 +1106,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-      "sha256": "dffd04559249e2e0e41ecf0af81e9f3a3617053b66108ae316d3ad23cff4482c",
+      "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc",
       "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
     },
     {
@@ -1136,7 +1137,7 @@
       },
       {
         "destination": "providers/openai/stream.go",
-        "sha256": "45811754216945638b505f77d0277d8c8a52a4da02e4eedbfc9257f28e36e996"
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
       },
       {
         "destination": "providers/openai/provider_errors.go",
@@ -1144,7 +1145,7 @@
       },
       {
         "destination": "providers/openai/adapter_test.go",
-        "sha256": "e6eb4e46b1ba4d68b7f2608d0b9619afd8fbfcf4cd2302feb2f3db384edb8fe9"
+        "sha256": "7188bb657680152f2e5c51e8be784c8204c0ac1bd9b2ee372b95474fd9ee13e5"
       },
       {
         "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
@@ -1152,7 +1153,81 @@
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-        "sha256": "dffd04559249e2e0e41ecf0af81e9f3a3617053b66108ae316d3ad23cff4482c"
+        "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc"
+      }
+    ]
+  },
+  "module_behavior_review": {
+    "official_commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-module-contracts.md",
+    "files": [
+      {
+        "destination": "cmd/pero-agent-acp/coding.go",
+        "sha256": "6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+        "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc"
+      },
+      {
+        "destination": "config/explicit_environment_test.go",
+        "sha256": "2341b3ba38b1a59a22c9c0e1fc3b50c3a255fb0133a9f9c45a1a1059746f0689"
+      },
+      {
+        "destination": "config/settings_json.go",
+        "sha256": "7dbfad51e9038823fe25acaa9192d1e1e736fb7c0fb42c27c2d897827d2bcec4"
+      },
+      {
+        "destination": "harness/harness_test.go",
+        "sha256": "90ffc5b95b188fd33959a868dbaebbc753f0f2affac4d56ba71643552e80f021"
+      },
+      {
+        "destination": "harness/loop.go",
+        "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798"
+      },
+      {
+        "destination": "mcp/resources_test.go",
+        "sha256": "677fb1fc7b2a94f5aa4f848d6939bfcd07d922a7c301d275aa79ccf7553aefff"
+      },
+      {
+        "destination": "mcp/tools.go",
+        "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc"
+      },
+      {
+        "destination": "nativetools/tools.go",
+        "sha256": "4b55fe981418607f4aa5236f0dff1cd5b4d635cffb47d33c8600faf89d234251"
+      },
+      {
+        "destination": "nativetools/tools_test.go",
+        "sha256": "abf5c5355d9e194665f437a973c6562befd8fe61ebf437587c0321bebf1b3b47"
+      },
+      {
+        "destination": "providers/openai/adapter_test.go",
+        "sha256": "7188bb657680152f2e5c51e8be784c8204c0ac1bd9b2ee372b95474fd9ee13e5"
+      },
+      {
+        "destination": "providers/openai/stream.go",
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
+      },
+      {
+        "destination": "session/persistence.go",
+        "sha256": "22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702"
+      },
+      {
+        "destination": "session/persistence_identity_test.go",
+        "sha256": "f50ca37b6a7855d2a6b3e62f20d70441a435826c04cc34ea06f531befb3dcc9b"
+      },
+      {
+        "destination": "sessionview/project.go",
+        "sha256": "6218982ae3d5c5c3c28b5282c3b60599b1356001723a0a66581cf3a3cfc07555"
+      },
+      {
+        "destination": "storage/compatibility_test.go",
+        "sha256": "9befd0e315b431b409adf54c1359a118c2687c63b83fb9d175ceeba25a1e0bb2"
+      },
+      {
+        "destination": "storage/json_units.go",
+        "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52"
       }
     ]
   }

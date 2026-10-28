@@ -4,15 +4,16 @@
   "files": [
     {
       "destination": "tools.go",
-      "sha256": "21fd534793893759fe8665a73a21692dbb3c11a9615a51c012a8b09382b62cda"
+      "sha256": "4b55fe981418607f4aa5236f0dff1cd5b4d635cffb47d33c8600faf89d234251"
     },
     {
       "destination": "tools_test.go",
-      "sha256": "c0687a080583ee79f7f435d7e7c4c6b75bd65e91c35a1a95853122aec6887979"
+      "sha256": "abf5c5355d9e194665f437a973c6562befd8fe61ebf437587c0321bebf1b3b47"
     }
   ],
   "changes": [
     "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant.",
-    "Opt-in strict shell composition and read-only mutation refusal reuse sandbox policy; shell-only approval descriptor is created by trusted registration, after confinement admission checks."
+    "Opt-in strict shell composition and read-only mutation refusal reuse sandbox policy; shell-only approval descriptor is created by trusted registration, after confinement admission checks.",
+    "Preserve the shell collector trailing-output contract when applying the smaller JSON result budget."
   ]
 }
