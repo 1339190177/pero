@@ -57,10 +57,10 @@ As the work grows, the aim is to connect those Apps to Agent sessions, approved 
 | GitHub Issue and ROADMAP intake, project-scoped claims | 🟡 Implemented | [server](server/README.md#github-issue-intake) |
 | Public task → local coding CLI → reviewed draft PR | 🟡 Implemented; Task Center deployed; GitHub Release dev build | [Desktop contribution guide](desktop/README.md#contribute-on-this-computer) |
 | Community task board: GitHub OAuth, worker ownership, reviewed contribution points | 🟡 Implemented | [server](server/README.md#community-tasks-and-contributions-2) |
-| Artifact versions, independent verification, authorized writeback | ⚪ Planned (M3) | [roadmap](docs/ROADMAP.md) |
-| Environment matching, isolation, self-hosted upgrades | ⚪ Planned (M4) | [roadmap](docs/ROADMAP.md) |
+| Artifact versions, independent verification, authorized writeback | ⚪ Planned (M3) | [roadmap](ROADMAP.md) |
+| Environment matching, isolation, self-hosted upgrades | ⚪ Planned (M4) | [roadmap](ROADMAP.md) |
 
-🟢 usable in development builds · 🟡 implemented, acceptance incomplete · ⚪ planned. Milestones and acceptance levels are in the [roadmap](docs/ROADMAP.md).
+🟢 usable in development builds · 🟡 implemented, acceptance incomplete · ⚪ planned. Planned features are in the [roadmap](ROADMAP.md); acceptance levels are in [quality gates](docs/fitness/README.md#acceptance-levels).
 
 ## How it works
 

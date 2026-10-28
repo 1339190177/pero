@@ -57,10 +57,10 @@
 | GitHub Issue 与 ROADMAP 同步、项目范围认领 | 🟡 已实现 | [server](server/README.md#github-issue-intake) |
 | 公开需求 → 本机编码 CLI → 检查改动并提交草稿 PR | 🟡 已实现；任务中心已部署；GitHub Release 开发版 | [Desktop 贡献指南](desktop/README.md#contribute-on-this-computer) |
 | 社区任务广场：GitHub OAuth、Worker 归属、验收记分 | 🟡 已实现 | [server](server/README.md#community-tasks-and-contributions-2) |
-| 产物版本、独立验证、授权回写 | ⚪ 规划中（M3） | [Roadmap](docs/ROADMAP.md) |
-| 环境匹配、隔离、自部署升级 | ⚪ 规划中（M4） | [Roadmap](docs/ROADMAP.md) |
+| 产物版本、独立验证、授权回写 | ⚪ 规划中（M3） | [Roadmap](ROADMAP.md) |
+| 环境匹配、隔离、自部署升级 | ⚪ 规划中（M4） | [Roadmap](ROADMAP.md) |
 
-🟢 开发构建可用 · 🟡 已实现，验收未完成 · ⚪ 规划中。里程碑与验收层级见 [Roadmap](docs/ROADMAP.md)。
+🟢 开发构建可用 · 🟡 已实现，验收未完成 · ⚪ 规划中。功能规划见 [Roadmap](ROADMAP.md)，验收层级见[质量门禁](docs/fitness/README.md#acceptance-levels)。
 
 ## 工作方式
 

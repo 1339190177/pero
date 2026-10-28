@@ -1,6 +1,6 @@
 # Tests
 
-同一行为只在一层证明。验收层级沿用 [ROADMAP](../docs/ROADMAP.md) 的 L0–L3。命令入口是 [docs/fitness/README.md](../docs/fitness/README.md)。`docs/fitness/` 里的其余文件是当日验证记录，不是这套测试的说明。
+同一行为只在一层证明。验收层级 L0–L3 与命令入口见 [docs/fitness/README.md](../docs/fitness/README.md#acceptance-levels)。`docs/fitness/` 里的其余文件是当日验证记录，不是这套测试的说明。
 
 截图和 `result.json` 写到仓库根的 `test-results/`，已被 gitignore。Electron 套件会抢本机输入焦点，一次只跑一个。
 

@@ -53,6 +53,7 @@ HTML iframe。`apps/virtual-cell` 是首个接入实例，`packages/app-sdk` 提
 
 ```text
 pero/
+├── ROADMAP.md
 ├── crates/
 │   ├── pero-contracts/
 │   ├── pero-host/      # stdio JSONL Host
@@ -73,7 +74,6 @@ pero/
 ├── tests/
 └── docs/
     ├── ARCHITECTURE.md
-    ├── ROADMAP.md
     ├── adr/
     ├── fitness/
     ├── issues/
@@ -230,7 +230,7 @@ Python 方法环境按 recipe 和依赖版本准备，科学数据按获准引�
 
 ## 执行不变量
 
-这些规则约束所有实现，不随里程碑变化。实现和验证它们的任务写在 [ROADMAP](ROADMAP.md)。
+这些规则约束所有实现，不随里程碑变化。实现和验证它们的任务写在 [ROADMAP](../ROADMAP.md)。
 
 - **客户端不内嵌 Agent 运行时。** 模型凭据、工具、审批和持久历史留在 Host。多个桌面壳共用同一个 Host 权威。
 - **授权在 Host 与协调服务的调用边界执行。** 动态求解保持在既定的数据范围、写入目标、预算和审批之内。一次 Run 的执行身份归 Host。

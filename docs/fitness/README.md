@@ -2,7 +2,7 @@
 
 Remote dispatch is covered by the Worker tests and `tests/e2e/remote.mjs`. The incident note is [2026-10-28 remote worker descendant cleanup](../issues/2026-10-28-remote-worker-descendant-cleanup.md). Use an isolated PostgreSQL database for `PERO_TEST_DATABASE_URL`; `server/` integration tests create and remove isolated schemas. Run the Go suite with `go test -race ./...`.
 
-What each suite proves, and where screenshots land, is [tests/README.md](../../tests/README.md). Acceptance levels L0–L3 are defined in [ROADMAP.md](../ROADMAP.md).
+What each suite proves, and where screenshots land, is [tests/README.md](../../tests/README.md). Planned features are in [ROADMAP.md](../../ROADMAP.md).
 
 The pushed GitHub/ROADMAP connector's public-source and Desktop acceptance is
 recorded in [github-connector-verification.md](github-connector-verification.md).
@@ -43,3 +43,14 @@ these checks do not deploy openpero.com. Desktop connection setup is in
 configuration is in [server/README.md](../../server/README.md#github-issue-intake).
 
 Current conversation and ACP UI acceptance: [conversation-verification.md](conversation-verification.md). The bootstrap-only boundaries above are historical; actual provider replies and remaining limits are recorded separately.
+
+## Acceptance levels
+
+| Level | Evidence |
+| --- | --- |
+| L0 | Compilation, unit tests and contract checks pass. |
+| L1 | A development build runs in actual Desktop with an Agent fixture. |
+| L2 | The flow runs against a real provider, environment or external service. |
+| L3 | A signed release package installs, upgrades and runs on the target system. |
+
+Record the source version, level, date, target system and remaining gaps in the relevant verification record before marking a feature complete. A checked source item is separate from Run verification and acceptance.
