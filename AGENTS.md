@@ -1,5 +1,92 @@
 # Pero
 
+## Architecture rules
+
+Keep the implementation simple and the scope explicit:
+
+- Before adding complexity for a speculative, highly unlikely concurrency or
+  security edge case, explain to the user exactly what could go wrong, how
+  likely it is, and how much additional code it would require. Add it only
+  after the user agrees. Do not silently expand the scope to make things
+  "theoretically more robust".
+- Validate external data once at the entry point, then pass typed values
+  inward. Do not repeat the same validation at every layer.
+- Keep one-off logic inline at its call site. Extract a function only when
+  the logic will be reused or encapsulates substantial complexity.
+- Avoid try/catch when it is unnecessary. If one function can handle the
+  logic, keep it in one function instead of splitting it up.
+
+Name the concept before you write the code. Each domain rule lives in exactly
+one place, and that place is a domain type and its functions, not a handler,
+an adapter or a test helper.
+
+- **Model first.** Give each domain concept a named type that carries its
+  invariants: a Go struct with methods, or a frozen Python dataclass in the
+  gateway. Inside a domain package, do not pass `map[string]any`, raw JSON or
+  loose strings between functions. The same check in two callers means a type
+  is missing.
+- **Functional core, imperative shell.** Domain logic is a function of values:
+  `(state, input) -> (next state, effects) | error`. It reads no clock,
+  environment, file, network or process; the caller passes time and IDs in.
+  The shell (daemon, worker, gateway, providers) does I/O, calls the core, and
+  carries out the effects the core returned. `Apply` in
+  [backend/project/apply.go](backend/project/apply.go) is the reference shape:
+  one fold that Host and Hub both use.
+- **One owner per transition.** A state machine has one definition, and
+  everything else calls it. A handler does not repeat a core check "for
+  safety". It maps the core's error to a status code.
+- **Dependencies point inward.** The shell imports the core; the core never
+  imports the shell, a transport or generated types. The allowed imports are
+  the table in [backend/architecture_test.go](backend/architecture_test.go).
+  A new boundary is a new row in that table, not a new test and not a comment.
+- **Seams, not layers.** Add an interface only where a second implementation
+  is real (provider, harness, store, sandbox runner). The consumer declares it,
+  and it holds only the methods the consumer calls. Do not add a single-use
+  interface, a wrapper that only renames or forwards, a
+  `manager`/`service`/`helper`/`util` package that owns no concept, or an
+  in-process DTO copy of a domain type. Convert at a boundary once, in one
+  place.
+- **Replaceable means deletable.** If you delete an implementation, only its
+  composition root (`cmd/`, daemon wiring) should break. If a domain package
+  breaks, the seam is in the wrong place.
+- **A code file stays within 1000 lines, tests included.** A longer file holds a
+  concept that has not been named yet. Split it by concept, not at a line
+  number. Files that were already longer are frozen in
+  `scripts/file-lines-baseline.json`. They may shrink but never grow. Do not
+  add a file to the baseline or raise a ceiling.
+
+## Tests
+
+Test the concept, not the call graph. A test must change only when behavior changes.
+
+- Most tests drive the functional core with values: from a state and an input,
+  assert the next state, the effects or the error. They need no mocks, clock
+  or sockets. Keep one table per concept, in that concept's `_test.go`. A bug
+  fix adds a row to that table, not a new `TestIssueNNN`.
+- Shell tests are few. Each one proves wiring end to end over loopback or a
+  temp data home. They do not re-prove core rules.
+- Structural rules are data. Import boundaries are rows in
+  `backend/architecture_test.go`. Do not write another source walker.
+- Fake only at a seam. Share one fake per seam; do not write one per test file.
+- Do not test getters, constructors, field copying, generated code, or the
+  order of calls to a mock. Do not add a case another layer already pins. A
+  test that breaks under a refactor that keeps behavior is testing the
+  implementation. Rewrite it or delete it.
+
+Wait on a signal or a condition you can observe: a bounded poll of an external
+process's readiness line or file effect is a wait; a timed pause hoping your
+own goroutines have arrived is a race. Do not sleep to make two timestamps
+differ; set them. One
+clock, injected or frozen at the module's own binding. Do not assert an order
+you did not define. No literal port for a real listener (bind `0`). No network
+beyond loopback unless the test is an explicit opt-in, such as
+`DEEPSEEK_REAL_API=1`.
+
+- Workspace Go modules: `./bazel test` for the target you changed, or `go test`
+  inside that module.
+- Backend service: `go -C backend test -race ./...`.
+- Execution also verifies standalone: `GOWORK=off go -C backend/execution test -race ./...`.
+- Gateway: `PYTHONPATH=src python -m unittest discover -s test -p 'test_*.py'`
 
 ## UI
 
@@ -26,6 +113,7 @@ Optimize for task completion, not visual minimalism. Every screen should make it
 - No kitchen-sink commits; split mixed concerns.
 - Target budget: under 10 files and under 1000 changed lines per commit.
 - Include related GitHub issue ID when applicable.
+- Before commit binary file / big size file, should ask User.
 
 ### Co-Author Format
 
