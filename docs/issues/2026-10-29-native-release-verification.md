@@ -41,3 +41,11 @@ The initial tag-triggered retries could not restore each other's Cargo caches:
 GitHub isolates tag cache scopes. Future tag events now dispatch the native build
 on the default branch, while checkout and package metadata remain pinned to the
 tag. This avoids rebuilding the same dependencies for every new release tag.
+
+The explicit Vulkan attempt still had no usable WebGPU adapter and could not
+create WebGL2. Browser logs and the failure screenshot confirmed the renderer
+never became ready. A separate graphics probe (Actions 40789552506) then passed
+on both Ubuntu 24.04 and Windows 2025 using ANGLE SwiftShader WebGL2, including
+RGBA pixel readback. Packaged non-macOS smoke now uses those same three flags.
+GPUI already owns the WebGPU-to-WebGL2 fallback and creates a fresh canvas for
+it; no renderer implementation or platform test gate is bypassed.

@@ -89,7 +89,7 @@ if (operation === 'prepare') {
   let desktop;
   let page;
   try {
-    desktop = await electron.launch({ executablePath: executable, args: ['--use-mock-keychain', ...(process.platform === 'linux' ? ['--enable-features=Vulkan', '--use-angle=vulkan', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--disable-vulkan-surface'] : [])], cwd: scratch, env });
+    desktop = await electron.launch({ executablePath: executable, args: ['--use-mock-keychain', ...(process.platform !== 'darwin' ? ['--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader'] : [])], cwd: scratch, env });
     page = await desktop.firstWindow();
     page.on('console', message => appendFileSync(join(outputDir, 'browser.log'), `${message.type()}: ${message.text()}\n`));
     const errors = []; page.on('pageerror', error => { errors.push(error.message); appendFileSync(join(outputDir, 'browser.log'), `pageerror: ${error.message}\n`); });
