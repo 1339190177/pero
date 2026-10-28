@@ -37,6 +37,7 @@ func run() (resultErr error) {
 	approval := flag.String("approval", "ask", "tool approval policy: never or ask via ACP client")
 	budget := bindProviderBudget(flag.CommandLine)
 	skillRoots := bindSkillRoots(flag.CommandLine)
+	compaction := bindCompaction(flag.CommandLine)
 	flag.Parse()
 	if flag.NArg() != 0 || strings.TrimSpace(*model) == "" || strings.TrimSpace(*sessions) == "" {
 		return errors.New("--model and --session-dir are required; positional arguments are unsupported")
@@ -52,6 +53,10 @@ func run() (resultErr error) {
 		return err
 	}
 	providerConfig, err := configuredProvider(*endpoint, *model, credential, *budget)
+	if err != nil {
+		return err
+	}
+	compactionConfig, err := configuredCompaction(&providerConfig, *compaction)
 	if err != nil {
 		return err
 	}
@@ -86,7 +91,7 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
-	serverOptions := acp.Options{Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
+	serverOptions := acp.Options{Compaction: compactionConfig, Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
 	if native != nil {
 		serverOptions.ValidateWorkingDirectory = native.CheckCWD
 	}

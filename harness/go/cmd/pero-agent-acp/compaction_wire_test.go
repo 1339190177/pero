@@ -1,0 +1,129 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+func TestCompactionAgentProcess(t *testing.T) {
+	if os.Getenv("PERO_COMPACTION_TEST_CHILD") != "1" {
+		return
+	}
+	flag.CommandLine = flag.NewFlagSet("agent-fixture", flag.ContinueOnError)
+	os.Args = []string{"agent-fixture", "--endpoint", os.Getenv("PERO_COMPACTION_TEST_ENDPOINT"), "--model", "fixture", "--session-dir", os.Getenv("PERO_COMPACTION_TEST_SESSIONS"), "--context-window", "1024", "--max-tokens", "128", "--max-retries", "0"}
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	os.Exit(0)
+}
+
+func TestCompactionCLIActualLoopAndWire(t *testing.T) {
+	var summaries atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		if strings.Contains(string(data), "acting as a compaction engine") {
+			summaries.Add(1)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"checkpoint answer\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+	defer cancel()
+	child := exec.CommandContext(ctx, exe, "-test.run=^TestCompactionAgentProcess$")
+	child.Env = append(os.Environ(), "PERO_COMPACTION_TEST_CHILD=1", "PERO_COMPACTION_TEST_ENDPOINT="+server.URL+"/v1", "PERO_COMPACTION_TEST_SESSIONS="+t.TempDir(), "AGENT_PROVIDER_API_KEY=fixture-not-secret")
+	input, err := child.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := child.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diagnostics bytes.Buffer
+	child.Stderr = &diagnostics
+	if err = child.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = input.Close(); _ = child.Process.Kill(); _ = child.Wait() })
+	encoder := json.NewEncoder(input)
+	scanner := bufio.NewScanner(output)
+	scanner.Buffer(make([]byte, 4096), 1<<20)
+	next := 0
+	rpc := func(method string, params any) map[string]any {
+		t.Helper()
+		next++
+		id := next
+		if err := encoder.Encode(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params}); err != nil {
+			t.Fatal(err)
+		}
+		for scanner.Scan() {
+			var message map[string]any
+			if err := json.Unmarshal(scanner.Bytes(), &message); err != nil {
+				t.Fatal(err)
+			}
+			if message["id"] == float64(id) {
+				return message
+			}
+		}
+		t.Fatalf("RPC %s EOF: %v %s", method, scanner.Err(), diagnostics.String())
+		return nil
+	}
+	rpc("initialize", map[string]any{"protocolVersion": 1, "clientCapabilities": map[string]any{}})
+	cwd := t.TempDir()
+	created := rpc("session/new", map[string]any{"cwd": cwd, "mcpServers": []any{}})
+	result, ok := created["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("session/new: %v", created)
+	}
+	session := result["sessionId"]
+	prompt := func() {
+		reply := rpc("session/prompt", map[string]any{"sessionId": session, "prompt": []map[string]any{{"type": "text", "text": strings.Repeat("long context detail ", 100)}}})
+		if reply["error"] != nil {
+			t.Fatalf("prompt: %v", reply)
+		}
+	}
+	for i := 0; i < 6; i++ {
+		prompt()
+	}
+	if summaries.Load() == 0 {
+		t.Fatal("CLI did not activate compaction")
+	}
+	rpc("session/close", map[string]any{"sessionId": session})
+	reply := rpc("session/resume", map[string]any{"sessionId": session, "cwd": cwd, "mcpServers": []any{}})
+	if reply["error"] != nil {
+		t.Fatal(reply)
+	}
+	before := summaries.Load()
+	for i := 0; i < 4; i++ {
+		prompt()
+	}
+	if summaries.Load() <= before {
+		t.Fatal("resumed CLI lost compaction")
+	}
+	_ = input.Close()
+	if err = child.Wait(); err != nil {
+		t.Fatalf("child: %v %s", err, diagnostics.String())
+	}
+}
