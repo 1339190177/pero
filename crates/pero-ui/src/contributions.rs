@@ -107,11 +107,15 @@ impl Workbench {
                 .when(local.is_object(),|el|el
                     .child(div().text_size(px(12.)).text_color(p.color("text-muted")).whitespace_normal().child(format!("{}\n{}",string(local,"workspace"),string(local,"branch"))))
                     .when(local_busy,|el|el.child(div().id("contribution-agent-state").role(Role::Status).child(self.t("contribution.agent_running")))))
+                .when(workable,|el|el
+                    .when(local.is_object(),|el|el
+                    .when(!local["gh_available"].as_bool().unwrap_or(false),|el|el.child(div().id("contribution-gh-state").role(Role::Alert).text_color(p.color("warning")).whitespace_normal().child(self.t("contribution.gh_missing"))))
+                    .when(local["gh_available"].as_bool().unwrap_or(false)&&!local["gh_authenticated"].as_bool().unwrap_or(false),|el|el.child(div().id("contribution-gh-state").role(Role::Alert).text_color(p.color("warning")).whitespace_normal().child(self.t("contribution.gh_auth"))))
+                    )
+                    .child(Button::new("contribution-gh-help").ghost().small().label(self.t("contribution.gh_help")).disabled(busy).on_click(cx.listener(|this,_,_,cx|this.contribution_action("gh_help",cx)))))
                 .when(reviewed,|el|el
                     .child(div().font_weight(FontWeight::SEMIBOLD).child(self.t("contribution.review_title")))
                     .child(div().id("contribution-diff").max_h(px(420.)).overflow_y_scroll().p(px(12.)).bg(p.color("surface-muted")).font_family("JetBrains Mono").text_size(px(12.)).whitespace_normal().child(if string(local,"diff").is_empty() {self.t("contribution.no_changes").to_string()} else {string(local,"diff").to_string()}))
-                    .when(!local["gh_available"].as_bool().unwrap_or(false),|el|el.child(div().id("contribution-gh-state").role(Role::Alert).text_color(p.color("warning")).whitespace_normal().child(self.t("contribution.gh_missing"))))
-                    .when(local["gh_available"].as_bool().unwrap_or(false)&&!local["gh_authenticated"].as_bool().unwrap_or(false),|el|el.child(div().id("contribution-gh-state").role(Role::Alert).text_color(p.color("warning")).whitespace_normal().child(self.t("contribution.gh_auth"))))
                     .child(div().text_size(px(12.)).text_color(p.color("text-muted")).whitespace_normal().child(self.t("contribution.publish_help")))
                     .child(Button::new("contribution-publish").primary().label(self.t("contribution.publish")).disabled(busy||local_busy||!publishable||local["changed_files"].as_array().is_none_or(Vec::is_empty)).on_click(cx.listener(|this,_,_,cx|this.contribution_action("publish",cx)))))
                 .when(task["pull_request"].is_object()||local["pr_url"].is_string(),|el|el

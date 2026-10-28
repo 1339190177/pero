@@ -357,7 +357,7 @@
   "apps.cancel": "取消",
   "apps.confirm_remove": "确认移除",
   "apps.invalid_catalog": "无法读取应用列表，请刷新重试。",
-  "contribution.choose_parent": "选择贡献仓库的保存位置",
+  "contribution.choose_parent": "选择保存目录，Pero 将自动克隆仓库",
   "contribution.title": "公开需求",
   "contribution.remote_tasks": "远程任务",
   "contribution.loading": "处理中…",
@@ -375,12 +375,12 @@
   "contribution.continue": "打开编码会话",
   "contribution.review": "检查改动",
   "contribution.agent": "编码 Agent",
-  "contribution.setup": "选择保存位置后，Pero 会准备独立仓库和任务分支。请先安装并登录编码 CLI；GitHub 身份登录不等于模型登录。",
+  "contribution.setup": "无需提前 clone：选择保存目录后，Pero 会自动克隆仓库并创建任务分支。开始前请安装并登录编码 CLI。GitHub CLI（gh）仅在发布 PR 时需要。",
   "contribution.agent_running": "Agent 正在执行，可回到编码会话查看进度或停止。",
   "contribution.review_title": "待发布的改动",
   "contribution.no_changes": "暂无可发布的改动。",
-  "contribution.gh_missing": "请安装 GitHub CLI（gh）并运行 gh auth login，然后重新检查。Desktop 身份登录不授予仓库写入权限。",
-  "contribution.gh_auth": "请在终端运行 gh auth login，再重新检查以启用 PR 创建。",
+  "contribution.gh_missing": "发布 PR 需要 GitHub CLI（gh）。安装后，在任意终端目录运行 gh auth login --hostname github.com --git-protocol https，无需先 clone 仓库。完成后回到这里重新检查改动。",
+  "contribution.gh_auth": "在任意终端目录运行 gh auth login --hostname github.com --git-protocol https，再重新检查改动。Pero 的 GitHub 登录用于任务身份；gh 用于授权 fork、push 和创建 PR。",
   "contribution.publish_help": "此操作会提交已检查的改动，推送贡献分支并创建草稿 PR。任务仍需复核。",
   "contribution.publish": "提交并创建草稿 PR",
   "contribution.pr_saved": "PR 已关联到需求，等待维护者复核。",
@@ -388,5 +388,6 @@
   "contribution.open_pr": "打开 PR",
   "contribution.retry_submit": "重试关联 PR",
   "contribution.return_review": "返回贡献需求 · 检查改动",
-  "contribution.source": "查看来源"
+  "contribution.source": "查看来源",
+  "contribution.gh_help": "GitHub CLI 安装与登录"
 }
