@@ -15,6 +15,7 @@
     "build:worker": "node scripts/cargo.mjs build -p pero-worker",
     "build:web": "npm run build --workspace @pero/web",
     "build:macos-dev": "node scripts/build/macos-dev-app.mjs",
+    "build:macos-native": "node scripts/cargo.mjs build --release --locked -p pero-host && node scripts/cargo.mjs +nightly-2026-10-28 build --release --locked -p pero-ui --features native --bin pero-native && node scripts/build/native-preview.mjs",
     "package:macos": "npm run build:apps && PERO_BUILD_RELEASE=1 node scripts/build/wasm.mjs && node scripts/cargo.mjs build --release --locked -p pero-host && npm run build:web && npm run build:desktop && node scripts/build/macos-package.mjs",
     "build:desktop": "node scripts/build/desktop.mjs",
     "check": "tsc --noEmit && node scripts/codegen/theme.mjs --check && node scripts/check/locales.mjs && node scripts/codegen/contracts.mjs --check",

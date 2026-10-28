@@ -217,6 +217,20 @@ if necessary, `PERO_CHROMIUM_PATH`. It exercises Go/PostgreSQL, a local OAuth
 provider fixture, Chromium consent and Electron's native callback event, encrypted
 saving, restart, cancellation and wrong/repeated callbacks.
 
+### Native GPUI preview
+
+Run `npm run build:macos-native`, then open `target/native/Pero Native.app`.
+This optional preview reuses the GPUI workbench and Rust Host without Electron,
+Chromium, WebView or Wasm. Local ACP sessions use the existing installed adapters
+and model authentication. Preview history and preferences are isolated under
+`~/.pero/native-preview`; they do not overwrite the Electron profile.
+
+This is a development preview: it references the checkout's Host and adapters.
+It is not yet a portable release. Cloud HTTP coordination, GitHub OAuth/deep-link
+return, encrypted cloud credentials and embedded App panels are not connected in
+this shell. Unsupported cloud requests display an explicit error. Native
+cross-platform packaging remains unverified. See [native verification](../docs/fitness/native-preview.md).
+
 ### Portable macOS development package (Electron)
 
 Run `npm run package:macos` on the target Mac architecture. This builds release
