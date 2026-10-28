@@ -42,6 +42,7 @@ fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver
         ],
         env: BTreeMap::from([("PERO_FIXTURE_SCENARIO".into(), scenario.into())]),
         model: model.map(str::to_owned),
+        mcp_servers: vec![],
     };
     let (tx, rx) = mpsc::channel();
     (start(config, root, "fixture-thread".into(), tx), rx)
@@ -363,5 +364,116 @@ fn model_changes_require_an_advertised_id_for_each_supported_api() {
         );
         until(&rx, "turn_finished");
         close(&handle, &rx);
+    }
+}
+
+fn launch_mcp(scenario: &str, servers: Value) -> (SessionHandle, mpsc::Receiver<HostEvent>) {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    // Exercise the same operator JSON deserialization as the registry, not a hand-built request.
+    let config: AgentConfig = serde_json::from_value(json!({
+        "id": "mcp-fixture", "name": "MCP fixture", "command": "node",
+        "args": [root.join("tests/runtime/lifecycle-agent.mjs")],
+        "env": {"PERO_FIXTURE_SCENARIO": scenario, "PERO_EXPECT_MCP": servers.to_string()},
+        "mcp_servers": servers
+    }))
+    .unwrap();
+    let public = config.public().to_string();
+    for secret in [
+        "fixture-env-secret",
+        "fixture-header-secret",
+        "fixture-arg-secret",
+    ] {
+        assert!(!public.contains(secret));
+        assert!(!format!("{config:?}").contains(secret));
+    }
+    assert!(config.public().get("mcp_servers").is_none());
+    let (tx, rx) = mpsc::channel();
+    (start(config, root, "mcp-fixture".into(), tx), rx)
+}
+
+fn mcp_servers() -> Value {
+    json!([
+        {"name":"stdio", "command":"/fixture/not-executed", "args":["fixture-arg-secret"], "env":[{"name":"TOKEN","value":"fixture-env-secret"}]},
+        {"type":"http", "name":"http", "url":"https://fixture.invalid/mcp", "headers":[{"name":"Authorization","value":"fixture-header-secret"}]},
+        {"type":"sse", "name":"sse", "url":"http://127.0.0.1:9/sse", "headers":[]}
+    ])
+}
+
+#[test]
+fn mcp_operator_config_reaches_wire_and_survives_auth_retry_and_cancellation() {
+    let (handle, rx) = launch_mcp("mcp_auth", mcp_servers());
+    until(&rx, "session_auth_required");
+    handle
+        .tx
+        .send(SessionCommand::Authenticate("login".into()))
+        .unwrap();
+    until(&rx, "session_ready");
+    handle
+        .tx
+        .send(SessionCommand::Prompt("wait".into()))
+        .unwrap();
+    until(&rx, "turn_started");
+    handle.tx.send(SessionCommand::Cancel).unwrap();
+    assert_eq!(until(&rx, "turn_finished").data["stopReason"], "cancelled");
+    close(&handle, &rx);
+}
+
+#[test]
+fn mcp_defaults_forward_empty_list() {
+    let config: AgentConfig =
+        serde_json::from_value(json!({"id":"old", "name":"old", "command":"node"})).unwrap();
+    assert!(config.mcp_servers.is_empty());
+    let (handle, rx) = launch_mcp("mcp", json!([]));
+    until(&rx, "session_ready");
+    close(&handle, &rx);
+}
+
+#[test]
+fn mcp_invalid_config_fails_before_connecting_or_child_spawn() {
+    let invalid = [
+        json!([{"name":"bad","command":"relative","args":[],"env":[]}]),
+        json!([{"type":"http","name":"bad","url":"file:///fixture-header-secret","headers":[]}]),
+        json!([{"type":"http","name":"bad","url":"http://[broken","headers":[]}]),
+        json!([{"type":"http","name":"bad","url":"https://fixture.invalid","headers":[{"name":"Authorization","value":"fixture-header-secret\r\nInjected: yes"}]}]),
+        json!([{"name":"bad","command":"/fixture","args":[],"env":[{"name":"BAD=KEY","value":"fixture-env-secret"}]}]),
+        json!([{"name":"same","command":"/fixture","args":[],"env":[]},{"name":"same","command":"/fixture","args":[],"env":[]}]),
+    ];
+    for servers in invalid {
+        let (_handle, rx) = launch_mcp("mcp", servers);
+        let error = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(
+            error.kind, "session_error",
+            "validation must precede connecting/spawn"
+        );
+        assert!(!error.text.contains("secret"));
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap().kind,
+            "session_closed"
+        );
+    }
+}
+
+#[test]
+fn mcp_unadvertised_remote_transport_never_creates_session() {
+    let (_handle, rx) = launch_mcp("mcp_unsupported", mcp_servers());
+    let error = until(&rx, "session_error");
+    assert!(error.text.contains("does not support MCP HTTP"));
+    until(&rx, "session_closed");
+}
+
+#[test]
+fn mcp_malformed_operator_json_is_rejected_without_secret_details() {
+    for server in [
+        json!({"type":"http", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"sse", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":null, "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"unknown", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"http", "name":"bad", "url":"https://fixture.invalid", "headers":"fixture-header-secret"}),
+    ] {
+        let error = serde_json::from_value::<AgentConfig>(
+            json!({"id":"fixture", "name":"fixture", "command":"node", "mcp_servers":[server]}),
+        )
+        .unwrap_err();
+        assert!(!error.to_string().contains("fixture-header-secret"));
     }
 }

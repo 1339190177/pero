@@ -136,6 +136,7 @@ async fn run(
     mut commands: mpsc::UnboundedReceiver<SessionCommand>,
     permissions: Permissions,
 ) -> Result<(), String> {
+    config.validate_mcp()?;
     event(
         &tx,
         &thread,
@@ -146,7 +147,7 @@ async fn run(
     let agent = AcpAgent::new(
         AcpAgentConfig::new(&config.command)
             .args(&config.args)
-            .envs(config.env),
+            .envs(config.env.clone()),
     );
     let model_api = Arc::new(Mutex::new(ModelApi::default()));
     let notification_models = model_api.clone();
@@ -207,11 +208,13 @@ async fn run(
             if initialized.protocol_version != ProtocolVersion::V1 {
                 return Err(failure("Agent negotiated an unsupported ACP protocol version"));
             }
+            config.validate_mcp_capabilities(&initialized.agent_capabilities.mcp_capabilities)
+                .map_err(|message| failure(&message))?;
             let auth_methods = initialized.auth_methods.clone();
             event(&tx, &thread, "agent_info", "", serde_json::to_value(&initialized).unwrap_or_default());
             let mut session_data = loop {
                 let result = setup_request(
-                    connection.send_request(UntypedMessage::new("session/new", NewSessionRequest::new(cwd.clone()))?).block_task(),
+                    connection.send_request(UntypedMessage::new("session/new", NewSessionRequest::new(cwd.clone()).mcp_servers(config.mcp_servers.clone()))?).block_task(),
                     &mut commands, &mut deferred, &tx, &thread, "Session creation",
                 ).await;
                 match result {
