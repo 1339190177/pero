@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/phodal/pero/releases">Download dev build</a> ·
   <a href="DEVELOPMENT.md">Development</a> ·
   <a href="#status">Status</a> ·
   <a href="#how-it-works">How it works</a> ·
@@ -24,7 +25,7 @@
 </p>
 
 > [!NOTE]
-> **Early stage.** The Desktop workbench, shared tasks, and remote workers run today. Multi-agent orchestration, result verification, and complete AI4S workflows are still being built. Virtual Cell can also be built as a standalone macOS application. Packages are development builds; there is no production release yet.
+> **Early stage.** The Desktop workbench, shared tasks, and remote workers run today. Multi-agent orchestration, result verification, and complete AI4S workflows are still being built. Virtual Cell can also be built as a standalone macOS application. Pero Desktop macOS arm64 development builds are distributed through [GitHub Releases](https://github.com/phodal/pero/releases); there is no stable release yet.
 
 ## Why
 
@@ -50,7 +51,7 @@ As the work grows, the aim is to connect those Apps to Agent sessions, approved 
 | Standalone App products: Virtual Cell + bundled Python | 🟡 macOS arm64 development package verified | [product model](docs/adr/0008-product-distributions.md), [verification](docs/fitness/products.md) |
 | Tasks, runs, workers, leases, cancellation, and recovery | 🟡 Works locally; real remote-environment acceptance pending | [server](server/README.md), [ADR 0002](docs/adr/0002-remote-task-dispatch.md) |
 | GitHub Issue and ROADMAP intake, project-scoped claims | 🟡 Implemented | [server](server/README.md#github-issue-intake) |
-| Public task → local coding CLI → reviewed draft PR | 🟡 Local contributor flow verified; public deployment pending | [Desktop contribution guide](desktop/README.md#contribute-on-this-computer) |
+| Public task → local coding CLI → reviewed draft PR | 🟡 Implemented; Task Center deployed; GitHub Release dev build | [Desktop contribution guide](desktop/README.md#contribute-on-this-computer) |
 | Community task board: GitHub OAuth, worker ownership, reviewed contribution points | 🟡 Implemented | [server](server/README.md#community-tasks-and-contributions-2) |
 | Artifact versions, independent verification, authorized writeback | ⚪ Planned (M3) | [roadmap](docs/ROADMAP.md) |
 | Environment matching, isolation, self-hosted upgrades | ⚪ Planned (M4) | [roadmap](docs/ROADMAP.md) |

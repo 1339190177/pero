@@ -81,6 +81,10 @@
     .cover h1 em { font-style:normal; color:var(--ion); }
     .cover-copy { color:#C5D4E2; font-size:17px; line-height:1.7; max-width:36em; margin:0 0 24px; }
     .cover-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    .download-details { margin-top:16px; max-width:42em; color:#C5D4E2; font-size:13px; line-height:1.8; }
+    .download-details summary { cursor:pointer; width:fit-content; }
+    .download-details p { margin:8px 0; }
+    .download-details a { color:#EAF1F8; text-decoration:underline; text-underline-offset:3px; }
     .cover .btn-primary { background:var(--ion); color:var(--navy); box-shadow:none; }
     .cover .btn-primary:hover { background:#82E5EA; }
     .cover .btn-ghost { color:#EAF1F8; background:transparent; border-color:#4b6277; }

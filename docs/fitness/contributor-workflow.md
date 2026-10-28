@@ -53,8 +53,11 @@ separately. These ignored artifacts contain local test paths and are not release
 - Existing `tests/e2e/workbench.mjs`: passed streaming, follow-up, cancellation,
   permission, 1000-chunk exact rendering, scroll retention, replay and themes.
   Stale sidebar coordinates were updated to the inspected current layout.
+- Existing tool-call suite: nine tool types passed with no page errors.
+- `bazel test --config=ci //:checks`: all seven targets passed after refreshing
+  the checked-in npm input cache for the added package scripts.
 
-## Distribution and remaining acceptance
+## Local package acceptance
 
 The final macOS arm64 development package was rebuilt, ad-hoc signed and checked
 with deep strict signature verification. Its App was copied outside the checkout
@@ -73,10 +76,54 @@ matching official source: fork uses the locally resolved upstream with no explic
 repository argument, and PR lookup uses a branch plus author filter. The shared
 GitHub CLI fixture and local Git tests pin those arguments.
 
-This source workflow is not a deployed service or public release. Native Agent
-CLIs, Git and authenticated GitHub CLI remain user prerequisites; GitHub identity
-login does not grant model authentication or repository publication credentials.
+Native Agent CLIs, Git and authenticated GitHub CLI remain user prerequisites;
+GitHub identity login does not grant model authentication or repository
+publication credentials. Online delivery is recorded separately below.
 
-No live GitHub fork, push, PR, merge, release or production service update was
-performed. PR submission does not claim independent verification, issue closure,
+The contribution acceptance suites made no live GitHub fork, code push, PR or
+merge. PR submission does not claim independent verification, issue closure,
 maintainer acceptance or contribution points.
+
+## Online service delivery
+
+The user subsequently authorized deployment and public distribution. The exact
+source revision `bf3962acf2f81091b865b3feea24c703a18a8093` is now deployed at
+`/opt/openpero/releases/20261028T152323Z-bf3962ac` on app.openpero.com. The existing
+deployment saved a pre-migration backup and retained OAuth configuration.
+
+Verified at 23:23:53 Asia/Shanghai:
+
+- HTTPS health and public tasks returned 200; GitHub login redirected correctly.
+- Additive migrations 12 and 13 applied; the container had no restarts.
+- Startup GitHub sync completed without partial coverage or errors.
+- Public sources: 414 (3 Issues and 411 ROADMAP items). Ten manual deployment
+  acceptance tasks remained private; total tasks stayed at 424.
+- Runs stayed at eleven terminal records (six cancelled, five succeeded). Public
+  source reading and publication started no execution.
+
+## GitHub Release delivery
+
+[GitHub Actions run 40720315844](https://github.com/phodal/pero/actions/runs/40720315844)
+succeeded and published [v0.1.0-dev.20261028](https://github.com/phodal/pero/releases/tag/v0.1.0-dev.20261028)
+at 2026-10-29 00:13 Asia/Shanghai. The public package was built on the macOS 26
+Apple Silicon runner from the immutable source tag; the local DMG above was not
+uploaded. The installer is an ad-hoc-signed, unnotarized development prerelease.
+
+- CI passed contract/type checks, package contents, arm64 architecture, strict
+  signature verification and the DMG size budget.
+- The actual packaged Desktop launched with an isolated profile and no service
+  override. Both renderer and Host were ready, with default Task Center
+  `https://app.openpero.com` and no operator/client token preconfigured.
+- Release assets are `Pero-macos-arm64.dmg` (99,407,747 bytes),
+  `Pero-macos-arm64.build.json` and `SHA256SUMS`.
+- The downloaded public assets passed `shasum -a 256 -c SHA256SUMS`. The build
+  metadata identifies source `bf3962acf2f81091b865b3feea24c703a18a8093`, this CI
+  run, the online Task Center, arm64 and the pinned GPUI snapshot.
+- Public DMG SHA-256:
+  `ccc68de5b8f2c6142d26dd0218558f33790044556185d7f16e4cc46c53783dfa`.
+- The public DMG was mounted read-only, its App copied to a fresh temporary
+  installation and the image detached. Deep strict signature verification and
+  the complete contributor suite then passed from that downloaded App, including
+  the actual local Git push, stale-review rejection and registration recovery.
+  Agent/GitHub seams in this installed-package run were explicit fixtures; the
+  separate real-Codex run above proves actual model tool use.

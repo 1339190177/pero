@@ -145,6 +145,10 @@ SOFTWARE.
     .cover h1 em { font-style:normal; color:var(--ion); }
     .cover-copy { color:#C5D4E2; font-size:17px; line-height:1.7; max-width:36em; margin:0 0 24px; }
     .cover-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    .download-details { margin-top:16px; max-width:42em; color:#C5D4E2; font-size:13px; line-height:1.8; }
+    .download-details summary { cursor:pointer; width:fit-content; }
+    .download-details p { margin:8px 0; }
+    .download-details a { color:#EAF1F8; text-decoration:underline; text-underline-offset:3px; }
     .cover .btn-primary { background:var(--ion); color:var(--navy); box-shadow:none; }
     .cover .btn-primary:hover { background:#82E5EA; }
     .cover .btn-ghost { color:#EAF1F8; background:transparent; border-color:#4b6277; }
@@ -785,7 +789,8 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <div>
 <h1>分布式 Agent 协作</h1>
 <p class="cover-copy">面向科学研究，把课题、方法与算力放在一起。从一个研究问题出发，把任务交给合作者、AI 和合适的计算环境。</p>
-<div class="cover-actions"><a class="btn btn-primary" href="#collaborate">体验一次任务协作</a><a class="btn btn-ghost" href="#runtime">协作架构</a></div>
+<div class="cover-actions"><a class="btn btn-primary" href="#collaborate">体验一次任务协作</a><a class="btn btn-ghost" href="https://github.com/phodal/pero/releases" target="_blank" rel="noopener noreferrer">下载 macOS 开发版</a><a class="btn btn-ghost" href="#runtime">协作架构</a></div>
+<details class="download-details"><summary>macOS arm64 · 安装要求</summary><p>适用于 Apple Silicon。贡献代码需本机 Git、已安装并登录的编码 CLI，以及已登录的 GitHub CLI（gh auth login）。开发版尚未公证。</p><a href="https://github.com/phodal/pero/blob/master/desktop/README.md" target="_blank" rel="noopener noreferrer">安装与贡献说明 ↗</a></details>
 </div>
 <ol class="cover-roles" aria-label="谁来做">
 <li><b>01</b><strong>研究者</strong><span>定下问题与验收。</span></li>
@@ -929,12 +934,12 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <div class="section-kicker"><span class="n">04 —</span> BUILT TOGETHER, ONE CONTRIBUTION AT A TIME</div>
 <div class="contribution-heading"><div><h2>从一个小任务，<br/>参与一个大课题。</h2><p class="section-copy">贡献代码，也贡献方法与复核。<br/>一份清楚的输入、一项独立的交付，就是开始。</p></div><div aria-label="选择贡献方式" class="contribution-tabs" role="group"><button aria-pressed="true" data-contribution="build">共建 OpenPero</button><button aria-pressed="false" data-contribution="research">参与研究</button><button aria-pressed="false" data-contribution="worker">接入执行节点</button></div></div>
 <div class="contribution-grid" id="contribution-grid"></div>
-<div class="contribution-foot"><span>正式仓库尚未绑定。这里提供可编辑的 Issue 模板，不会向 GitHub 发布。</span><button class="text-link" id="download-all-issues">下载当前组 Issue 模板 ↗</button></div>
+<div class="contribution-foot"><span>这里提供可编辑的 Issue 模板，下载不会向 GitHub 发布。</span><button class="text-link" id="download-all-issues">下载当前组 Issue 模板 ↗</button></div>
 <div class="open-contract"><div><strong>代码开放，工作也可以被接续。</strong><p>任务定义、方法、产物和验收依据，都应当可以检查、导出与复用。</p></div><span>OPEN WEB + DESKTOP<br/>OPTIONAL HOSTED COORDINATION</span></div>
 </div></section>
 
 </main>
-<footer class="footer"><div class="shell"><div class="footer-top"><a aria-label="回到 OpenPero 首页" class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg class="brand-symbol"><use href="#i-openpero"></use></svg></span><span class="brand-wordmark">OpenPero</span></a><div class="footer-links"><a href="#collaborate">任务协作</a><a href="#runtime">协作架构</a><a href="#open">参与共建</a><button data-dialog="about">演示边界</button></div></div><div class="footer-bottom"><p>官网交互原型 · 所有计算和状态均在本页内完成，刷新后重置。GitHub、Agent、分布式节点、项目长期存储与 Cloud 尚未连接。未发布官网，未创建 Issue；正式仓库、许可证和发布状态待配置。</p><span>OPENPERO.COM / 2026</span></div></div></footer>
+<footer class="footer"><div class="shell"><div class="footer-top"><a aria-label="回到 OpenPero 首页" class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg class="brand-symbol"><use href="#i-openpero"></use></svg></span><span class="brand-wordmark">OpenPero</span></a><div class="footer-links"><a href="#collaborate">任务协作</a><a href="#runtime">协作架构</a><a href="#open">参与共建</a><a href="https://app.openpero.com" target="_blank" rel="noopener noreferrer">线上任务中心</a><button data-dialog="about">演示边界</button></div></div><div class="footer-bottom"><p>本页计算与协作示例仅在浏览器本地运行，刷新后重置，不会启动真实 Agent、分派任务或提交 PR。实际贡献请使用 Desktop 开发版或线上任务中心。</p><span>OPENPERO.COM / 2026</span></div></div></footer>
 <dialog aria-labelledby="dialog-title" id="detail-dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button aria-label="关闭对话框" class="dialog-close"><svg class="icon"><use href="#i-x"></use></svg></button></div><div class="dialog-body" id="dialog-body"></div></dialog>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 <noscript><p style="padding:20px;text-align:center">启用 JavaScript 后可运行本地扰动评估。页面内容和导航可直接阅读。</p></noscript>

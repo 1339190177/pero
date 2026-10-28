@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/phodal/pero/releases">下载开发版</a> ·
   <a href="DEVELOPMENT.md">开发指南</a> ·
   <a href="#当前状态">当前状态</a> ·
   <a href="#工作方式">工作方式</a> ·
@@ -24,7 +25,7 @@
 </p>
 
 > [!NOTE]
-> **项目处于早期阶段。** Desktop 工作台、共享任务和远程 Worker 已经可以运行。多 Agent 编排、结果验证，以及完整的 AI4S 工作流仍在建设中。Virtual Cell 已可构建为独立 macOS 应用；安装包仍属开发构建，尚无正式发布版。
+> **项目处于早期阶段。** Desktop 工作台、共享任务和远程 Worker 已经可以运行。多 Agent 编排、结果验证，以及完整的 AI4S 工作流仍在建设中。Virtual Cell 已可构建为独立 macOS 应用；Pero Desktop 的 macOS arm64 开发版通过 [GitHub Releases](https://github.com/phodal/pero/releases) 分发，尚无稳定发布版。
 
 ## 为什么做
 
@@ -50,6 +51,7 @@
 | 独立 App 产品：Virtual Cell + 随包 Python | 🟡 macOS arm64 开发包已验证 | [产品模型](docs/adr/0008-product-distributions.md)、[验收记录](docs/fitness/products.md) |
 | Task、Run、Worker、租约、取消与恢复 | 🟡 本地流程已接通，真实远程环境验收待完成 | [server](server/README.md)、[ADR 0002](docs/adr/0002-remote-task-dispatch.md) |
 | GitHub Issue 与 ROADMAP 同步、项目范围认领 | 🟡 已实现 | [server](server/README.md#github-issue-intake) |
+| 公开需求 → 本机编码 CLI → 检查改动并提交草稿 PR | 🟡 已实现；任务中心已部署；GitHub Release 开发版 | [Desktop 贡献指南](desktop/README.md#contribute-on-this-computer) |
 | 社区任务广场：GitHub OAuth、Worker 归属、验收记分 | 🟡 已实现 | [server](server/README.md#community-tasks-and-contributions-2) |
 | 产物版本、独立验证、授权回写 | ⚪ 规划中（M3） | [Roadmap](docs/ROADMAP.md) |
 | 环境匹配、隔离、自部署升级 | ⚪ 规划中（M4） | [Roadmap](docs/ROADMAP.md) |

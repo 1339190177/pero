@@ -73,5 +73,12 @@ module.exports = {
   "Electron → GPUI Web / WASM（gpui-kit / Zed）→ 受限桥接 → Rust Host": "Electron → GPUI Web / WASM (gpui-kit / Zed) → Restricted bridge → Rust Host",
   "Rust Runtime → ACP Rust SDK → Coding Agent；Host 管理工作区、权限与执行。": "Rust Runtime → ACP Rust SDK → Coding Agent. The Host manages workspaces, permissions, and execution.",
   "Go 管理任务、节点与租约；Worker 主动连接，ACP 用于 Host 与 Agent 通信。": "Go manages tasks, workers, and leases. Workers connect outbound; ACP connects the Host to agents.",
-  "固定产物版本 → 独立验证 → 人工接受 → 授权发布": "Fixed artifact version → Independent verification → Human acceptance → Authorized publication"
+  "固定产物版本 → 独立验证 → 人工接受 → 授权发布": "Fixed artifact version → Independent verification → Human acceptance → Authorized publication",
+  "下载 macOS 开发版": "Download macOS dev build",
+  "macOS arm64 · 安装要求": "macOS arm64 · Requirements",
+  "适用于 Apple Silicon。贡献代码需本机 Git、已安装并登录的编码 CLI，以及已登录的 GitHub CLI（gh auth login）。开发版尚未公证。": "For Apple Silicon. Coding contributions require local Git, an installed and signed-in coding CLI, and authenticated GitHub CLI (gh auth login). This development build is not notarized.",
+  "安装与贡献说明 ↗": "Installation & contribution guide ↗",
+  "本页计算与协作示例仅在浏览器本地运行，刷新后重置，不会启动真实 Agent、分派任务或提交 PR。实际贡献请使用 Desktop 开发版或线上任务中心。": "These computation and collaboration examples run locally in your browser and reset on refresh. They do not start real agents, dispatch tasks or submit PRs. Use the Desktop development build or online Task Center for actual contributions.",
+  "线上任务中心": "Online Task Center",
+  "这里提供可编辑的 Issue 模板，下载不会向 GitHub 发布。": "These are editable Issue templates. Downloading does not publish anything to GitHub."
 };

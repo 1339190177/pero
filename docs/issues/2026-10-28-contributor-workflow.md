@@ -62,3 +62,17 @@ The corrected macOS 15 job then remained queued while the repository's current
 macOS runners started normally. Release builds now use the documented Apple
 Silicon macOS 26 image, retaining the architecture, packaged service-origin,
 signature and launch checks.
+
+## Public delivery
+
+[Release v0.1.0-dev.20261028](https://github.com/phodal/pero/releases/tag/v0.1.0-dev.20261028)
+was published by [GitHub Actions run 40720315844](https://github.com/phodal/pero/actions/runs/40720315844)
+at 2026-10-29 00:13 Asia/Shanghai. CI built the immutable application tag,
+verified the package and launched its actual Host with the default online
+Task Center. The public DMG is 99,407,747 bytes; build metadata and SHA256SUMS
+are published beside it. No local build was uploaded.
+
+The downloaded public App passed checksum/signature checks and the full isolated
+contributor acceptance suite after installation outside the checkout. The online
+service and CI-built development package are delivered. Notarization and real
+maintainer acceptance of a contributed PR remain separate from this delivery.
