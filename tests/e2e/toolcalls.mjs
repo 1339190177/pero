@@ -16,7 +16,7 @@ try{
  await page.waitForFunction(()=>window.peroDiagnostics,undefined,{timeout:60000});
  const state=()=>page.evaluate(()=>window.peroDiagnostics?JSON.parse(window.peroDiagnostics.snapshot()):{});
  await expect.poll(async()=>(await state()).agents?.length||0).toBe(4);
- await page.mouse.click(80,144);
+ await page.mouse.click(74,307);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.mouse.click(1430,24);
@@ -55,7 +55,7 @@ try{
  await expect.poll(async()=>(await state()).toolViews[0]).toBe(0);
  await page.mouse.click(760,295);
  await expect.poll(async()=>(await state()).toolViews[0]).toBe(1);
- await page.mouse.click(64,970);
+ await page.mouse.click(64,await page.evaluate(()=>innerHeight-30));
  await expect.poll(async()=>(await state()).dark).toBe(true);
  await page.screenshot({path:resolve(out,'dark.png')});
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1000,788));

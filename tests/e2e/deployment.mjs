@@ -112,12 +112,12 @@ try {
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('remote-tasks').click());
   await expect.poll(async () => (await ui.state()).remote.state.connection.url).toBe(base);
   await ui.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await ui.page.mouse.click(500, 279);
+  await ui.page.mouse.click(500, 289);
   await ui.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await ui.page.keyboard.insertText(client.token);
   await ui.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await ui.page.screenshot({ path: resolve(out, 'default-connection-masked.png') });
-  await ui.page.mouse.click(280, 386);
+  await ui.page.mouse.click(255, 395);
   await expect.poll(async () => (await ui.state()).remote.state.identity?.role, { timeout: 30000 }).toBe('client');
   await expect.poll(async () => (await ui.state()).remote.state.loading, { timeout: 45000 }).toBe(false);
   expect((await ui.state()).remote.state.error).toBe(null);
