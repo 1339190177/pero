@@ -73,9 +73,11 @@ type clientResponse struct {
 }
 
 type activeSession struct {
-	agent       *harness.Agent
-	detachEvent func()
-	detachStore func() error
+	projectionMu sync.Mutex
+	stream       liveStream
+	agent        *harness.Agent
+	detachEvent  func()
+	detachStore  func() error
 
 	mu              sync.Mutex
 	inflight        bool
@@ -465,7 +467,7 @@ func (s *Server) activateWithPolicy(ctx context.Context, agent *harness.Agent, a
 			record.detachStore = detachStore
 		}
 	}
-	record.detachEvent = agent.Session().Subscribe(func(event harness.Event) { s.project(record, event) })
+	record.detachEvent = agent.Session().Subscribe(func(event harness.Event) { s.projectLive(record, event) })
 	s.mu.Lock()
 	current, live := s.h.Agents().Get(agent.ID())
 	if s.closing || !live || current != agent || s.sessions[agent.ID()] != nil || ctx.Err() != nil {

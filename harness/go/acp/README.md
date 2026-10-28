@@ -19,3 +19,25 @@ configuration is still explicitly supplied by the trusted ACP client and passes
 normal validation. No MCP credentials or endpoint configuration are added to the
 receipt, and this change introduces no automatic permission grant or reconnect
 configuration policy.
+
+## Incremental output
+
+Live ACP output projects the existing Point-derived `assistant/chunk` events,
+without another model runtime or provider dispatch. Text becomes
+`agent_message_chunk`; visible reasoning text becomes `agent_thought_chunk`.
+Opaque reasoning metadata, usage and partial tool arguments are not exposed as
+assistant text. Tool calls/results keep their existing separate updates.
+
+The completion supplies only text/thought suffixes not already streamed (plus
+non-text committed content). Non-streaming adapters still project the full
+completion. If a provider contradicts its streamed prefix, ACP cannot retract
+those bytes: the conflicting final lane is suppressed live, and the committed
+completion remains canonical on load. Failed/retried attempts may already be
+visible provisionally; attempts reset deduplication, never merge their prefixes.
+
+`session/resume` does not replay old notifications. `session/load` projects only
+committed messages and tool events, not provisional chunks; failed uncommitted
+prefixes therefore disappear on load, while interrupted committed prefixes
+appear once. Cancellation/close seals live projection. The shared harness fences
+provider emit callbacks to the exact Generate invocation and cancellation context,
+so retained callbacks cannot write into later attempts or reused sessions.

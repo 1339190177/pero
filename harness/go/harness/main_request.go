@@ -3,6 +3,7 @@ package harness
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 )
 
@@ -58,5 +59,21 @@ func (a *Agent) generateMainRequest(ctx context.Context, prepared PreparedAdapte
 	if admission := errors.Join(cancelled, a.mutationAdmissionError()); admission != nil {
 		return Completion{}, &mainRequestAdmissionError{cause: admission}
 	}
-	return prepared.Generate(ctx, request, emit)
+	// Adapters own no callback lifetime beyond this exact Generate call. Serialize
+	// callbacks with retirement so a retained emitter cannot append to a later
+	// attempt/turn, or race the interrupted-prefix assembly after return.
+	var streamMu sync.Mutex
+	streamOpen := true
+	defer func() { streamMu.Lock(); streamOpen = false; streamMu.Unlock() }()
+	return prepared.Generate(ctx, request, func(chunk StreamChunk) error {
+		streamMu.Lock()
+		defer streamMu.Unlock()
+		if !streamOpen {
+			return errors.New("harness: provider stream is closed")
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return emit(chunk)
+	})
 }

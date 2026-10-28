@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "lifecycle.go",
         "server.go",
+        "stream.go",
         "types.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/acp",
@@ -17,7 +18,10 @@ go_library(
 
 go_test(
     name = "acp_test",
-    srcs = ["extraction_test.go"],
+    srcs = [
+        "extraction_test.go",
+        "stream_test.go",
+    ],
     embed = [":acp"],
     deps = ["//harness"],
 )
