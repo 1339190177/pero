@@ -20,7 +20,7 @@ try{
  await page.waitForFunction(()=>!document.getElementById('loading'));
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.screenshot({path:resolve(out,'overview.png')});
- await page.mouse.click(74,307);
+ await page.mouse.click(74,267);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.mouse.click(1430,24);
@@ -75,7 +75,7 @@ try{
  const count=streamed.chats[0].messages.length;
  await page.reload();
  await expect.poll(async()=>(await state()).chats?.[0]?.messages.length,{timeout:30000}).toBe(count);
- await page.mouse.click(74,307);
+ await page.mouse.click(74,267);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.mouse.click(340,130);

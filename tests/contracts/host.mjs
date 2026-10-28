@@ -89,6 +89,11 @@ try {
   host.send({ method: 'settings.locale', locale: 'zh-CN' });
   await host.next('settings', (e) => e.text === 'zh-CN');
 
+  host.send({ method: 'contribution', id: 'contribution-invalid', operation: 'prepare',
+    task_id: 'task_contract', repository: '../invalid', parent: temp, title: 'Contract test',
+    source_url: 'https://github.com/acme/repo/issues/1', source_revision: 'contract-revision' });
+  await host.next('contribution_error', e => e.request_id === 'contribution-invalid' && e.data.code === 'invalid_request');
+
   const storedConnection = { url: 'https://openpero.com', mode: 'client', encrypted_token: 'ZW5jcnlwdGVk' };
   host.send({ method: 'settings.remote', id: 'remote-save', connection: storedConnection });
   const saved = await host.next('remote_settings_saved', e => e.request_id === 'remote-save');
