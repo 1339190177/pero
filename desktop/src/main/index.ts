@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain, Menu, protocol, net, dialog } from 'electron';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { normalizeLocale, translate, type Locale, type MessageKey } from '../../../locales';
-import { RemoteAdapter } from './remote';
+import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'pero', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 if (process.env.PERO_DESKTOP_DATA_DIR) {
@@ -19,7 +20,40 @@ let ready = false;
 let locale: Locale = 'en';
 const t = (key: MessageKey) => translate(locale, key);
 const send = (event: object) => { if (window && !window.isDestroyed()) window.webContents.send('pero:event', event); };
-const remote = new RemoteAdapter(send);
+let runtimeSettingsPath = '';
+const preferenceWrites = new Map<string, { resolve(): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
+async function saveRemotePreference(connection: StoredRemoteConnection | null): Promise<void> {
+  for (let i = 0; i < 100 && !ready; i++) await new Promise(resolveWait => setTimeout(resolveWait, 20));
+  if (!ready || !host?.stdin.writable) throw new Error('The local runtime is unavailable. Reopen Desktop and reconnect.');
+  const id = `remote-settings-${randomUUID()}`;
+  return new Promise((resolveWrite, rejectWrite) => {
+    const timer = setTimeout(() => { preferenceWrites.delete(id); rejectWrite(new Error('Saving the connection timed out. Retry after checking the local runtime.')); }, 5000);
+    preferenceWrites.set(id, { resolve: resolveWrite, reject: rejectWrite, timer });
+    host.stdin.write(JSON.stringify({ method: 'settings.remote', id, connection }) + '\n', error => {
+      if (!error) return;
+      clearTimeout(timer); preferenceWrites.delete(id);
+      rejectWrite(new Error('The local runtime could not save the connection. Retry connecting.'));
+    });
+  });
+}
+function rejectPreferenceWrites() {
+  for (const pending of preferenceWrites.values()) {
+    clearTimeout(pending.timer); pending.reject(new Error('The local runtime stopped before saving the connection. Reopen Desktop and retry.'));
+  }
+  preferenceWrites.clear();
+}
+const remote = new RemoteAdapter(send, {
+  load: () => {
+    if (!runtimeSettingsPath) return undefined;
+    try {
+      if (statSync(runtimeSettingsPath).size > 64 * 1024) throw new Error('Runtime settings exceed limit');
+      const value = JSON.parse(readFileSync(runtimeSettingsPath, 'utf8'));
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid runtime settings');
+      return Object.hasOwn(value, 'remote_connection') ? value.remote_connection : undefined;
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
+  },
+  save: saveRemotePreference,
+});
 const event = (kind: string, message_key: MessageKey) => ({ version: 1, kind, request_id: null, text: '', message_key });
 const changeLocale = (value: string) => {
   if (!ready || !['en', 'zh-CN'].includes(value)) throw new Error('Invalid locale');
@@ -55,17 +89,27 @@ app.whenReady().then(async () => {
       return new Response(response.body, { status: response.status, headers });
     });
   });
+  runtimeSettingsPath = process.env.PERO_SETTINGS_PATH || resolve(app.getPath('userData'), 'runtime-settings.json');
   // Local Agents must not inherit the Desktop's cloud operator/database credentials.
   const hostEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PERO_')));
   host = spawn(resolve(root, 'target/debug/pero-host'), ['--stdio'], { stdio: 'pipe', env: {
     ...hostEnvironment, PATH: [resolve(root,'node_modules/.bin'),process.env.PATH,resolve(app.getPath('home'),'.opencode/bin'),'/opt/homebrew/bin',resolve(app.getPath('home'),'.local/bin')].filter(Boolean).join(':'), PERO_LOCALE: locale,
     ...(process.env.PERO_AGENTS_FILE ? { PERO_AGENTS_FILE: process.env.PERO_AGENTS_FILE } : {}),
-    PERO_SETTINGS_PATH: process.env.PERO_SETTINGS_PATH || resolve(app.getPath('userData'), 'runtime-settings.json'),
+    PERO_SETTINGS_PATH: runtimeSettingsPath,
     PERO_HISTORY_PATH: process.env.PERO_HISTORY_PATH || resolve(app.getPath('userData'), 'sessions.jsonl'),
   } });
   createInterface({ input: host.stdout }).on('line', (line) => {
     try {
       const message = JSON.parse(line);
+      if (message.kind === 'remote_settings_saved' || message.kind === 'remote_settings_error') {
+        const pending = preferenceWrites.get(message.request_id);
+        if (pending) {
+          clearTimeout(pending.timer); preferenceWrites.delete(message.request_id);
+          if (message.kind === 'remote_settings_saved') pending.resolve();
+          else pending.reject(new Error('The runtime could not save the connection. Check the settings location and retry.'));
+        }
+        return; // Internal acknowledgement; never publish stored credential envelopes.
+      }
       if (message.kind === 'settings') { locale = normalizeLocale(message.text); updateMenus(); }
       if (message.kind === 'ready') ready = true;
       send(message);
@@ -73,8 +117,9 @@ app.whenReady().then(async () => {
     catch { console.error('Invalid Host event'); }
   });
   host.stderr.on('data', (data) => console.error(String(data)));
-  host.on('error', () => { ready = false; send(event('disconnected', 'error.host_start')); });
-  host.on('exit', () => { ready = false; send(event('disconnected', 'error.host_stopped')); });
+  host.on('error', () => { ready = false; rejectPreferenceWrites(); send(event('disconnected', 'error.host_start')); });
+  host.on('exit', () => { ready = false; rejectPreferenceWrites(); send(event('disconnected', 'error.host_stopped')); });
+  void remote.initialize();
   const trusted = (sender: Electron.IpcMainInvokeEvent) => {
     if (sender.sender !== window.webContents || sender.senderFrame?.url !== 'pero://workbench/') throw new Error('Untrusted sender');
   };
@@ -119,4 +164,4 @@ app.whenReady().then(async () => {
   await window.loadURL('pero://workbench/');
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { remote.close(); host?.stdin.end(); });
+app.on('before-quit', () => { remote.close(); rejectPreferenceWrites(); host?.stdin.end(); });
