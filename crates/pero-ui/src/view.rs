@@ -39,6 +39,11 @@ impl Workbench {
                     this.sync_follow(cx);
                     this.command(json!({"action":"remote_refresh"}), cx);
                 }
+                SidebarAction::Navigate(7) => {
+                    this.navigation = 7;
+                    this.sync_follow(cx);
+                    this.refresh_apps(cx);
+                }
                 SidebarAction::Navigate(index) => {
                     this.navigation = *index;
                     this.sync_follow(cx);
@@ -228,9 +233,11 @@ impl Render for Workbench {
                 input.set_placeholder(placeholder, window, cx)
             });
         }
-        let p = self.palettes.get(self.dark);
         let width: f32 = window.viewport_size().width.into();
+        let height: f32 = window.viewport_size().height.into();
         let compact = width < 1150.;
+        self.sync_app_surface(if compact { 168. } else { 192. }, width, height);
+        let p = self.palettes.get(self.dark);
         div()
             .size_full()
             .flex()
@@ -249,5 +256,6 @@ impl Render for Workbench {
             .when(self.navigation == 5, |el| el.child(self.workers_view(cx)))
             .when(self.navigation == 1, |el| el.child(self.projects(cx)))
             .when(self.navigation == 2, |el| el.child(self.environments(cx)))
+            .when(self.navigation == 7, |el| el.child(self.apps_view(cx)))
     }
 }

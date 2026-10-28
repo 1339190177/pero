@@ -1,3 +1,5 @@
+#[cfg_attr(not(target_family = "wasm"), allow(dead_code))]
+mod apps;
 #[cfg(target_family = "wasm")]
 mod app;
 #[cfg(target_family = "wasm")]

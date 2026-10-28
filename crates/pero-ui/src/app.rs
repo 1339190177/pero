@@ -31,6 +31,8 @@ pub(crate) struct Workbench {
     pub dark: bool,
     pub navigation: usize,
     pub remote: crate::remote::RemoteState,
+    pub apps: crate::apps::AppWorkspace,
+    pub app_surface: String,
     pub tab: usize,
     pub connected: bool,
     pub pending: Option<String>,
@@ -96,6 +98,8 @@ impl Workbench {
         let remote = crate::remote::RemoteState::new(window, cx);
         Self {
             remote,
+            apps: crate::apps::AppWorkspace::default(),
+            app_surface: String::new(),
             input,
             input_locale: locale.clone(),
             locale,
@@ -153,6 +157,7 @@ impl Workbench {
     }
 
     fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
+        if self.receive_apps(&event, cx) { return; }
         if self.receive_remote(&event, cx) {
             return;
         }
@@ -317,6 +322,7 @@ pub fn snapshot() -> String {
             "ready": true, "remote": ui.remote.snapshot(cx), "connected": ui.connected, "input": ui.input.read(cx).value().as_ref(),
             "received": ui.received, "lastEcho": ui.last_echo, "pending": ui.pending,
             "error": ui.error, "dark": ui.dark, "navigation": ui.navigation,
+            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading,
             "locale": ui.locale, "labels": { "tasks": ui.t("nav.tasks"), "send": ui.t("probe.send") },
             "tab": ui.tab, "events": ui.events,
             "chats": ui.chats, "activeChat": ui.active_chat, "agents": ui.agents,

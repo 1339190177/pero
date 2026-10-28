@@ -242,6 +242,7 @@ pub(crate) fn sidebar(
                 (0, "terminal", "nav.sessions"),
                 (1, "folder", "nav.projects"),
                 (2, "devices", "nav.environments"),
+                (7, "file-code", "nav.apps"),
             ]
             .into_iter()
             .map(|(id, icon, label)| {
