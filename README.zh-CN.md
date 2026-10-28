@@ -5,14 +5,16 @@
 <h1 align="center">OpenPero</h1>
 
 <p align="center">
-  <b>分布式 Agent 协作。</b><br>
-  面向 AI4S 与研发协作，连接业务专家、开源贡献者与计算环境。
+  <b>面向科研与研发的分布式 Agent 协作。</b><br>
+  把问题写成任务契约，交给研究者、Agent 或算力完成，<br>
+  复核后的成果留在项目里。
 </p>
 
 <p align="center">
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#当前状态">当前状态</a> ·
   <a href="#工作方式">工作方式</a> ·
-  <a href="#架构">架构</a> ·
-  <a href="#路线图">路线图</a> ·
+  <a href="#仓库结构">仓库结构</a> ·
   <a href="#参与贡献">参与贡献</a> ·
   <a href="README.md">English</a>
 </p>
@@ -22,74 +24,84 @@
 </p>
 
 > [!NOTE]
-> **项目处于早期阶段。** 已有 Desktop、任务认领与远程执行基础。多 Agent 编排，以及完整的 AI4S 和研发工作流仍在建设中。
+> **项目处于早期阶段。** Desktop 工作台、共享任务和远程 Worker 已经可以运行。多 Agent 编排、结果验证，以及完整的 AI4S 工作流仍在建设中。目前没有发布版或安装包，需要从源码构建。
 
-## 运行当前实现
+## 为什么做
 
-- [Desktop](desktop/README.md)：Electron + GPUI、ACP 对话、中英文、主题、本地会话与共享远程任务。
-- [Go 控制面](server/README.md)：PostgreSQL Task/Run/Worker、租约、取消与恢复、GitHub Issue 同步、项目范围认领及显式启用的自动派发。
-- [社区任务广场](server/README.md#community-tasks-and-contributions-2)：公开任务、GitHub OAuth、Worker 归属、验收记分与积分撤销。
-- [构建与验证](docs/fitness/README.md)：npm/Cargo 开发流程和 Bazel Go／代码生成试点。字体优先复用本地文件与缓存，缺失才下载固定版本，生成的二进制不进入 Git。
+AI4S 需要串起文献、数据、方法与实验；研发协作需要衔接需求、代码、测试与评审。相关的人、代码和算力通常分散在不同团队和机器上，单次 Agent 执行只能看到其中一小块。
 
-本地界面与协议验证使用测试代理；部署、真实 OAuth 凭据和独立验收需要各自的配置与证据。详见[工作树整合记录](docs/fitness/worktree-integration.md)。
+OpenPero 以**项目与任务**组织这些工作：专家定义问题和验收标准，贡献者与 Agent 分工，复核后的成果交回项目。
 
-## 持续集成
-
-推送到 `master` 以及所有 pull request 会在 Linux、Windows 和 macOS 上运行[构建与验证](docs/fitness/README.md)中的命令：`npm ci`、`npm run build`、`npm run check`、`npm test`、`npm run test:contracts`，以及 `server/` 下的 `go test -race ./...`。Bazel `//:checks` 在 Linux 和 macOS 上运行，`//server/cmd/server` 在三个系统上构建。只有 macOS 本机时，另外两个系统仍会被检查。
-
-PostgreSQL、Electron、公开 GitHub 和真实模型套件仍是可选验收。它们需要数据库、显示器或本机登录，因此这条工作流不运行它们，也不读取 secrets。
-
-`docs/` 是 openpero.com 的静态站点。Cargo crate 设置了 `publish = false`，签名 Desktop 安装包也还不是当前交付物。Task Center 的安装是单独的主机脚本，见 [deployment/task-center](deployment/task-center/README.md)。它需要 SSH 和留在那台机器上的凭据。这条工作流不运行该脚本，不部署站点，也不发布安装包。
-
-## 要解决的问题
-
-AI4S 需要串起文献、数据、方法与实验结果；研发协作需要衔接需求、实现、测试与评审。专业判断、代码和算力往往分散在不同成员与机器上。
-
-OpenPero 以**项目与任务**组织这些工作：专家定义问题和验收标准，贡献者与 Agent 分工，执行产物经过复核后交回项目。
-
-| | 单次 Agent 执行 | OpenPero 的方向 |
+| | 单次 Agent 执行 | OpenPero |
 | --- | --- | --- |
-| **背景** | 当前任务的上下文 | 项目里的需求、文献、数据、方法与决定 |
-| **协作** | 由人串联各次执行 | 围绕任务认领、分工与交接 |
+| **背景** | 当前的提示词 | 项目里的需求、文献、数据、方法与决定 |
+| **协作** | 由人串联各次执行 | 任务认领、分工与交接 |
 | **执行** | 一个运行环境 | 获准的本机、实验室服务器或云端 |
 | **完成的标准** | “跑通了” | 执行、验证与人工验收分别记录 |
 
+## 快速开始
+
+### Desktop
+
+需要 Node.js 22.12+、Rust stable 与 `nightly-2026-10-28`，以及 `ec89cfc` 版本的 [gpui-kit](https://github.com/longbridge/gpui-kit) 本地检出。
+
+```bash
+git clone https://github.com/phodal/pero.git && cd pero
+npm ci
+node node_modules/electron/install.js
+rustup toolchain install nightly-2026-10-28 --profile minimal --target wasm32-unknown-unknown
+export PERO_GPUI_KIT_PATH=/absolute/path/to/gpui-kit
+npm run dev
+```
+
+在应用中选择 **New task**，再选一个 Agent（Codex、Claude，或经 OpenCode 使用的 Grok）和工作区。各 Agent 使用自己的本机登录。Agent 配置、字体与离线构建见 [desktop/README.md](desktop/README.md)。
+
+想试用本地 App，可运行 `npm run dev:apps`，它会在独立配置中打开 Virtual Cell，见 [apps/README.md](apps/README.md)。
+
+### 控制面（可选）
+
+共享任务、远程 Worker 和 GitHub 同步需要 Go 服务。需要 Go 1.24+ 和 PostgreSQL。
+
+```bash
+cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=change-me go run ./cmd/server
+```
+
+服务监听 `127.0.0.1:8787`。之后[让 Desktop 连接它](desktop/README.md#remote-tasks)，需要时再[绑定 GitHub 仓库](server/README.md#github-issue-intake)。
+
+## 当前状态
+
+| 能力 | 状态 | 文档 |
+| --- | --- | --- |
+| Desktop 工作台：Electron + GPUI/WASM、ACP 对话、中英文、主题 | 🟢 开发构建可用 | [desktop](desktop/README.md) |
+| 本地 App，首个为 Virtual Cell | 🟢 首版 | [apps](apps/README.md)、[ADR 0007](docs/adr/0007-local-app-platform.md) |
+| Task、Run、Worker、租约、取消与恢复 | 🟡 本地流程已接通，真实远程环境验收待完成 | [server](server/README.md)、[ADR 0002](docs/adr/0002-remote-task-dispatch.md) |
+| GitHub Issue 与 ROADMAP 同步、项目范围认领 | 🟡 已实现 | [server](server/README.md#github-issue-intake) |
+| 社区任务广场：GitHub OAuth、Worker 归属、验收记分 | 🟡 已实现 | [server](server/README.md#community-tasks-and-contributions-2) |
+| 产物版本、独立验证、授权回写 | ⚪ 规划中（M3） | [Roadmap](docs/ROADMAP.md) |
+| 环境匹配、隔离、自部署升级 | ⚪ 规划中（M4） | [Roadmap](docs/ROADMAP.md) |
+
+🟢 开发构建可用 · 🟡 已实现，验收未完成 · ⚪ 规划中。里程碑与验收层级见 [Roadmap](docs/ROADMAP.md)。
+
 ## 工作方式
 
-顶部的图就是完整闭环，分步来看：
-
-1. **提出工作。** 从 GitHub Issue、业务或研究委托，或项目自身变化产生的建议开始。
+1. **提出工作。** 从 GitHub Issue、研究或业务委托，或项目自身变化产生的建议开始。
 2. **写成契约。** 固定输入与方法版本，写明预期产物、资源限制和验收条件。
 3. **分配任务。** 由合作者认领，或交给获准的 Agent / Worker。
 4. **执行并记录。** 产出代码、数据、方法或报告，同时保存检查和复跑所需的信息。
 5. **复核并接续。** 记录决定、更新项目，必要时回写 GitHub。
 
-## 有什么不同
+设计遵循几条原则：
 
-**🧠 项目会记住。** 需求、问题、文献、数据集、方法、运行和决定放在一起。一个月后回来，也能看到上次做到哪里、为什么接受某个结果、还有什么没解决。
+- **项目会记住。** 需求、文献、数据集、方法、运行和决定放在一起，随时能看到工作停在哪里、为什么接受某个结果。
+- **Agent 提议，人来决定。** 数据变化或检查失败时，Agent 说明影响并提出任务，不会悄悄修改方法或已接受的结论。
+- **计算留在数据所在的地方。** 任务可以在个人电脑、获准的实验室服务器或云端执行，协调服务可以自部署。
+- **跑通不等于验收。** 每个结果关联输入、方法版本、参数和环境；接受结果是一次明确的复核。
 
-**🔔 Agent 准备下一步。** 数据集更新、运行完成、检查失败、出现相关文献：Agent 说明发生了什么、可能影响哪些工作，并提出一项具体任务。它遵守项目权限与预算，不会悄悄修改研究方法或已接受的结论。
-
-**🌐 计算留在数据所在的地方。** 任务可以在个人电脑、获准接入的实验室服务器或云端执行。协调服务可以自部署，协调服务上云也不意味着数据必须上云。
-
-**🔍 每个结果都有来处。** 结果关联输入、方法版本、参数、环境和执行记录。程序跑通不等于结果验收，接受结果是一次明确、经过复核的决定。
-
-## 架构
+### 架构
 
 ![OpenPero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
 
-实线框表示已有基础，虚线表示规划中。重新生成图示：`npm run gen:architecture` 与 `npm run gen:overview`。
-
-| 部分 | 职责 |
-| --- | --- |
-| **Project** | 研究目标、共享背景、已接受结果、未解决问题与决定 |
-| **Task** | 有明确输入、产物、约束和验收条件的独立贡献单元 |
-| **Coordinator** | 依赖、授权、分配、执行状态、取消与恢复 |
-| **Worker** | 声明能力，在限定权限内执行获准的任务 |
-| **Result & Review** | 保存产物与来源，区分执行成功、验证结果与研究验收 |
-| **Web / Desktop / GitHub** | 进入同一项工作的不同入口 |
-
-使用入口（Web、Desktop）、执行位置（本机、实验室、云端）和部署方式（自部署、托管）是相互独立的选择。
+实线框表示已有基础，虚线表示规划中。使用入口（Web、Desktop）、执行位置（本机、实验室、云端）和部署方式（自部署、托管）是相互独立的选择。运行时拓扑与不变量见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，技术决定见 [docs/adr](docs/adr/README.md)。
 
 <details>
 <summary><b>安全边界</b></summary>
@@ -102,17 +114,34 @@ OpenPero 以**项目与任务**组织这些工作：专家定义问题和验收�
 
 </details>
 
-## 路线图
+## 仓库结构
 
-| | 阶段 | 交付重点 |
-| --- | --- | --- |
-| 🟢 | **M0 · 基础接线** | Desktop、Host、ACP 与版本化契约；macOS 开发构建已完成 |
-| 🟡 | **M1 · 远程分派** | 本地流程已接通，真实远程环境验收待完成 |
-| 🟡 | **M2 · 任务来源** | GitHub 已接入，ROADMAP 导入待完成 |
-| ⚪ | **M3 · 验证与发布** | 产物版本、独立验证、人工决定与授权回写 |
-| ⚪ | **M4 · 环境与运维** | 环境匹配、隔离、自部署升级与恢复 |
+| 路径 | 内容 |
+| --- | --- |
+| `crates/pero-host` | Rust Host：stdio JSONL 桥接，托管 ACP Agent 进程 |
+| `crates/pero-runtime` | ACP 会话，基于官方 Rust SDK |
+| `crates/pero-ui` | GPUI 工作台，编译为 WASM |
+| `crates/pero-worker` | 独立的远程执行 Worker |
+| `crates/pero-contracts` | 协议契约的 Rust 类型 |
+| `desktop/`、`web/` | Electron 壳，以及 WASM 加载与共享资源 |
+| `server/` | 基于 PostgreSQL 的 Go 控制面 |
+| `protocol/` | TypeSpec 契约与生成的 Schema |
+| `apps/`、`packages/` | 本地 App、App SDK 与产品定义 |
+| `docs/` | 架构、ADR、路线图、验收记录；同时是 openpero.com 站点 |
+| `deployment/` | Task Center 主机安装脚本 |
 
-🟢 开发构建已完成 · 🟡 部分实现 · ⚪ 规划中。详细范围与验收标准见 [Roadmap](docs/ROADMAP.md)。
+## 开发
+
+```bash
+npm run check                    # TypeScript、生成的主题、文案目录、契约
+npm test                         # Rust 测试
+npm run test:contracts           # Host stdio 输出对照 JSON Schema
+go -C server test -race ./...    # 控制面；PostgreSQL 用例需要 PERO_TEST_DATABASE_URL
+```
+
+CI 在 Linux、Windows 和 macOS 上运行以上命令，并运行 Bazel `//:checks`。Electron、PostgreSQL、公开 GitHub 和真实模型套件需显式运行。各套件及其验证范围见 [docs/fitness](docs/fitness/README.md)。
+
+第一次看代码，建议依次阅读 [ARCHITECTURE](docs/ARCHITECTURE.md)、[ADR 索引](docs/adr/README.md) 和 [fitness](docs/fitness/README.md)。色彩遵循 [DESIGN.md](DESIGN.md)。重新生成 README 图示：`npm run gen:architecture` 与 `npm run gen:overview`。
 
 ## 参与贡献
 
@@ -122,21 +151,21 @@ OpenPero 以**项目与任务**组织这些工作：专家定义问题和验收�
 | --- | --- |
 | **业务场景** | 真实问题、领域约束与验收标准 |
 | **任务与结果契约** | Schema、样例数据、校验器 |
-| **GitHub 连接器** | 事件身份校验、去重、任务映射、状态回写 |
-| **Worker SDK** | 能力注册、任务领取、心跳、取消、结果提交 |
+| **GitHub 连接器** | 事件接入、去重、任务映射、状态回写 |
+| **Worker** | 能力注册、任务领取、心跳、取消、结果提交 |
 | **协调与故障恢复** | 任务依赖、租约、安全重试、拒绝过期结果 |
 | **结果验证** | 产物检查、基线比较、独立复核接口 |
 | **科研方法包** | 固定输入、环境、基线与检查规则 |
 | **研发工作流** | 需求验证、测试与评审的 Playbook |
 
-以上是建议方向，不代表已有对应 Issue。较大的改动请先开 Issue 对齐范围、接口与验收条件，并附上本地运行或测试方式。AI 辅助完成的贡献，与其他贡献一样需要审阅与验证。
+以上是建议方向，不代表已有对应 Issue。较大的改动请先开 Issue 对齐范围、接口与验收条件，并附上本地运行或测试方式。AI 辅助完成的贡献，与其他贡献一样需要审阅。
 
-**也欢迎业务与领域专家参与。** 提供问题、约束与验收标准，贡献科研方法，或独立复核结果。
+也欢迎业务与领域专家参与：提供问题与验收标准，贡献科研方法，或独立复核结果。
 
 <details>
 <summary>修改演示页面</summary>
 
-中文文案在 `pages/src`，英文对照在 `pages/locales/en.js`。运行 `node pages/scripts/build.mjs` 重新生成两个页面。色彩遵循 [`DESIGN.md`](DESIGN.md)。
+中文文案在 `pages/src`，英文对照在 `pages/locales/en.js`。运行 `node pages/scripts/build.mjs` 重新生成两个页面。
 
 </details>
 
