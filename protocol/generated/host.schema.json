@@ -575,6 +575,12 @@
           "$ref": "#/$defs/SettingsEvent"
         },
         {
+          "$ref": "#/$defs/RemoteSettingsSavedEvent"
+        },
+        {
+          "$ref": "#/$defs/RemoteSettingsErrorEvent"
+        },
+        {
           "$ref": "#/$defs/ReadyEvent"
         },
         {
@@ -647,6 +653,9 @@
         },
         {
           "$ref": "#/$defs/SetLocaleRequest"
+        },
+        {
+          "$ref": "#/$defs/SetRemoteSettingsRequest"
         },
         {
           "$ref": "#/$defs/HostCommand"
@@ -1002,6 +1011,41 @@
       ],
       "additionalProperties": false
     },
+    "RemoteConnectionSettings": {
+      "title": "RemoteConnectionSettings",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "client"
+            },
+            {
+              "type": "string",
+              "const": "operator"
+            }
+          ]
+        },
+        "encrypted_token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "url",
+        "mode",
+        "encrypted_token"
+      ],
+      "additionalProperties": false,
+      "description": "Internal main-process/runtime preferences; never exposed in renderer snapshots."
+    },
     "RemoteOpenEvent": {
       "title": "RemoteOpenEvent",
       "type": "object",
@@ -1036,6 +1080,75 @@
       ],
       "additionalProperties": false,
       "description": "Open remote tasks from the native Workbench menu or keyboard."
+    },
+    "RemoteSettingsErrorEvent": {
+      "title": "RemoteSettingsErrorEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "remote_settings_error"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "RemoteSettingsSavedEvent": {
+      "title": "RemoteSettingsSavedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "remote_settings_saved"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Main-process acknowledgements contain no persisted connection payload."
     },
     "RemoteSnapshotPayload": {
       "title": "RemoteSnapshotPayload",
@@ -1564,6 +1677,37 @@
       "required": [
         "method",
         "locale"
+      ],
+      "additionalProperties": false
+    },
+    "SetRemoteSettingsRequest": {
+      "title": "SetRemoteSettingsRequest",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "settings.remote"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "connection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RemoteConnectionSettings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "id",
+        "connection"
       ],
       "additionalProperties": false
     },

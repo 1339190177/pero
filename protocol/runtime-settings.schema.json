@@ -1,11 +1,39 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Set runtime language preference",
-  "type": "object",
-  "required": ["method", "locale"],
-  "additionalProperties": false,
-  "properties": {
-    "method": { "const": "settings.locale" },
-    "locale": { "enum": ["en", "zh-CN"] }
-  }
+  "title": "Runtime-owned preference commands",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["method", "locale"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "const": "settings.locale" },
+        "locale": { "enum": ["en", "zh-CN"] }
+      }
+    },
+    {
+      "type": "object",
+      "required": ["method", "id", "connection"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "const": "settings.remote" },
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "connection": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["url", "mode", "encrypted_token"],
+              "additionalProperties": false,
+              "properties": {
+                "url": { "type": "string", "minLength": 1, "maxLength": 2048 },
+                "mode": { "enum": ["client", "operator"] },
+                "encrypted_token": { "type": "string", "minLength": 1, "maxLength": 4096 }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
 }

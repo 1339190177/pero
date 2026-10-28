@@ -35,6 +35,20 @@ model SetLocaleRequest {
   ...Closed;
 }
 
+/** Internal main-process/runtime preferences; never exposed in renderer snapshots. */
+model RemoteConnectionSettings {
+  @minLength(1) @maxLength(2048) url: string;
+  mode: "client" | "operator";
+  @minLength(1) @maxLength(4096) encrypted_token: string;
+  ...Closed;
+}
+model SetRemoteSettingsRequest {
+  method: "settings.remote";
+  @minLength(1) @maxLength(128) id: string;
+  connection: RemoteConnectionSettings | null;
+  ...Closed;
+}
+
 model ListAgentsCommand { action: "list_agents"; ...Closed }
 model WorkspaceCommand { action: "workspace"; path: string; ...Closed }
 model AttachFilesCommand { action: "attach_files"; paths: string[]; ...Closed }
@@ -70,6 +84,7 @@ union HostCommand {
 union HostInput {
   EchoRequest,
   SetLocaleRequest,
+  SetRemoteSettingsRequest,
   HostCommand,
 }
 
@@ -94,6 +109,9 @@ model ThreadEventBase {
 
 /** `text` is the active locale tag. */
 model SettingsEvent { kind: "settings"; ...EventBase }
+/** Main-process acknowledgements contain no persisted connection payload. */
+model RemoteSettingsSavedEvent { kind: "remote_settings_saved"; ...EventBase }
+model RemoteSettingsErrorEvent { kind: "remote_settings_error"; ...EventBase }
 model ReadyEvent { kind: "ready"; ...SystemEventBase }
 /** Emitted by Electron when the Host child cannot start or exits. */
 model DisconnectedEvent { kind: "disconnected"; ...SystemEventBase }
@@ -171,6 +189,8 @@ union ThreadEvent {
 @oneOf
 union HostEvent {
   SettingsEvent,
+  RemoteSettingsSavedEvent,
+  RemoteSettingsErrorEvent,
   ReadyEvent,
   DisconnectedEvent,
   NoticeEvent,

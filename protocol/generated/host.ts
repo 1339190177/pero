@@ -4,7 +4,7 @@
  * Generated from protocol/host.tsp. Do not edit.
  */
 export type HostProtocol = HostInput | HostEvent;
-export type HostInput = EchoRequest | SetLocaleRequest | HostCommand;
+export type HostInput = EchoRequest | SetLocaleRequest | SetRemoteSettingsRequest | HostCommand;
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
@@ -19,6 +19,8 @@ export type HostCommand =
 export type ThreadId = string;
 export type HostEvent =
   | SettingsEvent
+  | RemoteSettingsSavedEvent
+  | RemoteSettingsErrorEvent
   | ReadyEvent
   | DisconnectedEvent
   | NoticeEvent
@@ -67,6 +69,19 @@ export interface EchoRequest {
 export interface SetLocaleRequest {
   method: "settings.locale";
   locale: "en" | "zh-CN";
+}
+export interface SetRemoteSettingsRequest {
+  method: "settings.remote";
+  id: string;
+  connection: RemoteConnectionSettings | null;
+}
+/**
+ * Internal main-process/runtime preferences; never exposed in renderer snapshots.
+ */
+export interface RemoteConnectionSettings {
+  url: string;
+  mode: "client" | "operator";
+  encrypted_token: string;
 }
 export interface ListAgentsCommand {
   action: "list_agents";
@@ -118,6 +133,21 @@ export interface CloseCommand {
  */
 export interface SettingsEvent {
   kind: "settings";
+  version: 1;
+  request_id: string | null;
+  text: string;
+}
+/**
+ * Main-process acknowledgements contain no persisted connection payload.
+ */
+export interface RemoteSettingsSavedEvent {
+  kind: "remote_settings_saved";
+  version: 1;
+  request_id: string | null;
+  text: string;
+}
+export interface RemoteSettingsErrorEvent {
+  kind: "remote_settings_error";
   version: 1;
   request_id: string | null;
   text: string;
