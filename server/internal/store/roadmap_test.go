@@ -246,3 +246,69 @@ func TestRoadmapPartialReadCannotRemoveAndFrozenGoalCannotBeRelabelled(t *testin
 		t.Fatalf("removed source redispatched: %v", err)
 	}
 }
+
+func TestRoadmapCompletePathReplacementRetiresOnlyPriorBindingSources(t *testing.T) {
+	s, _ := integrationStore(t)
+	ctx := context.Background()
+	config, root := roadmapFixture()
+	root.Path = "ROADMAP.md"
+	if _, err := s.SyncRoadmap(ctx, config, root); err != nil {
+		t.Fatal(err)
+	}
+	oldParent, oldChild := roadmapTask(t, s, "parent"), roadmapTask(t, s, "child")
+	if _, err := s.Dispatch(ctx, oldChild.ID, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	private := config
+	private.ProjectID = "private"
+	if _, err := s.SyncRoadmap(ctx, private, root); err != nil {
+		t.Fatal(err)
+	}
+	client, _ := mustClient(t, s, "Reader", "p")
+	docs := root
+	docs.Path, docs.CommitSHA, docs.BlobSHA = "docs/ROADMAP.md", strings.Repeat("c", 40), strings.Repeat("d", 40)
+	docs.Partial = true
+	result, err := s.SyncRoadmap(ctx, config, docs)
+	if err != nil || result.Imported != 3 || result.Missing != 0 {
+		t.Fatalf("partial path replacement: %+v %v", result, err)
+	}
+	unchanged, err := s.Task(ctx, oldParent.ID)
+	if err != nil || unchanged.LatestSource.State != "open" {
+		t.Fatalf("partial read retired an old path: %+v %v", unchanged, err)
+	}
+	docs.Partial = false
+	result, err = s.SyncRoadmap(ctx, config, docs)
+	if err != nil || result.Imported != 0 || result.Missing != 3 {
+		t.Fatalf("complete path replacement: %+v %v", result, err)
+	}
+	retired, err := s.Task(ctx, oldParent.ID)
+	if err != nil || retired.LatestSource.State != "missing" || retired.LatestSource.URL != oldParent.Source.URL || retired.LatestSource.CommitSHA != root.CommitSHA || retired.LatestSource.BlobSHA != root.BlobSHA || retired.LatestSource.MissingAtCommit != docs.CommitSHA {
+		t.Fatalf("old path was not safely retired: %+v %v", retired, err)
+	}
+	if _, err = s.ClaimTask(ctx, &client, oldParent.ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("replaced-path source claimable: %v", err)
+	}
+	if _, err = s.Dispatch(ctx, oldParent.ID, "", ""); !errors.Is(err, ErrConflict) {
+		t.Fatalf("replaced-path source dispatchable: %v", err)
+	}
+	cancelled, err := s.Task(ctx, oldChild.ID)
+	if err != nil || cancelled.State != "cancelled" || cancelled.Run.Spec.Source.Path != root.Path {
+		t.Fatalf("old queued goal was changed or not cancelled: %+v %v", cancelled, err)
+	}
+	var currentID, privateState string
+	if err = s.pool.QueryRow(ctx, `SELECT task_id FROM roadmap_items WHERE project_id='p' AND path='docs/ROADMAP.md' AND item_id='parent'`).Scan(&currentID); err != nil {
+		t.Fatal(err)
+	}
+	if currentID == oldParent.ID {
+		t.Fatal("path replacement guessed cross-file identity")
+	}
+	if err = s.pool.QueryRow(ctx, `SELECT latest->>'state' FROM roadmap_items WHERE project_id='private' AND path='ROADMAP.md' AND item_id='parent'`).Scan(&privateState); err != nil || privateState != "open" {
+		t.Fatalf("replacement crossed project scope: %s %v", privateState, err)
+	}
+	if _, err = s.ClaimTask(ctx, &client, currentID); err != nil {
+		t.Fatalf("current path claim failed: %v", err)
+	}
+	if _, err = s.ClientDispatch(ctx, &client, currentID, "", ""); err != nil {
+		t.Fatalf("current path dispatch failed: %v", err)
+	}
+}

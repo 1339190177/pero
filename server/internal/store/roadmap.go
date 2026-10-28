@@ -53,7 +53,8 @@ func (s *Store) SyncRoadmap(ctx context.Context, config GitHubRepository, snapsh
 		return changes, err
 	}
 	defer tx.Rollback(ctx)
-	key := config.ProjectID + ":" + snapshot.RepositoryID + ":" + snapshot.Path
+	// One configured repository binding selects one path. Serialize path replacements too.
+	key := config.ProjectID + ":" + snapshot.RepositoryID
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "pero:roadmap:"+key); err != nil {
 		return changes, err
 	}
@@ -145,7 +146,7 @@ func (s *Store) SyncRoadmap(ctx context.Context, config GitHubRepository, snapsh
 			items = append(items, item.ID)
 		}
 		// Lock Tasks before changing latest metadata, matching claim/dispatch order.
-		rows, err = tx.Query(ctx, `SELECT t.id,r.latest FROM roadmap_items r JOIN tasks t ON t.id=r.task_id WHERE r.project_id=$1 AND r.repository_id=$2 AND r.path=$3 AND NOT(r.item_id=ANY($4)) FOR UPDATE OF t`, config.ProjectID, snapshot.RepositoryID, snapshot.Path, items)
+		rows, err = tx.Query(ctx, `SELECT t.id,r.latest FROM roadmap_items r JOIN tasks t ON t.id=r.task_id WHERE r.project_id=$1 AND r.repository_id=$2 AND (r.path<>$3 OR NOT(r.item_id=ANY($4))) FOR UPDATE OF t`, config.ProjectID, snapshot.RepositoryID, snapshot.Path, items)
 		if err != nil {
 			return changes, err
 		}
