@@ -4,51 +4,18 @@ use crate::components::{
     sidebar::{self, SidebarAction, SidebarProps},
     workspace::{self, AgentRow, WorkspaceAction},
 };
+use crate::components::{
+    examples::TASKS,
+    task_list::{self, SessionRow, TaskListAction, TaskListProps},
+};
 use gpui_kit::{
-    component::{button::*, input::Input, *},
+    component::{button::*, *},
     prelude::*,
     *,
 };
 use serde_json::json;
 use std::rc::Rc;
 
-const TASKS: [(&str, &str, &str, &str, &str); 5] = [
-    (
-        "task.order",
-        "order-service",
-        "status.review",
-        "time.eight",
-        "",
-    ),
-    (
-        "task.export",
-        "api-gateway",
-        "status.testing",
-        "time.twelve",
-        "task.testing",
-    ),
-    (
-        "task.search",
-        "search-service",
-        "status.coding",
-        "time.twenty_eight",
-        "task.coding",
-    ),
-    (
-        "task.errors",
-        "core-service",
-        "status.blocked",
-        "time.hour",
-        "task.needs_input",
-    ),
-    (
-        "task.dependencies",
-        "web-console",
-        "status.queued",
-        "time.two_hours",
-        "task.queued",
-    ),
-];
 impl Workbench {
     pub fn icon(&self, name: &str) -> Svg {
         self.ui().icon(name)
@@ -101,234 +68,41 @@ impl Workbench {
             on_action,
         )
     }
-    fn task_list(&self, width: f32, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
-        let query = self.search.read(cx).value().to_lowercase();
-        div()
-            .w(px(width))
-            .h_full()
-            .flex_shrink_0()
-            .flex()
-            .flex_col()
-            .border_r_1()
-            .border_color(p.color("border"))
-            .child(
-                div()
-                    .px(px(14.))
-                    .pt(px(18.))
-                    .child(
-                        div()
-                            .text_size(px(22.))
-                            .font_weight(FontWeight::BOLD)
-                            .child(self.t("nav.tasks")),
-                    )
-                    .child(
-                        div()
-                            .mt(px(5.))
-                            .text_size(px(14.))
-                            .text_color(p.color("text-muted"))
-                            .child(self.t("tasks.subtitle")),
-                    )
-                    .child(
-                        div()
-                            .mt(px(16.))
-                            .flex()
-                            .items_center()
-                            .gap(px(12.))
-                            .child(
-                                Button::new("all-projects")
-                                    .outline()
-                                    .label(self.t("tasks.projects"))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.filter = 0;
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(
-                                Input::new(&self.search)
-                                    .prefix(self.icon("search"))
-                                    .w_full(),
-                            ),
-                    )
-                    .child(
-                        div().mt(px(12.)).flex().justify_between().children(
-                            [
-                                "filter.all",
-                                "filter.running",
-                                "filter.blocked",
-                                "filter.review",
-                            ]
-                            .into_iter()
-                            .enumerate()
-                            .map(|(i, key)| {
-                                Button::new(("filter", i))
-                                    .ghost()
-                                    .label(self.t(key))
-                                    .text_color(p.color(if self.filter == i {
-                                        "accent-text"
-                                    } else {
-                                        "text-muted"
-                                    }))
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.filter = i;
-                                        cx.notify();
-                                    }))
-                            }),
-                        ),
-                    ),
-            )
-            .child(
-                div()
-                    .id("task-list")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .border_t_1()
-                    .border_color(p.color("border"))
-                    .children(
-                        self.chats
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, c)| {
-                                query.is_empty() || c.title.to_lowercase().contains(&query)
-                            })
-                            .map(|(i, chat)| {
-                                div()
-                                    .id(("chat-row", i))
-                                    .px(px(14.))
-                                    .py(px(10.))
-                                    .border_b_1()
-                                    .border_color(p.color("border"))
-                                    .cursor_pointer()
-                                    .bg(p.color(if self.active_chat == Some(i) {
-                                        "accent-soft"
-                                    } else {
-                                        "surface"
-                                    }))
-                                    .child(
-                                        div()
-                                            .font_weight(FontWeight::BOLD)
-                                            .child(chat.title.clone()),
-                                    )
-                                    .child(
-                                        div()
-                                            .mt(px(6.))
-                                            .flex()
-                                            .items_center()
-                                            .gap(px(10.))
-                                            .text_size(px(12.))
-                                            .text_color(p.color("text-muted"))
-                                            .child(self.icon("terminal"))
-                                            .child(chat.agent.clone())
-                                            .child(self.badge(
-                                                self.t(if chat.busy() {
-                                                    "filter.running"
-                                                } else {
-                                                    "chat.session"
-                                                }),
-                                                "info",
-                                            )),
-                                    )
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.focus_chat(Some(i), 4, cx);
-                                    }))
-                            }),
-                    )
-                    .children(
-                        TASKS
-                            .into_iter()
-                            .enumerate()
-                            .filter(|(i, t)| {
-                                let state_match = match self.filter {
-                                    1 => *i == 1 || *i == 2,
-                                    2 => *i == 3,
-                                    3 => *i == 0,
-                                    _ => true,
-                                };
-                                state_match
-                                    && (query.is_empty()
-                                        || self.t(t.0).to_lowercase().contains(&query)
-                                        || t.1.contains(&query))
-                            })
-                            .map(|(i, (title, repo, status, time, note))| {
-                                div()
-                                    .id(("task", i))
-                                    .px(px(14.))
-                                    .py(px(10.))
-                                    .border_b_1()
-                                    .border_color(p.color("border"))
-                                    .cursor_pointer()
-                                    .bg(p.color(
-                                        if self.active_chat.is_none() && self.selected == i {
-                                            "accent-soft"
-                                        } else {
-                                            "surface"
-                                        },
-                                    ))
-                                    .hover(|s| s.bg(p.color("surface-muted")))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .justify_between()
-                                            .items_center()
-                                            .gap(px(8.))
-                                            .child(
-                                                div()
-                                                    .flex_1()
-                                                    .min_w_0()
-                                                    .truncate()
-                                                    .text_size(px(14.))
-                                                    .font_weight(FontWeight::BOLD)
-                                                    .child(self.t(title)),
-                                            )
-                                            .child(
-                                                div()
-                                                    .flex_shrink_0()
-                                                    .text_size(px(11.))
-                                                    .text_color(p.color("text-muted"))
-                                                    .child(self.t(time)),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .mt(px(6.))
-                                            .flex()
-                                            .items_center()
-                                            .gap(px(10.))
-                                            .text_size(px(13.))
-                                            .text_color(p.color("text-muted"))
-                                            .child(self.icon("brand-github"))
-                                            .child(repo)
-                                            .child(self.badge(
-                                                self.t(status),
-                                                if i == 0 {
-                                                    "success"
-                                                } else if i == 3 {
-                                                    "warning"
-                                                } else if i == 4 {
-                                                    "muted"
-                                                } else {
-                                                    "info"
-                                                },
-                                            ))
-                                            .when(i == 0, |el| el.child("PR #128")),
-                                    )
-                                    .when(!note.is_empty(), |el| {
-                                        el.child(
-                                            div()
-                                                .mt(px(6.))
-                                                .text_size(px(13.))
-                                                .text_color(p.color("text-muted"))
-                                                .child(self.t(note)),
-                                        )
-                                    })
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.selected = i;
-                                        this.focus_chat(None, 0, cx);
-                                    }))
-                            }),
-                    ),
-            )
+    fn task_list(&self, width: f32, cx: &mut Context<Self>) -> Div {
+        let sessions: Vec<_> = self
+            .chats
+            .iter()
+            .map(|chat| SessionRow {
+                title: chat.title.clone(),
+                agent: chat.agent.clone(),
+                busy: chat.busy(),
+            })
+            .collect();
+        let on_action = Rc::new(cx.listener(|this, action: &TaskListAction, _, cx| {
+            match action {
+                TaskListAction::Filter(filter) => this.filter = *filter,
+                TaskListAction::SelectSession(index) => this.focus_chat(Some(*index), 4, cx),
+                TaskListAction::SelectExample(index) => {
+                    this.selected = *index;
+                    this.focus_chat(None, 0, cx);
+                }
+            }
+            cx.notify();
+        }));
+        task_list::task_list(
+            self.ui(),
+            width,
+            TaskListProps {
+                search: &self.search,
+                query: self.search.read(cx).value().to_lowercase(),
+                sessions: &sessions,
+                examples: &TASKS,
+                active_chat: self.active_chat,
+                selected: self.selected,
+                filter: self.filter,
+            },
+            on_action,
+        )
     }
     fn overview(&self) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
@@ -604,7 +378,7 @@ impl Workbench {
                                 .text_color(p.color("text-muted"))
                                 .child(format!(
                                     "{} / T-{}",
-                                    TASKS[self.selected].1,
+                                    TASKS[self.selected].repository,
                                     1042 + self.selected
                                 ))
                                 .child(self.badge(self.t("task.example"), "muted")),
@@ -619,10 +393,10 @@ impl Workbench {
                                     div()
                                         .text_size(px(20.))
                                         .font_weight(FontWeight::BOLD)
-                                        .child(self.t(TASKS[self.selected].0)),
+                                        .child(self.t(TASKS[self.selected].title_key)),
                                 )
                                 .child(self.badge(
-                                    self.t(TASKS[self.selected].2),
+                                    self.t(TASKS[self.selected].status_key),
                                     if self.selected == 0 {
                                         "success"
                                     } else {
