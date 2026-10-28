@@ -125,17 +125,17 @@ try {
   await page.screenshot({ path: resolve(out, 'cancelled.png') });
   await stop(worker);
   await stop(server);
-  await page.mouse.click(1310, 29);
+  await page.mouse.click(1350, 29);
   await expect.poll(async () => !!(await state()).remote.state.error, { timeout: 15000 }).toBe(true);
   await page.screenshot({ path: resolve(out, 'connection-error.png') });
   await startServer();
-  await page.mouse.click(1310, 29);
+  await page.mouse.click(1350, 29);
   await expect.poll(async () => (await state()).remote.state.error, { timeout: 15000 }).toBe(null);
   expect((await state()).remote.state.tasks.length).toBe(2);
   for (let i = 0; i < 49; i++) {
     await request('/api/v1/tasks', 'POST', { title: `Pagination ${i}`, prompt: 'Fixture pagination draft', acceptance: 'No execution requested', project_id: 'default', workspace_key: 'default', agent_id: 'fixture' });
   }
-  await page.mouse.click(1310, 29);
+  await page.mouse.click(1350, 29);
   await expect.poll(async () => (await state()).remote.state.tasks.length).toBe(50);
   expect((await state()).remote.state.has_more).toBe(true);
   await page.mouse.click(330, 1030);
