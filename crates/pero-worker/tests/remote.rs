@@ -1,0 +1,347 @@
+#![cfg(unix)]
+use serde_json::{Value, json};
+use std::{
+    io::{BufRead, BufReader, Read, Write},
+    net::{TcpListener, TcpStream},
+    path::PathBuf,
+    process::{Command, Stdio},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::{Duration, Instant},
+};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+const AGENT: &str = r#"
+import readline from 'node:readline';
+import fs from 'node:fs';
+import {spawn} from 'node:child_process';
+let active;
+const send = value => process.stdout.write(JSON.stringify({jsonrpc:'2.0',...value})+'\n');
+const result = (id,result) => send({id,result});
+readline.createInterface({input:process.stdin}).on('line',line=>{
+ const m=JSON.parse(line);
+ if(m.method==='initialize')result(m.id,{protocolVersion:1,agentCapabilities:{}});
+ if(m.method==='session/new')result(m.id,{sessionId:'fixture'});
+ if(m.method==='session/prompt'){
+  fs.appendFileSync(process.env.WORKER_FIXTURE_MARKER,'prompt\n'); active=m.id;
+  if(m.params.prompt[0].text==='wait'){
+   const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+   fs.writeFileSync(process.env.WORKER_FIXTURE_DESCENDANT,String(child.pid));return;
+  }
+  send({method:'session/update',params:{sessionId:'fixture',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:'worker_token_visible='+Boolean(process.env.PERO_WORKER_TOKEN||process.env.PERO_OPERATOR_TOKEN||process.env.PERO_DATABASE_URL||process.env.PERO_UNKNOWN_SECRET)}}}});
+  if(m.params.prompt[0].text==='permission'){
+   send({id:900,method:'session/request_permission',params:{sessionId:'fixture',toolCall:{toolCallId:'tool',title:'fixture',status:'pending'},options:[{optionId:'allow',name:'Allow',kind:'allow_once'}]}});return;
+  }
+  result(active,{stopReason:'end_turn'});
+ }
+ if(m.id===900){
+  if(m.result.outcome.outcome!=='cancelled')process.exit(2);
+  result(active,{stopReason:'end_turn'});
+ }
+ if(m.method==='session/cancel')result(active,{stopReason:'cancelled'});
+});
+"#;
+
+#[derive(Default)]
+struct CloudState {
+    run: Value,
+    events: Vec<Value>,
+    renewals: usize,
+    claim_keys: Vec<(String, String)>,
+    completion: Option<Value>,
+}
+
+struct Fixture {
+    root: PathBuf,
+    url: String,
+    state: Arc<Mutex<CloudState>>,
+    stop: Arc<AtomicBool>,
+}
+
+fn read_request(stream: &mut TcpStream) -> Option<(String, Value)> {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let mut input = BufReader::new(stream);
+    let mut request = String::new();
+    input.read_line(&mut request).ok()?;
+    let path = request.split_whitespace().nth(1)?.to_owned();
+    let mut length = 0;
+    let mut authorized = false;
+    loop {
+        let mut line = String::new();
+        input.read_line(&mut line).ok()?;
+        if line == "\r\n" {
+            break;
+        }
+        let (name, value) = line.trim().split_once(':')?;
+        if name.eq_ignore_ascii_case("content-length") {
+            length = value.trim().parse().unwrap();
+        }
+        if name.eq_ignore_ascii_case("authorization") {
+            authorized = value.trim() == "Bearer cloud-secret";
+        }
+    }
+    assert!(authorized, "Worker authorization missing");
+    let mut body = vec![0; length];
+    input.read_exact(&mut body).ok()?;
+    Some((
+        path,
+        if body.is_empty() {
+            Value::Null
+        } else {
+            serde_json::from_slice(&body).unwrap()
+        },
+    ))
+}
+
+fn expiry() -> String {
+    (OffsetDateTime::now_utc() + time::Duration::seconds(3))
+        .format(&Rfc3339)
+        .unwrap()
+}
+
+impl Fixture {
+    fn new(prompt: &str, cancel: bool, lose_lease: bool) -> Self {
+        let root = std::env::temp_dir().join(format!("pero-remote-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("workspace")).unwrap();
+        std::fs::write(root.join("agent.mjs"), AGENT).unwrap();
+        let node = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+            .map(|p| p.join("node"))
+            .find(|p| p.is_file())
+            .unwrap();
+        std::fs::write(root.join("agents.json"),json!([{"id":"fixture","name":"Fixture","command":node,"args":[root.join("agent.mjs")],"env":{"WORKER_FIXTURE_MARKER":root.join("marker"),"WORKER_FIXTURE_DESCENDANT":root.join("descendant")}}]).to_string()).unwrap();
+        std::fs::write(root.join("config.json"),json!({"workspaces":{"fixture":root.join("workspace")},"agents_file":root.join("agents.json")}).to_string()).unwrap();
+        let state = Arc::new(Mutex::new(CloudState {
+            run: json!({"id":"run_1","generation":1,"instance_id":"","status":"running","lease_expires_at":expiry(),"spec":{"title":"Fixture","prompt":prompt,"workspace_key":"fixture","agent_id":"fixture","acceptance":""}}),
+            ..Default::default()
+        }));
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = stop.clone();
+        let cloud = state.clone();
+        std::thread::spawn(move || {
+            while !stopping.load(Ordering::SeqCst) {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                };
+                let cloud = cloud.clone();
+                std::thread::spawn(move || {
+                    let Some((path, body)) = read_request(&mut stream) else {
+                        return;
+                    };
+                    let mut state = cloud.lock().unwrap();
+                    let mut status = "200 OK";
+                    let response = if path.ends_with("/claims") {
+                        state.claim_keys.push((
+                            body["request_id"].as_str().unwrap().into(),
+                            body["instance_id"].as_str().unwrap().into(),
+                        ));
+                        state.run["instance_id"] = body["instance_id"].clone();
+                        state.run["lease_expires_at"] = json!(expiry());
+                        json!({"run":state.run})
+                    } else if path.ends_with("/renew") {
+                        state.renewals += 1;
+                        if lose_lease && state.renewals > 1 {
+                            status = "503 Service Unavailable";
+                            json!({"error":"offline"})
+                        } else {
+                            state.run["lease_expires_at"] = json!(expiry());
+                            json!({"cancel_requested":cancel&&state.renewals>=3,"lease_expires_at":state.run["lease_expires_at"]})
+                        }
+                    } else if path.ends_with("/events") {
+                        for event in body["events"].as_array().unwrap() {
+                            if !state.events.iter().any(|e| e["seq"] == event["seq"]) {
+                                state.events.push(event.clone());
+                            }
+                        }
+                        json!({"last_seq":state.events.last().map(|v|&v["seq"]).unwrap_or(&Value::Null)})
+                    } else if path.ends_with("/complete") {
+                        state.completion = Some(body.clone());
+                        state.run["status"] = body["outcome"].clone();
+                        state.run.clone()
+                    } else {
+                        state.run.clone()
+                    };
+                    let text = response.to_string();
+                    let _ = write!(
+                        stream,
+                        "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{text}",
+                        text.len()
+                    );
+                });
+            }
+        });
+        Self {
+            root,
+            url,
+            state,
+            stop,
+        }
+    }
+    fn command(&self) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_pero-worker"));
+        command
+            .arg("--once")
+            .env("PERO_CLOUD_URL", &self.url)
+            .env("PERO_WORKER_TOKEN", "cloud-secret")
+            .env("PERO_OPERATOR_TOKEN", "operator-secret")
+            .env("PERO_DATABASE_URL", "database-secret")
+            .env("PERO_UNKNOWN_SECRET", "future-secret")
+            .env("PERO_WORKER_CONFIG", self.root.join("config.json"))
+            .env("PERO_WORKER_STATE", self.root.join("state.json"))
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped());
+        command
+    }
+    fn run(&self) -> std::process::Output {
+        self.command().output().unwrap()
+    }
+    fn descendant_gone(&self) {
+        let pid = std::fs::read_to_string(self.root.join("descendant"))
+            .unwrap()
+            .parse::<i32>()
+            .unwrap();
+        assert_eq!(
+            unsafe { libc::kill(pid, 0) },
+            -1,
+            "descendant still exists after cleanup"
+        );
+    }
+}
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+
+#[test]
+fn executes_once_with_durable_events_and_no_cloud_token_in_agent() {
+    let fixture = Fixture::new("hello", false, false);
+    let output = fixture.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let state = fixture.state.lock().unwrap();
+    assert_eq!(state.completion.as_ref().unwrap()["outcome"], "succeeded");
+    assert!(
+        state
+            .events
+            .iter()
+            .any(|e| e["data"]["content"]["text"] == "worker_token_visible=false")
+    );
+    assert_eq!(
+        std::fs::read_to_string(fixture.root.join("marker")).unwrap(),
+        "prompt\n"
+    );
+}
+
+#[test]
+fn accepts_full_unicode_prompt_and_acceptance_input() {
+    let fixture = Fixture::new(&"😀".repeat(64000), false, false);
+    fixture.state.lock().unwrap().run["spec"]["acceptance"] = json!("😀".repeat(16000));
+    let output = fixture.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fixture.state.lock().unwrap().completion.as_ref().unwrap()["outcome"],
+        "succeeded"
+    );
+    assert_eq!(
+        std::fs::read_to_string(fixture.root.join("marker")).unwrap(),
+        "prompt\n"
+    );
+}
+
+#[test]
+fn unattended_permissions_are_denied() {
+    let fixture = Fixture::new("permission", false, false);
+    let output = fixture.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        fixture
+            .state
+            .lock()
+            .unwrap()
+            .events
+            .iter()
+            .any(|e| e["kind"] == "permission_denied")
+    );
+}
+
+#[test]
+fn cancel_is_observed_without_agent_output_and_kills_descendants() {
+    let fixture = Fixture::new("wait", true, false);
+    let output = fixture.run();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fixture.state.lock().unwrap().completion.as_ref().unwrap()["outcome"],
+        "cancelled"
+    );
+    fixture.descendant_gone();
+}
+
+#[test]
+fn lease_loss_stops_silent_agent_and_descendants() {
+    let fixture = Fixture::new("wait", false, true);
+    let started = Instant::now();
+    let output = fixture.run();
+    assert!(!output.status.success());
+    assert!(started.elapsed() < Duration::from_secs(9));
+    fixture.descendant_gone();
+    let state = fixture.state.lock().unwrap();
+    if let Some(completion) = state.completion.as_ref() {
+        assert_eq!(completion["outcome"], "reconcile");
+    } else {
+        // If Cloud rejects renewal, the stopped result must remain durable locally.
+        let journal: Value =
+            serde_json::from_slice(&std::fs::read(fixture.root.join("state.json")).unwrap())
+                .unwrap();
+        assert_eq!(journal["active"]["result"]["outcome"], "reconcile");
+    }
+}
+
+#[test]
+fn interrupted_claim_is_reconciled_without_replaying_prompt() {
+    let fixture = Fixture::new("hello", false, false);
+    std::fs::write(fixture.root.join("state.json"),json!({"pending_claim":{"request_id":"lost-response","instance_id":"old-instance"},"active":null}).to_string()).unwrap();
+    // Recovery records reconciliation and exits before accepting another task.
+    let mut command = fixture.command();
+    let mut child = command.spawn().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if fixture.state.lock().unwrap().completion.is_some() {
+            break;
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    let state = fixture.state.lock().unwrap();
+    assert_eq!(
+        state.claim_keys[0],
+        ("lost-response".into(), "old-instance".into())
+    );
+    assert_eq!(state.completion.as_ref().unwrap()["outcome"], "reconcile");
+    assert!(!fixture.root.join("marker").exists());
+}
