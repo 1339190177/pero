@@ -171,8 +171,9 @@ func sameRawSettingsSection(left json.RawMessage, leftFound bool, right json.Raw
 	if !leftFound {
 		return true
 	}
-	var leftValue, rightValue any
-	if json.Unmarshal(left, &leftValue) != nil || json.Unmarshal(right, &rightValue) != nil {
+	leftValue, leftErr := decodeSettingsJSONValue(left)
+	rightValue, rightErr := decodeSettingsJSONValue(right)
+	if leftErr != nil || rightErr != nil {
 		return bytes.Equal(left, right)
 	}
 	leftCanonical, _ := json.Marshal(leftValue)
