@@ -216,3 +216,37 @@ Run `npm run test:desktop-login` with an isolated `PERO_TEST_DATABASE_URL` and,
 if necessary, `PERO_CHROMIUM_PATH`. It exercises Go/PostgreSQL, a local OAuth
 provider fixture, Chromium consent and Electron's native callback event, encrypted
 saving, restart, cancellation and wrong/repeated callbacks.
+
+### Portable macOS development package (Electron)
+
+Run `npm run package:macos` on the target Mac architecture. This builds release
+Wasm, optimizes it with pinned Binaryen 132, and packages the release Rust Host,
+Web assets and Electron into `target/package/Pero.app`. Unlike `build:macos-dev`,
+this bundle contains its resources and does not link to the checkout. Settings
+and history remain in the normal user data directory.
+
+The package retains English and Simplified Chinese Electron locales. GPUI embeds
+catalog fonts, with system canvas fallback for other Chinese text; duplicate
+public font binaries are omitted. ACP JavaScript adapters are included, while
+Codex and Claude native CLIs are not. Install the desired CLI on the machine and
+make it available on PATH (including `/opt/homebrew/bin` and `~/.local/bin`), or
+supply the existing custom Agent configuration. Electron supplies the adapters'
+Node runtime. Model authentication remains with the user's Agent installation.
+
+`target/package/size.json` reports uncompressed App bytes and compressed DMG bytes
+separately. Packaging fails if `Pero-macos-<arch>.dmg` is 100,000,000 bytes or larger.
+The App itself exceeds that limit because Electron includes Chromium. The bundle
+is ad-hoc signed and signature-verified; it is not notarized.
+
+Run the existing conversation suite against the actual package:
+
+```sh
+PERO_PACKAGED_EXECUTABLE="$PWD/target/package/Pero.app/Contents/MacOS/Pero" node tests/e2e/workbench.mjs
+```
+
+This starts outside the checkout with an isolated profile and the ACP fixture.
+It checks streaming, cancellation, permission requests, history replay, Chinese
+input, language switching, dark mode and narrow windows. It does not prove a real
+model response or native macOS deep-link delivery. On macOS this fixture uses
+`--use-mock-keychain` to avoid OS permission dialogs; real keychain persistence
+requires the separate credential suite and is not established by this check.
