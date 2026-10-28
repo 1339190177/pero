@@ -4737,6 +4737,7 @@ version = "0.1.0"
 dependencies = [
  "pero-contracts",
  "pero-runtime",
+ "serde",
  "serde_json",
 ]
 
@@ -4745,10 +4746,12 @@ name = "pero-runtime"
 version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
+ "libc",
  "pero-contracts",
  "serde",
  "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

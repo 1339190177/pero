@@ -1,4 +1,5 @@
 pub mod acp;
+pub mod apps;
 pub mod settings;
 
 use pero_contracts::{EchoRequest, HostEvent, MAX_TEXT_CHARS};
