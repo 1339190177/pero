@@ -21,7 +21,8 @@ impl Workspace {
                 source.join("backend/server.py"),
                 r#"
 import json, os, signal
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
+from socketserver import TCPServer
 from pathlib import Path
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_): pass
@@ -30,8 +31,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(403); self.end_headers(); return
         Path(os.environ['PERO_APP_DATA'], 'observed').write_text('request')
         self.send_response(200); self.end_headers(); self.wfile.write(b'cell-result')
-server = HTTPServer(('127.0.0.1', 0), Handler)
-print(json.dumps({'port':server.server_port}), flush=True)
+server = TCPServer(('127.0.0.1', 0), Handler)
+print(json.dumps({'port':server.server_address[1]}), flush=True)
 server.serve_forever()
 "#,
             )
