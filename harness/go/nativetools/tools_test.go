@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/phodal/pero/harness/go/fstools"
 	"github.com/phodal/pero/harness/go/harness"
@@ -126,5 +128,33 @@ func TestEarlyCWDCheckRejectsReplacedWorkspace(t *testing.T) {
 	}
 	if err = app.CheckCWD(root); err == nil {
 		t.Fatal("replaced workspace admitted")
+	}
+}
+
+func TestShellOutputBudgetRetainsTail(t *testing.T) {
+	for _, fill := range []string{"progress\n", "界", "\x01"} {
+		t.Run(fmt.Sprintf("byte-%x", []byte(fill)), func(t *testing.T) {
+			const final = "FINAL_FAILURE_DETAIL"
+			code := 1
+			text := strings.Repeat(fill, 6000) + final
+			result, err := renderResult(shell.RunResult{ExitCode: &code, Stdout: shell.CollectedOutput{Text: text}, Stderr: shell.CollectedOutput{Text: text}}, errors.New("shell failed"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Result shell.RunResult `json:"result"`
+			}
+			if err = json.Unmarshal([]byte(result.Content[0].Text), &got); err != nil {
+				t.Fatal(err)
+			}
+			for _, output := range []shell.CollectedOutput{got.Result.Stdout, got.Result.Stderr} {
+				if !strings.HasSuffix(output.Text, final) || !output.Truncated || len(output.Text) > 4096 || !utf8.ValidString(output.Text) {
+					t.Fatalf("tail lost or unbounded: %+v", output)
+				}
+			}
+			if !result.IsError || got.Result.ExitCode == nil || *got.Result.ExitCode != 1 {
+				t.Fatal("failure status lost")
+			}
+		})
 	}
 }

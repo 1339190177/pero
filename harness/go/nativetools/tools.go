@@ -193,17 +193,31 @@ func boundedText(text string, limit int) string {
 	}
 	return text
 }
+
+// Keep the shell collector's trailing-output contract when applying the smaller
+// JSON presentation budget, so final compiler/test diagnostics remain visible.
+func boundedTail(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	text = text[len(text)-limit:]
+	for !utf8.ValidString(text) {
+		text = text[1:]
+	}
+	return text
+}
+
 func renderResult(value any, operationErr error) (harness.ToolResult, error) {
 	// JSON escaping may multiply captured shell bytes by six. Keep status and
 	// receipts even when textual output must be reduced further.
 	switch v := value.(type) {
 	case shell.RunResult:
 		if len(v.Stdout.Text) > 4096 {
-			v.Stdout.Text = boundedText(v.Stdout.Text, 4096)
+			v.Stdout.Text = boundedTail(v.Stdout.Text, 4096)
 			v.Stdout.Truncated = true
 		}
 		if len(v.Stderr.Text) > 4096 {
-			v.Stderr.Text = boundedText(v.Stderr.Text, 4096)
+			v.Stderr.Text = boundedTail(v.Stderr.Text, 4096)
 			v.Stderr.Truncated = true
 		}
 		value = v
