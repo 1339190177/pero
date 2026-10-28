@@ -326,6 +326,7 @@ func (p *JSONLSessionPersistence) Load(ctx context.Context, id SessionID) (*Sess
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	scanner.Split(scanPersistedLine)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var header *SessionHeader
 	var events []Event
@@ -422,6 +423,16 @@ func (p *JSONLSessionPersistence) ListCandidates(ctx context.Context) ([]Session
 	return result, nil
 }
 
+// JSONL records are committed only with their newline delimiter. Accepting a
+// complete JSON object at EOF would let the next append concatenate two records.
+// Keep torn tails untouched and fail closed until explicitly repaired.
+func scanPersistedLine(data []byte, atEOF bool) (int, []byte, error) {
+	if atEOF && len(data) > 0 && bytes.IndexByte(data, '\n') < 0 {
+		return 0, nil, errors.New("harness: unterminated persisted JSONL record")
+	}
+	return bufio.ScanLines(data, atEOF)
+}
+
 func readPersistedSessionHeader(path string, id SessionID) (SessionHeader, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -429,6 +440,7 @@ func readPersistedSessionHeader(path string, id SessionID) (SessionHeader, error
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	scanner.Split(scanPersistedLine)
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	if !scanner.Scan() {
 		if err := scanner.Err(); err != nil {
