@@ -514,15 +514,20 @@ impl Workbench {
                                 let tags=task_tags(task).iter().filter_map(Value::as_str).take(3).map(|tag|format!("#{tag}")).filter(|tag|!title.contains(tag)).collect::<Vec<_>>().join(" ");
                                 let secondary=[if grouped {String::new()}else{context.clone()},tags].into_iter().filter(|text|!text.is_empty()).collect::<Vec<_>>().join(" · ");
                                 let label=if secondary.is_empty(){format!("{title}\n{metadata}")}else{format!("{title}\n{metadata}\n{secondary}")};
-                                div().when(group_start,|el|el.child(div().px(px(8.)).pt(px(10.)).pb(px(4.)).text_size(px(12.)).font_weight(FontWeight::BOLD).text_color(p.color("text-muted")).whitespace_normal()
+                                div().w_full().min_w_0().when(group_start,|el|el.child(div().px(px(8.)).pt(px(10.)).pb(px(4.)).text_size(px(12.)).font_weight(FontWeight::BOLD).text_color(p.color("text-muted")).whitespace_normal()
                                     .child(if context.is_empty(){string(source,"path").to_string()}else{context})))
-                                .child(div().py(px(4.)).pl(px(depth as f32*10.)).child(
+                                .child(div().w_full().min_w_0().py(px(4.)).pl(px(depth as f32*10.)).child(
                                     Button::new(("remote-task", i))
                                         .ghost()
                                         .w_full()
                                         .h(px(if secondary.is_empty(){68.}else{88.}))
                                         .bg(p.color(if chosen { "accent-soft" } else { "surface" }))
-                                        .label(label)
+                                        .accessibility_label(label)
+                                        .toggled(chosen)
+                                        .child(div().w_full().min_w_0().flex().flex_col().items_start().gap(px(2.)).overflow_hidden()
+                                            .child(div().w_full().truncate().child(title))
+                                            .child(div().w_full().truncate().text_size(px(12.)).text_color(p.color("text-muted")).child(metadata))
+                                            .when(!secondary.is_empty(),|el|el.child(div().w_full().truncate().text_size(px(12.)).text_color(p.color("text-muted")).child(secondary))))
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.remote.creating = false;
                                             this.remote.confirm_cancel = None;
