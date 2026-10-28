@@ -1,6 +1,7 @@
 // Host JSONL protocol between the Electron shell and `pero-host --stdio`.
 // Source of truth for protocol/generated/; run `npm run gen:contracts` after edits.
 import "@typespec/json-schema";
+import "./apps.tsp";
 
 using JsonSchema;
 
@@ -86,6 +87,7 @@ union HostInput {
   SetLocaleRequest,
   SetRemoteSettingsRequest,
   HostCommand,
+  Pero.Apps.AppRequest,
 }
 
 // ---------- Host events: one JSON object per stdout line ----------
@@ -141,6 +143,12 @@ model RemoteSnapshotPayload is Record<unknown>;
 model RemoteStateEvent { kind: "remote_state"; ...EventBase; data: RemoteSnapshotPayload }
 /** Open remote tasks from the native Workbench menu or keyboard. */
 model RemoteOpenEvent { kind: "remote_open"; ...EventBase }
+/** Private acknowledgements intercepted by Desktop main. */
+model AppsResultEvent { kind: "apps_result"; ...EventBase; data: Pero.Apps.AppResult }
+model AppsCatalogEvent { kind: "apps_catalog"; ...EventBase; data: Pero.Apps.AppRecord[] }
+model AppsErrorEvent { kind: "apps_error"; ...EventBase }
+model AppOpenedData { name: string; panel: string; url: string; ...Closed; }
+model AppsOpenedEvent { kind: "apps_opened"; ...EventBase; data: AppOpenedData }
 
 model SessionCreatedData { agent: string; workspace: string; ...Closed }
 model SessionCreatedEvent { kind: "session_created"; ...ThreadEventBase; data: SessionCreatedData }
@@ -202,6 +210,10 @@ union HostEvent {
   ContextFilesEvent,
   RemoteStateEvent,
   RemoteOpenEvent,
+  AppsResultEvent,
+  AppsCatalogEvent,
+  AppsErrorEvent,
+  AppsOpenedEvent,
   ThreadEvent,
   SessionConnectingEvent,
   AgentInfoEvent,
