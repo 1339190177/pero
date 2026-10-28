@@ -11,7 +11,7 @@ make outbound requests; ACP execution remains on the execution machine.
 Set `PERO_GITHUB_REPOSITORIES` to a JSON array of explicit repository bindings:
 
 ```json
-[{"project_id":"default","owner":"acme","repo":"repo","workspace_key":"default","agent_id":"codex","acceptance":"Run the project checks and report their results","auto_dispatch":false,"required_label":"pero:ready"}]
+[{"project_id":"default","owner":"acme","repo":"repo","workspace_key":"default","agent_id":"codex","acceptance":"Run the project checks and report their results","auto_dispatch":false,"required_label":"pero:ready","roadmap_path":"auto"}]
 ```
 
 `PERO_GITHUB_TOKEN` optionally supplies a server-only fine-grained token with
@@ -31,6 +31,41 @@ finish before requesting another; overlapping manual sync returns 409. Each repo
 2 MiB per response; invalid/oversized goals are skipped with an explicit partial
 result. A limited scan never proves that an absent Issue was deleted or closed.
 See [GitHub's Issues API](https://docs.github.com/en/rest/issues/issues).
+
+`roadmap_path` is optional and disabled when omitted. `auto` tries `ROADMAP.md`,
+then `docs/ROADMAP.md`; an explicit relative `.md` path selects one file. Reads pin
+the repository's default-branch commit, decode the complete Contents API response,
+and verify its Git blob digest before parsing. Private repositories additionally
+need Contents read permission. A failed/partial read never closes missing tasks.
+
+Each Markdown checkbox becomes one Task, including checked items (closed source).
+Heading paths define groups; nested checkboxes retain `parent_task_id`, source
+parent identity and depth. Inline `#tags` outside code become tags, and Issue
+labels become tags. No heading names or status labels are invented as tags.
+ROADMAP tasks always enter as drafts; repository Issue auto-dispatch policy does
+not execute them. Checked or removed source items cannot be claimed/dispatched.
+
+Use `<!--pero:id:stable-name-->` for identities that survive renames/moves within a file.
+Otherwise identity hashes the heading path, parent identity and normalized first
+goal line. Line shifts, file commit changes, completion toggles and continuation
+edits keep that identity. Ambiguous duplicate IDs/goals are reported as partial,
+without merging guesses or closing omitted items. The semantic source revision
+excludes line/commit/blob metadata; claimed/executed goals keep their exact frozen
+revision. A complete later parse marks absent items missing and cancels only
+their queued Runs. Running work and acceptance records remain independent.
+Each project/repository binding selects one path. If a complete read selects a
+replacement path, including the `auto` fallback, prior-path items become missing.
+The new path has new Task identities; IDs are never guessed across files. Partial
+reads keep prior-path states. Missing items retain their last known URL, commit
+and blob, with `missing_at_commit` recording the absence observation.
+
+Both operator and client task lists accept `source_kind=github|roadmap` and `tag`
+before pagination. Tags filter the latest source observation while preserving
+frozen Run tags. ROADMAP pages follow repository, path and current document line,
+then Task ID, so parents precede their children across page boundaries. Their
+cursor must match the same project scope, source kind and tag filter. Other lists
+keep newest-created ordering. `GET /api/client/v1/github/status` exposes only repositories and
+errors within that Client's projects; configuration and sync stay operator-only.
 
 The repository ID is pinned on first read. Issue identity uses project + immutable
 repository ID + Issue ID; names, Issue numbers and URLs are display/reference
@@ -57,8 +92,8 @@ atomically before execution; a Run already running continues until explicitly
 cancelled or completed. Reopening or editing a completed Issue never silently
 retries it. Agent completion never updates GitHub labels, assignees or Issue state.
 
-GitHub webhook intake, GitHub App installation/OAuth, external assignee writeback,
-and ROADMAP adapters remain later slices. Human claim refers to the internal
+GitHub webhook intake, GitHub App installation/OAuth and external assignee writeback
+remain later slices. Human claim refers to the internal
 project-scoped client identity, independently of the execution Worker device.
 
 ## Client identities and shared tasks
