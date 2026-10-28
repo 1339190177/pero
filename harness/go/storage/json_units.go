@@ -34,13 +34,13 @@ func (u *perRecordUnit) LoadAll(ctx context.Context) (KVSnapshot, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return KVSnapshot{}, err
 	}
-	hasDocuments := false
+	hasNewState := false
 	for _, entry := range entries {
 		if err := ctx.Err(); err != nil {
 			return KVSnapshot{}, err
 		}
 		if entry.Name() == "global.json" && u.descriptor.HasGlobal {
-			hasDocuments = true
+			hasNewState = true
 			if raw, ok := readRecordDocument(filepath.Join(u.dir, entry.Name()), u.descriptor.Version, u.descriptor.CompatibleVersions...); ok {
 				result.Global = raw
 			}
@@ -53,13 +53,15 @@ func (u *perRecordUnit) LoadAll(ctx context.Context) (KVSnapshot, error) {
 		if records == nil {
 			continue
 		}
+		// A declared table directory is authoritative even after its last record
+		// was deleted. The preserved legacy snapshot must not resurrect it.
+		hasNewState = true
 		files, readErr := os.ReadDir(filepath.Join(u.dir, entry.Name()))
 		if readErr != nil {
 			return KVSnapshot{}, readErr
 		}
 		for _, file := range files {
 			if filepath.Ext(file.Name()) == ".json" {
-				hasDocuments = true
 				if file.IsDir() {
 					continue
 				}
@@ -72,7 +74,7 @@ func (u *perRecordUnit) LoadAll(ctx context.Context) (KVSnapshot, error) {
 			}
 		}
 	}
-	if !hasDocuments {
+	if !hasNewState {
 		if err := u.bootstrapLegacy(result); err != nil {
 			return KVSnapshot{}, err
 		}

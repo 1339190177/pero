@@ -317,3 +317,90 @@ func TestCompatibleEnvelopeUsesExactFieldsAndNumericStamps(t *testing.T) {
 	}
 }
 
+func TestLegacyBootstrapDoesNotRestoreDeletedLastRecord(t *testing.T) {
+	root := t.TempDir()
+	legacy := filepath.Join(root, "counter_domain.json")
+	if err := os.WriteFile(legacy, []byte(`{"unit":{"name":"counter_domain","version":7},"tables":{"items":{"old":{"n":1}}}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	backend, err := NewJSONBackend(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backend.Close(t.Context())
+	descriptor := KVUnitDescriptor{Name: "counter_domain", Version: 7, CompatibleVersions: []uint64{}, Tables: []string{"items"}, Layout: LayoutPerRecord}
+	unit, err := backend.KV().Open(t.Context(), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial, err := unit.LoadAll(t.Context())
+	if err != nil || len(initial.Tables["items"]) != 1 {
+		t.Fatalf("initial=%+v err=%v", initial, err)
+	}
+	if err := unit.DeleteRecord(t.Context(), "items", "old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := unit.Close(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	unit, err = backend.KV().Open(t.Context(), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, err := unit.LoadAll(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(restored.Tables["items"]) != 0 {
+		t.Fatalf("deleted legacy record resurrected: %+v", restored.Tables["items"])
+	}
+}
+
+func TestLegacyBootstrapRecognizesOnlyDeclaredState(t *testing.T) {
+	for _, fixture := range []struct {
+		name, directory, document string
+		wantLegacy                bool
+	}{
+		{"empty declared table", "items", "", false},
+		{"malformed declared record", "items", "broken.json", false},
+		{"unknown directory", "other", "", true},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			root := t.TempDir()
+			legacy := []byte(`{"unit":{"name":"counter_domain","version":7},"tables":{"items":{"old":{"n":1}}}}`)
+			path := filepath.Join(root, "counter_domain.json")
+			if err := os.WriteFile(path, legacy, 0600); err != nil {
+				t.Fatal(err)
+			}
+			dir := filepath.Join(root, "counter_domain", fixture.directory)
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if fixture.document != "" {
+				if err := os.WriteFile(filepath.Join(dir, fixture.document), []byte("{broken"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, facility := testFacility(t, root)
+			domain, err := facility.Open(t.Context(), counterSpec(7, LayoutPerRecord))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer domain.Close(t.Context())
+			table, _ := domain.Table("items")
+			if _, found, err := table.Get("old"); err != nil || found != fixture.wantLegacy {
+				t.Fatalf("legacy found=%v want=%v err=%v", found, fixture.wantLegacy, err)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || !bytes.Equal(after, legacy) {
+				t.Fatalf("legacy bytes changed: %s %v", after, err)
+			}
+			if fixture.document != "" {
+				after, err := os.ReadFile(filepath.Join(dir, fixture.document))
+				if err != nil || string(after) != "{broken" {
+					t.Fatalf("malformed record changed: %s %v", after, err)
+				}
+			}
+		})
+	}
+}
