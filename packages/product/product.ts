@@ -25,6 +25,14 @@ export class Product {
     Object.freeze(this);
   }
 
+  /** A product can open only its included Apps; secondary Apps use their first panel. */
+  selectApp(name: unknown = this.entry?.app): Readonly<{ app: string; panel?: string }> {
+    if (this.shell !== 'app' || typeof name !== 'string' || !this.apps.includes(name)) {
+      throw new Error('Choose an App included in this Product');
+    }
+    return name === this.entry!.app ? this.entry! : Object.freeze({ app: name });
+  }
+
   static parse(value: unknown): Product {
     const v = value as ProductFields;
     const slug = (s: unknown): s is string => typeof s === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);

@@ -66,12 +66,14 @@ app.whenReady().then(async () => {
     if (event.sender !== window.webContents || event.senderFrame?.url !== 'pero://workbench/') throw new Error('Untrusted sender');
   };
   ipcMain.handle('product:connect', event => { trusted(event); return context(); });
-  ipcMain.handle('product:open', async event => {
+  ipcMain.handle('product:open', async (event, name: unknown) => {
     trusted(event);
+    const entry = product.selectApp(name);
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([hostReady, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Runtime startup timed out. Restart the application.')), 10000); })]);
-      await apps.command({ action: 'apps_open', name: product.entry!.app, panel: product.entry!.panel });
+      await apps.command({ action: 'apps_list' });
+      await apps.command({ action: 'apps_open', name: entry.app, panel: entry.panel });
     } finally { clearTimeout(timer); }
   });
   nativeTheme.on('updated', () => { if (!window.isDestroyed()) window.webContents.send('product:context', context()); });

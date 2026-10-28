@@ -22,3 +22,11 @@ test('Product delivery invariants', () => {
     else assert.throws(() => Product.parse(value), undefined, label);
   }
 });
+
+test('Product selects only its included Apps', () => {
+  const product = Product.parse({ ...base, apps: ['virtual-cell', 'reaction-lab'] });
+  assert.deepEqual(product.selectApp(), { app: 'virtual-cell', panel: 'main' });
+  assert.deepEqual(product.selectApp('reaction-lab'), { app: 'reaction-lab' });
+  assert.throws(() => product.selectApp('other'));
+  assert.throws(() => product.selectApp({ app: 'virtual-cell' }));
+});

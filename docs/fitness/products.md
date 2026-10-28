@@ -25,8 +25,8 @@ Outputs under `target/products/package-com.openpero.virtualcell/`:
 
 | Output | Bytes |
 | --- | ---: |
-| Virtual Cell.app regular files | 316,913,135 |
-| Virtual Cell-macos-arm64.dmg | 123,634,248 |
+| Virtual Cell.app regular files | 316,875,268 |
+| Virtual Cell-macos-arm64.dmg | 127,710,839 |
 
 `plutil -lint` and deep strict ad-hoc signature verification passed. An early
 trial exposed malformed URL metadata; the packager was corrected and the final
@@ -65,3 +65,16 @@ notarization, updater, existing-profile App upgrade/migration, Windows/Linux
 package or scientific acceptance is claimed. Product theme overrides are
 session-only; language uses Host-owned persistent settings. The workbench
 packager's existing branch was preserved, but its full DMG suite was not rerun.
+
+## Configurable branding and composition follow-up
+
+The rebuilt Virtual Cell package now uses the product-relative `icon.svg`.
+`CFBundleIconFile` is `product.icns`; the Electron default icon is removed.
+The SVG was rendered and visually inspected, and deep strict signing verified.
+Generated platform icon files are build artifacts rather than committed binaries.
+
+The multi-App composition Electron check passed with two HTML fixture
+Apps in one temporary product. It verified catalog display names, switching,
+retained input and refusal to open an excluded App. This proves product shell
+composition; the fixtures are not integrated scientific Apps or shared workflows.
+Screenshots and result are in `test-results/product-composition/`.
