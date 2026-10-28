@@ -48,7 +48,7 @@ module.exports = {
   "固定候选版本后独立验证，复核决定关联同一份产物；经授权后再发布 PR 或纳入项目。": "Verify a fixed candidate independently and bind review decisions to the same artifact. Publish a PR or accept into the project after authorization.",
   "首版技术方向。GPUI / WASM 完整工作台与分布式执行链路仍待验证。": "V1 technical direction. The full GPUI / WASM workbench and distributed execution workflow still need validation.",
   "分布式任务协作": "Distributed task collaboration",
-  "分布式 AI4S": "Distributed AI4S",
+  "分布式 Agent 协作": "Distributed agent collaboration",
   "研究者": "Researchers",
   "GitHub 贡献者": "GitHub contributors",
   "Agent 建议": "Agent suggestions",
