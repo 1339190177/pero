@@ -15,6 +15,10 @@ export type RemoteProtocol1 =
   | EventReceipt
   | ProvisionWorker
   | WorkerCredential
+  | ClientCredential
+  | Identity
+  | GitHubStatus
+  | GitHubSyncResult
   | Dispatch
   | Claim
   | ClaimResult
@@ -35,6 +39,18 @@ export interface TaskSpec {
   project_id: Id;
   workspace_key: Id;
   agent_id: Id;
+  source?: Source;
+}
+export interface Source {
+  kind: "github";
+  repository: string;
+  issue_number: number;
+  url: string;
+  revision: string;
+  state: "open" | "closed";
+  updated_at?: string;
+  issue_id: string;
+  repository_id: string;
 }
 export interface Task {
   title: string;
@@ -43,10 +59,13 @@ export interface Task {
   project_id: Id;
   workspace_key: Id;
   agent_id: Id;
+  source?: Source;
   id: Id;
   state: TaskStatus;
   current_run_id?: string;
   run?: Run | null;
+  claimed_by?: Claimant;
+  latest_source?: Source;
   created_at?: string;
   updated_at?: string;
   [k: string]:
@@ -54,9 +73,11 @@ export interface Task {
         [k: string]: unknown | undefined;
       }
     | string
+    | Source
     | TaskStatus
     | Run
     | null
+    | Claimant
     | undefined;
 }
 export interface Run {
@@ -71,6 +92,10 @@ export interface Run {
   summary?: string;
   created_at?: string;
   updated_at?: string;
+}
+export interface Claimant {
+  id: Id;
+  name: string;
 }
 export interface Worker {
   id: Id;
@@ -96,6 +121,8 @@ export interface RemoteState {
   workers: Worker[];
   selected_task_id: string | null;
   detail: Detail | null;
+  identity?: Identity | null;
+  github?: GitHubStatus | null;
 }
 export interface Detail {
   task: Task;
@@ -104,6 +131,28 @@ export interface Detail {
   events_truncated: boolean;
   events_first_seq: number | null;
   events_last_seq: number | null;
+}
+export interface Identity {
+  id: Id;
+  name: string;
+  role: "operator" | "client";
+  projects: string[];
+}
+export interface GitHubStatus {
+  configured: boolean;
+  repositories: GitHubRepositoryStatus[];
+  errors: string[];
+  running: boolean;
+}
+export interface GitHubRepositoryStatus {
+  project_id: string;
+  owner: string;
+  repo: string;
+  auto_dispatch: boolean;
+  required_label: string;
+  last_synced_at?: string;
+  partial: boolean;
+  error?: string;
 }
 export interface TaskPage {
   tasks: Task[];
@@ -122,6 +171,17 @@ export interface ProvisionWorker {
 export interface WorkerCredential {
   worker: Worker;
   token: string;
+}
+export interface ClientCredential {
+  client: Identity;
+  token: string;
+}
+export interface GitHubSyncResult {
+  imported: number;
+  updated: number;
+  dispatched: number;
+  partial: boolean;
+  errors: string[];
 }
 export interface Dispatch {
   worker_id?: string;
