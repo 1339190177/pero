@@ -104,6 +104,15 @@
     .principles p { margin:0; color:var(--slate); font-size:15px; line-height:1.75; }
     .demo-intro { margin:8px 0 22px; }
     .demo-intro h2 { font-size:clamp(28px,3vw,40px); max-width:14em; margin:0; }
+    .demo-intro > p { margin:12px 0 0; max-width:40em; color:var(--slate); font-size:15px; line-height:1.75; }
+    .apps-chapter { padding:64px 0 72px; border-top:1px solid var(--line); }
+    .task-lead { margin-bottom:56px; }
+    .task-lead h2 { font-size:clamp(28px,3vw,40px); line-height:1.35; margin:0 0 12px; max-width:16em; }
+    .task-lead > p { margin:0 0 20px; max-width:40em; color:var(--slate); font-size:15px; line-height:1.75; }
+    .task-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px 24px; margin:0; padding:0; list-style:none; }
+    .task-facts li { margin:0; padding-top:12px; border-top:1px solid var(--line); font-size:14px; line-height:1.6; }
+    .task-facts span { display:block; margin-bottom:4px; color:var(--slate); font-size:12px; }
+    .apps-chapter .lab-section { padding-top:48px; }
     .studio-header { align-items:flex-start; flex-wrap:wrap; }
     .studio-header>div:first-child { flex-direction:column; align-items:flex-start; flex:1 1 16em; min-width:0; }
     .studio-header h2 { font-size:22px; line-height:1.35; letter-spacing:-.03em; margin:0; }
@@ -111,7 +120,8 @@
     .task-status { display:flex; flex-direction:column; align-items:flex-end; gap:2px; margin:2px 0 0 auto; font-size:12px; line-height:1.4; color:var(--slate); }
     .task-status span:first-child { color:var(--navy); font-weight:650; }
     html[lang="en"] .cover h1 { font-size:clamp(42px,4.6vw,68px); letter-spacing:-.03em; max-width:12em; }
-    .principles + .collaboration-section { padding-top:12px; border-top:0; background:var(--canvas); }
+    .principles + .collaboration-section { padding-top:56px; border-top:0; background:var(--canvas); }
+    @media(max-width:700px) { .task-facts { grid-template-columns:1fr; } .apps-chapter { padding:48px 0 56px; } }
     .cover + .runtime-section { padding-top:40px; padding-bottom:28px; }
     .cover + .runtime-section .runtime-head { margin-bottom:16px; }
     .cover + .runtime-section .architecture-map { margin-top:0; }
