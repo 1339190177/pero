@@ -90,6 +90,7 @@ beyond loopback unless the test is an explicit opt-in, such as
 
 ## UI
 
+Use [DESIGN.md](DESIGN.md) for color design and implementation.
 Optimize for task completion, not visual minimalism. Every screen should make it obvious what matters, what the user can do, what is happening, and what needs attention.
 
 - **Task-first**: Design around user goals, not internal modules. Every screen should clearly communicate its primary content, actions, and current state.
@@ -122,13 +123,6 @@ Optimize for task completion, not visual minimalism. Every screen should make it
 - Only ONE co-author line is allowed. If multiple agents contributed, aggregate into ONE entry
 
 Format example: Co-authored-by: <AgentName> (<You-Model>) <Email>
-Valid examples (choose EXACTLY ONE):
-
-Co-authored-by: Kiro AI (Claude Opus 4.6) <kiro@kiro.dev>
-Co-authored-by: GitHub Copilot Agent (GPT 5.4) <198982749+copilot@users.noreply.github.com>
-Co-authored-by: QoderAI (Qwen 3.5 Max) <qoder_ai@qoder.com>
-Co-authored-by: gemini-cli (...) <218195315+gemini-cli@users.noreply.github.com>
-Co-authored-by: Codex (GPT 5.5) <codex@openai.com>
 
 ## Pull Request
 
@@ -147,16 +141,6 @@ Co-authored-by: Codex (GPT 5.5) <codex@openai.com>
 - If `last_reviewed_at` is 7+ days old when an agent reads this contract, the agent should invoke `AskUserQuestion` first: whether to run issue sync/cleanup now.
 - After finishing an issue GC pass, update `docs/issues/issue-gc-state.yaml` with the new `last_reviewed_at`.
 
-
-## Repository Map
-
-- `docs/issues/`: Incident and repro records. Capture WHAT happened and WHY it mattered.
-- `docs/coding-style.md`: Canonical coding style guidance for Rust, TypeScript/frontend, naming, and testing preferences.
-- `docs/REFACTOR.md`: Long-file refactor playbook.
-- `docs/references/`: Distilled external references for frequent dependencies.
-- `docs/release-guide.md`: Full release guide for CLI/Desktop/distribution.
-- `docs/RELEASE_CHECKLIST.md`: Quick release checklist.
-
 ## Reading Order
 
 When starting work on this repository, read in this order:
@@ -166,6 +150,3 @@ When starting work on this repository, read in this order:
 3. `docs/fitness/README.md` — quality gates and verification flow.
 4. Task-specific files in `docs/design-docs/` or `docs/exec-plans/`.
 
-## Design
-
-涉及色彩的设计与实现，遵循 [DESIGN.md](DESIGN.md)。
