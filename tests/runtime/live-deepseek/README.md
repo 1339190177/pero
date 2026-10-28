@@ -48,15 +48,16 @@ operators must account for earlier attempts before authorizing another invocatio
 
 ## Observed live result and test correction
 
-The final bounded Worker attempt observed one completed `read_file`, matching
+An earlier bounded Worker attempt observed one completed `read_file`, matching
 fixture path and nonce, a successful Cloud-fixture completion, and `end_turn`
 with no session errors. Its original overall receipt remains **failed**: the
 workspace assertion incorrectly rejected Worker’s normal `.pero-worker.lock`.
 The assertion now requires exactly the untouched source and a regular, private,
 empty, current-owner lock file; extra files and symlinks still fail. A real
 Worker/Go/local-model regression validates the correction without paid calls.
-The corrected script has **not** been rerun against DeepSeek. No real-provider
-write/shell scene was executed. Do not rewrite the original receipt as passed.
+At that stage the corrected script had not been rerun against DeepSeek and no
+real-provider write/shell scene had been executed. Do not rewrite the original
+receipt as passed; the later separately authorized runs are recorded below.
 
 Reproduce that correction without credentials:
 
@@ -64,3 +65,30 @@ Reproduce that correction without credentials:
 node tests/runtime/live-deepseek/worker-local-check.mjs /absolute/pero-worker /absolute/pero-agent-acp
 node --test tests/runtime/live-deepseek/diagnostics.test.mjs
 ```
+
+## Subsequently authorized live verification — 2/2 passed
+
+On 2026-10-28 at 12:32:56 UTC, a separately authorized additional budget of
+at most eight generation requests completed both official DeepSeek
+`deepseek-flash` scenes successfully (at most four requests per scene,
+512 output tokens per request):
+
+- **Worker read:** one `read_file` completed, path and nonce matched, source
+  remained unchanged, only the source and valid private lock were present,
+  Worker completion succeeded, and the model returned `end_turn` with no session
+  errors. No permission grants were needed.
+- **Direct Rust ACP client:** exact allow-once approvals enabled the prescribed
+  file write/readback and fixed `pwd` command; both checks passed with two grants
+  and zero denials. This was not an unattended Worker write/shell grant.
+
+Both runner receipts passed and executable hashes matched before and after each
+scene. The earlier failed receipts remain failed; these are separate successful
+runs after the test correction. Cloud remained a loopback contract fixture,
+not production Cloud/PostgreSQL. Approval was limited to temporary test files
+and the fixed safe command; it does not change Worker default denial or make
+shell an OS/network sandbox. No further provider calls were made.
+
+Verified executable SHA-256 identities:
+- Go Agent: `ec85b34c4a9fa97748d7bad9ff0c481c3eb8677caa0510bc7ebbd6c0573fb373`
+- Rust Worker: `9a071a14d7d7d637ebe2b24cc8dc813218cb03ae0147dadd9ec5d558d27e5c1c`
+- Direct Rust ACP test client: `5eb7d85429168f9f28efe672996e9aa02032adab54755bbd93cd45b4ba99ed40`

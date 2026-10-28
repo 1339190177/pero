@@ -127,7 +127,29 @@ the real Worker observed one completed `read_file`, matching fixture path and
 nonce, a successful completion receipt, and `end_turn` with no session errors.
 The original runner result remains **failed**: its workspace assertion wrongly
 rejected the Worker's legitimate `.pero-worker.lock`. The corrected assertion
-passed a real-Worker/Go/local-provider regression, but was **not rerun against
-DeepSeek** after the authorized request budget was exhausted. This is functional
-read-chain evidence, not a fully passed live acceptance suite. Real-provider
-write/shell scenes were not run; Cloud remained a loopback contract fixture.
+passed a real-Worker/Go/local-provider regression. At that stage the initial
+budget was exhausted, so there had been no corrected live rerun or real-provider
+write/shell scene. That receipt establishes only functional read-chain evidence,
+not a passed suite; the later separately authorized runs are recorded below.
+
+## Subsequently authorized live verification — 2/2 passed
+
+On 2026-10-28 at 12:32:56 UTC, a separately authorized additional budget of
+at most eight generation requests completed both official DeepSeek
+`deepseek-flash` scenes successfully (at most four requests per scene,
+512 output tokens per request):
+
+- **Worker read:** one `read_file` completed, path and nonce matched, source
+  remained unchanged, only the source and valid private lock were present,
+  Worker completion succeeded, and the model returned `end_turn` with no session
+  errors. No permission grants were needed.
+- **Direct Rust ACP client:** exact allow-once approvals enabled the prescribed
+  file write/readback and fixed `pwd` command; both checks passed with two grants
+  and zero denials. This was not an unattended Worker write/shell grant.
+
+Both runner receipts passed and executable hashes matched before and after each
+scene. The earlier failed receipts remain failed; these are separate successful
+runs after the test correction. Cloud remained a loopback contract fixture,
+not production Cloud/PostgreSQL. Approval was limited to temporary test files
+and the fixed safe command; it does not change Worker default denial or make
+shell an OS/network sandbox. No further provider calls were made.
