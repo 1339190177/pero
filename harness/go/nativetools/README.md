@@ -2,7 +2,9 @@
 
 `--workspace /absolute/root` enables `read_file`, `write_file`, `edit_file`,
 `list_directory`, and literal content `search_files`. Session cwd must resolve to
-that exact workspace. Reads/list/search rely on this explicit root grant.
+that exact workspace. ACP new/load/resume reject a mismatch before session or
+MCP activation; tools still recheck at execution in case the root changes.
+Reads/list/search rely on this explicit root grant.
 Every write/edit call requires a fresh approval; refusal or unavailable client
 fails closed. `--approval never` denies these operations even inside workspace.
 No persistent allow-all grant is introduced.

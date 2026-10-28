@@ -24,27 +24,32 @@ import (
 )
 
 type Options struct {
-	Harness             *harness.Harness
-	Persistence         harness.SessionPersistence
-	Provider            string
-	Model               string
-	Compaction          *harness.BasicCompactionConfig
-	ToolResultPruner    *harness.ToolResultPruneConfig
-	Name                string
-	Version             string
-	SessionListPageSize int
+	// ValidateWorkingDirectory is trusted native composition, not ACP client data.
+	// It narrows session admission before persistence or MCP activation. Nil keeps
+	// the protocol-only absolute-path behavior. Execution-time tool checks remain.
+	ValidateWorkingDirectory func(string) error
+	Harness                  *harness.Harness
+	Persistence              harness.SessionPersistence
+	Provider                 string
+	Model                    string
+	Compaction               *harness.BasicCompactionConfig
+	ToolResultPruner         *harness.ToolResultPruneConfig
+	Name                     string
+	Version                  string
+	SessionListPageSize      int
 }
 
 type Server struct {
-	h                   *harness.Harness
-	persistence         harness.SessionPersistence
-	provider            string
-	model               string
-	compaction          *harness.BasicCompactionConfig
-	toolResultPruner    *harness.ToolResultPruneConfig
-	name                string
-	version             string
-	sessionListPageSize int
+	validateWorkingDirectory func(string) error
+	h                        *harness.Harness
+	persistence              harness.SessionPersistence
+	provider                 string
+	model                    string
+	compaction               *harness.BasicCompactionConfig
+	toolResultPruner         *harness.ToolResultPruneConfig
+	name                     string
+	version                  string
+	sessionListPageSize      int
 
 	mu             sync.Mutex
 	sessions       map[harness.SessionID]*activeSession
@@ -110,7 +115,7 @@ func NewServer(options Options) (*Server, error) {
 		return nil, errors.New("acp: session list page size must be a positive safe integer")
 	}
 	return &Server{
-		h: options.Harness, persistence: options.Persistence,
+		h: options.Harness, persistence: options.Persistence, validateWorkingDirectory: options.ValidateWorkingDirectory,
 		provider: options.Provider, model: options.Model, compaction: options.Compaction, toolResultPruner: options.ToolResultPruner,
 		name: options.Name, version: options.Version, sessionListPageSize: options.SessionListPageSize,
 		sessions: make(map[harness.SessionID]*activeSession), activating: make(map[harness.SessionID]struct{}),
@@ -382,7 +387,7 @@ func (s *Server) newSession(ctx context.Context, params NewSessionParams) (harne
 		return "", err
 	}
 	defer done()
-	if err := validateCWD(params.CWD); err != nil {
+	if err := s.checkWorkingDirectory(params.CWD); err != nil {
 		return "", err
 	}
 	if len(params.AdditionalDirectories) > 0 {
@@ -599,7 +604,7 @@ func (s *Server) resumeSession(ctx context.Context, params ResumeSessionParams) 
 		return err
 	}
 	defer done()
-	if err := validateCWD(params.CWD); err != nil {
+	if err := s.checkWorkingDirectory(params.CWD); err != nil {
 		return err
 	}
 	id := harness.SessionID(params.SessionID)
@@ -1038,6 +1043,18 @@ func decodeMCPServers(raw []json.RawMessage, cwd string) ([]harness.MCPServerCon
 		result = append(result, harness.MCPServerConfig{Name: server.Name, Transport: harness.MCPStreamableHTTP, URL: server.URL, Headers: headers})
 	}
 	return result, nil
+}
+
+func (s *Server) checkWorkingDirectory(cwd string) error {
+	if err := validateCWD(cwd); err != nil {
+		return err
+	}
+	if s.validateWorkingDirectory != nil {
+		if err := s.validateWorkingDirectory(cwd); err != nil {
+			return invalidError("session working directory is unavailable: " + err.Error())
+		}
+	}
+	return nil
 }
 
 func validateCWD(cwd string) error {

@@ -30,6 +30,15 @@ func (a *App) Close() error {
 	return a.files.Close()
 }
 
+// CheckCWD reuses the launch-time workspace authority for early ACP admission.
+// Tool bodies still recheck it before execution to catch later changes.
+func (a *App) CheckCWD(cwd string) error {
+	if a == nil || a.files == nil {
+		return errors.New("native workspace is unavailable")
+	}
+	return a.files.CheckCWD(cwd)
+}
+
 type arguments struct {
 	Path       string `json:"path"`
 	Content    string `json:"content"`

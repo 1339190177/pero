@@ -26,6 +26,12 @@ func TestNativeToolApprovalAndWorkspaceBoundary(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	if err := app.CheckCWD(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.CheckCWD(t.TempDir()); err == nil {
+		t.Fatal("mismatched session workspace accepted")
+	}
 	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()); app.Close() }()
 	create := func(id string, grant bool) *harness.Agent {
 		a, e := h.Agents().Create(ctx, harness.AgentOptions{ID: harness.SessionID(id), CWD: root, Configure: func(c context.Context, r *runtime.Run, a *harness.Agent) error {
@@ -96,5 +102,29 @@ func TestOutputBudgetPreservesFailedShellAndUnknownReceipt(t *testing.T) {
 	out, e = renderResult(fstools.ScopedTextReceipt{Path: "file", State: "unknown"}, errors.New("partial commit"))
 	if e != nil || !out.IsError || !strings.Contains(out.Content[0].Text, `"state":"unknown"`) {
 		t.Fatalf("receipt lost %+v %v", out, e)
+	}
+}
+
+func TestEarlyCWDCheckRejectsReplacedWorkspace(t *testing.T) {
+	root := t.TempDir()
+	files, err := fstools.OpenWorkspace(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := &App{files: files}
+	defer app.Close()
+	if err = app.CheckCWD(root); err != nil {
+		t.Fatal(err)
+	}
+	moved := root + "-old"
+	if err = os.Rename(root, moved); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(moved)
+	if err = os.Mkdir(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = app.CheckCWD(root); err == nil {
+		t.Fatal("replaced workspace admitted")
 	}
 }

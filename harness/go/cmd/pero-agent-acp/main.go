@@ -79,7 +79,11 @@ func run() (resultErr error) {
 			return err
 		}
 	}
-	server, err := acp.NewServer(acp.Options{Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"})
+	serverOptions := acp.Options{Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
+	if native != nil {
+		serverOptions.ValidateWorkingDirectory = native.CheckCWD
+	}
+	server, err := acp.NewServer(serverOptions)
 	if err != nil {
 		return err
 	}

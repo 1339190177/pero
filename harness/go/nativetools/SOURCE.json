@@ -4,11 +4,14 @@
   "files": [
     {
       "destination": "tools.go",
-      "sha256": "12d38b5afbb387bb5e3289015df45ab02685bacd6e895d6eb790e16c92b021af"
+      "sha256": "f312218b39d498e1198dfb4363a9a68402d9d302563d0aa5130ace6901c30882"
     },
     {
       "destination": "tools_test.go",
-      "sha256": "03ecebe16f10c744d88e6e869c8d1f6c416c0bec9eca6fefb917abc783ef8ca7"
+      "sha256": "c0687a080583ee79f7f435d7e7c4c6b75bd65e91c35a1a95853122aec6887979"
     }
+  ],
+  "changes": [
+    "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant."
   ]
 }

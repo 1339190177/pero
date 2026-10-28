@@ -18,7 +18,8 @@
     "Optional native file/shell composition is tracked by fstools/SOURCE.json, shell/SOURCE.json and nativetools/SOURCE.json; existing agent loop is unchanged.",
     "Optional explicit provider request/output/retry/reasoning budgets for bounded smoke tests; defaults retained.",
     "Explicit --use-env-proxy opt-in uses existing HTTP(S) proxy configuration; default direct transport and TLS verification unchanged.",
-    "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged."
+    "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged.",
+    "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain."
   ],
   "excluded_features": [
     "Projects",
@@ -737,7 +738,7 @@
     },
     {
       "destination": "acp/extraction_test.go",
-      "sha256": "b85f4df7e4dab75eb18d26777eb062ec71ca2cd5d77ddc64585417539b7ce360",
+      "sha256": "5e862329e57a517bef7712e335cdb85b1cb084557a6eaf66448a63ffb04031be",
       "change": "new extraction glue or regression test"
     },
     {
@@ -749,7 +750,7 @@
     },
     {
       "destination": "acp/server.go",
-      "sha256": "5d73e9747c2bd156ed538c00f26b7b0c9cf92859030b3f534422488f86e5d426",
+      "sha256": "6cd1b2e59d3d6ae4264fa773a4315e1d418f4e64a3bd617582c61a651fda20ac",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
       "change": "adapted; review pinned source diff"
@@ -1057,7 +1058,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "f53e3476bef7173e559e46da2648cc85b5d053f07e1bf8b5730ccb72755c8486",
+      "sha256": "0a13f17692c075a6ab46cdd233604af1c742b30bfcea0791bd475f334abc224c",
       "change": "Explicit optional provider budget CLI configuration and actual ACP/Harness HTTP budget regression."
     },
     {

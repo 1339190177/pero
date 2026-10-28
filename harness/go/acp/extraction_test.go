@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,3 +153,99 @@ func TestCancelledInputPreservesFinalCloseError(t *testing.T) {
 type closedInput struct{}
 
 func (closedInput) Read([]byte) (int, error) { return 0, os.ErrClosed }
+
+type admissionPersistence struct {
+	harness.SessionPersistence
+	loads int
+}
+
+func (p *admissionPersistence) Load(ctx context.Context, id harness.SessionID) (*harness.Session, error) {
+	p.loads++
+	return p.SessionPersistence.Load(ctx, id)
+}
+
+func TestWorkingDirectoryAdmissionBeforeMCPAndPersistence(t *testing.T) {
+	ctx := t.Context()
+	root := t.TempDir()
+	outside := t.TempDir()
+	providerCalls := 0
+	h, err := harness.Boot(ctx, harness.Options{AdapterProviders: []string{"fixture"}, Adapter: harness.AdapterFunc(func(context.Context, harness.GenerateRequest, func(harness.StreamChunk) error) (harness.Completion, error) {
+		providerCalls++
+		return harness.Completion{Finish: harness.FinishStop}, nil
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()) }()
+	disk, err := harness.NewJSONLSessionPersistence(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &admissionPersistence{SessionPersistence: disk}
+	checks := 0
+	s, err := NewServer(Options{Harness: h, Persistence: p, Provider: "fixture", Model: "fixture", ValidateWorkingDirectory: func(cwd string) error {
+		checks++
+		if cwd != root {
+			return errors.New("native workspace mismatch")
+		}
+		return nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.writer = &wireWriter{encoder: json.NewEncoder(io.Discard)}
+	defer s.closeAll(context.Background())
+	// Malformed MCP configuration must never be reached for a rejected cwd.
+	if _, err = s.newSession(ctx, NewSessionParams{CWD: outside, MCPServers: []json.RawMessage{json.RawMessage(`null`)}}); err == nil || !strings.Contains(err.Error(), "native workspace mismatch") {
+		t.Fatalf("new admission: %v", err)
+	}
+	for _, method := range []string{"session/resume", "session/load"} {
+		params, _ := json.Marshal(ResumeSessionParams{SessionID: "not-loaded", CWD: outside})
+		_, rpcErr := s.handle(ctx, request{Method: method, Params: params})
+		if rpcErr == nil || rpcErr.Code != -32602 || !strings.Contains(rpcErr.Message, "native workspace mismatch") {
+			t.Fatalf("%s: %+v", method, rpcErr)
+		}
+	}
+	records, err := p.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checks != 3 || p.loads != 0 || len(h.Agents().List()) != 0 || len(records) != 0 || providerCalls != 0 {
+		t.Fatalf("rejected admission had effects: checks=%d loads=%d agents=%d records=%d provider=%d", checks, p.loads, len(h.Agents().List()), len(records), providerCalls)
+	}
+	id, err := s.newSession(ctx, NewSessionParams{CWD: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.closeSession(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.resumeSession(ctx, ResumeSessionParams{SessionID: string(id), CWD: root}); err != nil {
+		t.Fatalf("same-root resume: %v", err)
+	}
+	if p.loads != 1 || providerCalls != 0 {
+		t.Fatalf("accepted resume loads=%d provider=%d", p.loads, providerCalls)
+	}
+}
+
+func TestWorkingDirectoryValidatorIsOptional(t *testing.T) {
+	h, err := harness.Boot(t.Context(), harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Dispose(context.Background())
+	p, err := harness.NewJSONLSessionPersistence(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewServer(Options{Harness: h, Persistence: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.checkWorkingDirectory(t.TempDir()); err != nil {
+		t.Fatalf("protocol-only absolute cwd rejected: %v", err)
+	}
+	if err = s.checkWorkingDirectory("relative"); err == nil {
+		t.Fatal("relative cwd admitted")
+	}
+}
