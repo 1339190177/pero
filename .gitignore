@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+/bazel-*
 /.pnp
 .pnp.js
 
@@ -144,3 +145,18 @@ tools/ppt-template/node_modules/
 .agents
 /people/
 design-qa.md
+
+# Fonts are prepared from checked local files or pinned build sources.
+/web/public/fonts/*.ttf
+/web/public/fonts/*.otf
+/web/public/fonts/*.woff
+/web/public/fonts/*.woff2
+/web/public/fonts/.fonts-stamp.json
+
+# Local dependency/cache symlinks are ignored as well as directories.
+/node_modules
+/target
+
+# Additional master ignore rules
+fonts/*.ttf
+.idea

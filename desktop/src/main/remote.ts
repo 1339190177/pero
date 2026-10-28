@@ -1,8 +1,9 @@
 // The renderer sends bounded task actions; endpoint and credentials stay here.
 import { randomUUID } from 'node:crypto';
+import { shell } from 'electron';
 import Ajv2020 from 'ajv/dist/2020.js';
 import schema from '../../../protocol/generated/remote.schema.json';
-import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker } from '../../../protocol/generated/remote';
+import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, GitHubStatus, GitHubSyncResult } from '../../../protocol/generated/remote';
 
 type Emit = (event: object) => void;
 const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -34,7 +35,9 @@ function endpoint(value: string | undefined): string | null {
 export class RemoteAdapter {
   private base: string | null = null;
   private configError: string | null = null;
-  private token = process.env.PERO_OPERATOR_TOKEN || '';
+  private clientMode = !!process.env.PERO_CLIENT_TOKEN;
+  private token = process.env.PERO_CLIENT_TOKEN || process.env.PERO_OPERATOR_TOKEN || '';
+  private api = this.clientMode ? '/api/client/v1' : '/api/v1';
   private timer?: ReturnType<typeof setTimeout>;
   private busy = false;
   private closed = false;
@@ -42,7 +45,7 @@ export class RemoteAdapter {
   private pages = 1;
   private state: RemoteState = {
     configured: false, loading: false, error: null, tasks: [], workers: [], has_more: false,
-    selected_task_id: null, detail: null,
+    selected_task_id: null, detail: null, identity: null, github: null,
   };
   constructor(private emit: Emit) {
     try { this.base = endpoint(process.env.PERO_CLOUD_URL); }
@@ -77,14 +80,18 @@ export class RemoteAdapter {
     return value;
   }
   private async load() {
-    const [first, workerData] = await Promise.all([
-      this.request('/api/v1/tasks?limit=50'),
-      this.request('/api/v1/workers') as Promise<{ workers: unknown[] }>,
+    const [first, workerData, identity, github] = await Promise.all([
+      this.request(`${this.api}/tasks?limit=50`),
+      this.request(`${this.api}/workers`) as Promise<{ workers: unknown[] }>,
+      this.request(`${this.api}/me`),
+      this.clientMode ? Promise.resolve(null) : this.request('/api/v1/github/status'),
     ]);
+    this.state.identity = checked<Identity>('Identity', identity);
+    this.state.github = github === null ? null : checked<GitHubStatus>('GitHubStatus', github);
     let page = checked<TaskPage>('TaskPage', first);
     const tasks = [...page.tasks];
     for (let i = 1; i < this.pages && page.has_more && page.next_cursor; i++) {
-      page = checked<TaskPage>('TaskPage', await this.request(`/api/v1/tasks?limit=50&cursor=${encodeURIComponent(page.next_cursor)}`));
+      page = checked<TaskPage>('TaskPage', await this.request(`${this.api}/tasks?limit=50&cursor=${encodeURIComponent(page.next_cursor)}`));
       tasks.push(...page.tasks);
     }
     if (!Array.isArray(workerData.workers)) throw new Error('Invalid remote Worker list');
@@ -92,7 +99,7 @@ export class RemoteAdapter {
     this.state.has_more = page.has_more;
     this.state.workers = workerData.workers.map(value => checked<Worker>('Worker', value));
     if (this.state.selected_task_id) {
-      this.state.detail = checked<Detail>('Detail', await this.request(`/api/v1/tasks/${id(this.state.selected_task_id)}`));
+      this.state.detail = checked<Detail>('Detail', await this.request(`${this.api}/tasks/${id(this.state.selected_task_id)}`));
     }
   }
   command(input: unknown): Promise<void> {
@@ -105,7 +112,7 @@ export class RemoteAdapter {
     const command = input as Record<string, unknown>;
     if (!command || typeof command !== 'object' || JSON.stringify(command).length > 260_000) throw new Error('Invalid remote command');
     const action = command.action;
-    if (!['remote_refresh', 'remote_more', 'remote_select', 'remote_create', 'remote_dispatch', 'remote_cancel'].includes(String(action))) throw new Error('Unknown remote action');
+    if (!['remote_refresh', 'remote_more', 'remote_select', 'remote_create', 'remote_dispatch', 'remote_cancel', 'remote_claim', 'remote_release', 'remote_sync_issues', 'remote_open_source'].includes(String(action))) throw new Error('Unknown remote action');
     clearTimeout(this.timer);
     if (!this.state.configured) {
       this.state.error = this.configError;
@@ -122,6 +129,7 @@ export class RemoteAdapter {
         this.state.selected_task_id = command.task_id === null ? null : id(command.task_id);
         this.state.detail = null;
       } else if (action === 'remote_create') {
+        if (this.clientMode) throw new Error('Only the operator can create manual tasks');
         const spec: TaskSpec = {
           title: text(command.title, 240), prompt: text(command.prompt, 64000),
           acceptance: text(command.acceptance, 16000), project_id: text(command.project_id, 128),
@@ -129,11 +137,22 @@ export class RemoteAdapter {
         };
         const task = checked<Task>('Task', await this.request('/api/v1/tasks', 'POST', spec));
         this.state.selected_task_id = task.id;
-      } else if (action === 'remote_dispatch' || action === 'remote_cancel') {
+      } else if (action === 'remote_dispatch' || action === 'remote_cancel' || action === 'remote_claim' || action === 'remote_release') {
         const taskID = id(command.task_id);
         const body = action === 'remote_dispatch' && command.worker_id ? { worker_id: id(command.worker_id) } : {};
-        await this.request(`/api/v1/tasks/${taskID}/${action === 'remote_dispatch' ? 'dispatch' : 'cancel'}`, 'POST', body);
+        await this.request(`${this.api}/tasks/${taskID}/${String(action).slice('remote_'.length)}`, 'POST', body);
         this.state.selected_task_id = taskID;
+      } else if (action === 'remote_sync_issues') {
+        if (this.clientMode) throw new Error('Only the operator can sync GitHub sources');
+        const synced = checked<GitHubSyncResult>('GitHubSyncResult', await this.request('/api/v1/github/sync', 'POST', {}));
+        if (synced.partial) this.state.error = synced.errors.join('; ').slice(0, 500) || 'GitHub synchronization is incomplete';
+      } else if (action === 'remote_open_source') {
+        const detail = checked<Detail>('Detail', await this.request(`${this.api}/tasks/${id(command.task_id)}`));
+        const source = detail.task.source;
+        if (!source || source.kind !== 'github' || !/^[\w-]+\/[\w.-]+$/.test(source.repository) || !Number.isSafeInteger(source.issue_number) || source.issue_number < 1) throw new Error('Invalid GitHub source');
+        const expected = `https://github.com/${source.repository}/issues/${source.issue_number}`;
+        if (source.url !== expected) throw new Error('Invalid GitHub issue URL');
+        await shell.openExternal(expected);
       }
       await this.load();
     } catch (error) {

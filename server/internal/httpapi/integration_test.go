@@ -23,6 +23,9 @@ func testAPI(t *testing.T) *httptest.Server {
 	t.Helper()
 	dsn := os.Getenv("PERO_TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("PERO_REQUIRE_TEST_DATABASE") == "1" {
+			t.Fatal("PERO_TEST_DATABASE_URL is required for PostgreSQL acceptance")
+		}
 		t.Skip("set PERO_TEST_DATABASE_URL to exercise real PostgreSQL HTTP API")
 	}
 	ctx := context.Background()

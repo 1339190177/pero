@@ -1,0 +1,5 @@
+common --repo_env=DO_NOT_TRACK=1
+common:ci --repo_env=ASPECT_RULES_JS_FROZEN_PNPM_LOCK=1
+build --incompatible_strict_action_env
+build --verbose_failures
+test --test_output=errors

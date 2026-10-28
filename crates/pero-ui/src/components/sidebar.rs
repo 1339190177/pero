@@ -158,17 +158,19 @@ pub(crate) fn sidebar(
                         .on_click(click(&on_action, SidebarAction::ToggleTheme)),
                 ),
         )
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap(px(9.))
-                .px(px(8.))
-                .text_size(px(12.))
-                .text_color(p.color("text-muted"))
-                .child(ui.icon("brand-github"))
-                .child(ui.t("github.unconnected")),
-        )
+        .when(props.navigation != 3, |el| {
+            el.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(9.))
+                    .px(px(8.))
+                    .text_size(px(12.))
+                    .text_color(p.color("text-muted"))
+                    .child(ui.icon("brand-github"))
+                    .child(ui.t("github.unconnected")),
+            )
+        })
         .child(
             div()
                 .flex()

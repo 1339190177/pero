@@ -1,0 +1,78 @@
+package httpapi_test
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/phodal/pero/server/internal/github"
+	"github.com/phodal/pero/server/internal/httpapi"
+	"github.com/phodal/pero/server/internal/store"
+)
+
+func TestGitHubSourceEndpointsRemainOperatorOnly(t *testing.T) {
+	dsn := os.Getenv("PERO_TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("set PERO_TEST_DATABASE_URL for GitHub source HTTP acceptance")
+	}
+	ctx := context.Background()
+	admin, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := "github_api_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	if _, err = admin.Exec(ctx, "CREATE SCHEMA "+pgx.Identifier{schema}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(dsn)
+	q := u.Query()
+	q.Set("search_path", schema)
+	u.RawQuery = q.Encode()
+	db, err := store.Open(ctx, u.String(), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		db.Close()
+		_, _ = admin.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
+		admin.Close()
+	})
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repos/acme/repo" {
+			w.Write([]byte(`{"id":200,"full_name":"acme/repo"}`))
+			return
+		}
+		w.Write([]byte(`[{"id":300,"node_id":"I_300","number":7,"title":"Issue","body":"Goal","state":"open","html_url":"https://github.com/acme/repo/issues/7","updated_at":"2026-10-28T00:00:00Z","labels":[]}]`))
+	}))
+	defer provider.Close()
+	service, err := github.New(db, []store.GitHubRepository{{ProjectID: "project", Owner: "acme", Repo: "repo", WorkspaceKey: "repo", AgentID: "fixture", Acceptance: "Inspect result"}}, "private-token", github.Options{BaseURL: provider.URL, Client: provider.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(httpapi.Handler(db, "test-operator", service))
+	defer server.Close()
+	_, clientToken, err := db.CreateClient(ctx, "Reader", []string{"project"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request(t, server, "GET", "/api/v1/github/status", clientToken, nil, "", 401)
+	request(t, server, "POST", "/api/v1/github/sync", clientToken, map[string]any{}, "", 401)
+	status := request(t, server, "GET", "/api/v1/github/status", "test-operator", nil, "", 200)
+	var decoded github.Status
+	if err = json.Unmarshal(status, &decoded); err != nil || !decoded.Configured || len(decoded.Repositories) != 1 {
+		t.Fatalf("source status: %s %v", status, err)
+	}
+	result := request(t, server, "POST", "/api/v1/github/sync", "test-operator", map[string]any{}, "", 200)
+	var imported github.Result
+	if err = json.Unmarshal(result, &imported); err != nil || imported.Imported != 1 || imported.Dispatched != 0 {
+		t.Fatalf("source sync: %s %v", result, err)
+	}
+}

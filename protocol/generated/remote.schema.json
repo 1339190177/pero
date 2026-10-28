@@ -26,6 +26,23 @@
       ],
       "additionalProperties": false
     },
+    "Claimant": {
+      "title": "Claimant",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
     "ClaimResult": {
       "title": "ClaimResult",
       "type": "object",
@@ -43,6 +60,23 @@
       },
       "required": [
         "run"
+      ],
+      "additionalProperties": false
+    },
+    "ClientCredential": {
+      "title": "ClientCredential",
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/$defs/Identity"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "client",
+        "token"
       ],
       "additionalProperties": false
     },
@@ -217,11 +251,150 @@
       ],
       "additionalProperties": false
     },
+    "GitHubRepositoryStatus": {
+      "title": "GitHubRepositoryStatus",
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "auto_dispatch": {
+          "type": "boolean"
+        },
+        "required_label": {
+          "type": "string"
+        },
+        "last_synced_at": {
+          "type": "string"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "owner",
+        "repo",
+        "auto_dispatch",
+        "required_label",
+        "partial"
+      ],
+      "additionalProperties": false
+    },
+    "GitHubStatus": {
+      "title": "GitHubStatus",
+      "type": "object",
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GitHubRepositoryStatus"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "running": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "configured",
+        "repositories",
+        "errors",
+        "running"
+      ],
+      "additionalProperties": false
+    },
+    "GitHubSyncResult": {
+      "title": "GitHubSyncResult",
+      "type": "object",
+      "properties": {
+        "imported": {
+          "type": "integer"
+        },
+        "updated": {
+          "type": "integer"
+        },
+        "dispatched": {
+          "type": "integer"
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "imported",
+        "updated",
+        "dispatched",
+        "partial",
+        "errors"
+      ],
+      "additionalProperties": false
+    },
     "Id": {
       "title": "Id",
       "type": "string",
       "minLength": 1,
       "maxLength": 128
+    },
+    "Identity": {
+      "title": "Identity",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "operator"
+            },
+            {
+              "type": "string",
+              "const": "client"
+            }
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "role",
+        "projects"
+      ],
+      "additionalProperties": false
     },
     "LeaseIdentity": {
       "title": "LeaseIdentity",
@@ -321,6 +494,18 @@
           "$ref": "#/$defs/WorkerCredential"
         },
         {
+          "$ref": "#/$defs/ClientCredential"
+        },
+        {
+          "$ref": "#/$defs/Identity"
+        },
+        {
+          "$ref": "#/$defs/GitHubStatus"
+        },
+        {
+          "$ref": "#/$defs/GitHubSyncResult"
+        },
+        {
           "$ref": "#/$defs/Dispatch"
         },
         {
@@ -395,6 +580,26 @@
           "anyOf": [
             {
               "$ref": "#/$defs/Detail"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "github": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitHubStatus"
             },
             {
               "type": "null"
@@ -543,6 +748,60 @@
         }
       ]
     },
+    "Source": {
+      "title": "Source",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "github"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "issue_number": {
+          "type": "integer"
+        },
+        "url": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "open"
+            },
+            {
+              "type": "string",
+              "const": "closed"
+            }
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "issue_id": {
+          "type": "string"
+        },
+        "repository_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "repository",
+        "issue_number",
+        "url",
+        "revision",
+        "state",
+        "issue_id",
+        "repository_id"
+      ],
+      "additionalProperties": false
+    },
     "Task": {
       "title": "Task",
       "type": "object",
@@ -571,6 +830,9 @@
         "agent_id": {
           "$ref": "#/$defs/Id"
         },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
         "id": {
           "$ref": "#/$defs/Id"
         },
@@ -589,6 +851,12 @@
               "type": "null"
             }
           ]
+        },
+        "claimed_by": {
+          "$ref": "#/$defs/Claimant"
+        },
+        "latest_source": {
+          "$ref": "#/$defs/Source"
         },
         "created_at": {
           "type": "string"
@@ -676,6 +944,9 @@
         },
         "agent_id": {
           "$ref": "#/$defs/Id"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
         }
       },
       "required": [

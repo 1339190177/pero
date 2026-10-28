@@ -1,0 +1,6 @@
+# npm remains the developer package manager; Bazel translates its lockfile.
+packages:
+  - desktop
+  - web
+# The pilot only runs JavaScript generators; package install hooks are unused.
+allowBuilds: {}

@@ -18,6 +18,12 @@ export PERO_GPUI_KIT_PATH=/absolute/path/to/gpui-kit
 npm run dev
 ```
 
+Font binaries are generated and ignored by Git. `build:wasm` first reuses
+validated fonts from `PERO_FONT_DIR` or the Kit checkout, then cached sources;
+missing sources download from checksum-pinned URLs. See
+[font preparation](../web/public/fonts/README.md) for offline setup and the
+optional cached Python/fontTools toolchain.
+
 The maintainer checkout detects `../../test/gpui-kit` automatically. The Cargo
 wrapper patches only Kit packages; matching `gpui-pre-* =0.3.10` snapshots come
 from the registry. `/Users/phodal/test/zed` is a source reference, not a second
@@ -81,12 +87,26 @@ without the native Agent/remote bridge.
 
 Start the [Go control plane](../server/README.md) with PostgreSQL. Launch Desktop
 with `PERO_CLOUD_URL` set to its HTTPS origin (loopback HTTP is allowed for local
-development) and `PERO_OPERATOR_TOKEN` set to the server's operator credential.
-These are process configuration in this first slice; there is no separate
-Desktop preference store. Credentials stay in Electron's main process and are
-filtered out of the local Host environment.
+development). Ordinary clients use an operator-provisioned `PERO_CLIENT_TOKEN`;
+operators use `PERO_OPERATOR_TOKEN`. A configured client token always selects
+client authority, even if an operator variable is also present. These are process
+configuration; there is no separate Desktop preference store. Credentials stay in
+Electron's main process and are filtered out of the local Host environment.
 
-Open **Remote tasks**, create a draft with its project, allowed workspace key,
+Open **Remote tasks**. Clients see **Available / Mine / All**, claim an idle Task,
+and choose **Execute**. Filters cover loaded pages; **Load more** extends them.
+Only the claim's owner can execute/cancel it or release an idle claim to another
+client. These are Pero client identities and claims, not GitHub login or assignee
+changes. Provisioning instructions are in the
+[server setup](../server/README.md#client-identities-and-shared-tasks).
+
+Operators can **Sync issues** from configured repositories and see their manual
+or label-gated automatic dispatch policy. Imported Tasks link to the source Issue.
+Closed sources block new work; changed sources keep the saved goal frozen and
+require the indicated refresh/review step. Independent verification and GitHub
+writeback are separate operations.
+
+Operators can also create a draft with its project, allowed workspace key,
 Agent ID and completion criteria, then choose **Dispatch**. A provisioned
 [independent Worker](../crates/pero-worker/README.md) for that project receives the
 Run even if Desktop subsequently closes. Agent choices are identifiers to resolve
@@ -110,3 +130,8 @@ This launches real Electron, Go, PostgreSQL and a separate Rust Worker using an
 ACP fixture. It checks UI create/dispatch/progress/cancel, server restart recovery,
 connection errors, language, dark/narrow layouts and credential exclusion. It
 does not deploy a service to openpero.com or certify a real model provider.
+
+`PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:github`
+adds the read-only GitHub fixture, two project-scoped Desktop clients, claim
+conflicts/handoff and automatic dispatch to the same real local service/Worker
+path. Fixture checks do not establish public GitHub or real-model acceptance.

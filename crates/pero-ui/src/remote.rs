@@ -24,6 +24,7 @@ pub(crate) struct RemoteState {
     agent: Option<String>,
     confirm_cancel: Option<String>,
     form_error: Option<&'static str>,
+    filter: usize,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -61,6 +62,7 @@ impl RemoteState {
             agent: None,
             confirm_cancel: None,
             form_error: None,
+            filter: 0,
             _subscriptions: subscriptions,
         }
     }
@@ -82,17 +84,69 @@ impl RemoteState {
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
+    fn operator(&self) -> bool {
+        string(&self.data["identity"], "role") == "operator"
+    }
+    fn client(&self) -> bool {
+        string(&self.data["identity"], "role") == "client"
+    }
+    fn mine(&self, task: &Value) -> bool {
+        let principal = string(&self.data["identity"], "id");
+        !principal.is_empty() && string(&task["claimed_by"], "id") == principal
+    }
+    fn repositories(&self) -> &[Value] {
+        self.data["github"]["repositories"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+    fn task_visible(&self, task: &Value) -> bool {
+        if !self.client() {
+            return true;
+        }
+        match self.filter {
+            0 => {
+                string(&task["claimed_by"], "id").is_empty()
+                    && dispatchable(task)
+                    && !source_closed(task)
+            }
+            1 => self.mine(task),
+            _ => true,
+        }
+    }
     pub fn snapshot(&self, cx: &App) -> Value {
         json!({"state":self.data,"creating":self.creating,"confirm_cancel":self.confirm_cancel,
             "title":self.title.read(cx).value().as_ref(),"prompt":self.prompt.read(cx).value().as_ref(),
             "acceptance":self.acceptance.read(cx).value().as_ref(),
             "project":self.project.read(cx).value().as_ref(),"workspace":self.workspace.read(cx).value().as_ref(),
-            "agent":self.agent,"form_error":self.form_error})
+            "agent":self.agent,"form_error":self.form_error,"filter":self.filter})
     }
 }
 
 fn string<'a>(value: &'a Value, key: &str) -> &'a str {
     value[key].as_str().unwrap_or("")
+}
+
+fn observed_source(task: &Value) -> &Value {
+    if task["latest_source"].is_object() {
+        &task["latest_source"]
+    } else {
+        &task["source"]
+    }
+}
+fn source_closed(task: &Value) -> bool {
+    string(observed_source(task), "state") == "closed"
+}
+fn source_changed(task: &Value) -> bool {
+    let frozen = string(&task["source"], "revision");
+    let latest = string(observed_source(task), "revision");
+    !frozen.is_empty() && !latest.is_empty() && frozen != latest
+}
+fn dispatchable(task: &Value) -> bool {
+    matches!(
+        string(task, "state"),
+        "draft" | "succeeded" | "failed" | "cancelled"
+    )
 }
 
 /// Display the observed event content without promoting Agent output to acceptance.
@@ -156,7 +210,11 @@ impl Workbench {
             .unwrap_or_else(|| "codex".into())
     }
     fn create_remote(&mut self, cx: &mut Context<Self>) {
-        if !self.remote.configured() || self.remote.loading() || self.remote.submitting {
+        if !self.remote.configured()
+            || !self.remote.operator()
+            || self.remote.loading()
+            || self.remote.submitting
+        {
             return;
         }
         let title = self.remote.title.read(cx).value().trim().to_string();
@@ -215,9 +273,12 @@ impl Workbench {
         div().flex_1().min_w_0().h_full().flex().flex_col()
             .child(div().px(px(20.)).h(px(58.)).flex_shrink_0().flex().items_center().gap(px(10.)).border_b_1().border_color(p.color("border"))
                 .child(div().flex_1().min_w_0().text_size(px(20.)).font_weight(FontWeight::BOLD).child(self.t("nav.remote")))
+                .when(self.remote.operator() && self.remote.data["github"]["configured"].as_bool().unwrap_or(false),|el|el.child(
+                    Button::new("remote-sync").outline().small().label(self.t(if self.remote.data["github"]["running"].as_bool().unwrap_or(false){"remote.syncing_issues"}else{"remote.sync_issues"})).disabled(loading||self.remote.data["github"]["running"].as_bool().unwrap_or(false))
+                        .on_click(cx.listener(|this,_,_,cx|this.command(json!({"action":"remote_sync_issues"}),cx)))))
                 .child(Button::new("remote-refresh").outline().small().label(self.t(if loading{"remote.refreshing"}else{"remote.refresh"}))
                     .disabled(loading).on_click(cx.listener(|this,_,_,cx|this.command(json!({"action":"remote_refresh"}),cx))))
-                .child(Button::new("remote-new").primary().small().label(self.t("remote.new")).disabled(!configured||loading)
+                .when(self.remote.operator(),|el|el.child(Button::new("remote-new").primary().small().label(self.t("remote.new")).disabled(!configured||loading)
                     .on_click(cx.listener(|this,_,window,cx|{
                         this.remote.title.update(cx, |input,cx| input.set_value("",window,cx));
                         this.remote.prompt.update(cx, |input,cx| input.set_value("",window,cx));
@@ -226,11 +287,17 @@ impl Workbench {
                         this.remote.submitting=false;
                         this.remote.form_error=None;
                         this.remote.confirm_cancel=None;
-                        let focus=this.remote.title.focus_handle(cx);window.focus(&focus, cx);cx.notify();}))))
+                        let focus=this.remote.title.focus_handle(cx);window.focus(&focus, cx);cx.notify();})))))
             .when(self.remote.data["error"].is_string(),|el|el.child(div().id("remote-error").role(Role::Alert)
                 .aria_label(string(&self.remote.data,"error").to_string())
                 .w_full().min_w_0().whitespace_normal().px(px(20.)).py(px(10.)).border_b_1().border_color(p.color("border"))
                 .text_color(p.color("error")).child(string(&self.remote.data,"error").to_string())))
+            .when(self.remote.operator() && !self.remote.data["error"].is_string() && (
+                self.remote.data["github"]["errors"].as_array().is_some_and(|errors|!errors.is_empty()) ||
+                self.remote.repositories().iter().any(|repo|repo["partial"].as_bool().unwrap_or(false)||!string(repo,"error").is_empty())),|el|el.child(
+                    div().id("remote-source-error").role(Role::Alert).aria_label(self.t("remote.sync_incomplete"))
+                        .w_full().min_w_0().whitespace_normal().px(px(20.)).py(px(10.)).border_b_1().border_color(p.color("border"))
+                        .text_color(p.color("warning")).child(self.t("remote.sync_incomplete"))))
             .when(!configured,|el|el.child(div().p(px(24.)).flex().flex_col().gap(px(12.))
                 .child(div().font_weight(FontWeight::BOLD).child(self.t("remote.unconfigured")))
                 .child(self.t("remote.configure"))))
@@ -265,11 +332,52 @@ impl Workbench {
                     .text_color(p.color("text-muted"))
                     .child(format!(
                         "{} {} · {} {}",
-                        self.remote.tasks().len(),
+                        self.remote
+                            .tasks()
+                            .iter()
+                            .filter(|task| self.remote.task_visible(task))
+                            .count(),
                         self.t("remote.tasks"),
                         self.remote.workers().len(),
                         self.t("remote.workers")
                     )),
+            )
+            .when(self.remote.client(), |el| {
+                el.child(
+                    div().px(px(8.)).pb(px(8.)).flex().gap(px(4.)).children(
+                        ["remote.available", "remote.mine", "filter.all"]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, key)| {
+                                Button::new(("remote-filter", i))
+                                    .ghost()
+                                    .small()
+                                    .label(self.t(key))
+                                    .bg(p.color(if self.remote.filter == i {
+                                        "accent-soft"
+                                    } else {
+                                        "surface"
+                                    }))
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.remote.filter = i;
+                                        cx.notify();
+                                    }))
+                            }),
+                    ),
+                )
+            })
+            .when(
+                self.remote.client() && self.remote.data["has_more"].as_bool().unwrap_or(false),
+                |el| {
+                    el.child(
+                        div()
+                            .px(px(16.))
+                            .pb(px(8.))
+                            .text_size(px(12.))
+                            .text_color(p.color("text-muted"))
+                            .child(self.t("remote.loaded_only")),
+                    )
+                },
             )
             .child(
                 div()
@@ -278,41 +386,74 @@ impl Workbench {
                     .min_h_0()
                     .overflow_y_scroll()
                     .px(px(8.))
-                    .when(self.remote.tasks().is_empty(), |el| {
-                        el.child(
-                            div()
-                                .p(px(12.))
-                                .text_color(p.color("text-muted"))
-                                .child(self.t(if self.remote.loading() {
+                    .when(
+                        !self
+                            .remote
+                            .tasks()
+                            .iter()
+                            .any(|task| self.remote.task_visible(task)),
+                        |el| {
+                            el.child(div().p(px(12.)).text_color(p.color("text-muted")).child(
+                                self.t(if self.remote.loading() {
                                     "remote.loading"
+                                } else if self.remote.client() {
+                                    "remote.no_matching_tasks"
                                 } else {
                                     "remote.empty"
-                                })),
-                        )
-                    })
-                    .children(self.remote.tasks().iter().enumerate().map(|(i, task)| {
-                        let id = string(task, "id").to_string();
-                        let title = string(task, "title").to_string();
-                        let status = self.remote_status(string(task, "state"));
-                        let chosen = id == selected && !self.remote.creating;
-                        div().py(px(4.)).child(
-                            Button::new(("remote-task", i))
-                                .ghost()
-                                .w_full()
-                                .h(px(68.))
-                                .bg(p.color(if chosen { "accent-soft" } else { "surface" }))
-                                .label(format!("{title}\n{status}"))
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.remote.creating = false;
-                                    this.remote.confirm_cancel = None;
-                                    this.remote.data["selected_task_id"] = json!(id);
-                                    this.command(
-                                        json!({"action":"remote_select","task_id":id}),
-                                        cx,
-                                    );
-                                })),
-                        )
-                    })),
+                                }),
+                            ))
+                        },
+                    )
+                    .children(
+                        self.remote
+                            .tasks()
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, task)| self.remote.task_visible(task))
+                            .map(|(i, task)| {
+                                let id = string(task, "id").to_string();
+                                let title = string(task, "title").to_string();
+                                let status = self.remote_status(string(task, "state"));
+                                let source = observed_source(task);
+                                let source_label = if string(source, "kind") == "github" {
+                                    format!(
+                                        "{} #{}",
+                                        string(source, "repository"),
+                                        source["issue_number"].as_u64().unwrap_or(0)
+                                    )
+                                } else {
+                                    String::new()
+                                };
+                                let claimed = if self.remote.mine(task) {
+                                    self.t("remote.mine").to_string()
+                                } else {
+                                    string(&task["claimed_by"], "name").to_string()
+                                };
+                                let metadata = [status, source_label, claimed]
+                                    .into_iter()
+                                    .filter(|text| !text.is_empty())
+                                    .collect::<Vec<_>>()
+                                    .join(" · ");
+                                let chosen = id == selected && !self.remote.creating;
+                                div().py(px(4.)).child(
+                                    Button::new(("remote-task", i))
+                                        .ghost()
+                                        .w_full()
+                                        .h(px(68.))
+                                        .bg(p.color(if chosen { "accent-soft" } else { "surface" }))
+                                        .label(format!("{title}\n{metadata}"))
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.remote.creating = false;
+                                            this.remote.confirm_cancel = None;
+                                            this.remote.data["selected_task_id"] = json!(id);
+                                            this.command(
+                                                json!({"action":"remote_select","task_id":id}),
+                                                cx,
+                                            );
+                                        })),
+                                )
+                            }),
+                    ),
             )
             .when(
                 self.remote.data["has_more"].as_bool().unwrap_or(false),
@@ -484,8 +625,21 @@ impl Workbench {
         let active = !id.is_empty() && id == selected;
         let state = string(task, "state");
         let run = &detail["run"];
-        let can_dispatch = matches!(state, "draft" | "succeeded" | "failed" | "cancelled");
-        let can_cancel = matches!(state, "queued" | "running");
+        let operator = self.remote.operator();
+        let client = self.remote.client();
+        let mine = self.remote.mine(task);
+        let claimed = !string(&task["claimed_by"], "id").is_empty();
+        let closed = source_closed(task);
+        let idle = dispatchable(task);
+        let can_dispatch =
+            idle && !closed && !source_changed(task) && (operator || (client && mine));
+        let can_cancel = matches!(state, "queued" | "running") && (operator || (client && mine));
+        let source = observed_source(task);
+        let github = string(source, "kind") == "github";
+        let repository = string(source, "repository");
+        let policy = self.remote.repositories().iter().find(|repo| {
+            format!("{}/{}", string(repo, "owner"), string(repo, "repo")) == repository
+        });
         let events = detail["events"]
             .as_array()
             .map(Vec::as_slice)
@@ -495,12 +649,34 @@ impl Workbench {
         div().id("remote-detail").flex_1().min_w_0().min_h_0().overflow_x_hidden().overflow_y_scroll().whitespace_normal().p(px(20.))
             .when(!active,|el|el.child(div().py(px(24.)).text_color(p.color("text-muted"))
                 .child(self.t(if selected.is_empty(){"remote.select"}else{"remote.loading"}))))
+            .when(!active&&!self.remote.repositories().is_empty(),|el|el.child(div().mt(px(16.)).flex().flex_col().gap(px(10.))
+                .child(div().font_weight(FontWeight::BOLD).child(self.t("remote.issue_sources")))
+                .children(self.remote.repositories().iter().map(|repo|div().whitespace_normal()
+                    .child(format!("{}/{} · {}",string(repo,"owner"),string(repo,"repo"),self.t(if repo["auto_dispatch"].as_bool().unwrap_or(false){"remote.auto_enabled"}else{"remote.manual_dispatch"})))
+                    .when(!string(repo,"required_label").is_empty(),|el|el.child(format!(" · {}",string(repo,"required_label"))))
+                    .when(!string(repo,"error").is_empty(),|el|el.child(div().text_color(p.color("warning")).child(string(repo,"error").to_string())))))))
+            .when(client && !string(&self.remote.data["identity"],"name").is_empty(),|el|el.child(div().mb(px(10.)).text_size(px(12.)).text_color(p.color("text-muted"))
+                .child(format!("{} · {}",self.t("remote.identity"),string(&self.remote.data["identity"],"name")))))
             .when(active,|el|el
                 .child(div().flex().items_start().gap(px(12.))
                     .child(div().flex_1().min_w_0().text_size(px(20.)).font_weight(FontWeight::BOLD).child(string(task,"title").to_string()))
                     .child(div().text_color(p.color("text-muted")).child(self.remote_status(state))))
+                .when(github,|el|el.child(div().mt(px(8.)).flex().flex_wrap().items_center().gap(px(8.))
+                    .child(Button::new("remote-open-source").ghost().small().label(format!("{} #{}",repository,source["issue_number"].as_u64().unwrap_or(0)))
+                        .on_click(cx.listener({let id=id.clone();move|this,_,_,cx|this.command(json!({"action":"remote_open_source","task_id":id}),cx)})))
+                    .when_some(policy,|el,repo|el.child(div().text_size(px(12.)).text_color(p.color("text-muted"))
+                        .child(self.t(if repo["auto_dispatch"].as_bool().unwrap_or(false){"remote.auto_enabled"}else{"remote.manual_dispatch"}))))))
+                .when(github||client||claimed,|el|el.child(div().mt(px(8.)).text_size(px(12.)).text_color(p.color("text-muted"))
+                    .child(if claimed{format!("{} · {}",self.t("remote.claimed_by"),string(&task["claimed_by"],"name"))}else{self.t("remote.unclaimed").to_string()})))
+                .when(closed,|el|el.child(div().mt(px(8.)).text_color(p.color("warning")).child(self.t("remote.issue_closed"))))
+                .when(source_changed(task)&&!closed,|el|el.child(div().mt(px(8.)).text_color(p.color("warning"))
+                    .child(self.t(if !string(task,"current_run_id").is_empty(){"remote.source_changed_ran"}else if claimed{"remote.source_changed_claimed"}else{"remote.source_changed"}))))
                 .child(div().mt(px(10.)).flex().flex_wrap().gap(px(8.))
-                    .child(Button::new("remote-dispatch").primary().small().label(self.t("remote.dispatch")).disabled(!can_dispatch||busy)
+                    .when(client&&!claimed,|el|el.child(Button::new("remote-claim").primary().small().label(self.t("remote.claim"))
+                        .disabled(!idle||closed||busy).on_click(cx.listener({let id=id.clone();move|this,_,_,cx|{this.remote.filter=1;this.command(json!({"action":"remote_claim","task_id":id}),cx);}}))))
+                    .when(client&&mine,|el|el.child(Button::new("remote-release").outline().small().label(self.t("remote.release"))
+                        .disabled(!idle||busy).on_click(cx.listener({let id=id.clone();move|this,_,_,cx|{this.remote.filter=0;this.command(json!({"action":"remote_release","task_id":id}),cx);}}))))
+                    .child(Button::new("remote-dispatch").primary().small().label(self.t(if client{"remote.execute"}else{"remote.dispatch"})).disabled(!can_dispatch||busy)
                         .on_click(cx.listener({let id=id.clone();move|this,_,_,cx|this.command(json!({"action":"remote_dispatch","task_id":id}),cx)})))
                     .when(can_cancel,|el|el.child(Button::new("remote-cancel").outline().small().label(self.t("remote.cancel")).disabled(busy)
                         .on_click(cx.listener({let id=id.clone();move|this,_,_,cx|{this.remote.confirm_cancel=Some(id.clone());cx.notify();}})))))

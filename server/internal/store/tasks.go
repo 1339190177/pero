@@ -42,7 +42,10 @@ func taskIn(ctx context.Context, q interface {
 }, id string) (*Task, error) {
 	var t Task
 	var spec []byte
-	err := q.QueryRow(ctx, `SELECT id,spec,COALESCE(current_run_id,'') FROM tasks WHERE id=$1`, id).Scan(&t.ID, &spec, &t.CurrentRunID)
+	var claimedID, claimedName string
+	var latest []byte
+	var latestRevision string
+	err := q.QueryRow(ctx, `SELECT t.id,t.spec,COALESCE(t.current_run_id,''),COALESCE(c.id,''),COALESCE(c.name,''),g.latest,COALESCE(g.revision,'') FROM tasks t LEFT JOIN clients c ON c.id=t.claimed_by_client_id LEFT JOIN github_issues g ON g.task_id=t.id WHERE t.id=$1`, id).Scan(&t.ID, &spec, &t.CurrentRunID, &claimedID, &claimedName, &latest, &latestRevision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -51,6 +54,16 @@ func taskIn(ctx context.Context, q interface {
 	}
 	if err = json.Unmarshal(spec, &t.Spec); err != nil {
 		return nil, err
+	}
+	if len(latest) > 0 {
+		var issue GitHubIssue
+		if err = json.Unmarshal(latest, &issue); err != nil {
+			return nil, err
+		}
+		t.LatestSource = gitHubSource(issue, latestRevision)
+	}
+	if claimedID != "" {
+		t.ClaimedBy = &TaskClaimant{ID: claimedID, Name: claimedName}
 	}
 	t.State = "draft"
 	if t.CurrentRunID != "" {
@@ -141,6 +154,31 @@ func (s *Store) Dispatch(ctx context.Context, id, worker, key string) (*Run, err
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	r, err := dispatchTx(ctx, tx, id, worker, key)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// dispatchTx shares the caller's task lock and transaction with claim/source guards.
+func dispatchTx(ctx context.Context, tx pgx.Tx, id, worker, key string) (*Run, error) {
+	var spec []byte
+	var current string
+	err := tx.QueryRow(ctx, `SELECT spec,COALESCE(current_run_id,'') FROM tasks WHERE id=$1 FOR UPDATE`, id).Scan(&spec, &current)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	var snapshot Spec
+	if err = json.Unmarshal(spec, &snapshot); err != nil {
+		return nil, err
+	}
 	operation := "dispatch:" + id
 	previous, digest, err := receipt(ctx, tx, key, operation, worker)
 	if err != nil {
@@ -149,14 +187,12 @@ func (s *Store) Dispatch(ctx context.Context, id, worker, key string) (*Run, err
 	if previous != "" {
 		return readRun(tx.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id=$1`, previous))
 	}
-	var spec []byte
-	var current string
-	err = tx.QueryRow(ctx, `SELECT spec,COALESCE(current_run_id,'') FROM tasks WHERE id=$1 FOR UPDATE`, id).Scan(&spec, &current)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	}
+	bound, err := taskIn(ctx, tx, id)
 	if err != nil {
 		return nil, err
+	}
+	if taskSourceClosed(bound) || taskSourceStale(bound) {
+		return nil, ErrConflict
 	}
 	if current != "" {
 		var status, target string
@@ -175,9 +211,6 @@ func (s *Store) Dispatch(ctx context.Context, id, worker, key string) (*Run, err
 				return nil, err
 			}
 			if err = saveReceipt(ctx, tx, key, operation, digest, current); err != nil {
-				return nil, err
-			}
-			if err = tx.Commit(ctx); err != nil {
 				return nil, err
 			}
 			return r, nil
@@ -205,9 +238,6 @@ func (s *Store) Dispatch(ctx context.Context, id, worker, key string) (*Run, err
 		return nil, err
 	}
 	if err = saveReceipt(ctx, tx, key, operation, digest, runID); err != nil {
-		return nil, err
-	}
-	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return r, nil

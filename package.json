@@ -25,7 +25,9 @@
     "test:e2e": "node tests/e2e/desktop.mjs",
     "test:e2e:real": "node tests/e2e/real-session.mjs",
     "test:remote": "node tests/e2e/remote.mjs",
-    "test:i18n": "node tests/e2e/i18n.mjs"
+    "test:github": "cd server && PERO_DESKTOP_E2E=1 go test -count=1 -run '^TestDesktopGitHub' ./internal/httpapi -v",
+    "test:i18n": "node tests/e2e/i18n.mjs",
+    "test:community": "node tests/e2e/community.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",

@@ -16,18 +16,25 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	gh "github.com/phodal/pero/server/internal/github"
 	"github.com/phodal/pero/server/internal/store"
 )
 
 type API struct {
 	db           *store.Store
 	operatorHash [32]byte
+	github       *gh.Service
 }
 type contextKey struct{}
 
-func Handler(db *store.Store, operatorToken string) http.Handler {
+func Handler(db *store.Store, operatorToken string, services ...*gh.Service) http.Handler {
 	a := &API{db: db, operatorHash: sha256.Sum256([]byte(operatorToken))}
+	if len(services) > 0 {
+		a.github = services[0]
+	}
 	mux := http.NewServeMux()
+	a.registerClients(mux)
+	a.registerGitHub(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := db.Ping(r.Context()); err != nil {
 			respond(w, 503, map[string]string{"status": "unavailable"})
@@ -62,7 +69,14 @@ func Handler(db *store.Store, operatorToken string) http.Handler {
 			respond(w, 401, map[string]string{"error": "authentication required"})
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/worker/") {
+		if strings.HasPrefix(r.URL.Path, "/api/client/") {
+			client, err := db.AuthenticateClient(ctx, token)
+			if err != nil {
+				respond(w, 401, map[string]string{"error": "invalid client credentials"})
+				return
+			}
+			r = r.WithContext(context.WithValue(ctx, clientContextKey{}, client))
+		} else if strings.HasPrefix(r.URL.Path, "/api/worker/") {
 			worker, err := db.AuthenticateWorker(ctx, token)
 			if err != nil {
 				respond(w, 401, map[string]string{"error": "invalid worker credentials"})

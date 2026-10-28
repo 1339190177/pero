@@ -23,7 +23,16 @@
 </p>
 
 > [!NOTE]
-> **项目处于早期阶段。** [在线体验](https://www.openpero.com/)会在浏览器里真实执行数值计算；GitHub 集成、Agent、协作者与远程 Worker 均为模拟。下文其余内容描述的是建设方向。
+> **项目处于早期阶段。** [在线体验](https://www.openpero.com/)会在浏览器里执行数值计算，并模拟 GitHub、Agent、协作者和远程 Worker。仓库也已提供下列经过本地验证的实现；研究工作流和路线图描述更完整的产品方向。
+
+## 运行当前实现
+
+- [Desktop](desktop/README.md)：Electron + GPUI、ACP 对话、中英文、主题、本地会话与共享远程任务。
+- [Go 控制面](server/README.md)：PostgreSQL Task/Run/Worker、租约、取消与恢复、GitHub Issue 同步、项目范围认领及显式启用的自动派发。
+- [社区任务广场](server/README.md#community-tasks-and-contributions-2)：公开任务、GitHub OAuth、Worker 归属、验收记分与积分撤销。
+- [构建与验证](docs/fitness/README.md)：npm/Cargo 开发流程和 Bazel Go／代码生成试点。字体优先复用本地文件与缓存，缺失才下载固定版本，生成的二进制不进入 Git。
+
+本地界面与协议验证使用测试代理；部署、真实 OAuth 凭据和独立验收需要各自的配置与证据。详见[工作树整合记录](docs/fitness/worktree-integration.md)。
 
 ## 要解决的问题
 
@@ -77,7 +86,7 @@ OpenPero 让**项目**，而不是对话，成为组织工作的基本单位。
 
 ![OpenPero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
 
-实线框表示已有基础，虚线表示规划中。重新生成图示：`node scripts/generate-architecture.mjs` 与 `node scripts/generate-overview.mjs`。
+实线框表示已有基础，虚线表示规划中。重新生成图示：`npm run gen:architecture` 与 `npm run gen:overview`。
 
 | 部分 | 职责 |
 | --- | --- |

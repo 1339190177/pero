@@ -94,7 +94,7 @@ impl Workbench {
         )
     }
 
-    fn detail(&self, cx: &mut Context<Self>) -> Div {
+    fn detail(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let session = self
             .active_chat
             .and_then(|i| self.chats.get(i))
@@ -104,7 +104,7 @@ impl Workbench {
                 closed: chat.state == "closed",
             });
         let content = if self.tab == 4 {
-            self.chat_view(cx).into_any_element()
+            self.chat_view(window, cx).into_any_element()
         } else {
             let ui = self.ui();
             div()
@@ -221,7 +221,7 @@ impl Render for Workbench {
             })
             .when(self.navigation == 0, |el| {
                 el.child(self.task_list(if compact { 300. } else { 360. }, cx))
-                    .child(self.detail(cx))
+                    .child(self.detail(window, cx))
             })
             .when(self.navigation == 1, |el| el.child(self.projects(cx)))
             .when(self.navigation == 2, |el| el.child(self.environments(cx)))

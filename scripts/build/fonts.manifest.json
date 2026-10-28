@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "fonttools": "4.60.1",
+  "sources": [
+    {
+      "id": "inter",
+      "filename": "Inter-Regular.ttf",
+      "sha256": "01ca5c405be0020ffd0ae5f34fed528bda510aec8db74a0bde0d0af693e34da3",
+      "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/ec89cfc36404667b7947aeb3d40b1c2859d729dd/crates/story-web/fonts/Inter-Regular.ttf"
+    },
+    {
+      "id": "ibm",
+      "filename": "IBMPlexSans-Regular.ttf",
+      "sha256": "9cff0127b191fb3a02f56dec71ac1e7deffc61d2c95f81e4d5850fdb2f11313d",
+      "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/ec89cfc36404667b7947aeb3d40b1c2859d729dd/crates/story-web/fonts/IBMPlexSans-Regular.ttf"
+    },
+    {
+      "id": "mono",
+      "filename": "JetBrainsMono-Regular.ttf",
+      "sha256": "c013bc43e83dbf7e2b41586a06613eb029de5405808fd942f5584dad4b3da59e",
+      "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/ec89cfc36404667b7947aeb3d40b1c2859d729dd/crates/story-web/fonts/JetBrainsMono-Regular.ttf"
+    },
+    {
+      "id": "noto",
+      "filename": "NotoSansSC-variable.ttf",
+      "aliases": ["NotoSansSC[wght].ttf"],
+      "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+      "url": "https://raw.githubusercontent.com/google/fonts/9b59ea9f333c5b8a99fa44e2a698496d6cde5b8e/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+    }
+  ],
+  "outputs": {
+    "Inter-Regular.ttf": "Inter Variable",
+    "IBMPlexSans-Regular.ttf": "IBM Plex Sans",
+    "JetBrainsMono-Regular.ttf": "JetBrains Mono",
+    "NotoSansSC-Regular.ttf": "Noto Sans SC Full",
+    "NotoSansSC-Bold.ttf": "Noto Sans SC Full",
+    "Workbench-regular.ttf": "Noto Sans CJK SC",
+    "Workbench-bold.ttf": "Noto Sans CJK SC"
+  }
+}

@@ -2,14 +2,16 @@ package migrations
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed 001_dispatch.sql
-var initial string
+//go:embed *.sql
+var scripts embed.FS
 
 // Apply serializes schema startup across control-plane instances.
 func Apply(ctx context.Context, pool *pgxpool.Pool) error {
@@ -24,15 +26,31 @@ func Apply(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS pero_schema_migrations (version integer PRIMARY KEY)`); err != nil {
 		return err
 	}
-	var applied bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pero_schema_migrations WHERE version=1)`).Scan(&applied); err != nil {
+	entries, err := scripts.ReadDir(".")
+	if err != nil {
 		return err
 	}
-	if !applied {
-		if _, err = tx.Exec(ctx, initial); err != nil {
-			return fmt.Errorf("dispatch migration: %w", err)
+	for _, entry := range entries {
+		prefix, _, _ := strings.Cut(entry.Name(), "_")
+		version, err := strconv.Atoi(prefix)
+		if err != nil {
+			return fmt.Errorf("invalid migration %s", entry.Name())
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO pero_schema_migrations(version) VALUES(1)`); err != nil {
+		var applied bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pero_schema_migrations WHERE version=$1)`, version).Scan(&applied); err != nil {
+			return err
+		}
+		if applied {
+			continue
+		}
+		source, err := scripts.ReadFile(entry.Name())
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, string(source)); err != nil {
+			return fmt.Errorf("migration %s: %w", entry.Name(), err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO pero_schema_migrations(version) VALUES($1)`, version); err != nil {
 			return err
 		}
 	}
