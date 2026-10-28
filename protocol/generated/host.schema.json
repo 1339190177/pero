@@ -1,0 +1,1879 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpero.com/protocol/host.schema.json",
+  "title": "HostProtocol",
+  "description": "Generated from protocol/host.tsp. Do not edit.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/HostInput"
+    },
+    {
+      "$ref": "#/$defs/HostEvent"
+    }
+  ],
+  "$defs": {
+    "AcpPayload": {
+      "title": "AcpPayload",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {},
+      "description": "ACP payload forwarded unchanged; its shape is owned by the ACP schema."
+    },
+    "AgentInfoEvent": {
+      "title": "AgentInfoEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "agent_info"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AcpPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`data` is the ACP InitializeResponse."
+    },
+    "AgentsEvent": {
+      "title": "AgentsEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "agents"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AgentSummary"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`text` is the current workspace path."
+    },
+    "AgentSummary": {
+      "title": "AgentSummary",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "available",
+        "command",
+        "model"
+      ],
+      "additionalProperties": false
+    },
+    "AttachFilesCommand": {
+      "title": "AttachFilesCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "attach_files"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action",
+        "paths"
+      ],
+      "additionalProperties": false
+    },
+    "AuthenticateCommand": {
+      "title": "AuthenticateCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "authenticate"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "method_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "method_id"
+      ],
+      "additionalProperties": false
+    },
+    "AuthErrorData": {
+      "title": "AuthErrorData",
+      "type": "object",
+      "properties": {
+        "methodId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "methodId"
+      ],
+      "additionalProperties": false
+    },
+    "AuthRequiredData": {
+      "title": "AuthRequiredData",
+      "type": "object",
+      "properties": {
+        "authMethods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AcpPayload"
+          }
+        }
+      },
+      "required": [
+        "authMethods"
+      ],
+      "additionalProperties": false
+    },
+    "CancelCommand": {
+      "title": "CancelCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "cancel"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "CloseCommand": {
+      "title": "CloseCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "close"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "Closed": {
+      "title": "Closed",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "description": "Spread into a model to reject unknown fields, matching serde `deny_unknown_fields`."
+    },
+    "CommandRejectedData": {
+      "title": "CommandRejectedData",
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "CommandRejectedEvent": {
+      "title": "CommandRejectedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "command_rejected"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/CommandRejectedData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "ContextFile": {
+      "title": "ContextFile",
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "name",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "ContextFilesEvent": {
+      "title": "ContextFilesEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "context_files"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContextFile"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "DisconnectedEvent": {
+      "title": "DisconnectedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "disconnected"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "message_key": {
+          "$ref": "#/$defs/MessageKey"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Emitted by Electron when the Host child cannot start or exits."
+    },
+    "EchoEvent": {
+      "title": "EchoEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "echo"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "EchoRequest": {
+      "title": "EchoRequest",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Bootstrap transport probe."
+    },
+    "ErrorEvent": {
+      "title": "ErrorEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "error"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "message_key": {
+          "$ref": "#/$defs/MessageKey"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "EventBase": {
+      "title": "EventBase",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "HostCommand": {
+      "title": "HostCommand",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ListAgentsCommand"
+        },
+        {
+          "$ref": "#/$defs/WorkspaceCommand"
+        },
+        {
+          "$ref": "#/$defs/AttachFilesCommand"
+        },
+        {
+          "$ref": "#/$defs/AuthenticateCommand"
+        },
+        {
+          "$ref": "#/$defs/NewSessionCommand"
+        },
+        {
+          "$ref": "#/$defs/PromptCommand"
+        },
+        {
+          "$ref": "#/$defs/CancelCommand"
+        },
+        {
+          "$ref": "#/$defs/PermissionCommand"
+        },
+        {
+          "$ref": "#/$defs/ModelCommand"
+        },
+        {
+          "$ref": "#/$defs/CloseCommand"
+        }
+      ]
+    },
+    "HostEvent": {
+      "title": "HostEvent",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SettingsEvent"
+        },
+        {
+          "$ref": "#/$defs/ReadyEvent"
+        },
+        {
+          "$ref": "#/$defs/DisconnectedEvent"
+        },
+        {
+          "$ref": "#/$defs/NoticeEvent"
+        },
+        {
+          "$ref": "#/$defs/EchoEvent"
+        },
+        {
+          "$ref": "#/$defs/ErrorEvent"
+        },
+        {
+          "$ref": "#/$defs/AgentsEvent"
+        },
+        {
+          "$ref": "#/$defs/ReplayEvent"
+        },
+        {
+          "$ref": "#/$defs/WorkspaceEvent"
+        },
+        {
+          "$ref": "#/$defs/ContextFilesEvent"
+        },
+        {
+          "$ref": "#/$defs/RemoteStateEvent"
+        },
+        {
+          "$ref": "#/$defs/RemoteOpenEvent"
+        },
+        {
+          "$ref": "#/$defs/ThreadEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionConnectingEvent"
+        },
+        {
+          "$ref": "#/$defs/AgentInfoEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionAuthRequiredEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionAuthErrorEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionAuthenticatedEvent"
+        },
+        {
+          "$ref": "#/$defs/PermissionEvent"
+        },
+        {
+          "$ref": "#/$defs/PromptQueuedEvent"
+        },
+        {
+          "$ref": "#/$defs/CommandRejectedEvent"
+        },
+        {
+          "$ref": "#/$defs/TurnStartedEvent"
+        }
+      ]
+    },
+    "HostInput": {
+      "title": "HostInput",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/EchoRequest"
+        },
+        {
+          "$ref": "#/$defs/SetLocaleRequest"
+        },
+        {
+          "$ref": "#/$defs/HostCommand"
+        }
+      ]
+    },
+    "ListAgentsCommand": {
+      "title": "ListAgentsCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "list_agents"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "MessageKey": {
+      "title": "MessageKey",
+      "type": "string",
+      "description": "Catalog key resolved by the UI from locales/*.json."
+    },
+    "ModelChangedEvent": {
+      "title": "ModelChangedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "model_changed"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AcpPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`data` is the ACP SetSessionConfigOptionResponse."
+    },
+    "ModelCommand": {
+      "title": "ModelCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "model"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "model_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "model_id"
+      ],
+      "additionalProperties": false
+    },
+    "NewSessionCommand": {
+      "title": "NewSessionCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "new_session"
+        },
+        "thread_id": {
+          "$ref": "#/$defs/ThreadId"
+        },
+        "agent_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "agent_id"
+      ],
+      "additionalProperties": false
+    },
+    "NoticeEvent": {
+      "title": "NoticeEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "notice"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "message_key": {
+          "$ref": "#/$defs/MessageKey"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Emitted by Electron from the Workbench menu."
+    },
+    "PermissionCommand": {
+      "title": "PermissionCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "permission"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "option_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "PermissionData": {
+      "title": "PermissionData",
+      "type": "object",
+      "properties": {
+        "permission_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "permission_id"
+      ],
+      "additionalProperties": {},
+      "description": "The ACP RequestPermissionRequest plus the Host-issued `permission_id`."
+    },
+    "PermissionEvent": {
+      "title": "PermissionEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "permission"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PermissionData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "PromptCommand": {
+      "title": "PromptCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "prompt"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 64000
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "PromptQueuedData": {
+      "title": "PromptQueuedData",
+      "type": "object",
+      "properties": {
+        "position": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "position"
+      ],
+      "additionalProperties": false
+    },
+    "PromptQueuedEvent": {
+      "title": "PromptQueuedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "prompt_queued"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/PromptQueuedData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ReadyEvent": {
+      "title": "ReadyEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "ready"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "message_key": {
+          "$ref": "#/$defs/MessageKey"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "RemoteOpenEvent": {
+      "title": "RemoteOpenEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "remote_open"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Open remote tasks from the native Workbench menu or keyboard."
+    },
+    "RemoteSnapshotPayload": {
+      "title": "RemoteSnapshotPayload",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {},
+      "description": "Main-process HTTP adapter snapshot; validated by protocol/remote.tsp."
+    },
+    "RemoteStateEvent": {
+      "title": "RemoteStateEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "remote_state"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/RemoteSnapshotPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ReplayData": {
+      "title": "ReplayData",
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ThreadEvent"
+          }
+        },
+        "active": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "events",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "ReplayEvent": {
+      "title": "ReplayEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "replay"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ReplayData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "SessionAuthenticatedData": {
+      "title": "SessionAuthenticatedData",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "additionalProperties": false
+    },
+    "SessionAuthenticatedEvent": {
+      "title": "SessionAuthenticatedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_authenticated"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/SessionAuthenticatedData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "SessionAuthErrorEvent": {
+      "title": "SessionAuthErrorEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_auth_error"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AuthErrorData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "SessionAuthRequiredEvent": {
+      "title": "SessionAuthRequiredEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_auth_required"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AuthRequiredData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "SessionClosedEvent": {
+      "title": "SessionClosedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_closed"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "SessionConnectingEvent": {
+      "title": "SessionConnectingEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_connecting"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "SessionCreatedData": {
+      "title": "SessionCreatedData",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent",
+        "workspace"
+      ],
+      "additionalProperties": false
+    },
+    "SessionCreatedEvent": {
+      "title": "SessionCreatedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_created"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/SessionCreatedData"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "SessionErrorEvent": {
+      "title": "SessionErrorEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_error"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "SessionReadyEvent": {
+      "title": "SessionReadyEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_ready"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AcpPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`data` is the ACP NewSessionResponse, with configOptions refreshed after model selection."
+    },
+    "SessionUpdateEvent": {
+      "title": "SessionUpdateEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_update"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AcpPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`data` is the ACP SessionUpdate."
+    },
+    "SetLocaleRequest": {
+      "title": "SetLocaleRequest",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "settings.locale"
+        },
+        "locale": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "en"
+            },
+            {
+              "type": "string",
+              "const": "zh-CN"
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "locale"
+      ],
+      "additionalProperties": false
+    },
+    "SettingsEvent": {
+      "title": "SettingsEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "settings"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "`text` is the active locale tag."
+    },
+    "SystemEventBase": {
+      "title": "SystemEventBase",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "message_key": {
+          "$ref": "#/$defs/MessageKey"
+        }
+      },
+      "required": [
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "ThreadEvent": {
+      "title": "ThreadEvent",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SessionCreatedEvent"
+        },
+        {
+          "$ref": "#/$defs/UserMessageEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionUpdateEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionReadyEvent"
+        },
+        {
+          "$ref": "#/$defs/ModelChangedEvent"
+        },
+        {
+          "$ref": "#/$defs/TurnFinishedEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionErrorEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionClosedEvent"
+        }
+      ],
+      "description": "Events persisted to the session journal and replayed to the UI."
+    },
+    "ThreadEventBase": {
+      "title": "ThreadEventBase",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "ThreadId": {
+      "title": "ThreadId",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "TurnFinishedEvent": {
+      "title": "TurnFinishedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "turn_finished"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/AcpPayload"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "`text` is the stop reason; `data` is the ACP PromptResponse."
+    },
+    "TurnStartedEvent": {
+      "title": "TurnStartedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "turn_started"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "UserMessageEvent": {
+      "title": "UserMessageEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "user_message"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceCommand": {
+      "title": "WorkspaceCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "workspace"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "WorkspaceEvent": {
+      "title": "WorkspaceEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "workspace"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "`text` is the selected workspace path."
+    }
+  }
+}
