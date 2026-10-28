@@ -37,7 +37,7 @@ native file chooser. The Agent and workspace are fixed once connected.
 
 | Agent | Local adapter | Setup |
 | --- | --- | --- |
-| Codex | `codex-acp` on PATH | Install the ACP adapter and authenticate Codex. Select a model offered by the Agent. |
+| Codex | Project dependency `@agentclientprotocol/codex-acp` 2.3.0 | `npm ci` installs the official [Codex ACP adapter](https://github.com/agentclientprotocol/codex-acp) and its locked Codex CLI. Authenticate Codex, then select a model offered by the Agent. |
 | Claude | Bundled `@agentclientprotocol/claude-agent-acp` | Authenticate Claude using its supported local login. |
 | Grok | `opencode acp` | Install OpenCode and configure xAI authentication. The registry selects `xai/grok-code-fast-1`. |
 
@@ -45,6 +45,10 @@ Installed means an adapter executable was found; it does not establish provider
 authentication. Advertised Agent login methods are explicit actions. Terminal
 login methods are displayed but require login in a terminal. Authentication
 does not automatically resend a failed prompt.
+
+The built-in Codex entry uses this project's `node_modules/.bin/codex-acp` and
+does not fall back to a global adapter. Run
+`node_modules/.bin/codex login` for the installed CLI's supported login flow.
 
 Optional adapters live in ignored `agents.local.json`, or a path supplied with
 `PERO_AGENTS_FILE`. Start with [agents.example.json](../agents.example.json).
@@ -85,23 +89,38 @@ without the native Agent/remote bridge.
 
 ## Remote tasks
 
-Start the [Go control plane](../server/README.md) with PostgreSQL. Launch Desktop
-with `PERO_CLOUD_URL` set to its HTTPS origin (loopback HTTP is allowed for local
-development). Ordinary clients use an operator-provisioned `PERO_CLIENT_TOKEN`;
-operators use `PERO_OPERATOR_TOKEN`. A configured client token always selects
-client authority, even if an operator variable is also present. These are process
-configuration; there is no separate Desktop preference store. Credentials stay in
-Electron's main process and are filtered out of the local Host environment.
+Start the [Go control plane](../server/README.md) with PostgreSQL and provision a
+project-scoped client token. In Desktop, open **Remote tasks**, enter the service
+URL and that token in the connection form, keep **Project client** selected, and
+choose **Connect and save**. Use an HTTPS origin; loopback HTTP is allowed for local development.
+This is a Pero client token, not a GitHub personal access token. Repository
+bindings, provider credentials and optional ROADMAP intake are configured on the
+[Go service](../server/README.md#github-issue-intake).
+
+The connection survives an app restart and reopens Remote tasks. URL and access
+mode use the runtime-owned preferences; the credential is encrypted by the OS
+credential store. If that store is unavailable, unlock or enable it and reconnect.
+**Disconnect** persists the disconnected state, including across restarts.
+Environment-only setup remains supported with `PERO_CLOUD_URL` plus
+`PERO_CLIENT_TOKEN` or `PERO_OPERATOR_TOKEN`. A saved connection takes precedence;
+a saved disconnect prevents environment fallback. Client authority never falls
+back to an operator token. Credentials are excluded from renderer diagnostics and
+the local Host environment.
 
 Open **Remote tasks**. Clients see **Available / Mine / All**, claim an idle Task,
-and choose **Execute**. Filters cover loaded pages; **Load more** extends them.
+and choose **Execute**. These ownership filters cover loaded pages; **Load more**
+extends them. **Issues / ROADMAP** and tag filters run on the service before
+pagination. Issue labels and ROADMAP inline tags appear as selectable tag chips;
+nested ROADMAP items retain their parent link and heading path.
 Only the claim's owner can execute/cancel it or release an idle claim to another
 client. These are Pero client identities and claims, not GitHub login or assignee
 changes. Provisioning instructions are in the
 [server setup](../server/README.md#client-identities-and-shared-tasks).
 
-Operators can **Sync issues** from configured repositories and see their manual
-or label-gated automatic dispatch policy. Imported Tasks link to the source Issue.
+Operators can **Sync sources** from configured repositories and see their manual
+or label-gated automatic dispatch policy. Imported Tasks link to the source Issue
+or a commit-pinned ROADMAP line. ROADMAP intake is opt-in and always creates drafts;
+Issue auto-dispatch policy does not execute ROADMAP items.
 Closed sources block new work; changed sources keep the saved goal frozen and
 require the indicated refresh/review step. Independent verification and GitHub
 writeback are separate operations.
@@ -135,3 +154,25 @@ does not deploy a service to openpero.com or certify a real model provider.
 adds the read-only GitHub fixture, two project-scoped Desktop clients, claim
 conflicts/handoff and automatic dispatch to the same real local service/Worker
 path. Fixture checks do not establish public GitHub or real-model acceptance.
+
+The connector and saved-connection checks use the existing `npm run build`
+outputs. They do not need a Worker or model login:
+
+```sh
+npm run test:remote-settings
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:connector
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:connector:live
+```
+
+`test:remote-settings` uses real Electron, the OS credential store and Host writes
+against a local HTTP fixture; it needs no Go service or database. It checks
+encrypted persistence, restart, client authority, disconnect and recovery errors.
+`test:connector` needs Go and an isolated PostgreSQL database, then drives the real
+Desktop connection form against a local Go service with GitHub/ROADMAP fixtures.
+It checks source counts, filters, hierarchy, scoped visibility and restart.
+`test:connector:live` uses that same local service and Desktop against read-only
+public `phodal/pero` data at `api.github.com`, so outbound access and available
+public API quota are required; no GitHub token is needed. Its counts come from
+the observed repository snapshot. Both connector tests import without execution
+or GitHub writes. These checks verify a local setup; openpero.com has not been
+deployed by them.

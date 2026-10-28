@@ -19,10 +19,22 @@
 | `e2e/i18n.mjs` | L1 | `npm run test:i18n` | 中英文切换、原生菜单、重启后偏好、用户原文不翻译、无 Host 的预览窗口。文案源见 [locales/README.md](../locales/README.md) |
 | `e2e/remote.mjs` | L2 | `npm run test:remote` | Electron、Go、PostgreSQL、`pero-worker` 和 ACP fixture 的一轮创建、执行、取消和断线恢复。需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/github.mjs` + `server/internal/httpapi/desktop_github_test.go` | L2 | `npm run test:github` | Go harness 启动真实 PostgreSQL/API 和只读 GitHub fixture；两个 Electron 客户端认领、释放、接手并经独立 Worker 执行，验证项目可见范围和自动派发不重复。需要 `PERO_TEST_DATABASE_URL` |
+| `e2e/connector.mjs` + `server/internal/httpapi/desktop_connector_test.go` | L2 | `npm run test:connector` | 真实 Desktop 连接表单、Go/PostgreSQL 与 GitHub/ROADMAP fixture：客户端范围、来源完整数量、分页、标签、父子关系、已完成项禁用执行、重启恢复；不启动 Agent/Worker |
+| 同上，公开仓库模式 | L2 | `npm run test:connector:live` | 本地 Go/PostgreSQL/Desktop 只读读取 `api.github.com` 的公开 `phodal/pero` Issue 与固定提交 ROADMAP，对照独立行清单检查完整数量；不执行任务、不写 GitHub |
+| `e2e/remote-settings.mjs` | L1 | `npm run test:remote-settings` | 真实 Electron OS 加密存储与 Host 偏好写入，配合本地 HTTP fixture 验证重启、权限不升级、断开持久化、存储错误恢复及凭据不进入诊断 |
 | `e2e/community.mjs` + `server/internal/community/http_test.go` | L2 | `npm run test:community` | Go/PostgreSQL 与 Chromium 验证公开任务、OAuth fixture、Worker 归属、认领、验收记分、撤销及来源变化；需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/real-session.mjs` | L2 | `npm run test:e2e:real` | 本机 Codex 登录，回复恰好是 `PERO_DESKTOP_OK`。不进默认验收 |
 
 `test:e2e` 和 `test:i18n` 使用已有的开发构建，自己不编译。先跑 `npm run build`。`test:contracts` 会先编译 Host。
+
+三个连接器命令也先执行 `npm run build`，并使用本机可用的 OS 凭据加密存储。
+`test:connector` 与 `test:connector:live` 还需要 Go、可用的 PostgreSQL，以及
+指向隔离测试数据库的 `PERO_TEST_DATABASE_URL`；harness 创建并清理独立 schema。
+`test:connector:live` 额外需要访问 `https://api.github.com` 和足够的公开 API 配额，
+无需 GitHub token，来源数量随仓库快照变化。`test:remote-settings` 不需要 Go、数据库
+或外网。三个命令均不需要模型登录或 Worker；截图和结果分别在
+`test-results/connector/fixture/`、`test-results/connector/live/`、
+`test-results/remote-settings/`。
 
 ## 层外
 
@@ -30,6 +42,7 @@
 - Go 控制面在 `server/`。`go test ./...` 在没有 `PERO_TEST_DATABASE_URL` 时跳过 PostgreSQL 集成用例。见 [server/README.md](../server/README.md)。
 - 远程协议的整条链路在 `e2e/remote.mjs`，不另放一份不启动界面的契约脚本。
 - GitHub 共享认领的整条链路在 `e2e/github.mjs`；GitHub 和 ACP 上游为 fixture，不证明真实模型、GitHub 写回或线上部署。公开仓库的只读检查另记在 [remote-dispatch-verification.md](../docs/fitness/remote-dispatch-verification.md)。
+- 连接表单及 Issue/ROADMAP 来源读取由 `e2e/connector.mjs` 验证；live 模式的服务仍运行在本地，没有部署 openpero.com。ROADMAP 服务端配置见 [server/README.md](../server/README.md#github-issue-intake)。
 - L3（签名安装包、升级）不在这个目录。
 
 ## 桌面套件怎么断言
@@ -40,7 +53,7 @@
 
 ## 契约脚本的覆盖规则
 
-`contracts/host.mjs` 走完 echo、locale、workspace、附件、会话、权限、模型、排队、取消、认证失败、关闭和重启回放。Host 发出 schema 里没有的 `kind` 会失败。schema 里有、这次没走到的 `kind` 只打印，目前不失败。
+`contracts/host.mjs` 走完 echo、locale、加密连接偏好写入/拒绝/断开、workspace、附件、会话、权限、模型、排队、取消、认证失败、关闭和重启回放。Host 发出 schema 里没有的 `kind` 会失败。schema 里有、这次没走到的 `kind` 只打印，目前不失败。
 
 ## 先不动的部分
 

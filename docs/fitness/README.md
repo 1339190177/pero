@@ -20,9 +20,19 @@ not configured. Setup and invocation instructions live in [Bazel quality gates](
 7. `cd server && go test ./...`: control-plane tests. PostgreSQL cases skip without `PERO_TEST_DATABASE_URL`. See [server/README.md](../../server/README.md).
 8. `npm run test:github`: opt-in shared-client flow with a read-only GitHub fixture, real Go/PostgreSQL, two Electron clients and an independent ACP Worker. Requires `PERO_TEST_DATABASE_URL` and the same development builds as `test:remote`.
 9. `npm run test:community`: Go/PostgreSQL and Chromium verification of publication, OAuth fixtures, Worker ownership, claims, review/scoring and source changes. Requires `PERO_TEST_DATABASE_URL`; set `PERO_CHROMIUM_PATH` to an installed Chromium executable when Playwright's browser is unavailable.
+10. `npm run test:connector`: actual Desktop connection form and restart against a local Go/PostgreSQL service with read-only Issue/ROADMAP fixtures. Checks project scope, source counts, pagination, tags, hierarchy and checked-source gates. Requires Go, `PERO_TEST_DATABASE_URL`, the existing `npm run build` outputs and an available OS credential store. It does not start an Agent or Worker.
+11. `npm run test:connector:live`: the same local connector path with public `phodal/pero` data from `api.github.com`. Requires the connector prerequisites plus outbound HTTPS and available public API quota; no GitHub token or model login is needed. Source counts are checked against the observed snapshot. It imports without task execution or GitHub writes.
+12. `npm run test:remote-settings`: real Electron safeStorage and runtime-owned Host preference writes against a local HTTP fixture. Checks encrypted persistence, restart, explicit client authority, disconnect, unavailable-storage recovery and credential exclusion. Requires the existing `npm run build` outputs and OS credential store; no Go, PostgreSQL, Worker or model login is needed.
 
 `npm run test:e2e:real` is opt-in. It uses the local Codex login and sends one real model request. `npm run test:remote` is also opt-in: it needs `PERO_TEST_DATABASE_URL` and runs Electron, Go, PostgreSQL, and `pero-worker` together.
 
 Run Electron suites one at a time; they take native input focus. Chromium IME automation checks composition events. It does not certify a physical macOS input method, a signed package, or real tool execution. The fixture agent emits scripted ACP output and does not read the repository, run commands, or fetch URLs.
+
+Connector screenshots/results are in `test-results/connector/fixture/` and
+`test-results/connector/live/`; saved-connection evidence is in
+`test-results/remote-settings/`. The service remains local in both connector modes:
+these checks do not deploy openpero.com. Desktop connection setup is in
+[desktop/README.md](../../desktop/README.md#remote-tasks); repository and ROADMAP
+configuration is in [server/README.md](../../server/README.md#github-issue-intake).
 
 Current conversation and ACP UI acceptance: [conversation-verification.md](conversation-verification.md). The bootstrap-only boundaries above are historical; actual provider replies and remaining limits are recorded separately.
