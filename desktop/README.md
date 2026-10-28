@@ -89,6 +89,11 @@ without the native Agent/remote bridge.
 
 ## Remote tasks
 
+The default Task Center is `https://app.openpero.com`. For this service, leave
+the URL at its default and enter your project-scoped Pero client token. Existing
+saved connections and explicit disconnects retain priority. See the
+[deployment runbook](../deployment/task-center/README.md).
+
 Start the [Go control plane](../server/README.md) with PostgreSQL and provision a
 project-scoped client token. In Desktop, open **Remote tasks**, enter the service
 URL and that token in the connection form, keep **Project client** selected, and

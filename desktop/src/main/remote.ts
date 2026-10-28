@@ -7,6 +7,7 @@ import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, G
 
 type Emit = (event: object) => void;
 type Mode = 'client' | 'operator';
+const defaultTaskCenter = 'https://app.openpero.com';
 export type StoredRemoteConnection = { url: string; mode: Mode; encrypted_token: string };
 export type RemotePreferences = { load(): unknown; save(connection: StoredRemoteConnection | null): Promise<void> };
 const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -81,13 +82,13 @@ export class RemoteAdapter {
     source_kind: '', tag: '',
   };
   constructor(private emit: Emit, private preferences?: RemotePreferences) {
-    try { this.base = endpoint(process.env.PERO_CLOUD_URL); }
+    try { this.base = endpoint(process.env.PERO_CLOUD_URL ?? defaultTaskCenter); }
     catch { this.configError = 'Invalid configured service URL. Edit the connection and retry.'; }
     this.connectionState();
   }
   private connectionState() {
     this.state.configured = !!this.base && !!this.token;
-    this.state.connection = { url: this.base || '', mode: this.clientMode ? 'client' : 'operator',
+    this.state.connection = { url: this.base || defaultTaskCenter, mode: this.clientMode ? 'client' : 'operator',
       credential_configured: !!this.token, persistence_available: this.persistenceAvailable };
   }
   private async storageAvailable() {

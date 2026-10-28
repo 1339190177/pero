@@ -65,7 +65,7 @@ impl Workbench {
     }
 
     fn save_remote_connection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let url = self
+        let mut url = self
             .remote
             .connection
             .url
@@ -73,6 +73,12 @@ impl Workbench {
             .value()
             .trim()
             .to_string();
+        if url.is_empty() {
+            url = self.remote.data["connection"]["url"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+        }
         let token = self
             .remote
             .connection
