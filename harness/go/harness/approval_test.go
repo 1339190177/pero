@@ -548,3 +548,61 @@ func TestApprovalRequestIDsRemainUniqueAcrossBrokerReplacement(t *testing.T) {
 		t.Fatalf("audit identities asked=%v decided=%v", asked, decided)
 	}
 }
+
+func TestNativeApprovalDescriptorComesFromValidatedRegistration(t *testing.T) {
+	for _, tc := range []struct {
+		name, args                                 string
+		descriptorError                            bool
+		wantDescriptors, wantApprovals, wantBodies int
+	}{
+		{"valid", `{"command":"pwd"}`, false, 1, 1, 1},
+		{"invalid_arguments", `{"command":42}`, false, 0, 0, 0},
+		{"confinement_unavailable", `{"command":"pwd"}`, true, 1, 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testContext(t)
+			h, err := Boot(ctx, Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer h.Dispose(context.Background())
+			descriptors, approvals, bodies := 0, 0, 0
+			descriptor := &NativeApprovalDescriptor{Version: 1, Operation: "shell", Workspace: "/fixture", SandboxMode: "workspace-write", Enforcement: "required", Network: "deny"}
+			_, err = h.RegisterTool(ctx, "native-fixture", Tool{Schema: ToolSchema{Name: "fixture", InputSchema: json.RawMessage(`{"type":"object","properties":{"command":{"type":"string"}},"required":["command"],"additionalProperties":false}`)}, RequiresApproval: true,
+				ApprovalDescriptor: func(_ context.Context, req ToolRequest) (*NativeApprovalDescriptor, error) {
+					descriptors++
+					if tc.descriptorError {
+						return nil, errors.New("confinement unavailable")
+					}
+					return descriptor, nil
+				},
+				Execute: func(context.Context, json.RawMessage) (ToolResult, error) { bodies++; return ToolResult{}, nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			agent, err := h.Agents().Create(ctx, AgentOptions{ID: "native-descriptor", Configure: func(_ context.Context, run *point.Run, _ *Agent) error {
+				_, e := h.Approvals().Register(run, func(_ context.Context, r ApprovalRequest) (ApprovalOutcome, error) {
+					approvals++
+					if r.Native == nil || r.Native == descriptor || *r.Native != *descriptor {
+						t.Fatalf("descriptor not detached: %+v", r.Native)
+					}
+					return ApprovalAllowedOnce, nil
+				})
+				return e
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = agent.Session().Append("turn/start", map[string]int{"turn": 1}); err != nil {
+				t.Fatal(err)
+			}
+			_, err = h.Tools().Execute(ctx, ToolRequest{Agent: agent, CallID: "call", Name: "fixture", Arguments: json.RawMessage(tc.args)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if descriptors != tc.wantDescriptors || approvals != tc.wantApprovals || bodies != tc.wantBodies {
+				t.Fatalf("counts descriptor=%d approval=%d body=%d", descriptors, approvals, bodies)
+			}
+		})
+	}
+}

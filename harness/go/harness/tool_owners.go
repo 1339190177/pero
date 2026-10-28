@@ -168,6 +168,26 @@ func (o *toolOwner) wrap(tool Tool) Tool {
 			return safe && contextFailure(call.context) == nil && o.admissionError() == nil
 		}
 	}
+	if describe := tool.ApprovalDescriptor; describe != nil {
+		tool.ApprovalDescriptor = func(ctx context.Context, request ToolRequest) (*NativeApprovalDescriptor, error) {
+			call, err := o.begin(ctx)
+			if err != nil {
+				return nil, err
+			}
+			defer call.release()
+			result, err := describe(call.context, request)
+			if err != nil {
+				return nil, err
+			}
+			if err := contextFailure(call.context); err != nil {
+				return nil, err
+			}
+			if err := o.admissionError(); err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
+	}
 	if reason := tool.ApprovalReason; reason != nil {
 		tool.ApprovalReason = func(request ToolRequest) string {
 			call, err := o.begin(context.Background())

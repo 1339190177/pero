@@ -49,6 +49,20 @@ type ApprovalRequest struct {
 	CallID   ToolCallID `json:"callId,omitempty"`
 	ToolName string     `json:"toolName"`
 	Reason   string     `json:"reason,omitempty"`
+	// Native is produced only by trusted registration code, never tool arguments.
+	Native *NativeApprovalDescriptor `json:"-"`
+}
+
+// NativeApprovalDescriptor describes required confinement for one native call.
+// It is not proof that a command has run. The executor must still enforce this
+// policy or fail closed after approval. Version 1 supports only strict shell.
+type NativeApprovalDescriptor struct {
+	Version     int    `json:"version"`
+	Operation   string `json:"operation"`
+	Workspace   string `json:"workspace"`
+	SandboxMode string `json:"sandbox_mode"`
+	Enforcement string `json:"enforcement"`
+	Network     string `json:"network"`
 }
 
 type ApprovalHandler func(context.Context, ApprovalRequest) (ApprovalOutcome, error)

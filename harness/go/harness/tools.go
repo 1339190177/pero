@@ -47,6 +47,9 @@ type Tool struct {
 	ExecuteRequest func(context.Context, ToolRequest) (ToolResult, error)
 	Execute        func(context.Context, json.RawMessage) (ToolResult, error)
 	ApprovalReason func(ToolRequest) string
+	// ApprovalDescriptor is trusted host registration, never a schema field or
+	// MCP annotation. It runs on validated arguments for this exact generation.
+	ApprovalDescriptor func(context.Context, ToolRequest) (*NativeApprovalDescriptor, error)
 	// ObserveResult runs after post-execute and spill projection, but before
 	// finalization cleanup can fail. Only the returned outcome is final. This
 	// callback observes effect-local results; it cannot transform visible output.

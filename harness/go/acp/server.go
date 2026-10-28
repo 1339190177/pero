@@ -696,14 +696,18 @@ func (s *Server) requestApproval(ctx context.Context, request harness.ApprovalRe
 	// tool call, not as a generic human-question transport. Keep userQuestions
 	// unclaimed here, matching DSH ACP, instead of encoding arbitrary answers
 	// into permission option IDs that compliant clients cannot interpret.
-	raw, err := s.requestClient(ctx, "session/request_permission", map[string]any{
+	params := map[string]any{
 		"sessionId": request.Agent.ID(),
 		"toolCall":  map[string]any{"toolCallId": request.CallID},
 		"options": []any{
 			map[string]any{"optionId": "allow-once", "name": "Allow once", "kind": "allow_once"},
 			map[string]any{"optionId": "reject-once", "name": "Reject", "kind": "reject_once"},
 		},
-	})
+	}
+	if request.Native != nil {
+		params["_meta"] = map[string]any{"pero.dev/native-approval": *request.Native}
+	}
+	raw, err := s.requestClient(ctx, "session/request_permission", params)
 	if err != nil {
 		return harness.ApprovalUnavailable, err
 	}

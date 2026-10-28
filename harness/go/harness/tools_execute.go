@@ -251,6 +251,17 @@ func (r *ToolRegistry) executeWithResolver(ctx context.Context, request ToolRequ
 		}}, nil
 	}
 	if tool.RequiresApproval || filtered.RequestApproval {
+		var native *NativeApprovalDescriptor
+		if tool.ApprovalDescriptor != nil {
+			candidate, descriptorErr := tool.ApprovalDescriptor(ctx, filtered)
+			if descriptorErr != nil {
+				return ToolOutcome{Request: filtered, Result: toolBodyErrorResult(filtered, ToolResult{}, descriptorErr)}, nil
+			}
+			if candidate != nil {
+				copy := *candidate
+				native = &copy
+			}
+		}
 		approval := ApprovalUnavailable
 		if r.approval != nil {
 			reason := "execute tool " + filtered.Name
@@ -264,9 +275,21 @@ func (r *ToolRegistry) executeWithResolver(ctx context.Context, request ToolRequ
 			if filtered.ApprovalReason != "" {
 				reason = filtered.ApprovalReason
 			}
+			// Host callbacks may cancel or retire this exact registration. A stale
+			// descriptor must not escape to an approval client, even though the
+			// dispatch guard below would also prevent the eventual tool body.
+			if contextFailure(ctx) != nil || filtered.Agent.retired.Load() {
+				return r.settle(ctx, ToolOutcome{Request: filtered, Result: retiredToolResult(ToolAbortedBeforeDispatch, nil)}, nested, tool.Schema.Name, tool.ObserveResult)
+			}
+			if filtered.owner != nil && filtered.owner.admissionError() != nil {
+				return r.settle(ctx, ToolOutcome{Request: filtered, Result: retiredToolOwnerResult(nil)}, nested, tool.Schema.Name, tool.ObserveResult)
+			}
+			if filtered.profileLease != nil && !filtered.profileLease.active() {
+				return r.settle(ctx, ToolOutcome{Request: filtered, Result: retiredToolOwnerResult(nil)}, nested, tool.Schema.Name, tool.ObserveResult)
+			}
 			approval, err = r.approval.Request(ctx, ApprovalRequest{
 				Agent: filtered.Agent, CallID: filtered.CallID, ToolName: filtered.Name,
-				Reason: reason,
+				Reason: reason, Native: native,
 			})
 			if err != nil {
 				if contextFailure(ctx) != nil {
