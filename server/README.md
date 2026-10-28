@@ -155,6 +155,7 @@ embedded migrations are applied under a database advisory lock.
 | `PERO_OPERATOR_TOKEN` | Required operator bearer credential |
 | `PERO_LISTEN` | Bind address; defaults to `127.0.0.1:8787` |
 | `PERO_LEASE_SECONDS` | Lease duration, 1–3600 seconds; defaults to 60 |
+| `PERO_GITHUB_SYNC_SECONDS` | Source polling interval, 60–86400 seconds; defaults to 60. The public Task Center uses 600 to stay within anonymous GitHub quotas. |
 
 `GET /healthz` checks database connectivity without authentication. API routes
 require a bearer credential; community pages use the separate sessions described below. Protect any non-loopback deployment with
