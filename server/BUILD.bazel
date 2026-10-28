@@ -1,0 +1,17 @@
+# gazelle:prefix github.com/phodal/pero/server
+
+exports_files([
+    "go.mod",
+    "go.sum",
+])
+
+# Real PostgreSQL acceptance is opt-in and never satisfied by a skipped test.
+test_suite(
+    name = "postgres_integration",
+    tags = ["manual"],
+    tests = [
+        "//server/internal/httpapi:httpapi_test",
+        "//server/internal/store:store_test",
+    ],
+    visibility = ["//visibility:public"],
+)

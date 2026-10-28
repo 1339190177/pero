@@ -216,6 +216,21 @@ lease fencing, token/project/instance isolation, event conflicts, completion
 receipts, idempotency and cancellation. Without the test URL, integration cases
 explicitly skip; ordinary compilation alone does not establish dispatch behavior.
 
+The Bazel pilot builds the control plane with `bazel build //server/cmd/server`.
+Run its PostgreSQL acceptance explicitly from the repository root:
+
+```sh
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' bazel test //server:postgres_integration
+```
+
+This manual suite inherits only the test database URL, requires it instead of
+skipping, runs locally, and disables test-result caching and remote execution.
+It creates and drops isolated schemas in that database, which must be disposable
+and allow schema creation. The normal `go test ./...` skip behavior is preserved.
+For the same strict check through Go, set `PERO_REQUIRE_TEST_DATABASE=1` alongside
+the URL and run `go test -count=1 -race ./...`. A cached result or missing database
+is not PostgreSQL acceptance.
+
 ## Deployment and Kubernetes direction
 
 `openpero.com` can serve the public site and `app.openpero.com` the same-origin Web
