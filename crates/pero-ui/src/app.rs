@@ -5,14 +5,20 @@ use gpui_kit::{
     *,
 };
 use pero_contracts::{EchoRequest, HostEvent, MAX_TEXT_CHARS};
+#[cfg(target_family = "wasm")]
 use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
+#[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+pub(crate) use crate::native::{send_probe, request_locale, session_command};
 
+#[cfg(target_family = "wasm")]
 thread_local! {
     static APPLICATION: RefCell<Option<ApplicationHandle>> = const { RefCell::new(None) };
     static WORKBENCH: RefCell<Option<WeakEntity<Workbench>>> = const { RefCell::new(None) };
 }
 
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = window, js_name = peroSendProbe, catch)]
@@ -58,7 +64,7 @@ pub(crate) struct Workbench {
 }
 
 impl Workbench {
-    fn new(
+    pub(crate) fn new(
         palettes: Palettes,
         dark: bool,
         locale: String,
@@ -156,8 +162,10 @@ impl Workbench {
         cx.notify();
     }
 
-    fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
-        if self.receive_apps(&event, cx) { return; }
+    pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
+        if self.receive_apps(&event, cx) {
+            return;
+        }
         if self.receive_remote(&event, cx) {
             return;
         }
@@ -227,6 +235,7 @@ impl Workbench {
     }
 }
 
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
     let locale = pero_contracts::i18n::normalize(locale).to_string();
@@ -282,6 +291,7 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
     Ok(())
 }
 
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn receive_host_event(json: &str) -> Result<(), JsValue> {
     let event: HostEvent =
@@ -293,6 +303,7 @@ pub fn receive_host_event(json: &str) -> Result<(), JsValue> {
     Ok(())
 }
 
+#[cfg(target_family = "wasm")]
 fn update(f: impl FnOnce(&mut Workbench, &mut Context<Workbench>)) {
     APPLICATION.with(|app| {
         if let Some(app) = app.borrow().as_ref() {
@@ -308,6 +319,7 @@ fn update(f: impl FnOnce(&mut Workbench, &mut Context<Workbench>)) {
 }
 
 /// Read-only diagnostic state. Tests still enter text through Chromium input.
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn snapshot() -> String {
     let mut value = serde_json::json!({"ready": false});

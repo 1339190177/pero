@@ -49,6 +49,14 @@ pub(crate) fn phase_tag(p: &Palette, label: &str, tone: Tone) -> Tag {
 
 /// Local wall-clock time of an RFC 3339 timestamp, or nothing when absent.
 pub(crate) fn local_time(iso: &str) -> String {
+    #[cfg(not(target_family = "wasm"))]
+    {
+        return chrono::DateTime::parse_from_rfc3339(iso)
+            .map(|date| date.with_timezone(&chrono::Local).format("%H:%M").to_string())
+            .unwrap_or_default();
+    }
+    #[cfg(target_family = "wasm")]
+    {
     if iso.is_empty() {
         return String::new();
     }
@@ -57,6 +65,7 @@ pub(crate) fn local_time(iso: &str) -> String {
         return String::new();
     }
     format!("{:02}:{:02}", date.get_hours(), date.get_minutes())
+    }
 }
 
 pub(crate) fn section_title(p: &Palette, text: &str) -> Div {

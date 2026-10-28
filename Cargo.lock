@@ -4759,6 +4759,8 @@ name = "pero-ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-channel",
+ "chrono",
  "console_error_panic_hook",
  "gpui-kit",
  "js-sys",

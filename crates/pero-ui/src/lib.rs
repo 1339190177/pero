@@ -1,21 +1,21 @@
-#[cfg_attr(not(target_family = "wasm"), allow(dead_code))]
+#[cfg_attr(not(any(target_family = "wasm", feature = "native")), allow(dead_code))]
 mod apps;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod app;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod assets;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod chat;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod components;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod conversation;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod theme;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod view;
 
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod composer;
 
 // Rendered only by the wasm Workbench; native builds compile it for its tests.
@@ -24,9 +24,12 @@ mod cloud;
 mod stream;
 mod tool_ui;
 
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod remote;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod remote_connection;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod remote_view;
+
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+pub mod native;

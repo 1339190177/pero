@@ -105,7 +105,11 @@ impl Workbench {
             .get(self.agent_index)
             .map(|a| a.id.clone())
             .unwrap_or("codex".into());
-        let id = format!("chat-{}-{}", js_sys::Date::now() as u64, self.chats.len());
+        #[cfg(target_family = "wasm")]
+        let now = js_sys::Date::now() as u64;
+        #[cfg(not(target_family = "wasm"))]
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+        let id = format!("chat-{}-{}", now, self.chats.len());
         self.chats
             .push(Conversation::new(id, agent, self.t("chat.new").into()));
         self.navigation = 0;
