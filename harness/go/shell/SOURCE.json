@@ -23,7 +23,8 @@
     "Add explicit executable/workspace validation, environment allowlist with no inheritance, hard limits, WaitDelay and unsupported-platform fail closed.",
     "Run revalidates direct ExecSpec input, returns timeout/cancellation errors with populated result flags; nonzero exit remains a result.",
     "All tests are new regressions using temporary workspace and bounded local processes.",
-    "Store workspace os.FileInfo and require Lstat/SameFile identity at Resolve and immediately before process.Start; reject root replacement/symlink and regression-test pre-resolved commands. Pathname race protection is not claimed as sandboxing."
+    "Store workspace os.FileInfo and require Lstat/SameFile identity at Resolve and immediately before process.Start; reject root replacement/symlink and regression-test pre-resolved commands. Pathname race protection is not claimed as sandboxing.",
+    "Optional strict confinement is reintroduced through the standalone sandbox package; CheckConfinement validates root and backend before approval and execution. No fallback when strict mode is requested."
   ],
   "license": "No blanket license inferred or assigned; selected source files have no third-party license notice."
 }

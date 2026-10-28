@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/phodal/pero/harness/go/sandbox"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ const (
 var ErrTimeout = errors.New("shell execution timed out")
 
 type LocalOptions struct {
+	Sandbox        *sandbox.Config
 	Shell          string
 	CWD            string
 	Timeout        time.Duration
@@ -34,6 +36,7 @@ type LocalOptions struct {
 }
 
 type LocalExecutor struct {
+	sandbox                    *sandbox.Executor
 	shell, cwd                 string
 	workspaceIdentity          os.FileInfo
 	timeout, maxTimeout, grace time.Duration
@@ -83,7 +86,14 @@ func NewLocalExecutor(options LocalOptions) (*LocalExecutor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LocalExecutor{shell: shell, cwd: cwd, workspaceIdentity: info, timeout: options.Timeout, maxTimeout: options.MaxTimeout, maxOutputBytes: options.MaxOutputBytes, grace: options.Grace, baseEnv: env}, nil
+	var confined *sandbox.Executor
+	if options.Sandbox != nil {
+		confined, err = sandbox.New(*options.Sandbox, cwd)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &LocalExecutor{sandbox: confined, shell: shell, cwd: cwd, workspaceIdentity: info, timeout: options.Timeout, maxTimeout: options.MaxTimeout, maxOutputBytes: options.MaxOutputBytes, grace: options.Grace, baseEnv: env}, nil
 }
 
 func explicitEnvironment(entries []string) ([]string, error) {
@@ -190,14 +200,29 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 	stopCaller := context.AfterFunc(ctx, func() { cancel(ctx.Err()) })
 	timer := time.AfterFunc(spec.Timeout, func() { cancel(ErrTimeout) })
 	defer func() { stopCaller(); timer.Stop(); cancel(nil) }()
-	command := exec.Command(e.shell, "--noprofile", "--norc", "-c", spec.Command)
-	command.Dir, command.Env = spec.Workdir, append([]string(nil), e.baseEnv...)
+	argv := []string{e.shell, "--noprofile", "--norc", "-c", spec.Command}
+	env := append([]string(nil), e.baseEnv...)
+	if e.sandbox != nil {
+		confined, err := e.sandbox.Confine(argv)
+		if err != nil {
+			return result, err
+		}
+		argv = confined.Argv
+		env = e.sandbox.Environment()
+	}
+	command := exec.Command(argv[0], argv[1:]...)
+	command.Dir, command.Env = spec.Workdir, env
 	stdout, stderr := newTailWriter(spec.StdoutMaxBytes), newTailWriter(e.maxOutputBytes)
 	command.Stdout, command.Stderr = stdout, stderr
 	command.WaitDelay = e.grace
 	configureProcess(command)
 	if err := e.verifyWorkspace(); err != nil {
 		return result, err
+	}
+	if cause := context.Cause(executionCtx); cause != nil {
+		result.TimedOut = errors.Is(cause, ErrTimeout)
+		result.Aborted = !result.TimedOut
+		return result, cause
 	}
 	if err := command.Start(); err != nil {
 		return result, fmt.Errorf("shell: start bash: %w", err)
@@ -235,4 +260,27 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 		}
 	}
 	return result, nil
+}
+
+// CheckConfinement validates the immutable strict configuration and probes only
+// a fixed trusted runtime command. It never executes the proposed shell body.
+// This is admission evidence, not a claim that a future child already exists;
+// Run revalidates and must fail closed before launching every candidate command.
+func (e *LocalExecutor) CheckConfinement(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("shell: confinement check requires context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if e == nil || e.sandbox == nil {
+		return errors.New("shell: strict confinement is not configured")
+	}
+	if err := e.verifyWorkspace(); err != nil {
+		return err
+	}
+	if _, err := e.sandbox.Confine([]string{"/usr/bin/true"}); err != nil {
+		return err
+	}
+	return ctx.Err()
 }

@@ -180,3 +180,13 @@ func TestWorkspaceReplacementRejectsPreviouslyResolvedCommand(t *testing.T) {
 		t.Fatal("replacement symlink accepted")
 	}
 }
+
+func TestUnconfinedExecutorCannotAttest(t *testing.T) {
+	e, err := NewLocalExecutor(LocalOptions{Shell: "/bin/bash", CWD: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.CheckConfinement(t.Context()); err == nil {
+		t.Fatal("unconfined executor attested")
+	}
+}
