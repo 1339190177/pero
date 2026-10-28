@@ -84,6 +84,7 @@ type activeSession struct {
 
 	mu              sync.Mutex
 	inflight        bool
+	promptCancel    context.CancelFunc
 	modelChanging   bool
 	cancelRequested bool
 	closing         bool
@@ -393,7 +394,13 @@ func (s *Server) handleNotification(message request) {
 	if record != nil {
 		record.mu.Lock()
 		record.cancelRequested = true
+		cancel := record.promptCancel
 		record.mu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		// Preserve synchronous cancellation of an already active turn; the
+		// prompt context also covers admission before that turn exists.
 		record.agent.Cancel(context.Canceled)
 	}
 }
@@ -507,10 +514,6 @@ func (s *Server) prompt(ctx context.Context, params PromptParams) (string, error
 	if err != nil {
 		return "", err
 	}
-	content, err := promptBlocks(ctx, s.h.Attachments(), params.Prompt)
-	if err != nil {
-		return "", err
-	}
 	record.mu.Lock()
 	if record.closing {
 		record.mu.Unlock()
@@ -520,13 +523,28 @@ func (s *Server) prompt(ctx context.Context, params PromptParams) (string, error
 		record.mu.Unlock()
 		return "", invalidError("session already has an active prompt: " + params.SessionID)
 	}
+	// The prompt owns cancellation from admission through settlement, including
+	// the interval before the Agent has installed its active-turn canceler.
+	promptCtx, cancel := context.WithCancel(ctx)
 	record.inflight = true
+	record.promptCancel = cancel
 	record.cancelRequested = false
 	record.mu.Unlock()
-	result, promptErr := record.agent.Prompt(ctx, harness.Message{Role: harness.RoleUser, Content: content})
+	defer cancel()
+	content, promptErr := promptBlocks(promptCtx, s.h.Attachments(), params.Prompt)
+	var result harness.TurnResult
+	if promptErr == nil {
+		result, promptErr = record.agent.Prompt(promptCtx, harness.Message{Role: harness.RoleUser, Content: content})
+		// Prompt can return as soon as its context is canceled. Retain the ACP
+		// slot until the worker has stopped, so the next turn cannot overlap it.
+		if promptCtx.Err() != nil {
+			promptErr = errors.Join(promptErr, record.agent.WhenIdle(context.WithoutCancel(ctx)))
+		}
+	}
 	record.mu.Lock()
 	cancelled := record.cancelRequested
 	record.inflight = false
+	record.promptCancel = nil
 	record.mu.Unlock()
 	if cancelled {
 		return "cancelled", nil

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ func TestLiveStreamBeforeCompletionAndTerminalBoundaries(t *testing.T) {
 	for _, mode := range []string{"success", "failure", "cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			release := make(chan struct{})
+			cancelObserved, finishCancellation := make(chan struct{}), make(chan struct{})
 			retained := make(chan func(harness.StreamChunk) error, 1)
 			calls := 0
 			h, err := harness.Boot(t.Context(), harness.Options{AdapterProviders: []string{"fixture"}, Adapter: harness.AdapterFunc(func(ctx context.Context, _ harness.GenerateRequest, emit func(harness.StreamChunk) error) (harness.Completion, error) {
@@ -56,6 +58,8 @@ func TestLiveStreamBeforeCompletionAndTerminalBoundaries(t *testing.T) {
 				select {
 				case <-release:
 				case <-ctx.Done():
+					close(cancelObserved)
+					<-finishCancellation
 					if emit(harness.StreamChunk{Content: []harness.ContentBlock{{Type: harness.BlockText, Text: "after cancel"}}}) == nil {
 						return harness.Completion{}, errors.New("cancelled emitter accepted")
 					}
@@ -109,6 +113,13 @@ func TestLiveStreamBeforeCompletionAndTerminalBoundaries(t *testing.T) {
 				if err := oldEmit(harness.StreamChunk{Content: []harness.ContentBlock{{Type: harness.BlockText, Text: "after cancel notification"}}}); err == nil {
 					t.Fatal("cancelled emitter accepted")
 				}
+				<-cancelObserved
+				// A canceled request still owns the prompt slot until the provider
+				// has actually settled; a second request cannot overlap cleanup.
+				if _, err := server.prompt(t.Context(), PromptParams{SessionID: string(id), Prompt: []PromptContent{{Type: "text", Text: "too early"}}}); err == nil {
+					t.Fatal("prompt admitted before canceled provider settled")
+				}
+				close(finishCancellation)
 			} else {
 				close(release)
 			}
@@ -237,5 +248,75 @@ func TestLiveProjectionAttemptAndContentLanes(t *testing.T) {
 	case raw := <-sink:
 		t.Fatalf("duplicate final: %s", raw)
 	default:
+	}
+}
+
+func TestPromptAdmissionCancellation(t *testing.T) {
+	for _, action := range []string{"cancel", "close"} {
+		t.Run(action, func(t *testing.T) {
+			var calls atomic.Int32
+			h, err := harness.Boot(t.Context(), harness.Options{AdapterProviders: []string{"fixture"}, Adapter: harness.AdapterFunc(func(ctx context.Context, _ harness.GenerateRequest, emit func(harness.StreamChunk) error) (harness.Completion, error) {
+				calls.Add(1)
+				return harness.Completion{Finish: harness.FinishStop, Message: harness.Message{Role: harness.RoleAssistant, Content: []harness.ContentBlock{{Type: harness.BlockText, Text: "next turn"}}}}, nil
+			})})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = h.Dispose(context.Background()); _ = h.Drain(context.Background()) }()
+			disk, err := harness.NewJSONLSessionPersistence(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			server, err := NewServer(Options{Harness: h, Persistence: disk, Provider: "fixture", Model: "fixture"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sink := make(updateSink, 100)
+			server.writer = &wireWriter{encoder: json.NewEncoder(sink)}
+			defer server.closeAll(context.Background())
+			id, err := server.newSession(t.Context(), NewSessionParams{CWD: t.TempDir()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			record, err := server.currentRecord(id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var cancelled atomic.Bool
+			detach := record.agent.Session().Subscribe(func(event harness.Event) {
+				if event.Type == "agent/inbox/spliced" && cancelled.CompareAndSwap(false, true) {
+					raw, _ := json.Marshal(SessionParams{SessionID: string(id)})
+					if action == "close" {
+						server.requestRecordClose(record)
+					} else {
+						server.handleNotification(request{Method: "session/cancel", Params: raw})
+					}
+				}
+			})
+			defer detach()
+			stop, err := server.prompt(t.Context(), PromptParams{SessionID: string(id), Prompt: []PromptContent{{Type: "text", Text: "cancel before dispatch"}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stop != "cancelled" {
+				t.Fatalf("stop = %q", stop)
+			}
+			if err := record.agent.WhenIdle(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if got := calls.Load(); got != 0 {
+				t.Fatalf("cancelled before dispatch but provider executed %d times", got)
+			}
+			if action == "close" {
+				if err := waitRecordClose(t.Context(), record); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			stop, err = server.prompt(t.Context(), PromptParams{SessionID: string(id), Prompt: []PromptContent{{Type: "text", Text: "next turn"}}})
+			if err != nil || stop != "end_turn" || calls.Load() != 1 {
+				t.Fatalf("next prompt: stop=%q err=%v provider calls=%d", stop, err, calls.Load())
+			}
+		})
 	}
 }

@@ -136,7 +136,11 @@ func (s *Server) requestRecordClose(record *activeSession) {
 	record.closeRequested = true
 	record.closing = true
 	record.cancelRequested = true
+	promptCancel := record.promptCancel
 	record.mu.Unlock()
+	if promptCancel != nil {
+		promptCancel()
+	}
 	s.mu.Lock()
 	s.retiring[record.agent] = record
 	s.mu.Unlock()
