@@ -3,6 +3,7 @@
 mod detail;
 mod form;
 mod list;
+mod workers;
 use crate::{
     app::Workbench,
     cloud::{Phase, Tone},

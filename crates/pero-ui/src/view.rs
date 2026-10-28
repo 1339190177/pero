@@ -2,12 +2,13 @@ use crate::{
     app::Workbench,
     components::{
         ActionHandler, Ui,
-        sidebar::{self, SidebarAction, SidebarProps},
+        sidebar::{self, CloudSummary, SidebarAction, SidebarProps},
         task_detail::{self, SessionHeader, TaskDetailAction, TaskDetailProps},
         task_list::{self, SessionRow, TaskListAction, TaskListProps},
         workspace::{self, AgentRow, WorkspaceAction},
     },
 };
+use crate::{cloud::Group, remote_view::phase};
 use gpui_kit::{prelude::*, *};
 use serde_json::json;
 use std::rc::Rc;
@@ -27,20 +28,24 @@ impl Workbench {
     fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> Div {
         let on_action = Rc::new(cx.listener(|this, action: &SidebarAction, window, cx| {
             match action {
-                SidebarAction::Navigate(index) => {
-                    if *index == 3 {
-                        this.open_remote(cx);
-                    } else {
-                        this.navigation = *index;
-                        this.sync_follow(cx);
+                SidebarAction::Navigate(3) => {
+                    if this.remote.configured() {
+                        this.remote.connection.editing = false;
                     }
+                    this.open_remote(cx);
                 }
-                SidebarAction::ConfigureGitHub => {
+                SidebarAction::Navigate(5) => {
+                    this.navigation = 5;
+                    this.sync_follow(cx);
+                    this.command(json!({"action":"remote_refresh"}), cx);
+                }
+                SidebarAction::Navigate(index) => {
+                    this.navigation = *index;
+                    this.sync_follow(cx);
+                }
+                SidebarAction::ConfigureCloud => {
                     this.open_remote(cx);
                     this.open_remote_connection(window, cx);
-                }
-                SidebarAction::ChooseWorkspace => {
-                    this.command(json!({"action":"choose_workspace"}), cx)
                 }
                 SidebarAction::ToggleLocale => this.toggle_locale(cx),
                 SidebarAction::ToggleTheme => {
@@ -50,13 +55,36 @@ impl Workbench {
             }
             cx.notify();
         }));
+        let data = &self.remote.data;
+        let count = |group: Group| {
+            self.remote
+                .tasks()
+                .iter()
+                .filter(|task| phase(task).group() == group)
+                .count()
+        };
+        let url = data["connection"]["url"].as_str().unwrap_or("");
         sidebar::sidebar(
             self.ui(),
             width,
             SidebarProps {
                 navigation: self.navigation,
-                connected: self.connected,
+                connection_open: self.remote.connection.editing,
+                local_connected: self.connected,
                 dark: self.dark,
+                cloud: CloudSummary {
+                    configured: self.remote.configured(),
+                    host: url
+                        .trim_start_matches("https://")
+                        .trim_start_matches("http://")
+                        .trim_end_matches('/')
+                        .to_string(),
+                    identity: data["identity"]["name"].as_str().unwrap_or("").to_string(),
+                    error: data["error"].is_string(),
+                    attention: count(Group::Attention),
+                    running: count(Group::Running),
+                    workers: self.worker_count(),
+                },
             },
             on_action,
         )
@@ -209,7 +237,7 @@ impl Render for Workbench {
             .bg(p.color("surface"))
             .text_color(p.color("text"))
             .font_family("Noto Sans CJK SC")
-            .text_size(px(13.))
+            .text_size(px(14.))
             .child(self.sidebar(if compact { 168. } else { 192. }, cx))
             .when(self.navigation == 3, |el| {
                 el.child(self.remote_view(width < 1050., cx))
@@ -218,6 +246,7 @@ impl Render for Workbench {
                 el.child(self.task_list(if compact { 300. } else { 360. }, cx))
                     .child(self.detail(window, cx))
             })
+            .when(self.navigation == 5, |el| el.child(self.workers_view(cx)))
             .when(self.navigation == 1, |el| el.child(self.projects(cx)))
             .when(self.navigation == 2, |el| el.child(self.environments(cx)))
     }
