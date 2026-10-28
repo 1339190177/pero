@@ -4,6 +4,7 @@ go_library(
     name = "acp",
     srcs = [
         "lifecycle.go",
+        "models.go",
         "server.go",
         "stream.go",
         "types.go",
@@ -20,6 +21,7 @@ go_test(
     name = "acp_test",
     srcs = [
         "extraction_test.go",
+        "models_test.go",
         "native_approval_test.go",
         "stream_test.go",
     ],

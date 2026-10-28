@@ -24,6 +24,8 @@ import (
 )
 
 type Options struct {
+	// ModelSelection opts into the registered provider's explicit local catalog.
+	ModelSelection bool
 	// ValidateWorkingDirectory is trusted native composition, not ACP client data.
 	// It narrows session admission before persistence or MCP activation. Nil keeps
 	// the protocol-only absolute-path behavior. Execution-time tool checks remain.
@@ -40,6 +42,9 @@ type Options struct {
 }
 
 type Server struct {
+	modelChoices             []harness.ModelCatalogEntry
+	modelCapacity            int
+	modelOutput              int
 	validateWorkingDirectory func(string) error
 	h                        *harness.Harness
 	persistence              harness.SessionPersistence
@@ -81,6 +86,7 @@ type activeSession struct {
 
 	mu              sync.Mutex
 	inflight        bool
+	modelChanging   bool
 	cancelRequested bool
 	closing         bool
 	closeDone       chan struct{}
@@ -116,7 +122,12 @@ func NewServer(options Options) (*Server, error) {
 	if options.SessionListPageSize < 1 || uint64(options.SessionListPageSize) > maxJSONSafeInteger {
 		return nil, errors.New("acp: session list page size must be a positive safe integer")
 	}
+	choices, capacity, output, err := configuredModelChoices(options)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
+		modelChoices: choices, modelCapacity: capacity, modelOutput: output,
 		h: options.Harness, persistence: options.Persistence, validateWorkingDirectory: options.ValidateWorkingDirectory,
 		provider: options.Provider, model: options.Model, compaction: options.Compaction, toolResultPruner: options.ToolResultPruner,
 		name: options.Name, version: options.Version, sessionListPageSize: options.SessionListPageSize,
@@ -273,7 +284,13 @@ func (s *Server) handle(ctx context.Context, message request) (any, *rpcError) {
 		if err != nil {
 			return nil, classify(err)
 		}
-		return map[string]any{"sessionId": id, "configOptions": []any{}}, nil
+		return s.sessionConfiguration(id, true)
+	case "session/set_config_option":
+		var params setConfigOptionParams
+		if err := decodeParams(message.Params, &params); err != nil {
+			return nil, invalid(err.Error())
+		}
+		return s.setConfigOption(ctx, params)
 	case "session/prompt":
 		var params PromptParams
 		if err := decodeParams(message.Params, &params); err != nil {
@@ -301,7 +318,7 @@ func (s *Server) handle(ctx context.Context, message request) (any, *rpcError) {
 		if err := s.resumeSession(ctx, params); err != nil {
 			return nil, classify(err)
 		}
-		return map[string]any{"configOptions": []any{}}, nil
+		return s.sessionConfiguration(harness.SessionID(params.SessionID), false)
 	case "session/load":
 		var params ResumeSessionParams
 		if err := decodeParams(message.Params, &params); err != nil {
@@ -314,7 +331,7 @@ func (s *Server) handle(ctx context.Context, message request) (any, *rpcError) {
 			_ = s.closeSession(context.Background(), harness.SessionID(params.SessionID))
 			return nil, classify(err)
 		}
-		return map[string]any{"configOptions": []any{}}, nil
+		return s.sessionConfiguration(harness.SessionID(params.SessionID), false)
 	case "session/list":
 		var params ListSessionParams
 		if len(message.Params) > 0 {
@@ -501,7 +518,7 @@ func (s *Server) prompt(ctx context.Context, params PromptParams) (string, error
 		record.mu.Unlock()
 		return "", invalidError("session is closing: " + params.SessionID)
 	}
-	if record.inflight {
+	if record.inflight || record.modelChanging {
 		record.mu.Unlock()
 		return "", invalidError("session already has an active prompt: " + params.SessionID)
 	}
@@ -573,6 +590,10 @@ func (s *Server) beginCommandRecord(agentID string) (*activeSession, func(), err
 		record.mu.Unlock()
 		return nil, nil, invalidError("session is closing: " + agentID)
 	}
+	if record.modelChanging {
+		record.mu.Unlock()
+		return nil, nil, invalidError("session model is changing: " + agentID)
+	}
 	if record.commandActive == 0 {
 		record.commandsIdle = make(chan struct{})
 	}
@@ -639,6 +660,9 @@ func (s *Server) resumeSession(ctx context.Context, params ResumeSessionParams) 
 		return invalidError("session cwd does not match: " + params.CWD)
 	}
 	if err := checkMCPResumeRequirements(session.Events(), len(params.MCPServers) > 0); err != nil {
+		return err
+	}
+	if err := s.checkRestoredModel(ctx, session); err != nil {
 		return err
 	}
 	servers, err := decodeMCPServers(params.MCPServers, params.CWD)
