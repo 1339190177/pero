@@ -16,20 +16,41 @@ var (
 )
 
 type Spec struct {
-	Title        string `json:"title"`
-	Prompt       string `json:"prompt"`
-	Acceptance   string `json:"acceptance"`
-	ProjectID    string `json:"project_id"`
-	WorkspaceKey string `json:"workspace_key"`
-	AgentID      string `json:"agent_id"`
+	Title        string  `json:"title"`
+	Prompt       string  `json:"prompt"`
+	Acceptance   string  `json:"acceptance"`
+	ProjectID    string  `json:"project_id"`
+	WorkspaceKey string  `json:"workspace_key"`
+	AgentID      string  `json:"agent_id"`
+	Source       *Source `json:"source,omitempty"`
+}
+
+// Source records provider goal data, never an execution grant or acceptance.
+type Source struct {
+	Kind         string `json:"kind"`
+	Repository   string `json:"repository"`
+	IssueNumber  int64  `json:"issue_number"`
+	URL          string `json:"url"`
+	Revision     string `json:"revision"`
+	State        string `json:"state"`
+	UpdatedAt    string `json:"updated_at,omitempty"`
+	IssueID      string `json:"issue_id"`
+	RepositoryID string `json:"repository_id"`
+}
+
+type TaskClaimant struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type Task struct {
 	ID string `json:"id"`
 	Spec
-	State        string `json:"state"`
-	CurrentRunID string `json:"current_run_id,omitempty"`
-	Run          *Run   `json:"run,omitempty"`
+	State        string        `json:"state"`
+	CurrentRunID string        `json:"current_run_id,omitempty"`
+	Run          *Run          `json:"run,omitempty"`
+	ClaimedBy    *TaskClaimant `json:"claimed_by,omitempty"`
+	LatestSource *Source       `json:"latest_source,omitempty"`
 }
 
 type TaskPage struct {
