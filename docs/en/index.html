@@ -923,22 +923,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </div>
 <div class="demo-scope">Synthetic data · non-blind evaluation · no trained AI model. Suggestions are presets; refresh resets the page.</div>
 <div aria-live="polite" class="sr-only" id="run-announcement"></div>
-</div><section class="workflow-section" id="workflow">
-<div class="shell">
-<div class="workflow-layout">
-<div><div class="section-kicker"><span class="n">02 —</span> From the result back to the process / a working example</div><h2>Where this figure came from,<br/>open it and see.</h2><p class="section-copy">Inspect and export each step: training data, combination split, predictions, gene-level errors and the full denominator.</p>
-<div aria-label="Research flow" aria-orientation="vertical" class="steps" role="tablist">
-<button aria-controls="ledger-content" aria-selected="false" class="step" data-step="inputs" id="step-inputs" role="tab" tabindex="-1"><span>01</span><div><strong>What are the inputs?</strong><p>Record data provenance and the combination split.</p></div><svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
-<button aria-controls="ledger-content" aria-selected="false" class="step" data-step="method" id="step-method" role="tab" tabindex="-1"><span>02</span><div><strong>What method was used?</strong><p>Retain training scope, baselines and versions.</p></div><svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
-<button aria-controls="ledger-content" aria-selected="false" class="step" data-step="run" id="step-run" role="tab" tabindex="-1"><span>03</span><div><strong>What changed this time?</strong><p>Keep the changed condition together with the result it produced.</p></div><svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
-<button aria-controls="ledger-content" aria-selected="true" class="step" data-step="evidence" id="step-evidence" role="tab"><span>04</span><div><strong>How is the result checked?</strong><p>From one figure, back to a complete record.</p></div><svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
-</div>
-</div>
-<div class="ledger"><div class="ledger-top"><svg class="icon"><use href="#i-layers-intersect"></use></svg>PROJECT / VIRTUAL CELL<span id="ledger-run">RUN 001</span></div><div aria-labelledby="step-evidence" class="ledger-body" id="ledger-content" role="tabpanel"></div></div>
-</div>
-<p class="workflow-bottom">The process can be checked. The conclusion is still yours.</p>
-</div>
-</section></div></section></details>
+</div></div></section></details>
 
 <section class="open-section contribution-section" id="open"><div class="shell">
 <div class="section-kicker"><span class="n">04 —</span> BUILT TOGETHER, ONE CONTRIBUTION AT A TIME</div>
@@ -1077,7 +1062,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   const fmt = number => number === null ? 'N/A' : (Math.abs(number)<.00005?0:number).toFixed(4);
   const model = window.OpenPeroExperiment;
   const inputs = model.inputs();
-  const state = { count:0, current:null, previous:null, chart:'solution', panel:'results', step:'evidence', entry:'web', worker:'local', running:false };
+  const state = { count:0, current:null, previous:null, chart:'solution', panel:'results', entry:'web', worker:'local', running:false };
   const method = { id:'virtual-cell.baselines.v1', methods:model.methods, additive:'mean(A) + mean(B) - mean(control)', train_mean:'Mean of all perturbed training-condition means', aggregation:'equal_batch', primary:'median delta_mse over every test combination', reference:'additive', skill:'median(1 - condition_mse / additive_mse); exclude exact additive with reason', scientificScope:'Synthetic, non-blind demonstration. No trained AI model or biological validation.' };
   let toastTimer;
   function toast(message) { const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(() => el.classList.remove('show'),3500); }
@@ -1090,9 +1075,9 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
     $('#samples').textContent=result.denominator.evaluated+'/'+result.denominator.attempted;
     $('#max-error').textContent=fmt(result.medianSkill);
     $('#run-caption').textContent=runLabel()+' · '+result.method+' · '+result.genes.length+' genes';
-    $('#run-state').textContent=tr('已计算');$('#ledger-run').textContent=runLabel();
+    $('#run-state').textContent=tr('已计算');
     $('#run-announcement').textContent=tr('{id} 已完成，全部 {count} 个测试组合已评估。',{id:runLabel(),count:result.rows.length});
-    renderTrace();renderEvidence();renderLedger();drawChart();
+    renderTrace();renderEvidence();drawChart();
   }
   function calculate() {
     if(state.running)return;
@@ -1114,18 +1099,6 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
     const r=state.current.result;
     $('#evidence-spec').innerHTML=specRows([[tr('运行'),runLabel()],[tr('方法版本'),r.methodVersion],[tr('输入版本'),r.dataVersion],[tr('基因与尺度'),r.genes.length+' · '+r.scale],[tr('完整分母'),r.denominator.evaluated+'/'+r.denominator.attempted],[tr('评估边界'),tr('合成数据 · 非盲评估')]]);
     $('#evidence-summary').textContent=tr('覆盖全部 5 个测试组合。只演示基线评估流程，未训练 AI 模型，也未验证生物学结论。');
-  }
-  function renderLedger() {
-    if(!state.current)return;
-    const r=state.current.result;
-    const content={
-      inputs:{label:'01 / DATA & SPLIT',title:tr('先固定数据，再比较方法。'),copy:tr('直接使用 Virtual Cell App 的合成夹具：12 个基因，单扰动进入训练集，双扰动按组合整体划分。'),rows:[[tr('数据来源'),r.dataVersion],[tr('训练条件'),'11 + control'],[tr('验证组合'),'2'],[tr('测试组合'),'5'],[tr('划分种子'),'7']],action:tr('查看输入定义'),dialog:'inputs'},
-      method:{label:'02 / PREDICT',title:tr('未见过的组合，能预测好吗？'),copy:tr('control 保持对照均值，train_mean 使用训练条件均值，additive 叠加两个单扰动效应。三者都不读取测试表达值来生成预测。'),rows:[[tr('当前方法'),r.method],[tr('方法版本'),r.methodVersion],[tr('参考基线'),'additive'],[tr('聚合方式'),'equal_batch']],action:tr('打开方法定义'),dialog:'method'},
-      run:{label:'03 / EVALUATE',title:tr('相同测试集，比较全部结果。'),copy:tr('图表只切换查看的组合，指标始终覆盖全部测试组合。低误差是否超越加性基线，需要单独比较。'),rows:[[tr('本次运行'),runLabel()],['median ΔMSE',fmt(r.medianDeltaMse)],[tr('相对加性 Skill'),fmt(r.medianSkill)],[tr('完整分母'),r.denominator.evaluated+'/'+r.denominator.attempted]],action:tr('查看本次数据'),dialog:'data'},
-      evidence:{label:'04 / REVIEW',title:tr('结果留下依据，结论留待验证。'),copy:tr('导出包含原始合成夹具、固定划分、各组合预测与误差。任何后续模型都应使用同一划分和分母。'),rows:[[tr('运行记录'),runLabel()],[tr('输入版本'),r.dataVersion],[tr('评估方式'),tr('非盲 · 无执行隔离')],[tr('记录格式'),'JSON + CSV']],action:tr('下载完整复现记录'),export:'json'}
-    }[state.step];
-    $('#ledger-content').innerHTML='<div class="ledger-kicker">'+content.label+'</div><h3>'+content.title+'</h3><p>'+content.copy+'</p><dl>'+specRows(content.rows)+'</dl><div class="check-note">'+tr('合成数据用于理解流程；研究接受还需要真实数据、独立验证与人工判断。')+'</div><button class="text-link" '+(content.export?'data-export="json"':'data-dialog="'+content.dialog+'"')+'>'+content.action+icon('arrow-up-right')+'</button>';
-    $('#ledger-content').setAttribute('aria-labelledby','step-'+state.step);
   }
   function drawChart() {
     if(!state.current||state.panel!=='results')return;
@@ -1150,7 +1123,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
     canvas.setAttribute('aria-label',tr('{condition} 的预测与合成观测比较，完整数值可通过查看数据读取。',{condition:row.id}));
   }
   function showPanel(panel) {state.panel=panel;$$('.wb-tab').forEach(tab=>{const on=tab.dataset.panel===panel;tab.setAttribute('aria-selected',on);tab.tabIndex=on?0:-1;});['results','trace','evidence'].forEach(name=>$('#panel-'+name).hidden=name!==panel);$$('.side-link[data-panel]').forEach(button=>button.classList.toggle('active',button.dataset.panel===panel));if(panel==='results')requestAnimationFrame(drawChart);}
-  function showStep(name) {state.step=name;$$('.step').forEach(button=>{const on=button.dataset.step===name;button.setAttribute('aria-selected',on);button.tabIndex=on?0:-1;});renderLedger();}
+
 
     function renderRuntime() {
       $$('.choice[data-entry]').forEach(function(button){button.setAttribute('aria-pressed',button.dataset.entry===state.entry);});
@@ -1191,7 +1164,6 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
     const target=event.target.closest('button,a');if(!target)return;
     if(target.dataset.panel)showPanel(target.dataset.panel);
     if(target.dataset.chart){state.chart=target.dataset.chart;$$('[data-chart]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.chart===state.chart));drawChart();}
-    if(target.dataset.step)showStep(target.dataset.step);
     if(target.dataset.entry){state.entry=target.dataset.entry;renderRuntime();}
     if(target.dataset.worker){state.worker=target.dataset.worker;renderRuntime();}
     if(target.dataset.dialog)openDialog(target.dataset.dialog);
@@ -1206,7 +1178,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   $('#menu-button').addEventListener('click',function(){const open=this.getAttribute('aria-expanded')!=='true';this.setAttribute('aria-expanded',open);this.setAttribute('aria-label',tr(open?'关闭导航菜单':'打开导航菜单'));$('#nav-links').classList.toggle('open',open);});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu();});
   function keyboardTabs(selector,vertical) {const list=$$(selector);list.forEach((button,index)=>button.addEventListener('keydown',event=>{let next;if(event.key===(vertical?'ArrowDown':'ArrowRight'))next=(index+1)%list.length;else if(event.key===(vertical?'ArrowUp':'ArrowLeft'))next=(index+list.length-1)%list.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=list.length-1;else return;event.preventDefault();list[next].click();list[next].focus();}));}
-  keyboardTabs('.wb-tab',false);keyboardTabs('.step',true);
+  keyboardTabs('.wb-tab',false);
   if('ResizeObserver' in window)new ResizeObserver(drawChart).observe($('#research-chart'));else window.addEventListener('resize',drawChart);
   const begin=performance.now();applyRun(model.run(model.presets.variant),performance.now()-begin);renderRuntime();
   // Read-only inspection for the local prototype and exported evidence.
