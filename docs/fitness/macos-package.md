@@ -5,6 +5,9 @@ date: 2026-10-28
 
 # macOS arm64 portable development package
 
+This records the original packaging trial. The newer contributor candidate and
+its final artifact hash are recorded in [contributor verification](contributor-workflow.md).
+
 The built source is a frozen snapshot of committed master plus this packaging
 change. Concurrent, unfinished workbench changes were excluded. The snapshot is
 under `target/package-source`; build products are under `target/package`.
