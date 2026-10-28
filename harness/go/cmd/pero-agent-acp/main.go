@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/phodal/pero/harness/go/acp"
+	"github.com/phodal/pero/harness/go/agentinstructions"
 	"github.com/phodal/pero/harness/go/harness"
 	"github.com/phodal/pero/harness/go/nativetools"
 	"github.com/phodal/pero/harness/go/providers/openai"
@@ -39,6 +40,8 @@ func run() (resultErr error) {
 	skillRoots := bindSkillRoots(flag.CommandLine)
 	compaction := bindCompaction(flag.CommandLine)
 	sandboxOptions := bindSandbox(flag.CommandLine)
+	selectable := bindSelectableModels(flag.CommandLine)
+	coding := bindCodingOptions(flag.CommandLine)
 	flag.Parse()
 	if flag.NArg() != 0 || strings.TrimSpace(*model) == "" || strings.TrimSpace(*sessions) == "" {
 		return errors.New("--model and --session-dir are required; positional arguments are unsupported")
@@ -48,6 +51,9 @@ func run() (resultErr error) {
 	}
 	if *enableShell && *workspace == "" {
 		return errors.New("--enable-shell requires --workspace")
+	}
+	if err := coding.validate(*workspace); err != nil {
+		return err
 	}
 	sandboxConfig, err := sandboxOptions.config(*workspace, *enableShell, *approval)
 	if err != nil {
@@ -63,6 +69,9 @@ func run() (resultErr error) {
 	}
 	compactionConfig, err := configuredCompaction(&providerConfig, *compaction)
 	if err != nil {
+		return err
+	}
+	if err := configureSelectableModels(&providerConfig, *selectable); err != nil {
 		return err
 	}
 	adapter, err := openai.New(providerConfig)
@@ -81,10 +90,11 @@ func run() (resultErr error) {
 	}
 	var native *nativetools.App
 	var skillCatalog *skills.Catalog
+	var instructions *agentinstructions.App
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		resultErr = errors.Join(resultErr, h.Dispose(cleanup), h.Drain(cleanup), native.Close(), skillCatalog.Close())
+		resultErr = errors.Join(resultErr, h.Dispose(cleanup), h.Drain(cleanup), native.Close(), skillCatalog.Close(), instructions.Close())
 	}()
 	if *workspace != "" {
 		native, err = nativetools.Mount(ctx, h, nativetools.Options{Workspace: *workspace, EnableShell: *enableShell, Shell: *shellPath, Sandbox: sandboxConfig})
@@ -92,11 +102,15 @@ func run() (resultErr error) {
 			return err
 		}
 	}
+	instructions, err = mountCoding(ctx, h, *workspace, *coding)
+	if err != nil {
+		return err
+	}
 	skillCatalog, err = skills.Mount(ctx, h, *skillRoots)
 	if err != nil {
 		return err
 	}
-	serverOptions := acp.Options{Compaction: compactionConfig, Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
+	serverOptions := acp.Options{ModelSelection: len(*selectable) != 0, Compaction: compactionConfig, Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
 	if native != nil {
 		serverOptions.ValidateWorkingDirectory = native.CheckCWD
 	}

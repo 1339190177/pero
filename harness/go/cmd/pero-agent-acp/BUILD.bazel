@@ -3,20 +3,24 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 go_library(
     name = "pero-agent-acp_lib",
     srcs = [
+        "coding.go",
         "compaction.go",
         "main.go",
+        "models.go",
         "sandbox_options.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/cmd/pero-agent-acp",
     visibility = ["//visibility:private"],
     deps = [
         "//acp",
+        "//agentinstructions",
         "//harness",
         "//nativetools",
         "//permissionpresets",
         "//providers/openai",
         "//sandbox",
         "//skills",
+        "//todos",
     ],
 )
 
@@ -29,14 +33,18 @@ go_binary(
 go_test(
     name = "pero-agent-acp_test",
     srcs = [
+        "coding_model_wire_test.go",
+        "coding_test.go",
         "compaction_test.go",
         "compaction_wire_test.go",
         "main_test.go",
+        "models_test.go",
         "sandbox_options_test.go",
     ],
     embed = [":pero-agent-acp_lib"],
     deps = [
         "//harness",
         "//providers/openai",
+        "@com_github_modelcontextprotocol_go_sdk//mcp",
     ],
 )
