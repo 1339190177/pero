@@ -673,6 +673,74 @@
       ],
       "additionalProperties": false
     },
+    "ConfigurationChangedEvent": {
+      "title": "ConfigurationChangedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "configuration_changed"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/SessionSettings"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ConfigureCommand": {
+      "title": "ConfigureCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "configure"
+        },
+        "thread_id": {
+          "$ref": "#/$defs/ThreadId"
+        },
+        "config_id": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id",
+        "config_id",
+        "value"
+      ],
+      "additionalProperties": false
+    },
     "ContextFile": {
       "title": "ContextFile",
       "type": "object",
@@ -978,6 +1046,9 @@
         },
         {
           "$ref": "#/$defs/ModelCommand"
+        },
+        {
+          "$ref": "#/$defs/ConfigureCommand"
         },
         {
           "$ref": "#/$defs/CloseCommand"
@@ -2142,6 +2213,54 @@
       "additionalProperties": false,
       "description": "`data` is the ACP NewSessionResponse, with configOptions refreshed after model selection."
     },
+    "SessionSetting": {
+      "title": "SessionSetting",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "current": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SettingChoice"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "current",
+        "choices"
+      ],
+      "additionalProperties": false
+    },
+    "SessionSettings": {
+      "title": "SessionSettings",
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SessionSetting"
+          }
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "additionalProperties": false
+    },
     "SessionUpdateEvent": {
       "title": "SessionUpdateEvent",
       "type": "object",
@@ -2243,6 +2362,27 @@
       ],
       "additionalProperties": false
     },
+    "SettingChoice": {
+      "title": "SettingChoice",
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label",
+        "description"
+      ],
+      "additionalProperties": false
+    },
     "SettingsEvent": {
       "title": "SettingsEvent",
       "type": "object",
@@ -2327,6 +2467,9 @@
         },
         {
           "$ref": "#/$defs/ModelChangedEvent"
+        },
+        {
+          "$ref": "#/$defs/ConfigurationChangedEvent"
         },
         {
           "$ref": "#/$defs/TurnFinishedEvent"

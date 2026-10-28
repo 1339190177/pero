@@ -15,6 +15,7 @@ export type HostCommand =
   | CancelCommand
   | PermissionCommand
   | ModelCommand
+  | ConfigureCommand
   | CloseCommand;
 export type ThreadId = string;
 export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp;
@@ -62,6 +63,7 @@ export type ThreadEvent =
   | SessionUpdateEvent
   | SessionReadyEvent
   | ModelChangedEvent
+  | ConfigurationChangedEvent
   | TurnFinishedEvent
   | SessionErrorEvent
   | SessionClosedEvent;
@@ -131,6 +133,12 @@ export interface ModelCommand {
   action: "model";
   thread_id: string;
   model_id: string;
+}
+export interface ConfigureCommand {
+  action: "configure";
+  thread_id: ThreadId;
+  config_id: string;
+  value: string;
 }
 export interface CloseCommand {
   action: "close";
@@ -320,6 +328,29 @@ export interface ModelChangedEvent {
   text: string;
   thread_id: string;
   data: AcpPayload;
+}
+export interface ConfigurationChangedEvent {
+  kind: "configuration_changed";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+  data: SessionSettings;
+}
+export interface SessionSettings {
+  options: SessionSetting[];
+}
+export interface SessionSetting {
+  id: string;
+  name: string;
+  category: string;
+  current: string;
+  choices: SettingChoice[];
+}
+export interface SettingChoice {
+  value: string;
+  label: string;
+  description: string;
 }
 /**
  * `text` is the stop reason; `data` is the ACP PromptResponse.

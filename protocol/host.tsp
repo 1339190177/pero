@@ -65,6 +65,7 @@ model PermissionCommand {
   ...Closed;
 }
 model ModelCommand { action: "model"; thread_id: string; model_id: string; ...Closed }
+model ConfigureCommand { action: "configure"; thread_id: ThreadId; config_id: string; value: string; ...Closed }
 model CloseCommand { action: "close"; thread_id: string; ...Closed }
 
 @oneOf
@@ -78,6 +79,7 @@ union HostCommand {
   CancelCommand,
   PermissionCommand,
   ModelCommand,
+  ConfigureCommand,
   CloseCommand,
 }
 
@@ -178,6 +180,10 @@ model TurnStartedEvent { kind: "turn_started"; ...ThreadEventBase }
 model TurnFinishedEvent { kind: "turn_finished"; ...ThreadEventBase; data: AcpPayload }
 /** `data` is the ACP SetSessionConfigOptionResponse. */
 model ModelChangedEvent { kind: "model_changed"; ...ThreadEventBase; data: AcpPayload }
+model SettingChoice { value: string; label: string; description: string; ...Closed }
+model SessionSetting { id: string; name: string; category: string; current: string; choices: SettingChoice[]; ...Closed }
+model SessionSettings { options: SessionSetting[]; ...Closed }
+model ConfigurationChangedEvent { kind: "configuration_changed"; ...ThreadEventBase; data: SessionSettings }
 model SessionErrorEvent { kind: "session_error"; ...ThreadEventBase }
 model SessionClosedEvent { kind: "session_closed"; ...ThreadEventBase }
 
@@ -189,6 +195,7 @@ union ThreadEvent {
   SessionUpdateEvent,
   SessionReadyEvent,
   ModelChangedEvent,
+  ConfigurationChangedEvent,
   TurnFinishedEvent,
   SessionErrorEvent,
   SessionClosedEvent,
