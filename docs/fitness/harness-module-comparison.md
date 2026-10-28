@@ -123,3 +123,17 @@ Those source mappings need reconciliation; no origin hash was silently replaced.
 Collection stopped when the requested focus moved to official DSH. This does
 not invalidate the individually inspected official behavior references, but
 precludes a blanket claim that all source provenance is independently verified.
+
+## Tree-sitter source evidence
+
+The reproducible [AST comparison tool](../../scripts/ast-compare/README.md) uses
+real pinned Go/TypeScript parsers. Official DSH-to-Pero callable mappings are the
+primary report; Point-to-Go declaration comparison is a secondary provenance
+aid. It records control-flow guards, calls, state writes, error landmarks and
+source spans without claiming cross-language semantic equivalence.
+
+The [validated snapshot](../../scripts/ast-compare/VALIDATION.md) selects 17
+callable pairs: 15 were extracted for review; 2 Todo selections remain unavailable
+because the pinned TypeScript grammar rejects a whole-file syntax construct.
+The tool fails closed rather than stripping syntax. Its 15 unit tests pass;
+this scoped evidence is not a whole-repository AST or behavioral parity claim.
