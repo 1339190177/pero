@@ -211,7 +211,9 @@ impl StreamText {
 impl Render for StreamText {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         TextView::new(&self.document).selectable(true).style(
-            TextViewStyle::default().paragraph_gap(rems(0.4)).code_block(StyleRefinement::default().font_family("JetBrains Mono"))
+            TextViewStyle::default()
+                .paragraph_gap(rems(0.4))
+                .code_block(StyleRefinement::default().font_family("JetBrains Mono")),
         )
     }
 }

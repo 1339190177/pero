@@ -4,7 +4,9 @@ pub(crate) struct UiAssets;
 impl AssetSource for UiAssets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: Option<&'static [u8]> = match path {
-            "icons/languages.svg" => Some(include_bytes!("../../../web/public/icons/languages.svg")),
+            "icons/languages.svg" => {
+                Some(include_bytes!("../../../web/public/icons/languages.svg"))
+            }
             "icons/sun.svg" => Some(include_bytes!("../../../web/public/icons/sun.svg")),
             "icons/moon.svg" => Some(include_bytes!("../../../web/public/icons/moon.svg")),
             "icons/circle-filled.svg" => Some(include_bytes!(

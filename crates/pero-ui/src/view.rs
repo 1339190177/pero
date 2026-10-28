@@ -157,23 +157,64 @@ impl Workbench {
                         }))
                 }),
             )
-            .child(Button::new("nav-remote").ghost().label(self.t("nav.remote")).w_full().h(px(32.))
-                .bg(p.color(if self.navigation == 3 { "accent-soft" } else { "bg" }))
-                .on_click(cx.listener(|this, _, _, cx| this.open_remote(cx))))
+            .child(
+                Button::new("nav-remote")
+                    .ghost()
+                    .label(self.t("nav.remote"))
+                    .w_full()
+                    .h(px(32.))
+                    .bg(p.color(if self.navigation == 3 {
+                        "accent-soft"
+                    } else {
+                        "bg"
+                    }))
+                    .on_click(cx.listener(|this, _, _, cx| this.open_remote(cx))),
+            )
             .child(div().flex_1())
-            .child(div().flex().items_center().gap(px(4.)).child(
-                Button::new("language").ghost().small().w(px(32.)).h(px(32.))
-                    .icon(Icon::default().path("icons/languages.svg"))
-                    .tooltip(format!("{} · 中文 / English",self.t("menu.language")))
-                    .accessibility_label(self.t("menu.language"))
-                    .on_click(cx.listener(|this,_,_,cx|this.toggle_locale(cx)))
-            ).child(
-                Button::new("theme").ghost().small().w(px(32.)).h(px(32.))
-                    .icon(Icon::default().path(if self.dark{"icons/sun.svg"}else{"icons/moon.svg"}))
-                    .tooltip(self.t(if self.dark{"appearance.light"}else{"appearance.dark"}))
-                    .accessibility_label(self.t(if self.dark{"appearance.light"}else{"appearance.dark"}))
-                    .on_click(cx.listener(|this,_,_,cx|{this.dark=!this.dark;this.palettes.apply(this.dark,cx);cx.notify();}))
-            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(4.))
+                    .child(
+                        Button::new("language")
+                            .ghost()
+                            .small()
+                            .w(px(32.))
+                            .h(px(32.))
+                            .icon(Icon::default().path("icons/languages.svg"))
+                            .tooltip(format!("{} · 中文 / English", self.t("menu.language")))
+                            .accessibility_label(self.t("menu.language"))
+                            .on_click(cx.listener(|this, _, _, cx| this.toggle_locale(cx))),
+                    )
+                    .child(
+                        Button::new("theme")
+                            .ghost()
+                            .small()
+                            .w(px(32.))
+                            .h(px(32.))
+                            .icon(Icon::default().path(if self.dark {
+                                "icons/sun.svg"
+                            } else {
+                                "icons/moon.svg"
+                            }))
+                            .tooltip(self.t(if self.dark {
+                                "appearance.light"
+                            } else {
+                                "appearance.dark"
+                            }))
+                            .accessibility_label(self.t(if self.dark {
+                                "appearance.light"
+                            } else {
+                                "appearance.dark"
+                            }))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.dark = !this.dark;
+                                this.palettes.apply(this.dark, cx);
+                                cx.notify();
+                            })),
+                    ),
+            )
             .child(
                 div()
                     .flex()
@@ -840,7 +881,9 @@ impl Render for Workbench {
             .font_family("Noto Sans CJK SC")
             .text_size(px(13.))
             .child(self.sidebar(if compact { 168. } else { 192. }, cx))
-            .when(self.navigation == 3, |el| el.child(self.remote_view(width < 1050., cx)))
+            .when(self.navigation == 3, |el| {
+                el.child(self.remote_view(width < 1050., cx))
+            })
             .when(self.navigation == 0, |el| {
                 el.child(self.task_list(if compact { 300. } else { 360. }, cx))
                     .child(self.detail(cx))

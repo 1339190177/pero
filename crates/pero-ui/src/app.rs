@@ -157,7 +157,9 @@ impl Workbench {
     }
 
     fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
-        if self.receive_remote(&event, cx) { return; }
+        if self.receive_remote(&event, cx) {
+            return;
+        }
         if self.receive_chat(&event, cx) {
             return;
         }
