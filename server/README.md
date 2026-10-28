@@ -1,8 +1,9 @@
 # Go control plane
 
-The service persists manual Tasks, immutable Run snapshots, project-scoped
-Workers, claims, leases, events and completion receipts in PostgreSQL. The Desktop
-can create and dispatch a task, inspect progress and request cancellation. Workers
+The service persists manual and GitHub-sourced Tasks, immutable Run snapshots,
+project-scoped Client identities and Workers, human claims, execution leases,
+events and completion receipts in PostgreSQL. Desktop users can claim shared
+tasks, execute their own claims, inspect progress and request cancellation. Workers
 make outbound requests; ACP execution remains on the execution machine.
 
 ## GitHub Issue intake
@@ -25,7 +26,8 @@ Configured repositories sync at startup and every 60 seconds through one Go
 service. Operators can call `POST /api/v1/github/sync` with `{}` or inspect
 `GET /api/v1/github/status`. Client and Worker credentials cannot configure or
 trigger the connector. A sync reports imported/updated/dispatched counts, partial
-coverage and errors. Each repository read is bounded to five 100-item pages and
+coverage and errors. If status reports `running:true`, wait for that sync to
+finish before requesting another; overlapping manual sync returns 409. Each repository read is bounded to five 100-item pages and
 2 MiB per response; invalid/oversized goals are skipped with an explicit partial
 result. A limited scan never proves that an absent Issue was deleted or closed.
 See [GitHub's Issues API](https://docs.github.com/en/rest/issues/issues).
@@ -59,6 +61,52 @@ GitHub webhook intake, GitHub App installation/OAuth, external assignee writebac
 and ROADMAP adapters remain later slices. Human claim refers to the internal
 project-scoped client identity, independently of the execution Worker device.
 
+## Client identities and shared tasks
+
+The operator provisions a separate credential for each client, restricted to
+explicit projects. In an operator shell with `PERO_CLOUD_URL` pointing to this
+service and `PERO_OPERATOR_TOKEN` configured:
+
+```sh
+curl -fsS "$PERO_CLOUD_URL/api/v1/clients" \
+  -H "Authorization: Bearer $PERO_OPERATOR_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"name":"Researcher A","projects":["default"]}'
+```
+
+The response contains `client` and a one-time `token`; only its digest is stored.
+Give that client its token through a private channel. Launch Desktop with
+`PERO_CLOUD_URL` and `PERO_CLIENT_TOKEN`, using that returned token. Client mode
+has priority over an inherited operator token and never falls back to operator
+authority after a request fails. No GitHub account login is implied.
+
+Clients can see Tasks and Workers only in their stored project scope. They use
+**Available / Mine / All** over the loaded task pages, claim an idle Task, and
+choose **Execute** for their own claim. Release permits another client to claim
+it, but is blocked during queued, running, cancellation or unresolved execution.
+A human claim is separate from the Worker's expiring execution lease and does
+not change the GitHub assignee. Operators alone control repository bindings,
+source synchronization, client provisioning and manual task creation.
+
+Client routes use `Authorization: Bearer <PERO_CLIENT_TOKEN>`:
+
+```text
+GET  /api/client/v1/me
+GET  /api/client/v1/tasks
+GET  /api/client/v1/workers
+GET  /api/client/v1/tasks/{id}
+POST /api/client/v1/tasks/{id}/claim
+POST /api/client/v1/tasks/{id}/release
+POST /api/client/v1/tasks/{id}/dispatch
+POST /api/client/v1/tasks/{id}/cancel
+```
+
+Claim, release and cancel accept `{}`. Dispatch accepts the same optional
+`worker_id` and idempotency header as operator dispatch. API checks enforce
+ownership even when another Desktop has stale data. Client credentials cannot
+provision Workers/clients or invoke the operator GitHub sync routes. Public
+signup, GitHub OAuth and credential revocation are not implemented.
+
 ## Run
 
 Set `PERO_DATABASE_URL` to a PostgreSQL database and `PERO_OPERATOR_TOKEN` to a
@@ -83,6 +131,10 @@ Never put operator or Worker credentials in a renderer or source control.
 Operator routes use `Authorization: Bearer <PERO_OPERATOR_TOKEN>`:
 
 ```text
+GET  /api/v1/me
+POST /api/v1/clients
+GET  /api/v1/github/status
+POST /api/v1/github/sync
 GET  /api/v1/tasks
 POST /api/v1/tasks
 GET  /api/v1/tasks/{id}
@@ -170,6 +222,14 @@ explicitly skip; ordinary compilation alone does not establish dispatch behavior
 and API. The HTTPS proxy can share a machine with `dsh.phodal.com`, with separate
 service identities, data volumes, database roles and resource limits. Start actual
 Worker execution on other machines.
+
+This is a planned deployment layout, not an audit of a running DSH host. Reuse
+its existing 80/443 proxy and add host-based routes for the Pero domains.
+A containerized Go service listens on its container interface and is reachable
+only through the proxy/internal network; a direct host service can retain the
+loopback default. PostgreSQL and Worker management ports need no public listener.
+No DNS, certificate, reverse-proxy or production service changes are made by this
+implementation.
 
 Go owns coordination, scheduling and future environment/provider adapters. A future
 Go Kubernetes provider can create approved execution Pods or Jobs and reconcile
