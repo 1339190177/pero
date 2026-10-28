@@ -1,0 +1,280 @@
+// Adapted from subagents_activation.go: declarations split by responsibility without behavior changes.
+package harness
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// SendMessage admits a model-authored message only along one exact live
+// direct-parent edge. The Host constructs attribution and steers the active
+// turn; an idle direct child wakes without changing that authorization boundary.
+func (r *SubagentRegistry) SendMessage(ctx context.Context, sender *Agent, targetID SessionID, content []ContentBlock) (string, error) {
+	return r.sendMessage(ctx, sender, targetID, content, false)
+}
+
+// SendMessageDSH adds the source-owned diagnostic contract to the same adjacent
+// delivery path. Empty addresses fail only after the existing live admission.
+func (r *SubagentRegistry) SendMessageDSH(ctx context.Context, sender *Agent, targetID SessionID, content []ContentBlock) (string, error) {
+	return r.sendMessage(ctx, sender, targetID, content, true)
+}
+
+func (r *SubagentRegistry) sendMessage(ctx context.Context, sender *Agent, targetID SessionID, content []ContentBlock, dsh bool) (string, error) {
+	if r == nil || !r.beginSubagentCallback() {
+		return "", errors.New("harness: subagent registry is disposed")
+	}
+	defer r.endSubagentCallback()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	// Explicitly shadow an inherited receipt, including nested ordinary calls
+	// made by a provider using this context. This changes diagnostics only.
+	var invocation *dshSubagentSendInvocation
+	if dsh {
+		preparation, _ := ctx.Value(subagentPreparationContextKey{}).(*subagentPreparation)
+		invocation = &dshSubagentSendInvocation{registry: r, sender: sender, target: targetID, preparation: preparation}
+	}
+	ctx = context.WithValue(ctx, dshSubagentSendContextKey{}, invocation)
+	if sender == nil || (!dsh && targetID == "") || len(content) == 0 {
+		return "", errors.New("harness: adjacent-agent message requires sender, target, and content")
+	}
+	if err := r.requireLiveParent(sender); err != nil {
+		// This exact origin's UNAUTHORIZED result means the sender is stale.
+		// Draining and other admission failures keep their original contract.
+		if known, ok := err.(*subagentActivationError); ok && known.code == "UNAUTHORIZED" {
+			err = r.ClassifyDSHSendFailure(ctx, sender, targetID, SubagentSendSenderNotLive, err)
+		}
+		return "", err
+	}
+	if dsh && targetID == "" {
+		return "", r.ClassifyDSHSendFailure(ctx, sender, targetID, SubagentSendTargetUnavailable, errors.New("harness: adjacent-agent message requires sender, target, and content"))
+	}
+	messageID, err := newMessageID()
+	if err != nil {
+		return "", err
+	}
+	source, _ := json.Marshal(map[string]any{"kind": "agent-message", "form": "relay", "senderSessionId": sender.ID()})
+	message := Message{ID: messageID, Role: RoleUser, Source: source, Content: append([]ContentBlock{{Type: BlockText, Text: fmt.Sprintf("Agent %s sent a message: ", sender.ID())}}, cloneContentBlocks(content)...)}
+	r.mu.RLock()
+	senderRecord := r.records[sender.ID()]
+	r.mu.RUnlock()
+	if sender.Session().Header().ParentSession == targetID {
+		r.mu.RLock()
+		allowed := senderRecord != nil && r.records[sender.ID()] == senderRecord && senderRecord.child == sender && senderRecord.snapshot.Continuable && senderRecord.activation != nil && senderRecord.parent != nil && senderRecord.parent.ID() == targetID && r.parentAdmitsLocked(senderRecord.parent) && r.activationAcceptsInput(senderRecord)
+		if facade, _ := ctx.Value(subagentFacadeContextKey{}).(*SubagentFacade); facade != nil && subagentRecordFacade(senderRecord) != facade {
+			allowed = false
+		}
+		var parent *Agent
+		if allowed {
+			parent = senderRecord.parent
+		}
+		parentRecord := r.records[targetID]
+		r.mu.RUnlock()
+		if !allowed {
+			return "", &subagentActivationError{"harness: adjacent-agent parent delivery is unauthorized", "UNAUTHORIZED"}
+		}
+		if parentRecord != nil && parentRecord.child == parent && parentRecord.snapshot.Continuable {
+			if err := r.steerActivationMessage(ctx, parentRecord, sender, senderRecord, message); err != nil {
+				return "", err
+			}
+		} else if err := r.deliverSubagentMessage(parent, message, true); err != nil {
+			return "", err
+		}
+		return messageID, nil
+	}
+	preparationCtx, releasePreparation, err := r.reserveSubagentPreparation(ctx, sender)
+	if err != nil {
+		return "", err
+	}
+	defer releasePreparation()
+	if invocation != nil {
+		preparation, _ := preparationCtx.Value(subagentPreparationContextKey{}).(*subagentPreparation)
+		preparationCtx = context.WithValue(preparationCtx, dshSubagentSendContextKey{}, &dshSubagentSendInvocation{registry: r, sender: sender, target: targetID, preparation: preparation})
+	}
+	record, created, err := r.continuableRecordMode(preparationCtx, sender, targetID, true)
+	if err != nil {
+		return "", err
+	}
+	if created {
+		defer record.activation.finishInitial()
+	}
+	if err := r.steerActivationMessage(ctx, record, sender, nil, message); err != nil {
+		return "", err
+	}
+	return messageID, nil
+}
+
+// Admission reserves the exact destination without holding a lock across
+// observers, including simultaneous messages in opposite directions.
+func (r *SubagentRegistry) steerActivationMessage(ctx context.Context, record *subagentRecord, sender *Agent, sourceRecord *subagentRecord, message Message) error {
+	return r.admitActivationMessage(ctx, record, sender, sourceRecord, message, "steer")
+}
+
+func (r *SubagentRegistry) admitActivationMessage(ctx context.Context, record *subagentRecord, sender *Agent, sourceRecord *subagentRecord, message Message, delivery string) error {
+	r.mu.Lock()
+	allowed := !r.disposed && r.records[record.snapshot.ID] == record && record.child != nil && r.parentAdmitsLocked(sender) && r.activationAcceptsInput(record)
+	if sourceRecord == nil {
+		allowed = allowed && record.parent == sender
+	} else {
+		allowed = allowed && r.records[sender.ID()] == sourceRecord && sourceRecord.child == sender && sourceRecord.parent == record.child && sourceRecord.snapshot.Continuable && r.activationAcceptsInput(sourceRecord)
+	}
+	if facade, _ := ctx.Value(subagentFacadeContextKey{}).(*SubagentFacade); facade != nil && subagentRecordFacade(record) != facade {
+		allowed = false
+	}
+	if !allowed {
+		closing := record.activation != nil && record.activation.closing.Load()
+		r.mu.Unlock()
+		if closing {
+			return &subagentActivationError{"harness: activation is closing", "ACTIVATION_CLOSING"}
+		}
+		return &subagentActivationError{"harness: adjacent-agent delivery is unauthorized", "UNAUTHORIZED"}
+	}
+	if record.activation == nil {
+		r.mu.Unlock()
+		return ErrSubagentActivationModeUnsupported
+	}
+	state := record.activation
+	if !state.bindingReady.Load() {
+		r.mu.Unlock()
+		return ErrSubagentActivationNotReady
+	}
+	if gate := record.structuredAdmission; gate != nil && gate.captures != 0 {
+		r.mu.Unlock()
+		return ErrSubagentInputClosed
+	}
+	first := !state.started.Load() && !state.initialStart
+	if first && state.runID == "" {
+		r.nextID++
+		record.runID = fmt.Sprintf("subagent-run-%d", r.nextID)
+		state.runID = record.runID
+	}
+	if first {
+		state.started.Store(true)
+	}
+	state.inputs++
+	state.busy.Add(1)
+	r.mu.Unlock()
+	defer state.busy.Add(-1)
+	pending := true // protected by registry.mu, including commit callbacks
+	var turn <-chan TurnOutcome
+	var epoch uint64
+	var runID string
+	// The Agent serializes durable commits. Finish the reservation and allocate
+	// its epoch at that boundary, before synchronous observers can reenter.
+	// An observer may withdraw this exact record without revoking acceptance.
+	finishLocked := func(committed bool) {
+		if !pending {
+			return
+		}
+		pending = false
+		state.inputs--
+		defer r.signalActivationLocked(state)
+		if !committed {
+			return
+		}
+		state.announced.Store(true)
+		if r.records[record.snapshot.ID] != record || !r.activationAcceptsInput(record) {
+			return
+		}
+		record.epoch++
+		epoch = record.epoch
+		r.nextID++
+		record.runID = fmt.Sprintf("subagent-run-%d", r.nextID)
+		runID = record.runID
+		record.snapshot.Status = SubagentRunning
+		record.snapshot.FinishedAt = time.Time{}
+	}
+	defer func() {
+		r.mu.Lock()
+		finishLocked(false)
+		r.mu.Unlock()
+	}()
+	if first {
+		if err := r.emitSubagentStarted(ctx, SubagentLifecycle{RunID: state.runID, Provider: record.snapshot.Provider, ID: record.snapshot.ID, Parent: record.parent, Child: record.child, Local: true, Managed: true, Facade: state.facade}); err != nil {
+			_ = r.disposeActivation(context.Background(), record)
+			return err
+		}
+		if !r.activationCurrent(record) {
+			return errors.New("harness: subagent retired before message admission")
+		}
+	}
+	err := r.withSubagentCallback(func() error {
+		var err error
+		target := InboxNextStep
+		if delivery == "queue" {
+			target = InboxNextTurn
+		}
+		if gate := record.structuredAdmission; gate != nil {
+			turn, err = gate.admitDSHMessage(ctx, message, target, func() { finishLocked(true) })
+		} else {
+			turn, err = record.child.admitDSHMessage(ctx, message, target, func() {
+				r.mu.Lock()
+				finishLocked(true)
+				r.mu.Unlock()
+			})
+		}
+		return err
+	})
+	if err != nil {
+		if first {
+			_ = r.disposeActivation(context.Background(), record)
+		}
+		return err
+	}
+	if epoch == 0 {
+		return nil
+	}
+	if turn != nil {
+		r.watchContinuation(record, epoch, runID, turn)
+	} else {
+		// Durable next-step steering has no separate turn channel. Watch the
+		// exact Agent's idle phase and session suffix, including cold admission;
+		// pending or parked durable input keeps this activation resident.
+		r.settleActivationTurn(record, epoch, TurnOutcome{})
+	}
+	return nil
+}
+
+func (a *Agent) steerSubagentMessage(ctx context.Context, message Message) (<-chan TurnOutcome, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	message, err := validatePluginMessage(a, message)
+	if err != nil {
+		return nil, err
+	}
+	a.injectMu.Lock()
+	if err := a.mutationAdmissionError(); err != nil {
+		a.injectMu.Unlock()
+		return nil, err
+	}
+	if a.acceptingInject {
+		entry := injectedMessage{message: cloneMessage(message), admitted: make(chan struct{})}
+		a.injected = append(a.injected, entry)
+		a.injectMu.Unlock()
+		a.publishInboxInserted(message, InboxNextStep, false)
+		close(entry.admitted)
+		return nil, nil
+	}
+	a.injectMu.Unlock()
+	return a.FollowupResultContext(ctx, message)
+}
+
+func (r *SubagentRegistry) rollbackSubagentRecord(record *subagentRecord) error {
+	if record.activation != nil {
+		r.beginActivationCleanup(record)
+		return ErrSubagentActivationDisposalPending
+	}
+	r.mu.Lock()
+	if r.records[record.snapshot.ID] == record {
+		delete(r.records, record.snapshot.ID)
+	}
+	r.mu.Unlock()
+	return r.cleanupPreparedSubagent(record.disposal.callback())
+}
