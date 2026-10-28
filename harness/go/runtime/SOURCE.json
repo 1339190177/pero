@@ -35,8 +35,8 @@
     },
     {
       "destination": "boundary_test.go",
-      "origin": "New extraction boundary regression tests",
-      "sha256": "7faa233fb0e613895c519121b03dea67da8c411a1571b92f74a8079a6d2933be"
+      "origin": "New extraction boundary regression tests; reject empty source inventory for Bazel sandbox coverage",
+      "sha256": "e52dbcbb4b0bf0c1988d4d58b691b002cd8736619e10daf2dc8fd46ba488c0f5"
     },
     {
       "source_path": "go/runtime/catalog.go",

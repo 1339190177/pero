@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "llm",
+    srcs = [
+        "image_request_pricing.go",
+        "model_info.go",
+        "provider_error.go",
+        "retry_execution_policy.go",
+        "retry_policy.go",
+        "types.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/llm",
+    visibility = ["//visibility:public"],
+    deps = ["//model"],
+)
+
+go_test(
+    name = "llm_test",
+    srcs = [
+        "model_capability_test.go",
+        "model_info_test.go",
+        "retry_execution_policy_test.go",
+        "retry_policy_test.go",
+    ],
+    embed = [":llm"],
+)

@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "acp",
+    srcs = [
+        "lifecycle.go",
+        "server.go",
+        "types.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/acp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//harness",
+        "//runtime",
+    ],
+)
+
+go_test(
+    name = "acp_test",
+    srcs = ["extraction_test.go"],
+    embed = [":acp"],
+    deps = ["//harness"],
+)

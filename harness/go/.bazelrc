@@ -1,0 +1,4 @@
+common --repo_env=DO_NOT_TRACK=1
+build --incompatible_strict_action_env
+build --verbose_failures
+test --test_output=errors

@@ -1,0 +1,47 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "runtime",
+    srcs = [
+        "application.go",
+        "catalog.go",
+        "definition.go",
+        "doc.go",
+        "effect.go",
+        "errors.go",
+        "event.go",
+        "event_current.go",
+        "instance.go",
+        "key.go",
+        "run.go",
+        "runtime.go",
+        "scope.go",
+        "service.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/runtime",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "runtime_test",
+    srcs = [
+        "api_test.go",
+        "application_test.go",
+        "boundary_test.go",
+        "cleanup_barrier_test.go",
+        "effect_test.go",
+        "event_current_test.go",
+        "event_test.go",
+        "example_test.go",
+        "runtime_shutdown_signal_test.go",
+        "runtime_test.go",
+        "scope_test.go",
+        "state_machine_test.go",
+    ],
+    # Declare all production sources, including future additions, as fixtures.
+    data = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),  # keep
+    embed = [":runtime"],
+)

@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "config",
+    srcs = [
+        "credentials.go",
+        "credentials_file.go",
+        "errors.go",
+        "keys.go",
+        "launch_environment.go",
+        "outbound_proxy.go",
+        "settings.go",
+        "settings_external.go",
+        "settings_file.go",
+        "settings_redact.go",
+        "settings_watch.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//llm",
+        "//runtime",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+    ],
+)
+
+go_test(
+    name = "config_test",
+    srcs = ["explicit_environment_test.go"],
+    embed = [":config"],
+)

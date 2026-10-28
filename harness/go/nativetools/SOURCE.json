@@ -1,0 +1,14 @@
+{
+  "origin": "New Pero composition of existing harness registry plus extracted fstools/shell primitives",
+  "scope": "Six explicit native tools, approved mutations/shell, no default broad grants or product profiles",
+  "files": [
+    {
+      "destination": "tools.go",
+      "sha256": "12d38b5afbb387bb5e3289015df45ab02685bacd6e895d6eb790e16c92b021af"
+    },
+    {
+      "destination": "tools_test.go",
+      "sha256": "03ecebe16f10c744d88e6e869c8d1f6c416c0bec9eca6fefb917abc783ef8ca7"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# Explicit native tool composition
+
+`--workspace /absolute/root` enables `read_file`, `write_file`, `edit_file`,
+`list_directory`, and literal content `search_files`. Session cwd must resolve to
+that exact workspace. Reads/list/search rely on this explicit root grant.
+Every write/edit call requires a fresh approval; refusal or unavailable client
+fails closed. `--approval never` denies these operations even inside workspace.
+No persistent allow-all grant is introduced.
+
+`--enable-shell` additionally registers `shell`; every invocation requires ACP
+approval. It starts fresh noninteractive Bash, default `/bin/bash`, with only a
+small explicit environment (no inherited credentials), 30 s default / 120 s max
+timeout, 16 KiB captured per output stream (further limited to 4 KiB per stream for
+worst-case JSON escaping) and process-group cancellation.
+**Shell is not sandboxed**: approved commands can access outside workspace and
+network, and deliberately detached processes can escape process groups. Use
+external OS/container isolation when running untrusted commands. The workspace
+is a launch cwd, not a shell filesystem security boundary. No background job,
+persistent shell, package installation automation or default broad approval.
+
+Encoded output is capped at 64 KiB. File effects retain structured receipts on
+failure; `unknown` means inspect/reconcile, not automatically retry. Shell errors
+retain output/exit/timeout flags. The runtime may additionally redact a result
+when the owning session is cancelled or retired, as its existing safety contract.
+
+The CLI default approval is `ask`; existing unattended Rust Worker rejection
+policy is unchanged. Without `--workspace`, the old ACP-only/no-builtins mode
+remains available. Tools use the existing real agent registry and lifecycle.

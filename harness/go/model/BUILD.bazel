@@ -1,0 +1,40 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "model",
+    srcs = [
+        "clone.go",
+        "content_attachment_extensions.go",
+        "content_extensions.go",
+        "content_strings.go",
+        "file_content.go",
+        "image_text.go",
+        "session_event.go",
+        "token_estimate.go",
+        "tool_updates.go",
+        "types.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/model",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "model_test",
+    srcs = [
+        "content_attachment_extensions_test.go",
+        "content_extensions_test.go",
+        "content_strings_test.go",
+        "dependencies_test.go",
+        "product_boundary_test.go",
+        "session_event_test.go",
+        "system_token_estimate_test.go",
+        "token_estimate_test.go",
+        "tool_updates_test.go",
+    ],
+    # Declare all production sources, including future additions, as fixtures.
+    data = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ) + ["SOURCE.json"],  # keep
+    embed = [":model"],
+)

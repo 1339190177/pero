@@ -14,7 +14,8 @@ go vet ./...
 go build -o pero-agent-acp ./cmd/pero-agent-acp
 AGENT_PROVIDER_API_KEY='...' ./pero-agent-acp \
   --endpoint https://YOUR-PROVIDER/v1 --model YOUR-MODEL \
-  --session-dir /private/path/to/sessions
+  --session-dir /private/path/to/sessions \
+  --workspace /absolute/workspace --enable-shell --approval ask
 ```
 
 No endpoint, model or credential is discovered from Point settings or accounts.
@@ -25,9 +26,9 @@ permitted for local protocol tests). Stdout is ACP NDJSON only; diagnostics use
 stderr. Session files contain prompts, tool results and model output: use a
 private directory, and define your own retention policy.
 
-This module is **not yet part of the existing Bazel pilot**. These native Go
-checks do not establish Bazel validation and do not change the server module's
-Go version or dependency versions.
+An [isolated Bazel build](BAZEL.md) is available from `harness/go`. Its build
+graph is separate from the root server pilot; the server Go version and
+dependencies are unchanged. Native Go commands above remain supported.
 
 ## ACP and authority boundary
 
@@ -38,7 +39,11 @@ request model selection through ACP. The current provider is explicitly
 text-only; image, audio, embedded contexts and provider extensions are not
 silently coerced into text. Unsupported inputs fail closed.
 
-No filesystem, shell, web, skills or subagent tools are registered by default.
+Without `--workspace`, no native tools are registered. An explicit workspace
+enables bounded read/write/edit/list/search; `--enable-shell` separately enables
+approved foreground Bash. Writes, edits and every shell call require approval.
+See `nativetools/README.md` for the limits and non-sandbox boundary. Web, skills
+and subagent tools remain absent.
 An ACP client can explicitly supply MCP stdio/HTTP servers in `session/new`.
 That client is trusted: MCP stdio starts the supplied executable, inherits the
 process environment with configured additions, and HTTP reaches the supplied
@@ -46,13 +51,14 @@ URL. `cwd` is a working directory, **not a sandbox**. Do not accept MCP server
 configuration from an untrusted caller or expose this stdio process as a public
 service. Deploy process/container and network isolation separately.
 
-`--approval never` is the default; tools marked `RequiresApproval` are rejected.
+`--approval ask` is the default. `--approval never` rejects tools marked
+`RequiresApproval`. The existing unattended Rust Worker still rejects permission
+requests; changing this CLI default does not grant unattended execution.
 `--approval ask` asks the ACP client for allow-once/reject-once decisions. This
 policy is **not a universal tool sandbox**: upstream MCP tools are not marked
 `RequiresApproval` and an explicit MCP server grant authorizes their calls.
-The CLI does not install such servers on its own. Permission rejection is tested
-against a test-only, side-effect-free registered tool, not a production fixture
-flag.
+The CLI does not install such servers on its own. Permission refusal is tested against the actual file/shell tools in temporary
+workspaces, as well as the earlier isolated protocol fixture.
 
 ## Preserved execution and deliberate exclusions
 
@@ -63,7 +69,8 @@ assistant output; it is not currently a token-by-token SSE passthrough.
 
 Absent: Point Projects/Hub/Pages, web/desktop UI, accountsync, product prompts,
 telemetry, workflows/jobs/schedules, subagent orchestration, plugin/skill/default
-coding assembly, automatic file upload, and Point memory/context policies.
+product coding assembly, automatic file upload, and Point memory/context policies.
+The explicit native file/shell composition is independent of those product profiles.
 Generic generation-owner and compaction seams remain because the reused tool
 and cancellation lifecycle depends on them; no Point product is mounted.
 

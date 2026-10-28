@@ -14,7 +14,8 @@
     "Approval.Decide removes Host browser_start/full-access bypass: never always rejects; regression updated.",
     "MCP HTTP refuses redirects to avoid reapplying explicit credentials to another destination; regression added.",
     "CLI removes the actual credential variable from process environment before MCP can inherit it; arbitrary-name subprocess regression added.",
-    "Signal cancellation suppresses only expected closed-reader errors, never final session flush/close or Harness Dispose/Drain errors; regression preserves durability failure."
+    "Signal cancellation suppresses only expected closed-reader errors, never final session flush/close or Harness Dispose/Drain errors; regression preserves durability failure.",
+    "Optional native file/shell composition is tracked by fstools/SOURCE.json, shell/SOURCE.json and nativetools/SOURCE.json; existing agent loop is unchanged."
   ],
   "excluded_features": [
     "Projects",
@@ -30,7 +31,7 @@
     "schedules",
     "subagent orchestration",
     "skills",
-    "coding tools"
+    "Point coding product profile"
   ],
   "license": "No blanket license assigned. Preserve package-specific third-party notices; remaining owner licensing decision is not inferred.",
   "files": [
@@ -1053,8 +1054,8 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "041bdfe1cf8ebf083e7e4072303c0cbc1929481a1d2890cc38c7a38edd133cf5",
-      "change": "new extraction glue or regression test"
+      "sha256": "0d665c32a489df6af3f2a9eeb99c107df32346ff82e3f808cd6471cd660730ed",
+      "change": "explicit native file workspace and optional approved foreground shell composition added; no product profile"
     },
     {
       "destination": "cmd/pero-agent-acp/main_test.go",

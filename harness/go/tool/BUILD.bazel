@@ -1,0 +1,35 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "tool",
+    srcs = [
+        "json_schema_subset.go",
+        "output.go",
+        "presentation.go",
+        "pruner.go",
+        "schema.go",
+        "spill.go",
+        "spill_local.go",
+        "spill_local_cleanup_other.go",
+        "spill_local_cleanup_unix.go",
+        "types.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/tool",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/jsonwire",
+        "//model",
+        "//runtime",
+        "//session",
+        "@com_github_google_jsonschema_go//jsonschema",
+    ],
+)
+
+go_test(
+    name = "tool_test",
+    srcs = [
+        "json_schema_subset_test.go",
+        "output_test.go",
+    ],
+    embed = [":tool"],
+)

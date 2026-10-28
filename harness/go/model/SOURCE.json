@@ -150,5 +150,8 @@
       "Mechanical module/import/documentation layout migration from go/agent.",
       "Normalize license export to one terminal newline; notice wording unchanged."
     ]
-  }
+  },
+  "build_adaptations": [
+    "Dependency-boundary test inspects declared package-local source fixtures under native Go and Bazel and rejects an empty production inventory."
+  ]
 }

@@ -14,10 +14,12 @@ func TestRuntimeHasNoExternalDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inspected := 0
 	for _, path := range files {
 		if strings.HasSuffix(path, "_test.go") {
 			continue
 		}
+		inspected++
 		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
 		if err != nil {
 			t.Fatal(err)
@@ -31,6 +33,9 @@ func TestRuntimeHasNoExternalDependencies(t *testing.T) {
 				t.Errorf("%s imports non-standard dependency %s", path, name)
 			}
 		}
+	}
+	if inspected == 0 {
+		t.Fatal("no production Go sources available for dependency inspection")
 	}
 }
 

@@ -1,0 +1,61 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "license": "Owner-authorized extraction; no blanket source license assigned.",
+  "scope": "Descriptor-rooted text algorithm only; no Point sandbox/Host/profile or FS observation product services.",
+  "additional_function_sources": [
+    {
+      "source_path": "go/harness/fstools/mutate.go",
+      "source_blob_sha1": "45d1c8745091032ba43f474cbbc55682630b151a",
+      "functions": [
+        "validText",
+        "sameFileInfo"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "destination": "review_race_test.go",
+      "sha256": "787f9ae881ad73301376cb82edb4284d53fb823c804cfd6dab498b26c8b72e99",
+      "changes": "new bounded workspace adapter or deterministic regression test"
+    },
+    {
+      "destination": "scoped.go",
+      "sha256": "aeeac10d1926dd58299da97d5a82f0d428307ffb00744e223607350d57291098",
+      "source_path": "go/harness/fstools/scoped.go",
+      "source_blob_sha1": "7b8d9ee52dd3db09b5efb7c16bef305c95ffe78b",
+      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained"
+    },
+    {
+      "destination": "scoped_open_unix.go",
+      "sha256": "e84468b0bdfa9077820fe91a96ed9bb1fca090c1b5c6ca21a2cf8e3509e8a185",
+      "source_path": "go/harness/fstools/scoped_open_unix.go",
+      "source_blob_sha1": "c1e6287dd4d44ebfbd90a901a2db8732cb3435fe",
+      "changes": "source preserved"
+    },
+    {
+      "destination": "scoped_open_windows.go",
+      "sha256": "67c59e3e44072b1943bb692900d6114f4616ea67a2425b9110bb95692b301b2b",
+      "source_path": "go/harness/fstools/scoped_open_windows.go",
+      "source_blob_sha1": "7c2b2bcd859fd3d8701d4870a6eaf7a6834fcb45",
+      "changes": "source preserved"
+    },
+    {
+      "destination": "scoped_test.go",
+      "sha256": "e97c7e57885aa96cc2a6be530a766bf0b096b8953b4524b2de34245e83c2702d",
+      "source_path": "go/harness/fstools/scoped_test.go",
+      "source_blob_sha1": "429b18cf2294a43ca410ade3a125b23d9710928a",
+      "changes": "source preserved"
+    },
+    {
+      "destination": "workspace.go",
+      "sha256": "6b59a925c27a07ffacfc103be36e787a18f5a032a8d3b73061b7f178a77a0fc3",
+      "changes": "new bounded workspace adapter or deterministic regression test"
+    },
+    {
+      "destination": "workspace_test.go",
+      "sha256": "0a4bab0d21bd42b2f59e566cbc169967cf29c23f3c298c394277475170101972",
+      "changes": "new bounded workspace adapter or deterministic regression test"
+    }
+  ]
+}
