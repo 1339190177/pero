@@ -128,7 +128,9 @@ see [compaction options](cmd/pero-agent-acp/COMPACTION.md). No capacity is guess
 `AGENTS.md` as untrusted user-role context. No home, ancestor, nested or alternate
 instruction discovery is enabled; instructions do not expand file/shell authority.
 `--enable-todos` mounts session-backed `todo_write` (whole-list replacement,
-reset at the next turn). Both are disabled by default. Plan-mode authorization
+reset at the next turn). The CLI explicitly selects the existing DSH Unicode
+normalization and argument contract; the reusable library retains its Legacy
+default. Both are disabled by default. Plan-mode authorization
 and the excluded user-question service are not included. See
 [agent instructions](agentinstructions/README.md) and [todos](todos/README.md).
 

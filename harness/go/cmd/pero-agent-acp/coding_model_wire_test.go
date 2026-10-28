@@ -57,6 +57,7 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	var sawInstructions, sawTodo, sawMCP, sawTodoResult bool
 	var mainCalls, summaries atomic.Int32
 	var outputLimit atomic.Bool
+	var todoUnicode atomic.Int32
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -105,6 +106,39 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 		if summary {
 			summaries.Add(1)
 			fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"compact checkpoint\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+			return
+		}
+		if stage := todoUnicode.Load(); stage > 0 && stage < 4 {
+			lastTool := ""
+			for _, message := range request.Messages {
+				if message.Role == "tool" {
+					lastTool, _ = message.Content.(string)
+				}
+			}
+			if stage == 2 && !strings.Contains(lastTool, "non-empty string") {
+				t.Errorf("BOM-only todo was not rejected: %s", lastTool)
+			}
+			if stage == 3 {
+				if !strings.Contains(lastTool, "Updated todo list") {
+					t.Errorf("NEL todo was not preserved: %s", lastTool)
+				}
+				todoUnicode.Store(4)
+				fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"unicode verified\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+				return
+			}
+			content := "\ufeff"
+			if stage == 2 {
+				content = "\u0085"
+			}
+			input := map[string]any{"todos": []any{map[string]any{"content": content, "status": "pending"}}}
+			if stage == 2 {
+				input["upstream_extension"] = true
+			}
+			arguments, _ := json.Marshal(input)
+			chunk := map[string]any{"choices": []any{map[string]any{"index": 0, "delta": map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": fmt.Sprint("unicode-", stage), "type": "function", "function": map[string]any{"name": "todo_write", "arguments": string(arguments)}}}}, "finish_reason": "tool_calls"}}}
+			raw, _ := json.Marshal(chunk)
+			todoUnicode.Add(1)
+			fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", raw)
 			return
 		}
 		if outputLimit.Load() {
@@ -233,6 +267,11 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 		t.Fatal(restored)
 	}
 	prompt("Continue the synthetic restored session.")
+	todoUnicode.Store(1)
+	prompt("Verify BOM-only rejection and NEL preservation.")
+	if todoUnicode.Load() != 4 {
+		t.Fatal("Unicode scenario did not settle")
+	}
 	outputLimit.Store(true)
 	limited := rpc("session/prompt", map[string]any{"sessionId": id, "prompt": []any{map[string]any{"type": "text", "text": "Exercise the output limit."}}})
 	if limited["stopReason"] != "max_tokens" {
@@ -256,8 +295,11 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	if !bytes.Contains(data, []byte(`"type":"todo/write"`)) || !bytes.Contains(data, []byte(`"type":"session/model-selected"`)) {
 		t.Fatal("todo/model selection missing durable events")
 	}
-	if count := bytes.Count(data, []byte(`"type":"todo/write"`)); count != 1 {
-		t.Fatalf("truncated tool executed: %d durable todo writes, want only the control write", count)
+	if count := bytes.Count(data, []byte(`"type":"todo/write"`)); count != 2 {
+		t.Fatalf("truncated tool executed: %d durable todo writes, want control and NEL writes only", count)
+	}
+	if !bytes.Contains(data, []byte("\u0085")) || !bytes.Contains(data, []byte("ecmascript-trim-v1")) {
+		t.Fatal("CLI did not persist DSH-normalized NEL todo")
 	}
 	_ = input.Close()
 	err = child.Wait()

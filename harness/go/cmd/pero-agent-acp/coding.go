@@ -29,7 +29,11 @@ func mountCoding(ctx context.Context, h *harness.Harness, workspace string, opti
 		return nil, err
 	}
 	if options.Todos {
-		if _, err := todos.Mount(ctx, h, todos.Options{}); err != nil {
+		if _, err := todos.Mount(ctx, h, todos.Options{
+			ContentNormalization:           todos.ContentNormalizationDSHAlpha3,
+			ArgumentErrorMode:              harness.ArgumentErrorsDSHAlpha3Todo,
+			AllowAdditionalInputProperties: true,
+		}); err != nil {
 			return nil, err
 		}
 	}
