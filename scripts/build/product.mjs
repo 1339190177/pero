@@ -65,6 +65,7 @@ if (icon) {
   mkdirSync(dirname(join(output, product.icon)), { recursive: true });
   cpSync(icon, join(output, product.icon));
 }
+if (existsSync(resolve(root, 'desktop/dist/release.json'))) cpSync(resolve(root, 'desktop/dist/release.json'), join(output, 'desktop/dist/release.json'));
 writeFileSync(join(output, 'product.json'), JSON.stringify(product, null, 2));
 writeFileSync(join(output, 'package.json'), JSON.stringify({ name: name || product.entry.app, version: product.version, main: 'desktop/dist/product.cjs' }));
 cpSync(resolve(root, 'target/release/pero-host'), join(output, 'bin/pero-host'));
