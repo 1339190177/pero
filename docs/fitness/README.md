@@ -4,6 +4,9 @@ Remote dispatch is covered by the Worker tests and `tests/e2e/remote.mjs`. The i
 
 What each suite proves, and where screenshots land, is [tests/README.md](../../tests/README.md). Acceptance levels L0–L3 are defined in [ROADMAP.md](../ROADMAP.md).
 
+The pushed GitHub/ROADMAP connector's public-source and Desktop acceptance is
+recorded in [github-connector-verification.md](github-connector-verification.md).
+
 The incremental [Bazel pilot](bazel.md) covers the Go control plane and seven
 theme/protocol/locale checks. Its generators write to `bazel-bin`; the existing
 npm/Cargo commands below continue to own Rust, GPUI Wasm and Desktop verification.
