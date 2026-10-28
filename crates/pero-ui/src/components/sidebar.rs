@@ -134,26 +134,8 @@ pub(crate) fn sidebar(
         .border_r_1()
         .border_color(p.color("border"))
         .px(px(10.))
-        .py(px(14.))
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap(px(8.))
-                .px(px(8.))
-                .pb(px(12.))
-                .child(
-                    ui.icon("circle-filled")
-                        .size(px(14.))
-                        .text_color(p.color("action")),
-                )
-                .child(
-                    div()
-                        .text_size(px(16.))
-                        .font_weight(FontWeight::BOLD)
-                        .child(ui.t("workbench.title")),
-                ),
-        )
+        .pt(px(10.))
+        .pb(px(14.))
         .child(
             div()
                 .id("cloud-status")
