@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -155,4 +156,18 @@ func configuredTransport(useEnvironmentProxy bool) *http.Transport {
 		transport.Proxy = http.ProxyFromEnvironment
 	}
 	return transport
+}
+
+// ListModels returns only the operator-supplied catalog; it never discovers models
+// remotely or reads credentials/settings. The provider registry validates it.
+func (a *Adapter) ListModels(_ context.Context, provider string) ([]harness.ModelCatalogEntry, error) {
+	if provider != a.providerName {
+		return nil, errors.New("openai adapter: unconfigured provider")
+	}
+	result := make([]harness.ModelCatalogEntry, 0, len(a.models))
+	for _, m := range a.models {
+		result = append(result, harness.ModelCatalogEntry{Provider: provider, ID: m.ID, Name: m.Name, Description: m.Description, InputModalities: append([]string(nil), m.InputModalities...)})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result, nil
 }

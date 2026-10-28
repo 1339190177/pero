@@ -42,5 +42,10 @@
     "adapter.go": "32f185b4897404976fbe812c3c4929820e710ddfce24fff8410d8fe7793593de",
     "generate.go": "19ce20ac3a7ce6ac8b2021f66a7e6e0a083687b5a99b442cb1ee162f36d1b14c",
     "adapter_test.go": "e276502f7181ae48863f5bfbb78540002e26e8d4cca0c7a2648effb936cf9741"
+  },
+  "model_selection_adaptation": "New data-only ListModels implementation of existing ModelCatalogProvider reads only explicitly configured adapter models; no remote discovery or new provider/settings registry.",
+  "model_selection_destination_sha256": {
+    "adapter.go": "5c71cd0604ef31156f709eeb9c4e466eac097e724dc45add3c9776577ca0444a",
+    "adapter_test.go": "48acb9308e1a9fdecf6e641249c6cd8c2fb92cf6fc727651ee47bcae5f92c4c3"
   }
 }

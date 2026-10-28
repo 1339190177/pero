@@ -313,3 +313,20 @@ func TestProxyRequiresExplicitOptInAndPreservesTLS(t *testing.T) {
 		}
 	}
 }
+
+func TestExplicitCatalogIsDetachedAndNeverCallsProvider(t *testing.T) {
+	a, _ := fixture(t, func(http.ResponseWriter, *http.Request) { t.Error("catalog invoked HTTP") })
+	entries, err := a.ListModels(context.Background(), "fixture")
+	if err != nil || len(entries) != 1 || entries[0].ID != "fixture-model" {
+		t.Fatal(entries, err)
+	}
+	entries[0].Name = "changed"
+	entries[0].InputModalities[0] = "image"
+	next, err := a.ListModels(context.Background(), "fixture")
+	if err != nil || next[0].Name == "changed" || next[0].InputModalities[0] != "text" {
+		t.Fatal(next, err)
+	}
+	if _, err := a.ListModels(context.Background(), "unknown"); err == nil {
+		t.Fatal("unknown provider accepted")
+	}
+}
