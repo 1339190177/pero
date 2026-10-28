@@ -94,11 +94,44 @@ Run desktop tests sequentially because they control native input focus.
 See [provider verification](../docs/fitness/acp-provider-verification.md) for
 actual Codex/Claude replies and the outstanding Grok authentication check.
 
-The original task overview remains labeled example data. **Remote tasks** is a
-separate real Task/Run view backed by the Go service described below. GitHub/PR
-publishing, a persistent local Desktop daemon, signed packaging and physical
-macOS IME testing remain separate slices. `npm run dev:web` renders the same UI
-without the native Agent/remote bridge.
+**Public contributions** connects published work to local ACP sessions and draft
+PR submission. **Remote tasks** remains the separate Task/Run/Worker path backed
+by the Go service below. A persistent local Desktop daemon, notarized packaging
+and physical macOS IME acceptance remain separate. `npm run dev:web` renders the
+same UI without the native Agent/remote bridge.
+
+## Contribute on this computer
+
+1. Open **Tasks**, choose **Sign in with GitHub**, and return from browser consent.
+   New GitHub accounts can browse **Public contributions** without a private
+   project grant or Worker assignment. Only GitHub-backed published tasks appear.
+2. Select a task and **Claim** it. Choose your installed coding Agent, then
+   **Start on this computer** and select a parent folder. Pero clones into its own
+   task directory and creates a `codex/pero-…` branch; existing checkouts are untouched.
+3. Use the normal coding conversation, authentication, permission and Stop
+   controls. The Agent receives the public requirement and frozen source revision.
+4. Return to the contribution and choose **Review changes**. This shows actual
+   tracked and untracked changes. A later edit requires another review.
+5. Choose **Commit, push and create draft PR**. Pero uses your authenticated
+   GitHub CLI, forks when needed, pushes the branch, creates or finds the draft PR,
+   and registers its URL and commit with the task. A failed registration preserves
+   the PR and exposes **Retry linking PR**. Submission stays pending maintainer review.
+
+Git, an authenticated coding CLI and GitHub CLI (`gh`) must be installed on this
+computer. Run `gh auth login --hostname github.com` for GitHub publishing and set
+Git's `user.name`/`user.email`. GitHub identity login does not authenticate the
+model or grant `gh` repository access. Setup errors keep the workspace available.
+
+The public requirement and branch binding are persisted in the prepared
+checkout. After restarting Desktop, select the task and the same parent folder
+to recover it. A changed public goal cannot silently relabel old work. Creating a
+PR is explicit; viewing, claiming and coding do not publish or award acceptance.
+
+`npm run test:contribution` exercises real Electron, Host, PostgreSQL and Git with
+local OAuth/GitHub and file-writing ACP fixtures. Requires an isolated
+`PERO_TEST_DATABASE_URL` and the current development build. Set
+`PERO_CONTRIBUTION_REAL_AGENT=1` to use your authenticated Codex and actual tools
+in the disposable repository; GitHub publication remains a fixture in that test.
 
 ## Remote tasks
 
@@ -203,8 +236,9 @@ Desktop. Choose **Open Pero Desktop** to return. No token copying is required.
 The connection is saved through the existing OS-encrypted runtime settings.
 The access-token form remains available for operator-provisioned connections.
 
-GitHub sign-in does not assign project or Worker access. An unprovisioned account
-connects with an empty scope; the operator must grant its projects. The current
+GitHub sign-in does not assign private project or Worker access. An unprovisioned
+account can use Public contributions with its empty private-project scope; the
+operator grants private projects separately. The current
 `phodal` GitHub identity is provisioned for project `pero` on app.openpero.com.
 
 For local macOS URL delivery, run `npm run build` then

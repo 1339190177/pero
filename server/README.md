@@ -290,6 +290,28 @@ their lifecycle through the same Task/Run protocol. It does not require moving
 control-plane state or scheduling into Rust. Kubernetes provisioning, sandbox
 isolation and production deployment are not implemented by this slice.
 
+## Local Desktop contributions
+
+GitHub-linked Desktop identities can use `/api/client/v1/contributions` without a
+private project grant or Worker assignment. The dedicated API returns reviewed
+public GitHub-backed goals, not private Task prompts, execution logs or paths.
+Public repository intake already publishes its public source goals; private
+repository work requires explicit reviewed community publication.
+
+- `GET /api/client/v1/contributions` accepts `limit` (1–50) and an opaque cursor.
+- `GET /api/client/v1/contributions/{id}` reads a published coding goal.
+- `POST .../{id}/claim` and `/release` use the existing task claim owner.
+- `POST .../{id}/pull-request` accepts `{url,branch,head_sha,source_revision}` for
+  the current claimant. The PR must target the published repository and frozen
+  requirement revision. Retrying the same evidence is safe; reviewed follow-up
+  commits may update the same PR's head.
+
+Submission records a candidate awaiting maintainer review. It creates no Worker
+Run, independent verification or contribution-point award. Private task and
+Worker endpoints retain their project scopes. Migration 013 applies through the
+existing startup migration owner. See [Desktop workflow](../desktop/README.md#contribute-on-this-computer)
+and [verification](../docs/fitness/contributor-workflow.md).
+
 ## Community tasks and contributions (#2)
 
 The same Go binary serves `/tasks`, `/tasks/{id}`, `/leaderboard` and

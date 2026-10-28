@@ -38,6 +38,7 @@
     "test:connector": "cd server && PERO_DESKTOP_E2E=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
     "test:connector:live": "cd server && PERO_DESKTOP_E2E=1 PERO_CONNECTOR_LIVE=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
     "test:desktop-login": "node tests/e2e/desktop-login.mjs",
+    "test:contribution": "node tests/e2e/contribution.mjs",
     "test:remote-settings": "node tests/e2e/remote-settings.mjs",
     "test:deployment": "node tests/e2e/deployment.mjs",
     "build:product": "node scripts/build/product.mjs",
