@@ -3,8 +3,9 @@
 The canonical service origin is `https://app.openpero.com`. Desktop uses this
 origin for a new connection; the URL field shows it as a placeholder and accepts
 the default when left blank. Saved connections and explicit disconnects retain
-priority. Each Desktop still needs its own project-scoped Client token. GitHub
-OAuth is optional and is not enabled in this deployment.
+priority. GitHub OAuth is enabled for Desktop sign-in. New GitHub accounts can
+claim published coding tasks without private project or Worker grants. Scoped
+Client tokens remain available for operator-provisioned private connections.
 
 The Go control plane and PostgreSQL run independently of DSH on the existing
 AWS machine. Nginx proxies to `127.0.0.1:18796`, preserving bearer authorization.
@@ -52,9 +53,20 @@ Never put the operator token in Desktop. This installation's initial client is
 Use Desktop's connection form to persist the token in OS-encrypted runtime
 settings. Nonsecret metadata and ciphertext remain owned by the Host.
 
-The public `/tasks` page shows only explicitly published community tasks.
-Imported Issues/ROADMAP tasks are available in the authenticated Desktop/API;
-importing a source does not publish private execution inputs or grant execution.
+The public `/tasks` page shows reviewed community publications and imported goals
+whose repositories GitHub has reported as public. Private repository and manual
+tasks still require explicit publication. Public contribution responses contain
+only the public goal and source metadata; private execution inputs remain private.
+Importing or reading a source does not dispatch work.
+
+## Desktop releases
+
+The GitHub `Release` workflow builds macOS arm64 installers from a version tag and
+publishes them as GitHub Release assets. The shipped default service is
+`https://app.openpero.com`; no credentials or fixture origins are baked into the
+App. Asset metadata records that service origin, the exact source revision and
+the installer checksum. Local DMGs are development verification artifacts; public
+downloads come from the workflow build.
 
 ## Recovery and maintenance
 
