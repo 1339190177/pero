@@ -9,16 +9,18 @@ import { normalizeLocale, translate, type Locale, type MessageKey } from '../../
 import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 
 // Register before ready so macOS cannot deliver the callback before the listener.
+// pero://connect/ completes sign-in; pero://tasks/<id> opens a Cloud task from the task square.
+const deepLink = (value: string) => value.startsWith('pero://connect/') || value.startsWith('pero://tasks/');
 let pendingDeepLink: string | undefined;
 let acceptDeepLink: ((url: string) => void) | undefined;
 app.on('open-url', (event, url) => {
   event.preventDefault();
-  if (!url.startsWith('pero://connect/')) return;
+  if (!deepLink(url)) return;
   if (acceptDeepLink) acceptDeepLink(url); else pendingDeepLink = url;
 });
 // Development profiles are independent; packaged launches share one app instance.
 app.on('second-instance', (_event, argv) => {
-  const url = argv.find(value => value.startsWith('pero://connect/'));
+  const url = argv.find(deepLink);
   if (url && acceptDeepLink) acceptDeepLink(url);
 });
 protocol.registerSchemesAsPrivileged([{ scheme: 'pero', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -182,9 +184,11 @@ app.whenReady().then(async () => {
     if (window.isMinimized()) window.restore();
     window.show(); window.focus();
     send({ version: 1, kind: 'remote_open', request_id: null, text: 'desktop_login' });
-    void remote.acceptDeepLink(url);
+    // The adapter validates the identifier; without a connection the Cloud page shows its setup instead.
+    if (url.startsWith('pero://tasks/')) void remote.command({ action: 'remote_select', task_id: new URL(url).pathname.slice(1) });
+    else void remote.acceptDeepLink(url);
   };
-  const initialLink = pendingDeepLink || process.argv.find(value => value.startsWith('pero://connect/'));
+  const initialLink = pendingDeepLink || process.argv.find(deepLink);
   if (initialLink) acceptDeepLink(initialLink);
   pendingDeepLink = undefined;
 });

@@ -39,7 +39,7 @@ try {
     if (child.exitCode !== null || Date.now() > deadline) throw new Error(logs || 'Fixture startup failed');
     await new Promise(done => setTimeout(done, 100));
   }
-  const { url, worker } = JSON.parse(readFileSync(metadata, 'utf8'));
+  const { url, task, worker } = JSON.parse(readFileSync(metadata, 'utf8'));
   let ui = await launch(url);
   await ui.command({ action: 'remote_login', url });
   expect((await ui.state()).remote.state.connection.authenticating).toBe(true);
@@ -78,6 +78,15 @@ try {
   expect((await ui.state()).remote.state.connection.authenticating).toBe(false);
   expect((await ui.state()).remote.state.error).toBe(null);
   await ui.page.screenshot({ path: resolve(output, 'desktop-connected.png') });
+  // A task square link opens that task's detail on the Cloud page; a bad identifier stays there with an error.
+  await ui.command({ action: 'remote_select', task_id: null });
+  await callback(`pero://tasks/${task}`);
+  await expect.poll(async () => (await ui.state()).remote.state.detail?.task?.id, { timeout: 15_000 }).toBe(task);
+  expect((await ui.state()).navigation).toBe(3);
+  await ui.page.screenshot({ path: resolve(output, 'task-deeplink.png') });
+  await callback('pero://tasks/..%2Fadmin');
+  await expect.poll(async () => (await ui.state()).remote.state.error).toContain('Invalid task identifier');
+  await ui.command({ action: 'remote_refresh' });
   const saved = JSON.parse(readFileSync(settings, 'utf8')).remote_connection;
   expect(saved.mode).toBe('client'); expect(saved.encrypted_token.length).toBeGreaterThan(0);
   expect(readFileSync(settings, 'utf8')).not.toContain('secret_');
@@ -97,7 +106,7 @@ try {
   await expect.poll(async () => (await ui.state()).remote.state.error).toContain('GitHub sign-in could not complete');
   expect(JSON.parse(readFileSync(settings, 'utf8')).remote_connection).toEqual(saved);
   expect(errors).toEqual([]);
-  writeFileSync(resolve(output, 'result.json'), JSON.stringify({ result: 'passed', provider: 'local OAuth fixture', cases: ['browser sign-in continuation', 'consent', 'fixed deeplink', 'PKCE exchange', 'nonce mismatch', 'encrypted persistence', 'restart', 'cancel preserves connection', 'replay does not replace connection', 'light/dark/narrow'] }, null, 2));
+  writeFileSync(resolve(output, 'result.json'), JSON.stringify({ result: 'passed', provider: 'local OAuth fixture', cases: ['browser sign-in continuation', 'consent', 'fixed deeplink', 'PKCE exchange', 'nonce mismatch', 'encrypted persistence', 'restart', 'cancel preserves connection', 'replay does not replace connection', 'task deeplink', 'invalid task deeplink', 'light/dark/narrow'] }, null, 2));
   succeeded = true;
 } finally {
   if (app) await app.close(); if (browser) await browser.close();
