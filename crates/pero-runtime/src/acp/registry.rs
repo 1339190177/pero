@@ -58,6 +58,10 @@ pub fn registry(root: &Path) -> Result<Vec<AgentConfig>, String> {
             model: None,
         },
         AgentConfig {
+            id: "copilot".into(), name: "GitHub Copilot".into(), command: "copilot".into(),
+            args: vec!["--acp".into(), "--stdio".into()], env: BTreeMap::new(), model: None,
+        },
+        AgentConfig {
             id: "grok".into(),
             name: "Grok · OpenCode".into(),
             command: "opencode".into(),
