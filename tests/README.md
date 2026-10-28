@@ -19,6 +19,7 @@
 | `e2e/i18n.mjs` | L1 | `npm run test:i18n` | 中英文切换、原生菜单、重启后偏好、用户原文不翻译、无 Host 的预览窗口。文案源见 [locales/README.md](../locales/README.md) |
 | `e2e/remote.mjs` | L2 | `npm run test:remote` | Electron、Go、PostgreSQL、`pero-worker` 和 ACP fixture 的一轮创建、执行、取消和断线恢复。需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/github.mjs` + `server/internal/httpapi/desktop_github_test.go` | L2 | `npm run test:github` | Go harness 启动真实 PostgreSQL/API 和只读 GitHub fixture；两个 Electron 客户端认领、释放、接手并经独立 Worker 执行，验证项目可见范围和自动派发不重复。需要 `PERO_TEST_DATABASE_URL` |
+| `e2e/community.mjs` + `server/internal/community/http_test.go` | L2 | `npm run test:community` | Go/PostgreSQL 与 Chromium 验证公开任务、OAuth fixture、Worker 归属、认领、验收记分、撤销及来源变化；需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/real-session.mjs` | L2 | `npm run test:e2e:real` | 本机 Codex 登录，回复恰好是 `PERO_DESKTOP_OK`。不进默认验收 |
 
 `test:e2e` 和 `test:i18n` 使用已有的开发构建，自己不编译。先跑 `npm run build`。`test:contracts` 会先编译 Host。

@@ -23,7 +23,16 @@
 </p>
 
 > [!NOTE]
-> **Early stage.** The [live demo](https://www.openpero.com/en/) runs real numerical calculations in your browser. GitHub integration, agents, collaborators, and remote workers are simulated. Everything else below is the direction we are building toward.
+> **Early stage.** The [live demo](https://www.openpero.com/en/) runs numerical calculations in your browser and simulates GitHub, agents, collaborators and remote workers. The repository also includes the locally verified implementation below. The research workflow and roadmap describe the broader product direction.
+
+## Run the current implementation
+
+- [Desktop](desktop/README.md): Electron + GPUI, ACP conversations, Chinese/English, themes, local sessions and shared remote tasks.
+- [Go control plane](server/README.md): PostgreSQL Task/Run/Worker state, leases, cancellation/recovery, GitHub Issue intake, project-scoped claims and opt-in automatic dispatch.
+- [Community board](server/README.md#community-tasks-and-contributions-2): public tasks, GitHub OAuth, Worker ownership, reviewed contribution points and reversals.
+- [Build and verification](docs/fitness/README.md): npm/Cargo development and the Bazel Go/code-generation pilot. Fonts use local files or build caches before pinned downloads; generated binaries are ignored.
+
+Local UI and protocol checks use provider fixtures. Deployment, real OAuth credentials and independent acceptance require their own setup and evidence. [Worktree integration record](docs/fitness/worktree-integration.md).
 
 ## The problem
 

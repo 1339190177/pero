@@ -19,7 +19,7 @@ JavaScript dependency declarations; the translated pnpm lock supports Bazel.
 
 | Target | Scope |
 | --- | --- |
-| `//:checks` | Six checks: theme parity, four protocol output comparisons and locale validation |
+| `//:checks` | Seven checks: JSON/CSS theme parity, four protocol output comparisons and recursive locale validation |
 | `//:generate_theme` | Generate the theme under `bazel-bin/generated/theme/` |
 | `//:generate_contracts` | Generate protocol JSON Schema and TypeScript under `bazel-bin/generated/contracts/` |
 | `//server/cmd/server` | Build the Go control-plane binary |
@@ -41,7 +41,7 @@ fails instead of skipping. Default checks do not establish database acceptance.
 
 Keep the npm/Cargo development and test commands. Native Rust, GPUI Wasm,
 Vite/Electron builds, UI/provider tests and signed packaging are outside this
-pilot. The six Bazel checks do not replace TypeScript checking or the existing
+pilot. The seven Bazel checks do not replace TypeScript checking or the existing
 runtime and Desktop verification gates.
 
 This decision establishes a bounded build path. Build-time improvements and

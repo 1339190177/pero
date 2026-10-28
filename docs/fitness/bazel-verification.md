@@ -68,12 +68,42 @@ on the same machine and platform, not between machines or operating systems.
 The disposable database was stopped after verification. The local test-status
 cache issue and fix are recorded in the [resolved incident](../issues/2026-10-28-bazel-postgres-test-cache.md).
 
+## Combined GitHub/community integration
+
+On `codex/integrate-master`, the pilot was adapted to the shared Client/Issue
+sources and community service. Gazelle declarations now include all current Go
+sources/tests, the GitHub package, community templates/assets, and SQL migrations
+001, 002, 003 and 010. The strict suite includes four database-bearing packages;
+community and GitHub helpers enforce the same missing-database failure policy.
+
+| Check | Result |
+| --- | --- |
+| Gazelle regeneration | Passed; existing local/manual/external/no-cache/no-remote database tags retained |
+| Go server plus protocol and JSON/CSS theme generation | Passed using pinned Bazel toolchains |
+| `bazel test --config=ci //:checks //server:postgres_integration` | Passed: seven freshness/locale checks and all four PostgreSQL package targets |
+| Strict suite without `PERO_TEST_DATABASE_URL` | All four package targets failed as required; no cached pass hid missing configuration |
+| Nested locale probe | Valid nested remote key passed; unknown nested remote key failed |
+
+The theme target declares both JSON and CSS outputs and checks the community CSS
+against `DESIGN.md`. Locale inputs include recursive Rust components and remote
+keys. The normal generation/check commands retain their existing source-tree
+paths. The derived npm repository input-hash record was refreshed for the merged
+package metadata; dependency declarations and lock contents were unchanged.
+
+These checks reused the original pilot's warm Bazel output/download cache to
+avoid duplicating toolchains on the same machine. No unrelated caches were
+removed. This is not a new cold-build or cross-machine performance measurement.
+Desktop, real-provider and community-browser acceptance are owned by their
+separate suites; a Bazel package pass does not establish those paths.
+
 ## Remaining limits
 
-The full `npm run check` could not pass in this clean worktree: its TypeScript
-step requires the generated `web/src/wasm/pero_ui` declarations. No substitute
-declarations were added. Rust/GPUI Wasm, Vite/Electron, provider, signed-package,
-Linux and remote-execution verification remain outside this pilot.
+The original clean pilot worktree could not run the full `npm run check` before
+building the `web/src/wasm/pero_ui` TypeScript declarations. No substitute
+declarations were added. The integrated Bazel targets still do not build those
+artifacts. Rust/GPUI Wasm, Vite/Electron, provider, signed-package, Linux and
+remote-execution verification remain separate gates; current remote/source
+results are recorded in [remote dispatch verification](remote-dispatch-verification.md).
 
 One Go tool-builder rebuild exited with no compiler diagnostic. A retry and a
 subsequent clean rebuild passed without source changes; the cause remains

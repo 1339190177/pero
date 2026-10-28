@@ -16,10 +16,15 @@ bazel build //server/cmd/server
 bazel test //:checks
 ```
 
-`//:checks` runs six tests: Host schema/types, remote schema/types, theme freshness
-and locale key/placeholder/UI-reference checks. Generated outputs land under
+`//:checks` runs seven tests: Host schema/types, remote schema/types, Workbench
+JSON theme freshness, community CSS theme freshness, and locale key/placeholder/
+UI-reference checks. The locale scan includes nested `src/**/*.rs` components and
+remote-task keys. Generated outputs land under
 `bazel-bin/generated/contracts/` and `bazel-bin/generated/theme/`; freshness tests
-compare those outputs with the committed files. Build only the generated outputs:
+compare those outputs with the committed files. The theme generator emits both
+`theme.generated.json` and `theme.generated.css` into its declared output folder;
+npm generation keeps the JSON under `web/src/` and the CSS under
+`server/internal/community/assets/`. Build only the generated outputs:
 
 ```sh
 bazel build //:generate_contracts //:generate_theme
@@ -65,20 +70,24 @@ separate work.
 
 ## PostgreSQL acceptance
 
-The existing Go tests currently exercise PostgreSQL; there is no separate pure
-unit suite to advertise as database acceptance. The Bazel suite is manual and
+The database suite includes store, HTTP API, GitHub intake and community packages.
+It covers the current Client/Issue sources, migration SQL and embedded community
+assets. Some packages also contain pure tests; those do not substitute for the
+PostgreSQL cases. The Bazel suite is manual and
 requires an explicitly supplied disposable database with schema creation rights:
 
 ```sh
 PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' bazel test //server:postgres_integration
 ```
 
-The two package test targets inherit only that URL, set
+All four package test targets inherit only that URL, set
 `PERO_REQUIRE_TEST_DATABASE=1`, and fail when the URL is missing. The `external`
 tag forces execution on every invocation; `no-cache` alone would still allow
 Bazel to reuse local test status. Results are not remotely cached or executed.
-Ordinary `go test ./...` keeps its existing
-missing-database skip behavior; strict native verification uses
+All four database helpers fail if the URL is absent in strict mode. Explicit
+Desktop/browser opt-in cases remain skipped here; use their npm acceptance
+commands separately. Ordinary `go test ./...` keeps its existing missing-database
+skip behavior; strict native verification uses
 `PERO_REQUIRE_TEST_DATABASE=1 go test -count=1 -race ./...` with the URL supplied.
 
 Electron suites continue to run sequentially through their existing npm commands.
