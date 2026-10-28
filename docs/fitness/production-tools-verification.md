@@ -59,3 +59,16 @@ because these tools are installed.
 The frozen production binary `850947243799f814c43a08df6ad397451db270b7a08da5bc6473140dd5dd1646`
 passed 15 runtime scenarios and 14 Worker scenarios (29 total). These results
 precede the optional live-test budget flags; a changed binary needs a new run.
+
+## Bounded real-provider observation (2026-10-28)
+
+With official DeepSeek `deepseek-flash` and Agent SHA256
+`ec85b34c4a9fa97748d7bad9ff0c481c3eb8677caa0510bc7ebbd6c0573fb373`,
+the real Worker observed one completed `read_file`, matching fixture path and
+nonce, a successful completion receipt, and `end_turn` with no session errors.
+The original runner result remains **failed**: its workspace assertion wrongly
+rejected the Worker's legitimate `.pero-worker.lock`. The corrected assertion
+passed a real-Worker/Go/local-provider regression, but was **not rerun against
+DeepSeek** after the authorized request budget was exhausted. This is functional
+read-chain evidence, not a fully passed live acceptance suite. Real-provider
+write/shell scenes were not run; Cloud remained a loopback contract fixture.

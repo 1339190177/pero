@@ -12,7 +12,7 @@ go test -count=1 ./...
 go test -race -count=1 ./...
 go vet ./...
 go build -o pero-agent-acp ./cmd/pero-agent-acp
-AGENT_PROVIDER_API_KEY='...' ./pero-agent-acp \
+./pero-agent-acp \
   --endpoint https://YOUR-PROVIDER/v1 --model YOUR-MODEL \
   --session-dir /private/path/to/sessions \
   --workspace /absolute/workspace --enable-shell --approval ask
@@ -29,6 +29,32 @@ private directory, and define your own retention policy.
 An [isolated Bazel build](BAZEL.md) is available from `harness/go`. Its build
 graph is separate from the root server pilot; the server Go version and
 dependencies are unchanged. Native Go commands above remain supported.
+
+
+## Explicit budgets and compatible-provider options
+
+Provider calls are unbounded by default. For a small authorized smoke test, use
+`--max-requests 4 --max-tokens 512 --max-retries 0`: the request cap spans the
+Agent process lifetime and includes failed attempts; the output cap applies to
+each request. SDK retries are disabled independently. Omitted retry configuration
+retains the Harness policy, so set zero explicitly when paid retries are unwanted.
+
+For compatible DeepSeek Chat Completions, `--disable-thinking` explicitly sends
+`thinking: {"type":"disabled"}`; it is omitted by default. Do not rely on
+`--reasoning-effort none` as a substitute for this Chat Completions toggle.
+Other providers receive no host-inferred extensions.
+
+Connections are direct by default. `--use-env-proxy` explicitly uses the existing
+HTTP_PROXY/HTTPS_PROXY/NO_PROXY settings. TLS verification remains enabled using
+system trust and any existing standard SSL_CERT_FILE/SSL_CERT_DIR configuration.
+Do not add proxy credentials to Agent JSON, disable TLS validation, or create
+new trust roots just to make a test pass. Keep localhost/127.0.0.1/::1 excluded
+when using local Cloud/provider fixtures.
+
+Set provider credentials securely in the launching process environment; the
+example above assumes AGENT_PROVIDER_API_KEY is already present. Under the Rust
+Worker, do not use a PERO_-prefixed provider variable because those are removed;
+select a supported inherited name explicitly with `--api-key-env`.
 
 ## ACP and authority boundary
 
@@ -81,3 +107,4 @@ Source reuse was authorized by the repository owner. Applicable third-party
 notices are retained with their packages. This extraction does **not** assign an
 MIT (or other blanket) license to the entire module; remaining source licensing
 must be decided by its owner.
+

@@ -112,8 +112,22 @@ explicit ACP protocol guard and test additions.
 These checks do **not** establish real-model acceptance, PostgreSQL dispatch
 authorization/acceptance, production MCP policy, deployed Linux acceptance,
 untrusted-code isolation, account/OAuth integration or deployment. No model
-credentials or real-model request are required or used.
+credentials or real-model requests are required or used by those fixture suites.
+The separately authorized bounded live observation is recorded below.
 
 Protocol references:
 - https://agentclientprotocol.com/protocol/v1/initialization
 - https://agentclientprotocol.com/protocol/v1/session-setup
+
+## Bounded real-provider observation (2026-10-28)
+
+With official DeepSeek `deepseek-flash` and Agent SHA256
+`ec85b34c4a9fa97748d7bad9ff0c481c3eb8677caa0510bc7ebbd6c0573fb373`,
+the real Worker observed one completed `read_file`, matching fixture path and
+nonce, a successful completion receipt, and `end_turn` with no session errors.
+The original runner result remains **failed**: its workspace assertion wrongly
+rejected the Worker's legitimate `.pero-worker.lock`. The corrected assertion
+passed a real-Worker/Go/local-provider regression, but was **not rerun against
+DeepSeek** after the authorized request budget was exhausted. This is functional
+read-chain evidence, not a fully passed live acceptance suite. Real-provider
+write/shell scenes were not run; Cloud remained a loopback contract fixture.
