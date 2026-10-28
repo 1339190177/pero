@@ -30,7 +30,8 @@
     "test:community": "node tests/e2e/community.mjs",
     "test:connector": "cd server && PERO_DESKTOP_E2E=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
     "test:connector:live": "cd server && PERO_DESKTOP_E2E=1 PERO_CONNECTOR_LIVE=1 go test -count=1 -run '^TestDesktopConnectorSources$' ./internal/httpapi -v",
-    "test:remote-settings": "node tests/e2e/remote-settings.mjs"
+    "test:remote-settings": "node tests/e2e/remote-settings.mjs",
+    "test:deployment": "node tests/e2e/deployment.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",
