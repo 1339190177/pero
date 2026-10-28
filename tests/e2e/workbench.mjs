@@ -49,6 +49,8 @@ try{
  await input('longstream');
  await expect.poll(async()=>(await state()).chats[0].messages.at(-1).text.includes('中文片段200'),{intervals:[50],timeout:15000}).toBe(true);
  await expect.poll(async()=>(await state()).scroll.max,{intervals:[50],timeout:15000}).toBeGreaterThan(300);
+ // Confirm tail following works before testing that one reader gesture revokes it.
+ await expect.poll(async()=>{const {y,max}=(await state()).scroll;return max+y;},{intervals:[50],timeout:15000}).toBeLessThanOrEqual(48);
  await page.mouse.move(1100,500);await page.mouse.wheel(0,-4000);
  await expect.poll(async()=>(await state()).scroll.y,{intervals:[50]}).toBe(0);
  await expect.poll(async()=>(await state()).chats[0].messages.at(-1).text.includes('中文片段700'),{intervals:[50],timeout:15000}).toBe(true);
@@ -78,4 +80,4 @@ try{
  console.log(JSON.stringify({checks:'stream,followup,cancel,permission,long-stream,scroll-up,reload,locale,dark,narrow',streamStats:stats,errors}));
  await writeFile(resolve(out,'result.json'),JSON.stringify({state:await state(),errors},null,2));
  expect(errors).toEqual([]);
-}catch(error){const page=await app.firstWindow();console.error({errors,state:await page.evaluate(()=>window.peroDiagnostics?.snapshot())});await page.screenshot({path:resolve(out,'failure.png')});throw error;}finally{await app.close();}
+}catch(error){const page=await app.firstWindow();console.error({errors,state:await page.evaluate(()=>window.peroDiagnostics?.snapshot()).catch(e=>`snapshot unavailable: ${e.message}`)});await page.screenshot({path:resolve(out,'failure.png')});throw error;}finally{await app.close();}

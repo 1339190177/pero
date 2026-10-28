@@ -152,7 +152,7 @@ impl Workbench {
         self.attachments.clear();
         self.composer
             .update(cx, |input, cx| input.set_value("", window, cx));
-        self.chat_scroll.scroll_to_bottom();
+        crate::stream::scroll_after_layout(&self.chat_scroll, window);
         self.command(value, cx);
     }
     pub fn receive_chat(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
@@ -279,14 +279,13 @@ impl Workbench {
             _ => {}
         }
         self.sync_follow(cx);
-        let following = crate::stream::near_bottom(&self.chat_scroll);
-        if following {
-            self.chat_scroll.scroll_to_bottom();
-        }
         cx.notify();
         true
     }
-    pub fn chat_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub fn chat_view(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if crate::stream::near_bottom(&self.chat_scroll) {
+            crate::stream::scroll_after_layout(&self.chat_scroll, window);
+        }
         let p = self.palettes.get(self.dark);
         let chat = self.active_chat.and_then(|i| self.chats.get(i));
         let busy = chat.is_some_and(|c| c.busy());

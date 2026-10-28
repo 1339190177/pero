@@ -126,11 +126,6 @@ impl StreamText {
             let committed_bytes = document.read(cx).rendered_text().source().len();
             if committed_bytes != this.observed_bytes {
                 this.observed_bytes = committed_bytes;
-                if let Some(scroll) = &this.follow_scroll {
-                    if near_bottom(scroll) {
-                        scroll.scroll_to_bottom();
-                    }
-                }
                 cx.notify();
             }
         });
@@ -209,7 +204,12 @@ impl StreamText {
 
 #[cfg(target_family = "wasm")]
 impl Render for StreamText {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        if let Some(scroll) = &self.follow_scroll {
+            if near_bottom(scroll) {
+                scroll_after_layout(scroll, window);
+            }
+        }
         TextView::new(&self.document).selectable(true).style(
             TextViewStyle::default()
                 .paragraph_gap(rems(0.4))
@@ -223,6 +223,30 @@ impl Render for StreamText {
 #[cfg(target_family = "wasm")]
 pub(crate) fn near_bottom(scroll: &ScrollHandle) -> bool {
     scroll.max_offset().y + scroll.offset().y <= px(48.)
+}
+
+/// GPUI's scroll_to_bottom is a flag consumed on a later layout; a wheel event
+/// cannot revoke it. Apply a concrete offset after the new content is laid out,
+/// and discard this follow request if the reader moved since it was requested.
+#[cfg(target_family = "wasm")]
+pub(crate) fn scroll_after_layout(scroll: &ScrollHandle, window: &Window) {
+    let scroll = scroll.clone();
+    let previous = scroll.offset();
+    window.on_next_frame(move |window, _| {
+        if scroll.offset() == previous {
+            // Frame callbacks run before drawing. Waiting a second frame also
+            // covers a request made by an event before the new content lays out.
+            window.on_next_frame(move |window, _| {
+                if scroll.offset() == previous {
+                    let target = point(previous.x, -scroll.max_offset().y);
+                    if target != previous {
+                        scroll.set_offset(target);
+                        window.refresh();
+                    }
+                }
+            });
+        }
+    });
 }
 
 #[cfg(test)]

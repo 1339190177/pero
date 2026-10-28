@@ -1,6 +1,6 @@
 ---
 kind: incident
-status: open
+status: resolved
 ---
 
 # Conversation auto-follow can override a scroll toward earlier output
@@ -15,11 +15,38 @@ after the other Desktop changes finished. Remote task create/dispatch/cancel,
 pagination, recovery and theme tests pass separately. No conversation/stream
 source was changed by the remote implementation.
 
-The suspected cause is an already queued `scroll_to_bottom` from a parsed message
-or session event being applied on layout after the wheel event. This is a
-diagnosis candidate, not an established fix. Explicit user scroll intent and
-pending-follow cancellation need a focused repro. Repeating the wheel in the
-test alone would not prove that the single-gesture race was fixed.
+The same unchanged test passed once and then reproduced the exact -1583 failure
+on the merged component build. This established an intermittent product failure,
+rather than a consistently incorrect test coordinate or an error in the new
+component split.
+
+The pinned GPUI 0.3.10 implementation stores `scroll_to_bottom` as a boolean
+consumed by a later layout. A wheel event changes the offset without cancelling
+that boolean, so the subsequent layout can override the reader's gesture. Pero
+now requests a concrete bottom offset through window frame callbacks. Both
+callback stages discard the request if the offset changed in the meantime;
+the second stage also allows the new content to finish layout. Requests originate
+from rendering, where the window is available, and refresh only after an actual
+offset change. The observer retains its parsed-content notification without
+leaving an uncancellable scroll flag.
+
+The original single-wheel gesture and zero-offset assertions remain unchanged.
+The test additionally verifies that the conversation follows the tail before
+that gesture, so disabling follow entirely cannot satisfy the regression check.
+Its failure reporter also preserves the original error when a Wasm panic makes
+diagnostics unavailable.
+
+Verification on 2026-10-28 after rebuilding Wasm and Web:
+
+- `npm run test:e2e` passed Workbench and all nine tool outcomes with no page
+  errors. The long stream retained all 1000 Chinese chunks in 32 document flushes;
+  one -4000 wheel reached zero and stayed there while later chunks arrived.
+- A second standalone `node tests/e2e/workbench.mjs` passed the same assertions,
+  with 1000 chunks in 33 flushes and no page errors (final implementation 2/2).
+- `npm run test:i18n`, `npm run check`, and the configured Cargo formatting check
+  passed. Electron screenshots cover the retained earlier output, dark theme,
+  and narrow window. This is local Desktop fixture verification, not an installed
+  release or production-agent acceptance.
 
 Reproduce with `npm run test:e2e` after building Desktop. The latest output and
 failure screenshot are in `test-results/workbench/` (generated artifacts).
