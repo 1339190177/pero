@@ -3,7 +3,12 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "migrations",
     srcs = ["migrate.go"],
-    embedsrcs = ["001_dispatch.sql"],
+    embedsrcs = [
+        "001_dispatch.sql",
+        "002_clients.sql",
+        "003_github.sql",
+        "010_community.sql",
+    ],
     importpath = "github.com/phodal/pero/server/migrations",
     visibility = ["//server:__subpackages__"],
     deps = ["@com_github_jackc_pgx_v5//pgxpool"],

@@ -1,0 +1,36 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "github",
+    srcs = [
+        "client.go",
+        "service.go",
+    ],
+    importpath = "github.com/phodal/pero/server/internal/github",
+    visibility = ["//server:__subpackages__"],
+    deps = ["//server/internal/store"],
+)
+
+go_test(
+    name = "github_test",
+    srcs = [
+        "client_test.go",
+        "service_test.go",
+    ],
+    embed = [":github"],
+    env = {"PERO_REQUIRE_TEST_DATABASE": "1"},
+    env_inherit = ["PERO_TEST_DATABASE_URL"],
+    tags = [
+        "external",  # Always exercise current database state, including locally.
+        "local",
+        "manual",
+        "no-cache",
+        "no-remote",
+    ],
+    visibility = ["//server:__pkg__"],
+    deps = [
+        "//server/internal/store",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//pgxpool",
+    ],
+)

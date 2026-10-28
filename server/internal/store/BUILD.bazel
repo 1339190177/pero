@@ -3,7 +3,10 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "store",
     srcs = [
+        "clients.go",
+        "community.go",
         "execution.go",
+        "github.go",
         "models.go",
         "store.go",
         "tasks.go",
@@ -19,7 +22,12 @@ go_library(
 
 go_test(
     name = "store_test",
-    srcs = ["integration_test.go"],
+    srcs = [
+        "clients_test.go",
+        "community_test.go",
+        "github_test.go",
+        "integration_test.go",
+    ],
     embed = [":store"],
     env = {"PERO_REQUIRE_TEST_DATABASE": "1"},
     env_inherit = ["PERO_TEST_DATABASE_URL"],

@@ -21,6 +21,9 @@ func database(t *testing.T) *store.Store {
 	t.Helper()
 	dsn := os.Getenv("PERO_TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("PERO_REQUIRE_TEST_DATABASE") == "1" {
+			t.Fatal("PERO_TEST_DATABASE_URL is required for strict PostgreSQL acceptance")
+		}
 		t.Skip("set PERO_TEST_DATABASE_URL for real GitHub intake transactions")
 	}
 	ctx := context.Background()

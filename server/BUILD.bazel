@@ -10,6 +10,8 @@ test_suite(
     name = "postgres_integration",
     tags = ["manual"],
     tests = [
+        "//server/internal/community:community_test",
+        "//server/internal/github:github_test",
         "//server/internal/httpapi:httpapi_test",
         "//server/internal/store:store_test",
     ],
