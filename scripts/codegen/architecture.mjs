@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// docs/ROADMAP.md target architecture. Solid outlines identify existing foundations,
+// ROADMAP.md target architecture. Solid outlines identify existing foundations,
 // not complete platform capabilities or accepted deployment environments.
 const root = new URL('../../', import.meta.url);
 const theme = readFileSync(new URL('DESIGN.md', root), 'utf8').split('---')[1];

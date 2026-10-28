@@ -10,7 +10,7 @@ Client tokens remain available for operator-provisioned private connections.
 The Go control plane and PostgreSQL run independently of DSH on the existing
 AWS machine. Nginx proxies to `127.0.0.1:18796`, preserving bearer authorization.
 PostgreSQL has no host port. Execution Workers belong on separate machines.
-This installation reads public `phodal/pero` Issues and `docs/ROADMAP.md` into
+This installation reads public `phodal/pero` Issues and root `ROADMAP.md` into
 project `pero`, workspace key `pero`, Agent `codex`. Import does not dispatch;
 automatic dispatch is disabled. The anonymous connector polls every 600 seconds.
 
