@@ -73,8 +73,8 @@ embedded migrations are applied under a database advisory lock.
 | `PERO_LISTEN` | Bind address; defaults to `127.0.0.1:8787` |
 | `PERO_LEASE_SECONDS` | Lease duration, 1–3600 seconds; defaults to 60 |
 
-`GET /healthz` checks database connectivity without authentication. All other
-routes require a bearer credential. Protect any non-loopback deployment with
+`GET /healthz` checks database connectivity without authentication. API routes
+require a bearer credential; community pages use the separate sessions described below. Protect any non-loopback deployment with
 HTTPS at the existing reverse proxy; the service does not terminate TLS itself.
 Never put operator or Worker credentials in a renderer or source control.
 
@@ -144,7 +144,7 @@ Detail returns the newest 200 events, bounded to 256 KiB and ordered by sequence
 `events_truncated` explicitly reports omitted earlier evidence, and nullable
 `events_first_seq` / `events_last_seq` identify the returned range. All events remain
 in PostgreSQL; older-event pagination/export is a later slice. Additional source adapters, artifact storage, independent
-verification, user/team login, device revocation, PR publication and public
+verification, team permissions, device revocation, PR publication and public
 multi-tenant operations remain later slices. Any unresolved `reconcile` Run also
 quarantines its assigned Worker's slot, preventing another task from overlapping
 unknown cleanup. A future explicit resolution workflow must clear this quarantine.
@@ -176,3 +176,71 @@ Go Kubernetes provider can create approved execution Pods or Jobs and reconcile
 their lifecycle through the same Task/Run protocol. It does not require moving
 control-plane state or scheduling into Rust. Kubernetes provisioning, sandbox
 isolation and production deployment are not implemented by this slice.
+
+## Community tasks and contributions (#2)
+
+The same Go binary serves `/tasks`, `/tasks/{id}`, `/leaderboard` and
+`/contributors/{github-login}` using embedded HTML/CSS/JavaScript. There is no
+separate frontend build or queue. The existing bearer APIs remain authenticated.
+
+| Variable | Meaning |
+| --- | --- |
+| `PERO_PUBLIC_URL` | Exact public origin, e.g. `https://app.openpero.com`; defaults to `http://127.0.0.1:8787`. Must match the browser origin, including the port. HTTP is allowed only for loopback. |
+| `PERO_GITHUB_CLIENT_ID` | Optional GitHub OAuth App client ID |
+| `PERO_GITHUB_CLIENT_SECRET` | Matching OAuth App secret; keep on the server |
+
+Set the OAuth App callback to `<PERO_PUBLIC_URL>/auth/github/callback`.
+Without OAuth configuration the public pages still work and explain why claiming
+is unavailable. GitHub login requests public identity only, stores numeric GitHub
+ID, and discards the GitHub access token after identity lookup. The OAuth App is
+separate from the server's GitHub Issue ingestion credentials.
+
+Open `/community/admin/login` and submit `PERO_OPERATOR_TOKEN` to manage the
+community. The token is exchanged for a random, expiring, HttpOnly session; only
+session digests are stored in PostgreSQL. No credential is embedded in public
+HTML or JavaScript. HTTPS origins produce Secure cookies. Mutations require the
+configured Origin and a session CSRF token; logout invalidates the server record.
+The existing operator credential represents one trusted administrator, not a
+multi-user administrator role system.
+
+1. Create/import a Task using the existing control plane. In community management,
+   explicitly publish a reviewed title, description and optional HTTPS source URL.
+   Only these fields, the project identifier and public state are exposed. Prompts,
+   private acceptance text, paths, Agent logs and credentials remain private.
+2. Have a contributor sign in with GitHub once. Provision a Worker using the
+   existing operator API, then bind its ID to that GitHub login in community management.
+   Ownership cannot be silently transferred. The contributor's internal Client gets
+   the Worker's operator-approved project scope.
+3. The contributor opens a public task and selects an owned Worker. Claim and
+   dispatch share one database transaction and the same Task lock used by Desktop
+   Clients. Another Client's claim, a closed source or uncertain execution blocks
+   claiming. Repeated identical active claims retrieve the existing Run.
+4. Worker success leaves the task **awaiting acceptance**. Open the task as the
+   administrator, check the result, supply a public HTTPS evidence link and a
+   public review note, and accept the exact succeeded Run. This records one point
+   for its frozen contributor/Worker assignment. It does not create an independent
+   verification report or publish a PR.
+5. An explicit confirmed reversal appends a negative receipt and removes the
+   original award from its original week and lifetime totals. Old acceptance forms
+   cannot resurrect reversed awards. The original contributor can run the task
+   again after reversal; a new Run requires a new review.
+
+Weeks begin Monday at 00:00 UTC. Rankings contain at most 100 contributors, ordered
+by accepted tasks and then login. Public task/history lists use 50-row pages.
+Task state is refreshed through normal navigation; long-running work shows its
+current execution state and a refresh action. Theme tokens are generated from
+`DESIGN.md` by `npm run gen:theme` and checked by `npm run check`.
+
+```sh
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' go test -race ./...
+# From the repository root; install Playwright Chromium or specify a local binary:
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:community
+```
+
+`PERO_CHROMIUM_PATH` optionally chooses a Chromium executable. The browser suite
+starts an isolated Go/PostgreSQL schema and local OAuth/Worker protocol fixtures,
+then tests publishing, login failure, GitHub identity, Worker binding, claiming,
+execution state, acceptance, reversal, history, recovery and responsive themes.
+Screenshots and `verification.json` land in `test-results/community/`. Fixture
+success does not establish real GitHub OAuth configuration, real Agent execution,
+production isolation or deployment to openpero.com.
