@@ -55,3 +55,22 @@ pub(crate) const TASKS: [ExampleTask; 5] = [
         ready: false,
     },
 ];
+
+pub(crate) const CHECKS: [(&str, &str); 3] = [
+    ("overview.typecheck", "status.passed"),
+    ("overview.tests", "overview.tests_passed"),
+    ("overview.build", "status.passed"),
+];
+
+pub(crate) const CHANGED_FILES: [(&str, &str, &str); 3] = [
+    ("src/orders/cancel.ts", "+24", "−8"),
+    ("src/orders/cancel.test.ts", "+21", "−0"),
+    ("src/orders/types.ts", "+2", "−4"),
+];
+
+pub(crate) const EXECUTION_STEPS: [(&str, &str, &str); 4] = [
+    ("overview.prepare", "3", "10:12"),
+    ("overview.code", "6", "10:15"),
+    ("overview.verify", "4", "10:21"),
+    ("overview.pr", "2", "10:23"),
+];
