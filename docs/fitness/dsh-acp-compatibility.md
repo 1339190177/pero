@@ -19,7 +19,11 @@ Successful Agent execution is not task acceptance or contribution credit.
 
 Configure the Worker with an explicit executable and allowed workspace. The
 Agent takes `--endpoint`, `--model`, `--session-dir`, `--api-key-env` and
-`--approval never|ask`. Provider credentials are read only from the named variable;
+`--approval never|ask`. The named credential defaults to `AGENT_PROVIDER_API_KEY`
+(not a `PERO_*` name); Worker configurations can explicitly set
+`--api-key-env OPENAI_API_KEY` or another permitted provider variable. The entrypoint
+removes the consumed credential from its inherited environment before tool/MCP
+children are started. Provider credentials are read only from the named variable;
 keep them out of source/config examples and public events. Use a non-`PERO_*`
 credential variable: the existing Worker deliberately removes all `PERO_*`
 variables from Agent execution. The private session directory must be writable
@@ -49,17 +53,30 @@ anonymous identity or telemetry initialization is inherited by this entrypoint.
 
 ## Tool authorization is not a sandbox
 
-The production entrypoint installs **no built-in tools**. ACP can supply MCP
-servers; their tool authorization must be reviewed separately. `--approval ask`
+Native tools are opt-in. `--workspace /absolute/trusted/root` enables
+`read_file`, `write_file`, `edit_file`, `list_directory` and `search_files`;
+`--enable-shell` additionally enables `shell`. The session cwd must equal the
+configured root. Without these flags the previous transport-only mode remains.
+Selecting a workspace grants bounded read/list/search authority. Every write,
+edit and shell call additionally requires client approval; `--approval never`
+rejects those operations and unattended Workers still deny permission requests.
+An Agent turn completing after denial does not mean the tool ran.
+
+ACP can also supply MCP servers; their tool authorization must be reviewed separately. `--approval ask`
 is not a blanket permission gate for every MCP tool and is not an OS sandbox.
 Process groups and workspace locks do not isolate untrusted code or networks.
 Do not treat a selected directory, a connected Worker, or advertised capability
 as permission to access other resources.
 
-Unattended Worker ACP permission requests are denied. Permission verification
-uses a separate **test-only Go assembly** registering one guarded no-op tool with
-the real harness/ACP server; it does not add a fixture switch or tool to the
-production entrypoint.
+The native-tools verification uses the **production Go executable**, not a
+no-op substitute: read/search and denial run through the real Worker, while
+write/edit/shell success uses the existing Rust ACP runtime with explicit
+allow-once answers for named fixture calls in disposable workspaces. This test
+approval does not authorize production or future automatic approval. See
+[production-tools verification](production-tools-verification.md).
+
+The earlier transport-only regression still has a separate guarded no-op fixture;
+its results are not used as evidence that native file/shell tools executed.
 
 ## Verification
 
@@ -72,7 +89,7 @@ four pre-existing `collapsible_if` warnings; strict `-D warnings` is not a pass.
 The extracted provider/config/media slice passed 42 focused Go race tests and
 `go vet`. HTTP tests use local stubs and fake credentials, never real providers.
 
-The real-binary Worker suite is `tests/runtime/go-acp-worker.mjs`. It runs the
+The original transport-only real-binary Worker suite is `tests/runtime/go-acp-worker.mjs`. It runs the
 actual Rust Worker and Go ACP executable against a loopback HTTP model fixture
 and a contract-level Cloud fixture. It checks success, cancellation/late results,
 Agent process failure, completion receipt retry without re-execution,
