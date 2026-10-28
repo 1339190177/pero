@@ -1,7 +1,7 @@
 // CI-owned release metadata and packaged smoke. Publication is the workflow's final step.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
@@ -87,10 +87,12 @@ if (operation === 'prepare') {
     if (!version) throw new Error(`Packaged adapter failed to start: ${adapter}`);
   }
   let desktop;
+  let page;
   try {
-    desktop = await electron.launch({ executablePath: executable, args: ['--use-mock-keychain'], cwd: scratch, env });
-    const page = await desktop.firstWindow();
-    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    desktop = await electron.launch({ executablePath: executable, args: ['--use-mock-keychain', ...(process.platform === 'linux' ? ['--enable-features=Vulkan', '--use-angle=vulkan', '--use-vulkan=swiftshader', '--use-webgpu-adapter=swiftshader', '--disable-vulkan-surface'] : [])], cwd: scratch, env });
+    page = await desktop.firstWindow();
+    page.on('console', message => appendFileSync(join(outputDir, 'browser.log'), `${message.type()}: ${message.text()}\n`));
+    const errors = []; page.on('pageerror', error => { errors.push(error.message); appendFileSync(join(outputDir, 'browser.log'), `pageerror: ${error.message}\n`); });
     await page.waitForFunction(() => window.peroDiagnostics, undefined, { timeout: 60_000 });
     const snapshot = () => page.evaluate(() => JSON.parse(window.peroDiagnostics.snapshot()));
     await expect.poll(async () => (await snapshot()).ready, { timeout: 60_000 }).toBe(true);
@@ -104,6 +106,10 @@ if (operation === 'prepare') {
     await page.screenshot({ path: join(outputDir, 'packaged-start.png') });
     writeFileSync(join(outputDir, 'smoke.json'), JSON.stringify({ result: 'passed', releaseTag: tag, sourceRevision: revision, taskCenter: state.remote.state.connection.url, hostReady: state.connected, errors }, null, 2) + '\n');
   } finally {
+    if (page) {
+      await page.screenshot({ path: join(outputDir, 'packaged-final.png') });
+      writeFileSync(join(outputDir, 'renderer.html'), await page.content());
+    }
     if (desktop) await desktop.close();
     rmSync(scratch, { recursive: true, force: true });
   }
