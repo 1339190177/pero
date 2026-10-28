@@ -43,39 +43,51 @@ func (s *Store) AuthenticateClient(ctx context.Context, token string) (*Client, 
 	return c, nil
 }
 
-func (s *Store) ClientTasks(ctx context.Context, client *Client, cursor string, limit int) (*TaskPage, error) {
+func (s *Store) ClientTasks(ctx context.Context, client *Client, cursor string, limit int, filters ...TaskFilter) (*TaskPage, error) {
 	if err := s.Reap(ctx); err != nil {
 		return nil, err
 	}
-	var before *time.Time
-	if cursor != "" {
-		var value time.Time
-		err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1 AND spec->>'project_id'=ANY($2)`, cursor, client.Projects).Scan(&value)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
+	filter := TaskFilter{}
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	ids := []string{}
+	var err error
+	if filter.SourceKind == "roadmap" {
+		ids, err = s.roadmapTaskIDs(ctx, client, cursor, limit, filter)
 		if err != nil {
 			return nil, err
 		}
-		before = &value
-	}
-	rows, err := s.pool.Query(ctx, `SELECT id FROM tasks WHERE spec->>'project_id'=ANY($1) AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::text)) ORDER BY created_at DESC,id DESC LIMIT $4`, client.Projects, before, cursor, limit+1)
-	if err != nil {
-		return nil, err
-	}
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
+	} else {
+		var before *time.Time
+		if cursor != "" {
+			var value time.Time
+			err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1 AND spec->>'project_id'=ANY($2)`, cursor, client.Projects).Scan(&value)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
+			if err != nil {
+				return nil, err
+			}
+			before = &value
+		}
+		rows, err := s.pool.Query(ctx, `SELECT tasks.id FROM tasks LEFT JOIN github_issues g ON g.task_id=tasks.id LEFT JOIN roadmap_items road ON road.task_id=tasks.id WHERE spec->>'project_id'=ANY($1) AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::text)) AND ($5='' OR spec->'source'->>'kind'=$5) AND ($6='' OR (CASE WHEN road.task_id IS NOT NULL THEN COALESCE(road.latest->'tags','[]'::jsonb) WHEN g.task_id IS NOT NULL THEN COALESCE(g.latest->'labels','[]'::jsonb) ELSE COALESCE(spec->'tags','[]'::jsonb) END) ? $6) ORDER BY created_at DESC,id DESC LIMIT $4`, client.Projects, before, cursor, limit+1, filter.SourceKind, filter.Tag)
+		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
+		for rows.Next() {
+			var id string
+			if err = rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 	page := &TaskPage{Tasks: []Task{}}
 	used := 0
@@ -141,9 +153,9 @@ func taskBusy(t *Task) bool {
 
 func taskSourceClosed(t *Task) bool {
 	if t.LatestSource != nil {
-		return t.LatestSource.State == "closed"
+		return t.LatestSource.State == "closed" || t.LatestSource.State == "missing"
 	}
-	return t.Source != nil && t.Source.State == "closed"
+	return t.Source != nil && (t.Source.State == "closed" || t.Source.State == "missing")
 }
 func taskSourceStale(t *Task) bool {
 	return t.Source != nil && t.LatestSource != nil && t.Source.Revision != t.LatestSource.Revision

@@ -45,7 +45,8 @@ func taskIn(ctx context.Context, q interface {
 	var claimedID, claimedName string
 	var latest []byte
 	var latestRevision string
-	err := q.QueryRow(ctx, `SELECT t.id,t.spec,COALESCE(t.current_run_id,''),COALESCE(c.id,''),COALESCE(c.name,''),g.latest,COALESCE(g.revision,'') FROM tasks t LEFT JOIN clients c ON c.id=t.claimed_by_client_id LEFT JOIN github_issues g ON g.task_id=t.id WHERE t.id=$1`, id).Scan(&t.ID, &spec, &t.CurrentRunID, &claimedID, &claimedName, &latest, &latestRevision)
+	var roadmap []byte
+	err := q.QueryRow(ctx, `SELECT t.id,t.spec,COALESCE(t.current_run_id,''),COALESCE(c.id,''),COALESCE(c.name,''),g.latest,COALESCE(g.revision,''),road.latest FROM tasks t LEFT JOIN clients c ON c.id=t.claimed_by_client_id LEFT JOIN github_issues g ON g.task_id=t.id LEFT JOIN roadmap_items road ON road.task_id=t.id WHERE t.id=$1`, id).Scan(&t.ID, &spec, &t.CurrentRunID, &claimedID, &claimedName, &latest, &latestRevision, &roadmap)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -61,6 +62,13 @@ func taskIn(ctx context.Context, q interface {
 			return nil, err
 		}
 		t.LatestSource = gitHubSource(issue, latestRevision)
+	}
+	if len(roadmap) > 0 {
+		var source Source
+		if err = json.Unmarshal(roadmap, &source); err != nil {
+			return nil, err
+		}
+		t.LatestSource = &source
 	}
 	if claimedID != "" {
 		t.ClaimedBy = &TaskClaimant{ID: claimedID, Name: claimedName}
@@ -83,39 +91,51 @@ func (s *Store) Task(ctx context.Context, id string) (*Task, error) {
 	return taskIn(ctx, s.pool, id)
 }
 
-func (s *Store) Tasks(ctx context.Context, cursor string, limit int) (*TaskPage, error) {
+func (s *Store) Tasks(ctx context.Context, cursor string, limit int, filters ...TaskFilter) (*TaskPage, error) {
 	if err := s.Reap(ctx); err != nil {
 		return nil, err
 	}
-	var before *time.Time
-	if cursor != "" {
-		var value time.Time
-		err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1`, cursor).Scan(&value)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
+	filter := TaskFilter{}
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	ids := []string{}
+	var err error
+	if filter.SourceKind == "roadmap" {
+		ids, err = s.roadmapTaskIDs(ctx, nil, cursor, limit, filter)
 		if err != nil {
 			return nil, err
 		}
-		before = &value
-	}
-	rows, err := s.pool.Query(ctx, `SELECT id FROM tasks WHERE ($1::timestamptz IS NULL OR (created_at,id)<($1::timestamptz,$2::text)) ORDER BY created_at DESC,id DESC LIMIT $3`, before, cursor, limit+1)
-	if err != nil {
-		return nil, err
-	}
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
+	} else {
+		var before *time.Time
+		if cursor != "" {
+			var value time.Time
+			err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1`, cursor).Scan(&value)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
+			if err != nil {
+				return nil, err
+			}
+			before = &value
+		}
+		rows, err := s.pool.Query(ctx, `SELECT tasks.id FROM tasks LEFT JOIN github_issues g ON g.task_id=tasks.id LEFT JOIN roadmap_items road ON road.task_id=tasks.id WHERE ($1::timestamptz IS NULL OR (created_at,id)<($1::timestamptz,$2::text)) AND ($4='' OR spec->'source'->>'kind'=$4) AND ($5='' OR (CASE WHEN road.task_id IS NOT NULL THEN COALESCE(road.latest->'tags','[]'::jsonb) WHEN g.task_id IS NOT NULL THEN COALESCE(g.latest->'labels','[]'::jsonb) ELSE COALESCE(spec->'tags','[]'::jsonb) END) ? $5) ORDER BY created_at DESC,id DESC LIMIT $3`, before, cursor, limit+1, filter.SourceKind, filter.Tag)
+		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
+		for rows.Next() {
+			var id string
+			if err = rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 	page := &TaskPage{Tasks: []Task{}}
 	used := 0

@@ -152,9 +152,10 @@ const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.sour
  FROM community_tasks p
  JOIN tasks t ON t.id=p.task_id
  LEFT JOIN github_issues github ON github.task_id=t.id
+ LEFT JOIN roadmap_items roadmap ON roadmap.task_id=t.id
  CROSS JOIN LATERAL (
-  SELECT COALESCE(github.latest->>'state',t.spec->'source'->>'state','')='closed' AS closed,
-   COALESCE(github.revision<>t.spec->'source'->>'revision',false) AS changed
+  SELECT COALESCE(roadmap.latest->>'state',github.latest->>'state',t.spec->'source'->>'state','') IN ('closed','missing') AS closed,
+   COALESCE(COALESCE(roadmap.latest->>'revision',github.revision)<>t.spec->'source'->>'revision',false) AS changed
  ) source
  LEFT JOIN runs r ON r.id=t.current_run_id
  LEFT JOIN community_assignments ca ON ca.run_id=r.id
