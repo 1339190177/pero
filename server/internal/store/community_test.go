@@ -169,3 +169,70 @@ func TestCommunityPrivateTasksSourceAndSessionBoundaries(t *testing.T) {
 		t.Fatalf("expired token: %v", err)
 	}
 }
+
+func TestCommunityPublicSourceFactsFollowLatestProviderObservation(t *testing.T) {
+	s, _, worker, _ := communityFixture(t)
+	ctx := context.Background()
+	config, issue := sourceFixture()
+	if _, err := s.SyncGitHubIssue(ctx, config, issue); err != nil {
+		t.Fatal(err)
+	}
+	task := sourceTask(t, s, issue)
+	if err := s.CommunityPublish(ctx, task.ID, "Reviewed public title", "Reviewed public scope", issue.URL); err != nil {
+		t.Fatal(err)
+	}
+	runID, err := s.CommunityClaim(ctx, task.ID, worker.ID, 101)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := s.Claim(ctx, worker.ID, "instance", "source-run")
+	if err != nil || run == nil || run.ID != runID {
+		t.Fatalf("claim: %+v %v", run, err)
+	}
+	if _, err = s.Complete(ctx, run.ID, worker.ID, "instance", run.Generation, Completion{Outcome: "failed", Summary: "Inspect before retry"}); err != nil {
+		t.Fatal(err)
+	}
+	oldRevision := run.Spec.Source.Revision
+	check := func(state string, closed bool) {
+		t.Helper()
+		detail, err := s.CommunityTask(ctx, task.ID)
+		if err != nil || detail.State != state || detail.SourceClosed != closed || !detail.SourceChanged {
+			t.Fatalf("public detail: %+v %v", detail, err)
+		}
+		list, _, err := s.CommunityTasks(ctx, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, item := range list {
+			if item.ID == task.ID {
+				found = true
+				if item.State != detail.State || item.SourceClosed != detail.SourceClosed || item.SourceChanged != detail.SourceChanged {
+					t.Fatal("public list/detail source facts disagree")
+				}
+			}
+		}
+		if !found {
+			t.Fatal("published source missing")
+		}
+		if _, err = s.CommunityClaim(ctx, task.ID, worker.ID, 101); !errors.Is(err, ErrConflict) {
+			t.Fatalf("changed source accepted another claim: %v", err)
+		}
+		original, err := s.Task(ctx, task.ID)
+		if err != nil || original.CurrentRunID != runID || original.Source.Revision != oldRevision || original.Run.Spec.Source.Revision != oldRevision || original.Run.Spec.Source.State != "open" {
+			t.Fatalf("source display changed original execution: %+v %v", original, err)
+		}
+	}
+	issue.Body = "Updated provider goal"
+	issue.UpdatedAt = "2026-10-28T00:01:00Z"
+	if _, err = s.SyncGitHubIssue(ctx, config, issue); err != nil {
+		t.Fatal(err)
+	}
+	check("source_changed", false)
+	issue.State = "closed"
+	issue.UpdatedAt = "2026-10-28T00:02:00Z"
+	if _, err = s.SyncGitHubIssue(ctx, config, issue); err != nil {
+		t.Fatal(err)
+	}
+	check("closed", true)
+}

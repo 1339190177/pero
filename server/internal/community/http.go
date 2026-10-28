@@ -136,7 +136,10 @@ func taskState(t store.PublicTask) string {
 		return "验收已撤销"
 	case "closed":
 		return "来源已关闭"
-case "reserved":return "已认领"
+	case "source_changed":
+		return "来源已更新"
+	case "reserved":
+		return "已认领"
 	case "queued":
 		return "排队中"
 	case "running":

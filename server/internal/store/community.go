@@ -22,6 +22,7 @@ type PublicTask struct {
 	ID, Title, Description, Project, SourceURL, State, RunID, Contributor string
 	ContributorID                                                         int64
 	Accepted                                                              bool
+	SourceClosed, SourceChanged                                           bool
 }
 type CommunityRank struct {
 	Login  string
@@ -141,14 +142,20 @@ func (s *Store) CommunityPublish(ctx context.Context, id, title, description, so
 
 const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.source_url,
  CASE
-  WHEN t.spec->'source'->>'state'='closed' AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'closed'
+  WHEN source.closed AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'closed'
+  WHEN source.changed AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'source_changed'
   WHEN t.claimed_by_client_id IS NOT NULL AND owner.id IS NULL AND COALESCE(r.status,'draft') IN ('draft','failed','cancelled') THEN 'reserved'
   WHEN r.status='succeeded' AND EXISTS(SELECT 1 FROM community_points a JOIN community_points v ON v.reverses=a.id WHERE a.run_id=r.id) THEN 'revoked'
   ELSE COALESCE(r.status,'draft') END,
  COALESCE(r.id,''),COALESCE(credited.login,u.login,owner.login,''),COALESCE(u.id,owner.id,0),
- award.id IS NOT NULL
+ award.id IS NOT NULL,source.closed,source.changed
  FROM community_tasks p
  JOIN tasks t ON t.id=p.task_id
+ LEFT JOIN github_issues github ON github.task_id=t.id
+ CROSS JOIN LATERAL (
+  SELECT COALESCE(github.latest->>'state',t.spec->'source'->>'state','')='closed' AS closed,
+   COALESCE(github.revision<>t.spec->'source'->>'revision',false) AS changed
+ ) source
  LEFT JOIN runs r ON r.id=t.current_run_id
  LEFT JOIN community_assignments ca ON ca.run_id=r.id
  LEFT JOIN community_users u ON u.id=ca.user_id
@@ -161,7 +168,7 @@ const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.sour
 
 func scanPublic(row pgx.Row) (PublicTask, error) {
 	var t PublicTask
-	err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Project, &t.SourceURL, &t.State, &t.RunID, &t.Contributor, &t.ContributorID, &t.Accepted)
+	err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Project, &t.SourceURL, &t.State, &t.RunID, &t.Contributor, &t.ContributorID, &t.Accepted, &t.SourceClosed, &t.SourceChanged)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}

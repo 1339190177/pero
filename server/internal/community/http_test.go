@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -31,6 +32,9 @@ func communityHTTP(t *testing.T) *fixture {
 	t.Helper()
 	dsn := os.Getenv("PERO_TEST_DATABASE_URL")
 	if dsn == "" {
+		if os.Getenv("PERO_REQUIRE_TEST_DATABASE") == "1" {
+			t.Fatal("PERO_TEST_DATABASE_URL is required for PostgreSQL community tests")
+		}
 		t.Skip("set PERO_TEST_DATABASE_URL for PostgreSQL community tests")
 	}
 	ctx := context.Background()
@@ -240,6 +244,74 @@ func TestCommunityConfiguration(t *testing.T) {
 	}
 }
 
+// Unpublished until the test explicitly reviews their public title/description.
+func communitySourceCases(t *testing.T, f *fixture) map[string]string {
+	t.Helper()
+	ctx := context.Background()
+	ids := map[string]string{}
+	config := store.GitHubRepository{ProjectID: "pero", Owner: "acme", Repo: "repo", WorkspaceKey: "private", AgentID: "fixture", Acceptance: "Private source acceptance"}
+	owner, _, err := f.db.CreateClient(ctx, "Original task owner", []string{"pero"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, state := range []string{"open", "closed"} {
+		key := "changed_task"
+		if state == "closed" {
+			key = "closed_task"
+		}
+		issue := store.GitHubIssue{RepositoryID: "200", Repository: "acme/repo", ID: fmt.Sprint(500 + i), NodeID: fmt.Sprint("I_", 500+i), Number: int64(500 + i), URL: fmt.Sprintf("https://github.com/acme/repo/issues/%d", 500+i), Title: "Private source title", Body: "PRIVATE_SOURCE_GOAL", State: "open", UpdatedAt: "2026-10-28T00:00:00Z", Labels: []string{}}
+		if _, err = f.db.SyncGitHubIssue(ctx, config, issue); err != nil {
+			t.Fatal(err)
+		}
+		page, err := f.db.Tasks(ctx, "", 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, task := range page.Tasks {
+			if task.Source != nil && task.Source.IssueID == issue.ID {
+				ids[key] = task.ID
+				break
+			}
+		}
+		if ids[key] == "" {
+			t.Fatal("source fixture task missing")
+		}
+		if _, err = f.db.ClaimTask(ctx, &owner, ids[key]); err != nil {
+			t.Fatal(err)
+		}
+		issue.Body = "PRIVATE_REVISED_SOURCE_GOAL"
+		issue.State = state
+		issue.UpdatedAt = "2026-10-28T00:01:00Z"
+		if _, err = f.db.SyncGitHubIssue(ctx, config, issue); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return ids
+}
+
+func TestCommunityLatestSourceRecoveryIsPublicWithoutPrivateGoal(t *testing.T) {
+	f := communityHTTP(t)
+	cases := communitySourceCases(t, f)
+	client := f.app.Client()
+	for key, id := range cases {
+		if err := f.db.CommunityPublish(context.Background(), id, "Reviewed public source task", "Reviewed public requirements", ""); err != nil {
+			t.Fatal(err)
+		}
+		status, body := fetch(t, client, "GET", f.app.URL+"/tasks/"+id, "", nil)
+		label := "来源已更新"
+		if key == "closed_task" {
+			label = "来源已关闭"
+		}
+		if status != 200 || !strings.Contains(body, label) || strings.Contains(body, `action="/tasks/`+id+`/claim"`) || strings.Contains(body, "PRIVATE_SOURCE_GOAL") || strings.Contains(body, "PRIVATE_REVISED_SOURCE_GOAL") {
+			t.Fatalf("public source recovery: status=%d body=%s", status, body)
+		}
+	}
+	status, body := fetch(t, client, "GET", f.app.URL+"/tasks", "", nil)
+	if status != 200 || !strings.Contains(body, "来源已更新") || !strings.Contains(body, "来源已关闭") {
+		t.Fatalf("board source states: %d %s", status, body)
+	}
+}
+
 // The browser suite starts this fixture explicitly; it is never a production route.
 func TestCommunityBrowserFixture(t *testing.T) {
 	file := os.Getenv("PERO_COMMUNITY_BROWSER_FIXTURE")
@@ -247,7 +319,9 @@ func TestCommunityBrowserFixture(t *testing.T) {
 		t.Skip("browser fixture is opt-in")
 	}
 	f := communityHTTP(t)
-	metadata, _ := json.Marshal(map[string]string{"url": f.app.URL, "task": f.taskID, "worker": f.workerID, "workerToken": f.workerToken})
+	metadataFields := communitySourceCases(t, f)
+	metadataFields["url"], metadataFields["task"], metadataFields["worker"], metadataFields["workerToken"] = f.app.URL, f.taskID, f.workerID, f.workerToken
+	metadata, _ := json.Marshal(metadataFields)
 	if err := os.WriteFile(file, metadata, 0600); err != nil {
 		t.Fatal(err)
 	}

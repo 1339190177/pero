@@ -29,7 +29,7 @@ try {
     if (child.exitCode !== null || Date.now() > deadline) throw new Error(`Fixture failed: ${logs}`);
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  const { url, task, worker, workerToken } = JSON.parse(readFileSync(metadata, 'utf8'));
+  const { url, task, worker, workerToken, changed_task, closed_task } = JSON.parse(readFileSync(metadata, 'utf8'));
   browser = await chromium.launch({ headless: true, ...(process.env.PERO_CHROMIUM_PATH ? { executablePath: process.env.PERO_CHROMIUM_PATH } : {}) });
   const admin = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const member = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
@@ -130,6 +130,20 @@ try {
   await expect(mp.getByRole('heading', { name: '还没有验收贡献' })).toBeVisible();
   await mp.goto(`${url}/contributors/alice`);
   await expect(mp.getByText('−1', { exact: true })).toBeVisible();
+  for (const [sourceTask, title, label] of [
+    [changed_task, '来源更新后需要核对的任务', '来源已更新'],
+    [closed_task, '来源关闭后暂停认领的任务', '来源已关闭'],
+  ]) {
+    await ap.goto(`${url}/community/admin`);
+    await ap.getByLabel('已有任务').fill(sourceTask);
+    await ap.getByLabel('公开标题').fill(title);
+    await ap.getByLabel('公开任务说明与验收要求').fill('这是经过检查的公开要求。');
+    await ap.getByRole('button', { name: '发布到任务广场' }).click();
+    await mp.goto(`${url}/tasks/${sourceTask}`);
+    await expect(mp.locator('.badge')).toHaveText(label);
+    await expect(mp.getByRole('button', { name: '认领并执行' })).toHaveCount(0);
+    assert.ok(!(await mp.locator('body').innerText()).includes('PRIVATE_REVISED_SOURCE_GOAL'));
+  }
   await mp.goto(`${url}/tasks/missing`);
   await expect(mp.getByRole('alert')).toContainText('未找到');
   await mp.screenshot({ path: resolve(output, 'error-mobile-dark.png') });
@@ -140,7 +154,7 @@ try {
   await expect(mp.getByRole('alert')).toContainText('服务暂时不可用');
   await mp.getByRole('link', { name: '返回任务广场' }).click();
   assert.deepEqual(errors, []);
-  writeFileSync(resolve(output, 'verification.json'), JSON.stringify({ result: 'passed', cases: ['empty', 'keyboard-focus', 'loading-feedback', 'login-error', 'publish', 'oauth-fixture', 'worker-disabled', 'worker-binding', 'claim', 'running', 'success-without-points', 'accept', 'weekly/all', 'revoke', 'history', '404-recovery', '503-recovery', 'light/dark', '390px-no-page-overflow'], provider: 'local OAuth and Worker protocol fixtures; no real GitHub or Agent execution' }, null, 2));
+  writeFileSync(resolve(output, 'verification.json'), JSON.stringify({ result: 'passed', cases: ['empty', 'keyboard-focus', 'loading-feedback', 'login-error', 'publish', 'oauth-fixture', 'worker-disabled', 'worker-binding', 'claim', 'running', 'success-without-points', 'accept', 'weekly/all', 'revoke', 'history', '404-recovery', '503-recovery', 'light/dark', '390px-no-page-overflow', 'changed-source-blocked', 'closed-source-blocked'], provider: 'local OAuth and Worker protocol fixtures; no real GitHub or Agent execution' }, null, 2));
   console.log(`Community browser checks passed. Screenshots: ${output}`);
   succeeded = true;
 } finally {
