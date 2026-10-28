@@ -11,6 +11,7 @@ What each suite proves, and where screenshots land, is [tests/README.md](../../t
 5. `npm run test:e2e`: real Electron against the ACP fixture. Workbench session behavior, then the tool-call matrix.
 6. `npm run test:i18n`: shared catalogs in real Electron, including live switching, persistence after restart, native menus, and untranslated user content. Source rules are in [locales/README.md](../../locales/README.md).
 7. `cd server && go test ./...`: control-plane tests. PostgreSQL cases skip without `PERO_TEST_DATABASE_URL`. See [server/README.md](../../server/README.md).
+8. `npm run test:github`: opt-in shared-client flow with a read-only GitHub fixture, real Go/PostgreSQL, two Electron clients and an independent ACP Worker. Requires `PERO_TEST_DATABASE_URL` and the same development builds as `test:remote`.
 
 `npm run test:e2e:real` is opt-in. It uses the local Codex login and sends one real model request. `npm run test:remote` is also opt-in: it needs `PERO_TEST_DATABASE_URL` and runs Electron, Go, PostgreSQL, and `pero-worker` together.
 

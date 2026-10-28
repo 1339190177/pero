@@ -18,6 +18,7 @@
 | `e2e/toolcalls.mjs` | L1 | 同上 | 九种工具行、diff、失败、取消、附件上下文 |
 | `e2e/i18n.mjs` | L1 | `npm run test:i18n` | 中英文切换、原生菜单、重启后偏好、用户原文不翻译、无 Host 的预览窗口。文案源见 [locales/README.md](../locales/README.md) |
 | `e2e/remote.mjs` | L2 | `npm run test:remote` | Electron、Go、PostgreSQL、`pero-worker` 和 ACP fixture 的一轮创建、执行、取消和断线恢复。需要 `PERO_TEST_DATABASE_URL` |
+| `e2e/github.mjs` + `server/internal/httpapi/desktop_github_test.go` | L2 | `npm run test:github` | Go harness 启动真实 PostgreSQL/API 和只读 GitHub fixture；两个 Electron 客户端认领、释放、接手并经独立 Worker 执行，验证项目可见范围和自动派发不重复。需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/real-session.mjs` | L2 | `npm run test:e2e:real` | 本机 Codex 登录，回复恰好是 `PERO_DESKTOP_OK`。不进默认验收 |
 
 `test:e2e` 和 `test:i18n` 使用已有的开发构建，自己不编译。先跑 `npm run build`。`test:contracts` 会先编译 Host。
@@ -27,6 +28,7 @@
 - `npm test` 包含 `pero-worker`。`crates/pero-worker/tests/remote.rs` 自己起本地假协调服务，不使用 PostgreSQL。
 - Go 控制面在 `server/`。`go test ./...` 在没有 `PERO_TEST_DATABASE_URL` 时跳过 PostgreSQL 集成用例。见 [server/README.md](../server/README.md)。
 - 远程协议的整条链路在 `e2e/remote.mjs`，不另放一份不启动界面的契约脚本。
+- GitHub 共享认领的整条链路在 `e2e/github.mjs`；GitHub 和 ACP 上游为 fixture，不证明真实模型、GitHub 写回或线上部署。公开仓库的只读检查另记在 [remote-dispatch-verification.md](../docs/fitness/remote-dispatch-verification.md)。
 - L3（签名安装包、升级）不在这个目录。
 
 ## 桌面套件怎么断言
