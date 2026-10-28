@@ -13,10 +13,12 @@ import (
 
 	"github.com/phodal/pero/harness/go/fstools"
 	"github.com/phodal/pero/harness/go/harness"
+	"github.com/phodal/pero/harness/go/sandbox"
 	"github.com/phodal/pero/harness/go/shell"
 )
 
 type Options struct {
+	Sandbox     *sandbox.Config
 	Workspace   string
 	EnableShell bool
 	Shell       string
@@ -56,6 +58,17 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 	if h == nil {
 		return nil, errors.New("native tools require harness")
 	}
+	if opts.Sandbox != nil {
+		if !opts.EnableShell {
+			return nil, errors.New("strict sandbox requires enabled shell")
+		}
+		copyConfig := *opts.Sandbox
+		copyConfig.RuntimePaths = append([]string(nil), opts.Sandbox.RuntimePaths...)
+		opts.Sandbox = &copyConfig
+		if err := opts.Sandbox.Validate(); err != nil {
+			return nil, err
+		}
+	}
 	files, err := fstools.OpenWorkspace(opts.Workspace)
 	if err != nil {
 		return nil, err
@@ -66,6 +79,7 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 			_ = files.Close()
 		}
 	}()
+	var shellAdmission func(context.Context, harness.ToolRequest) (*harness.NativeApprovalDescriptor, error)
 	definitions := []struct {
 		name, description, properties, required string
 		approval                                bool
@@ -89,15 +103,40 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 		if opts.Shell == "" {
 			opts.Shell = "/bin/bash"
 		}
-		executor, e := shell.NewLocalExecutor(shell.LocalOptions{Shell: opts.Shell, CWD: files.Path(), Timeout: 30 * time.Second, MaxTimeout: 120 * time.Second, MaxOutputBytes: 16 << 10, Grace: 200 * time.Millisecond, BaseEnv: []string{"PATH=/usr/bin:/bin", "LANG=C.UTF-8"}})
+		executor, e := shell.NewLocalExecutor(shell.LocalOptions{Sandbox: opts.Sandbox, Shell: opts.Shell, CWD: files.Path(), Timeout: 30 * time.Second, MaxTimeout: 120 * time.Second, MaxOutputBytes: 16 << 10, Grace: 200 * time.Millisecond, BaseEnv: []string{"PATH=/usr/bin:/bin", "LANG=C.UTF-8"}})
 		if e != nil {
 			return nil, e
+		}
+		if opts.Sandbox != nil {
+			shellAdmission = func(c context.Context, request harness.ToolRequest) (*harness.NativeApprovalDescriptor, error) {
+				if request.Agent == nil {
+					return nil, errors.New("native shell admission requires agent")
+				}
+				if err := files.CheckCWD(request.Agent.Session().WorkingDirectory()); err != nil {
+					return nil, err
+				}
+				var a arguments
+				if err := json.Unmarshal(request.Arguments, &a); err != nil {
+					return nil, err
+				}
+				if _, err := executor.Resolve(shell.ExecRequest{Command: a.Command, Workdir: files.Path(), Timeout: time.Duration(a.TimeoutMS) * time.Millisecond}); err != nil {
+					return nil, err
+				}
+				if err := executor.CheckConfinement(c); err != nil {
+					return nil, err
+				}
+				return &harness.NativeApprovalDescriptor{Version: 1, Operation: "shell", Workspace: files.Path(), SandboxMode: string(opts.Sandbox.Mode), Enforcement: "required", Network: "deny"}, nil
+			}
+		}
+		description := "Run an approved foreground Bash command with a minimal environment, bounded output and timeout. NOT an OS sandbox: may access outside workspace or network. No background jobs."
+		if opts.Sandbox != nil {
+			description = "Run an approved bounded foreground command in a strict native sandbox. Network denied; only declared runtime files and workspace readable. Workspace mode: " + string(opts.Sandbox.Mode)
 		}
 		definitions = append(definitions, struct {
 			name, description, properties, required string
 			approval                                bool
 			run                                     func(context.Context, arguments) (any, error)
-		}{"shell", "Run an approved foreground Bash command with a minimal environment, bounded output and timeout. NOT an OS sandbox: may access outside workspace or network. No background jobs.", `"command":{"type":"string","minLength":1,"maxLength":16384},"timeout_ms":{"type":"integer","minimum":1,"maximum":120000}`, `"command"`, true, func(c context.Context, a arguments) (any, error) {
+		}{"shell", description, `"command":{"type":"string","minLength":1,"maxLength":16384},"timeout_ms":{"type":"integer","minimum":1,"maximum":120000}`, `"command"`, true, func(c context.Context, a arguments) (any, error) {
 			if e := files.CheckCWD(files.Path()); e != nil {
 				return nil, e
 			}
@@ -114,8 +153,15 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 	}
 	// Registered contributions are owned by the Harness and drain before App.Close.
 	for _, d := range definitions {
+		if opts.Sandbox != nil && opts.Sandbox.Mode == sandbox.ReadOnly && (d.name == "write_file" || d.name == "edit_file") {
+			continue
+		}
+		var admission func(context.Context, harness.ToolRequest) (*harness.NativeApprovalDescriptor, error)
+		if d.name == "shell" {
+			admission = shellAdmission
+		}
 		schema := json.RawMessage(fmt.Sprintf(`{"type":"object","additionalProperties":false,"properties":{%s},"required":[%s]}`, d.properties, d.required))
-		_, err = h.RegisterTool(ctx, "native/"+d.name, harness.Tool{Schema: harness.ToolSchema{Name: d.name, Description: d.description, InputSchema: schema}, RequiresApproval: d.approval, Timeout: 125 * time.Second, ExecutionMode: harness.ExecutionSerial, ExecuteRequest: func(c context.Context, request harness.ToolRequest) (harness.ToolResult, error) {
+		_, err = h.RegisterTool(ctx, "native/"+d.name, harness.Tool{Schema: harness.ToolSchema{Name: d.name, Description: d.description, InputSchema: schema}, RequiresApproval: d.approval, ApprovalDescriptor: admission, Timeout: 125 * time.Second, ExecutionMode: harness.ExecutionSerial, ExecuteRequest: func(c context.Context, request harness.ToolRequest) (harness.ToolResult, error) {
 			if request.Agent == nil {
 				return harness.ToolResult{}, errors.New("native tools require an agent")
 			}

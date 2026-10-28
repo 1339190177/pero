@@ -4,7 +4,7 @@
   "files": [
     {
       "destination": "tools.go",
-      "sha256": "f312218b39d498e1198dfb4363a9a68402d9d302563d0aa5130ace6901c30882"
+      "sha256": "21fd534793893759fe8665a73a21692dbb3c11a9615a51c012a8b09382b62cda"
     },
     {
       "destination": "tools_test.go",
@@ -12,6 +12,7 @@
     }
   ],
   "changes": [
-    "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant."
+    "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant.",
+    "Opt-in strict shell composition and read-only mutation refusal reuse sandbox policy; shell-only approval descriptor is created by trusted registration, after confinement admission checks."
   ]
 }

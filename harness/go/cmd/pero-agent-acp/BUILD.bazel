@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "compaction.go",
         "main.go",
+        "sandbox_options.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/cmd/pero-agent-acp",
     visibility = ["//visibility:private"],
@@ -12,7 +13,9 @@ go_library(
         "//acp",
         "//harness",
         "//nativetools",
+        "//permissionpresets",
         "//providers/openai",
+        "//sandbox",
         "//skills",
     ],
 )
@@ -29,6 +32,7 @@ go_test(
         "compaction_test.go",
         "compaction_wire_test.go",
         "main_test.go",
+        "sandbox_options_test.go",
     ],
     embed = [":pero-agent-acp_lib"],
     deps = [

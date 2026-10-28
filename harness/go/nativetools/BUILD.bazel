@@ -8,18 +8,23 @@ go_library(
     deps = [
         "//fstools",
         "//harness",
+        "//sandbox",
         "//shell",
     ],
 )
 
 go_test(
     name = "nativetools_test",
-    srcs = ["tools_test.go"],
+    srcs = [
+        "sandbox_test.go",
+        "tools_test.go",
+    ],
     embed = [":nativetools"],
     deps = [
         "//fstools",
         "//harness",
         "//runtime",
+        "//sandbox",
         "//shell",
     ],
 )
