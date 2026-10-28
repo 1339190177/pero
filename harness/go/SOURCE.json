@@ -30,7 +30,8 @@
     "Idle-only ACP model change uses command lifecycle reservation without holding session lock across subscriber/persistence callbacks; close drains it and restoration revalidates explicit uniform context/output capacities.",
     "Optional coding helpers mount explicit-root untrusted AGENTS.md context and session-backed todo_write only; plan-mode/user-question authorization remains excluded. Package-specific source pins preserved in agentinstructions/SOURCE.json and todos/SOURCE.json.",
     "Optional complete native subagent registry/lifecycle restored; one-level in-process spawn/fork reuse existing AgentManager/Session ownership. Effective child caps are restricted, request budgets shared, ApprovalNever pinned, and parent MCP grants may be inherited. The duplicate extracted callback helper is removed; original provenance is retained under removed_files.",
-    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
+    "Official DSH behavioral review restores ACP admission cancellation, bounded physical read windows, max-token tool suppression and explicit context-overflow classification; see upstream_behavior_review record."
   ],
   "excluded_features": [
     "Projects",
@@ -749,17 +750,17 @@
     },
     {
       "destination": "acp/lifecycle.go",
-      "sha256": "662afd3f48e3522d788e367cb89673184615e11fe0ed43ef74104aa6072ed76c",
+      "sha256": "b5e8d4bfcbe5afc8dea7edf1d91f44be204a3c75e39dad0f04282e5218ab8223",
       "source_path": "go/harness/acp/lifecycle.go",
       "source_blob_sha1": "3e9b33ed2f4ba75e8ad4477269b0d890e2a1c40d",
-      "change": "imports only"
+      "change": "adapted; close cancels ACP prompt admission context as well as active Agent execution"
     },
     {
       "destination": "acp/server.go",
-      "sha256": "b49c85b27808136f42b8b94b7b2e919ab0134693c5efb707dc5a283e662e4ad9",
+      "sha256": "722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
-      "change": "adapted; review pinned source diff; Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies."
+      "change": "adapted and concept-split; restores upstream per-prompt admission cancellation and waits for cancellation settlement before releasing ACP slot"
     },
     {
       "destination": "acp/types.go",
@@ -1104,7 +1105,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-      "sha256": "2294d53b310034c3dc8bda016b7521c0cc6e081ec066ef543c75200316429c7e",
+      "sha256": "dffd04559249e2e0e41ecf0af81e9f3a3617053b66108ae316d3ad23cff4482c",
       "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
     },
     {
@@ -1123,5 +1124,36 @@
       "change": "new extraction glue or regression test",
       "removal_reason": "Identical callback helper restored with the complete native subagents_lifecycle.go; duplicate extracted helper removed."
     }
-  ]
+  ],
+  "upstream_behavior_review": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-upstream-parity.md",
+    "additional_files": [
+      {
+        "destination": "acp/stream_test.go",
+        "sha256": "f751b76e9a0053e64bf6b6a262c7a61af21f98df75fb8b933dbdb6c0d91ff8d0"
+      },
+      {
+        "destination": "providers/openai/stream.go",
+        "sha256": "45811754216945638b505f77d0277d8c8a52a4da02e4eedbfc9257f28e36e996"
+      },
+      {
+        "destination": "providers/openai/provider_errors.go",
+        "sha256": "20ce09a75aa29b167c5e680dd14643ebd60593a5866451f22ba12f3b198ba8ab"
+      },
+      {
+        "destination": "providers/openai/adapter_test.go",
+        "sha256": "e6eb4e46b1ba4d68b7f2608d0b9619afd8fbfcf4cd2302feb2f3db384edb8fe9"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
+        "sha256": "27f09ac78abe87894d607891d783aef80eaa9bd60291639712f3aa07315280f2"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+        "sha256": "dffd04559249e2e0e41ecf0af81e9f3a3617053b66108ae316d3ad23cff4482c"
+      }
+    ]
+  }
 }
