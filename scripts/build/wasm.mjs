@@ -3,6 +3,7 @@ import { cargoArgs } from '../lib/cargo.mjs';
 import { root } from '../lib/paths.mjs';
 import { run } from '../lib/run.mjs';
 await import('../codegen/theme.mjs');
+await import('./fonts.mjs');
 const bindgen = `${root}/target/tools/bin/wasm-bindgen`;
 if (!existsSync(bindgen)) await run('cargo', ['install', 'wasm-bindgen-cli', '--version', '0.2.127', '--locked', '--root', `${root}/target/tools`]);
 await run('cargo', cargoArgs(['+nightly-2026-10-28', 'build', '--locked', '-p', 'pero-ui', '--target', 'wasm32-unknown-unknown']));
