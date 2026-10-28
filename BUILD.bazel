@@ -27,7 +27,10 @@ js_run_binary(
     name = "generate_theme",
     tool = ":theme_generator",
     srcs = ["DESIGN.md"],
-    outs = ["generated/theme/theme.generated.json"],
+    outs = [
+        "generated/theme/theme.generated.json",
+        "generated/theme/theme.generated.css",
+    ],
     args = ["--root", ".", "--out-dir", "generated/theme"],
 )
 
@@ -36,6 +39,13 @@ diff_test(
     size = "small",
     file1 = "web/src/theme.generated.json",
     file2 = ":generated/theme/theme.generated.json",
+)
+
+diff_test(
+    name = "theme_css_check",
+    size = "small",
+    file1 = "//server/internal/community:assets/theme.generated.css",
+    file2 = ":generated/theme/theme.generated.css",
 )
 
 js_binary(
@@ -73,7 +83,7 @@ js_run_binary(
     for output in _CONTRACT_OUTPUTS
 ]
 
-_LOCALE_SOURCES = glob(["crates/pero-ui/src/*.rs"])
+_LOCALE_SOURCES = glob(["crates/pero-ui/src/**/*.rs"])
 
 js_test(
     name = "locales_check",
@@ -88,7 +98,7 @@ js_test(
 
 test_suite(
     name = "checks",
-    tests = [":locales_check", ":theme_check"] + [
+    tests = [":locales_check", ":theme_check", ":theme_css_check"] + [
         ":" + output.replace(".", "_") + "_check"
         for output in _CONTRACT_OUTPUTS
     ],

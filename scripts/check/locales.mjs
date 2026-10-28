@@ -11,11 +11,15 @@ for (const key of Object.keys(en)) {
   assert.ok(en[key].trim() && zh[key].trim(), `Empty translation: ${key}`);
   assert.deepEqual(placeholders(en[key]), placeholders(zh[key]), `Interpolation mismatch: ${key}`);
 }
-const files = source ?? readdirSync(resolve(root, 'crates/pero-ui/src'))
-  .filter(file => file.endsWith('.rs')).sort().map(file => `crates/pero-ui/src/${file}`);
+function rustSources(directory) {
+  return readdirSync(resolve(root, directory), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap(entry => entry.isDirectory() ? rustSources(`${directory}/${entry.name}`)
+      : entry.isFile() && entry.name.endsWith('.rs') ? [`${directory}/${entry.name}`] : []);
+}
+const files = source ?? rustSources('crates/pero-ui/src');
 for (const file of files) {
   const content = readFileSync(resolve(root, file), 'utf8');
-  for (const [, key] of content.matchAll(/"((?:nav|task|tasks|status|overview|chat|agents|filter|time|error|probe|tab|field|appearance|workspace|input|workbench|github|menu|verification|projects|environment)\.[a-z_\.]+)"/g)) {
+  for (const [, key] of content.matchAll(/"((?:nav|task|tasks|status|overview|chat|agents|filter|time|error|probe|tab|field|appearance|workspace|input|workbench|github|remote|menu|verification|projects|environment)\.[a-z_\.]+)"/g)) {
     assert.ok(key in en, `${file}: missing translation ${key}`);
   }
 }
