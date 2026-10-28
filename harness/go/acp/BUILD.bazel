@@ -6,6 +6,7 @@ go_library(
         "lifecycle.go",
         "models.go",
         "server.go",
+        "server_history.go",
         "stream.go",
         "types.go",
     ],
