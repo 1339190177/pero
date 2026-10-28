@@ -120,7 +120,7 @@ async function pythonTool() {
   const executable = join(tool, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
   const env = { ...process.env }; delete env.PYTHONPATH;
   if (!hasTool(executable, env)) {
-    if (!existsSync(executable)) await run(python, ['-m', 'venv', tool], { env });
+    await run(python, ['-m', 'venv', '--clear', tool], { env });
     await run(executable, ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-deps', '--break-system-packages', `fonttools==${manifest.fonttools}`], { env });
     if (!hasTool(executable, env)) throw new Error('Pinned fontTools setup failed');
   }

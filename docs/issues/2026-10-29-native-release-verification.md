@@ -30,3 +30,9 @@ Windows packaging also selected Git Bash GNU tar from PATH, which interpreted
 `D:` as a remote archive host and cannot emit the intended ZIP. The Windows
 packager now explicitly invokes System32/tar.exe (Windows bsdtar) with ZIP mode.
 The earlier candidates remain unpublished; tags are not rewritten.
+
+A subsequent Windows regular CI run restored an existing fontTools venv without
+working pip. The font tool health check rejected it, but the setup path skipped
+venv creation solely because python.exe existed. Invalid tool environments now
+recreate their venv with `--clear` before installing pinned fontTools. A healthy
+cached environment continues to be reused.
