@@ -1,0 +1,85 @@
+package store
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"time"
+)
+
+var (
+	ErrNotFound  = errors.New("not found")
+	ErrConflict  = errors.New("operation conflicts with current state or receipt")
+	ErrForbidden = errors.New("worker is not authorized for this operation")
+	ErrLease     = errors.New("execution lease is no longer valid")
+)
+
+type Spec struct {
+	Title        string `json:"title"`
+	Prompt       string `json:"prompt"`
+	Acceptance   string `json:"acceptance"`
+	ProjectID    string `json:"project_id"`
+	WorkspaceKey string `json:"workspace_key"`
+	AgentID      string `json:"agent_id"`
+}
+
+type Task struct {
+	ID string `json:"id"`
+	Spec
+	State        string `json:"state"`
+	CurrentRunID string `json:"current_run_id,omitempty"`
+	Run          *Run   `json:"run,omitempty"`
+}
+
+type TaskPage struct {
+	Tasks      []Task  `json:"tasks"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor *string `json:"next_cursor"`
+}
+
+type EventTail struct {
+	Events    []Event `json:"events"`
+	Truncated bool    `json:"events_truncated"`
+	FirstSeq  *int64  `json:"events_first_seq"`
+	LastSeq   *int64  `json:"events_last_seq"`
+}
+
+type Run struct {
+	ID             string     `json:"id"`
+	TaskID         string     `json:"task_id"`
+	Generation     int64      `json:"generation"`
+	WorkerID       string     `json:"worker_id,omitempty"`
+	InstanceID     string     `json:"instance_id,omitempty"`
+	Status         string     `json:"status"`
+	LeaseExpiresAt *time.Time `json:"lease_expires_at,omitempty"`
+	Spec           Spec       `json:"spec"`
+	Summary        string     `json:"summary"`
+}
+
+type Worker struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Projects []string `json:"projects"`
+	Labels   []string `json:"labels"`
+}
+
+type Event struct {
+	Seq  int64           `json:"seq"`
+	Kind string          `json:"kind"`
+	Text string          `json:"text"`
+	Data json.RawMessage `json:"data,omitempty"`
+}
+
+type Completion struct {
+	Outcome string `json:"outcome"`
+	Summary string `json:"summary"`
+}
+
+func newID(prefix string) string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic(err)
+	}
+	return prefix + "_" + hex.EncodeToString(b[:])
+}
