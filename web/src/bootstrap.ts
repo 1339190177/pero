@@ -61,6 +61,7 @@ try {
     window.pero.onEvent(onEvent);
     if (connection) onEvent(connection);
     await window.pero.sessionCommand({action:'list_agents'});
+    await window.pero.remoteCommand({action:'remote_refresh'});
   }
   loading.remove();
 } catch (error) {

@@ -21,3 +21,5 @@ mod tool_ui;
 
 #[cfg(target_family = "wasm")]
 mod remote;
+#[cfg(target_family = "wasm")]
+mod remote_connection;

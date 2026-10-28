@@ -27,13 +27,17 @@ impl Workbench {
     }
 
     fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> Div {
-        let on_action = Rc::new(cx.listener(|this, action: &SidebarAction, _, cx| {
+        let on_action = Rc::new(cx.listener(|this, action: &SidebarAction, window, cx| {
             match action {
                 SidebarAction::Navigate(index) => {
                     this.navigation = *index;
                     this.sync_follow(cx);
                 }
                 SidebarAction::OpenRemote => this.open_remote(cx),
+                SidebarAction::ConfigureGitHub => {
+                    this.open_remote(cx);
+                    this.open_remote_connection(window, cx);
+                }
                 SidebarAction::ChooseWorkspace => {
                     this.command(json!({"action":"choose_workspace"}), cx)
                 }

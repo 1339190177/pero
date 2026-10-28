@@ -13,6 +13,7 @@ pub(crate) struct SidebarProps {
 pub(crate) enum SidebarAction {
     Navigate(usize),
     OpenRemote,
+    ConfigureGitHub,
     ChooseWorkspace,
     ToggleLocale,
     ToggleTheme,
@@ -160,15 +161,11 @@ pub(crate) fn sidebar(
         )
         .when(props.navigation != 3, |el| {
             el.child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(9.))
-                    .px(px(8.))
-                    .text_size(px(12.))
-                    .text_color(p.color("text-muted"))
-                    .child(ui.icon("brand-github"))
-                    .child(ui.t("github.unconnected")),
+                Button::new("github-connector")
+                    .ghost()
+                    .w_full()
+                    .label(ui.t("connector.title"))
+                    .on_click(click(&on_action, SidebarAction::ConfigureGitHub)),
             )
         })
         .child(
