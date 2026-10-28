@@ -25,7 +25,10 @@
     "Explicit operator context-window compaction wiring reuses the existing engine for new and resumed ACP sessions.",
     "ACP projects provisional text/thought stream chunks with committed-output deduplication and callback lifetime fences; load replays committed history only.",
     "Trusted native approval descriptors preserve registration ownership and validate generation before request_permission; only strict shell composition produces version 1 descriptors.",
-    "MCP terminal HTTP authorization failures stop reconnect and SDK fallback; public errors are sanitized while preserving classifications."
+    "MCP terminal HTTP authorization failures stop reconnect and SDK fallback; public errors are sanitized while preserving classifications.",
+    "Explicit operator selectable-model declarations expose local adapter-owned catalog through existing ProviderRegistry and durable Agent.SelectModel; ACP select-option transport glue is new, not copied upstream ACP behavior. Default single-model behavior retained.",
+    "Idle-only ACP model change uses command lifecycle reservation without holding session lock across subscriber/persistence callbacks; close drains it and restoration revalidates explicit uniform context/output capacities.",
+    "Optional coding helpers mount explicit-root untrusted AGENTS.md context and session-backed todo_write only; plan-mode/user-question authorization remains excluded. Package-specific source pins preserved in agentinstructions/SOURCE.json and todos/SOURCE.json."
   ],
   "excluded_features": [
     "Projects",
@@ -756,7 +759,7 @@
     },
     {
       "destination": "acp/server.go",
-      "sha256": "377941f5f85bae5f2b44fe1732a6b5867f5b0088db4db41dfddb6bbe55a1a825",
+      "sha256": "a7e59f11fa90fbed14f40dbc7a4a555661e696f8db71307f44de05131cb8e557",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
       "change": "adapted; review pinned source diff"
@@ -1064,13 +1067,48 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "032b2f02d45d9968d8ab38835a54f3c4cbd4e15d2131d7f23dca847290a613ae",
+      "sha256": "4b8f827525baa9718a5a9733760a973b9969082a1e92ccfc862d752c8f71eb42",
       "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     },
     {
       "destination": "cmd/pero-agent-acp/main_test.go",
       "sha256": "805e02c7e98223d53b39629e4d906fbe59e99afe7b9c90463535b63f6548687e",
       "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
+    },
+    {
+      "destination": "acp/models.go",
+      "sha256": "97d8f59e6def8783736bca274fc4e27c4a0824df76abf36bd3bf9d765506fa63",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "acp/models_test.go",
+      "sha256": "ec3ddaeb7c0a80b7cfebba7cd82151318bc647f70e22c85c862abd4e7af1b5b9",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/models.go",
+      "sha256": "4387d0815a31fd8dac1e0bce827ede1535ca2620306b8f94f2e318ee33e3aa90",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/models_test.go",
+      "sha256": "53f287504af0935752cffe06bddf532925b45107da0d1ec521413e262fb5af88",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding.go",
+      "sha256": "908258fedc9b013b898b7f8394dfdb19daaf2e0cc51c65e9a7f2c4580ccdae89",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding_test.go",
+      "sha256": "7efb8e1ae8c562bb4b6290d41ba035c61e081fab22bc7df62d00e1c7a86ea1a0",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+      "sha256": "2294d53b310034c3dc8bda016b7521c0cc6e081ec066ef543c75200316429c7e",
+      "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
     }
   ]
 }

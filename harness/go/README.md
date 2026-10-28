@@ -60,8 +60,10 @@ select a supported inherited name explicitly with `--api-key-env`.
 
 The executable supports ACP v1 initialize, new/load/resume/list/close sessions,
 prompt and cancel. Resume does not replay history; load does. Model selection is
-fixed by launch configuration: `configOptions` is empty, and clients must not
-request model selection through ACP. The current provider is explicitly
+fixed by default (`configOptions` is empty). Explicit `--selectable-model` IDs
+opt into an idle-only, durable ACP model selector; see [model selection](acp/README.md).
+All selected models share operator-declared context/output/reasoning settings.
+The current provider is explicitly
 text-only; image, audio, embedded contexts and provider extensions are not
 silently coerced into text. Unsupported inputs fail closed.
 
@@ -119,3 +121,13 @@ must be decided by its owner.
 Use `--context-window` only with a capacity supported by the configured model.
 It enables the existing compaction engine for pressure, overflow and resume;
 see [compaction options](cmd/pero-agent-acp/COMPACTION.md). No capacity is guessed.
+
+## Optional coding helpers
+
+`--enable-agent-instructions --workspace /absolute/root` loads only that root's
+`AGENTS.md` as untrusted user-role context. No home, ancestor, nested or alternate
+instruction discovery is enabled; instructions do not expand file/shell authority.
+`--enable-todos` mounts session-backed `todo_write` (whole-list replacement,
+reset at the next turn). Both are disabled by default. Plan-mode authorization
+and the excluded user-question service are not included. See
+[agent instructions](agentinstructions/README.md) and [todos](todos/README.md).
