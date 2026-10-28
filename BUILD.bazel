@@ -1,0 +1,95 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary", "js_test")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+npm_link_all_packages(name = "node_modules")
+
+gazelle(
+    name = "gazelle",
+    args = ["server"],
+)
+
+_SCRIPT_LIBS = [
+    "scripts/lib/options.mjs",
+    "scripts/lib/paths.mjs",
+]
+
+_PROTOCOL_INPUTS = ["package.json"] + glob(["protocol/*.tsp"])
+
+js_binary(
+    name = "theme_generator",
+    entry_point = "scripts/codegen/theme.mjs",
+    data = _SCRIPT_LIBS + [":node_modules/yaml"],
+)
+
+js_run_binary(
+    name = "generate_theme",
+    tool = ":theme_generator",
+    srcs = ["DESIGN.md"],
+    outs = ["generated/theme/theme.generated.json"],
+    args = ["--root", ".", "--out-dir", "generated/theme"],
+)
+
+diff_test(
+    name = "theme_check",
+    size = "small",
+    file1 = "web/src/theme.generated.json",
+    file2 = ":generated/theme/theme.generated.json",
+)
+
+js_binary(
+    name = "contracts_generator",
+    entry_point = "scripts/codegen/contracts.mjs",
+    data = _SCRIPT_LIBS + [
+        ":node_modules/@typespec/compiler",
+        ":node_modules/@typespec/json-schema",
+        ":node_modules/json-schema-to-typescript",
+    ],
+)
+
+_CONTRACT_OUTPUTS = [
+    "host.schema.json",
+    "host.ts",
+    "remote.schema.json",
+    "remote.ts",
+]
+
+js_run_binary(
+    name = "generate_contracts",
+    tool = ":contracts_generator",
+    srcs = _PROTOCOL_INPUTS,
+    outs = ["generated/contracts/" + output for output in _CONTRACT_OUTPUTS],
+    args = ["--root", ".", "--out-dir", "generated/contracts"],
+)
+
+[
+    diff_test(
+        name = output.replace(".", "_") + "_check",
+        size = "small",
+        file1 = "protocol/generated/" + output,
+        file2 = ":generated/contracts/" + output,
+    )
+    for output in _CONTRACT_OUTPUTS
+]
+
+_LOCALE_SOURCES = glob(["crates/pero-ui/src/*.rs"])
+
+js_test(
+    name = "locales_check",
+    size = "small",
+    entry_point = "scripts/check/locales.mjs",
+    data = _SCRIPT_LIBS + _LOCALE_SOURCES + [
+        "locales/en.json",
+        "locales/zh-CN.json",
+    ],
+    args = ["--root", "."] + ["--source=" + source for source in _LOCALE_SOURCES],
+)
+
+test_suite(
+    name = "checks",
+    tests = [":locales_check", ":theme_check"] + [
+        ":" + output.replace(".", "_") + "_check"
+        for output in _CONTRACT_OUTPUTS
+    ],
+)

@@ -1,0 +1,8 @@
+ignore_directories([
+    "**/node_modules",
+    "target",
+    "test-results",
+    "desktop/dist",
+    "web/dist",
+    "web/src/wasm",
+])

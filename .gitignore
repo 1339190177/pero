@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+/bazel-*
 /.pnp
 .pnp.js
 
