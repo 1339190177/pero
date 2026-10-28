@@ -124,17 +124,22 @@ func (a *streamAssembly) consume(chunk openaisdk.ChatCompletionChunk) (harness.S
 }
 
 func (a *streamAssembly) completion() (harness.Completion, error) {
-	if len(a.blocks) == 0 {
+	if len(a.blocks) == 0 && a.finish != "length" {
 		return harness.Completion{}, harness.NewProviderError(
 			"openai adapter: model returned a completed response with no content",
 			harness.EmptyResponseCode,
 			nil,
 		)
 	}
-	blocks := make([]harness.ContentBlock, len(a.blocks))
-	for index, assembled := range a.blocks {
+	blocks := make([]harness.ContentBlock, 0, len(a.blocks))
+	for _, assembled := range a.blocks {
 		block := assembled.block
 		if block.Type == harness.BlockToolCall {
+			// Match the upstream assembler: output truncation never dispatches
+			// tool calls, even when an earlier call happened to finish its JSON.
+			if a.finish == "length" {
+				continue
+			}
 			if block.ToolCallID == "" || block.Name == "" || a.finish != "tool_calls" {
 				return harness.Completion{}, harness.NewProviderError("incomplete tool call", harness.MalformedResponseCode, nil)
 			}
@@ -152,7 +157,7 @@ func (a *streamAssembly) completion() (harness.Completion, error) {
 			}
 			block.Arguments = arguments
 		}
-		blocks[index] = block
+		blocks = append(blocks, block)
 	}
 	finish, err := finishKind(a.finish)
 	if err != nil {

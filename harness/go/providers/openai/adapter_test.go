@@ -330,3 +330,72 @@ func TestExplicitCatalogIsDetachedAndNeverCallsProvider(t *testing.T) {
 		t.Fatal("unknown provider accepted")
 	}
 }
+
+func TestMaxTokensDropsToolCallsAndKeepsSafeContent(t *testing.T) {
+	t.Run("empty output limit", func(t *testing.T) {
+		a, _ := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			event(w, `{"choices":[{"index":0,"delta":{},"finish_reason":"length"}]}`)
+			event(w, "[DONE]")
+		})
+		completion, err := a.Generate(context.Background(), request(), nil)
+		if err != nil || completion.Finish != harness.FinishMaxTokens || len(completion.Message.Content) != 0 {
+			t.Fatalf("empty output limit was not preserved: completion=%+v error=%v", completion, err)
+		}
+	})
+	for _, tc := range []struct {
+		name, prefix, arguments string
+		wantBlocks              int
+	}{
+		{"partial JSON with text", `"content":"partial answer",`, `{"path":`, 1},
+		{"complete JSON with reasoning", `"reasoning_content":"partial thought",`, `{}`, 1},
+		{"only truncated tool", "", `{`, 0},
+		{"only complete tool", "", `{}`, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, _ := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				arguments, _ := json.Marshal(tc.arguments)
+				event(w, fmt.Sprintf(`{"choices":[{"index":0,"delta":{%s"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"write_file","arguments":%s}}]},"finish_reason":"length"}]}`, tc.prefix, arguments))
+				event(w, "[DONE]")
+			})
+			completion, err := a.Generate(context.Background(), request(), nil)
+			if err != nil || completion.Finish != harness.FinishMaxTokens || len(completion.Message.Content) != tc.wantBlocks {
+				t.Fatalf("output limit was not preserved: completion=%+v error=%v", completion, err)
+			}
+			for _, block := range completion.Message.Content {
+				if block.Type == harness.BlockToolCall || block.Text == "" {
+					t.Fatalf("unsafe or missing retained content: %+v", block)
+				}
+			}
+		})
+	}
+}
+
+func TestContextOverflowClassificationPreservesRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		status       int
+		detail, want string
+	}{
+		{"413 explicit context", 413, "context_length_exceeded", harness.ContextWindowExceededCode},
+		{"400 explicit context", 400, "maximum context length exceeded", harness.ContextWindowExceededCode},
+		{"other status explicit context", 422, "context_length_exceeded", harness.ContextWindowExceededCode},
+		{"413 generic size", 413, "request entity too large", "INVALID_REQUEST"},
+		{"400 generic invalid", 400, "invalid model", "INVALID_REQUEST"},
+		{"auth takes precedence", 401, "context_length_exceeded", "AUTH"},
+		{"rate limit takes precedence", 429, "context_length_exceeded", "RATE_LIMIT"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, _ := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.status)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"message": tc.detail}})
+			})
+			_, err := a.Generate(context.Background(), request(), nil)
+			if got := harness.ProviderFailureFromError(err).Code; got != tc.want {
+				t.Fatalf("failure code=%q, want %q (%v)", got, tc.want, err)
+			}
+		})
+	}
+}

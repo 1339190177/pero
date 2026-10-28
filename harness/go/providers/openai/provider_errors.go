@@ -83,9 +83,6 @@ func httpErrorCode(status int, detail string) string {
 	if status == http.StatusUnauthorized || status == http.StatusForbidden {
 		return "AUTH"
 	}
-	if status == http.StatusRequestEntityTooLarge {
-		return "INVALID_REQUEST"
-	}
 	lower := strings.ToLower(detail)
 	if strings.Contains(lower, "quota") || strings.Contains(lower, "insufficient balance") {
 		return "QUOTA"
@@ -93,10 +90,10 @@ func httpErrorCode(status int, detail string) string {
 	if status == http.StatusTooManyRequests {
 		return "RATE_LIMIT"
 	}
-	if status == http.StatusBadRequest {
-		if harness.IsContextWindowExceededDetail(detail) {
-			return harness.ContextWindowExceededCode
-		}
+	if harness.IsContextWindowExceededDetail(detail) {
+		return harness.ContextWindowExceededCode
+	}
+	if status == http.StatusBadRequest || status == http.StatusRequestEntityTooLarge {
 		return "INVALID_REQUEST"
 	}
 	if status >= 500 {

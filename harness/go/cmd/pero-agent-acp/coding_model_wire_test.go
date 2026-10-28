@@ -56,6 +56,7 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	var models []string
 	var sawInstructions, sawTodo, sawMCP, sawTodoResult bool
 	var mainCalls, summaries atomic.Int32
+	var outputLimit atomic.Bool
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -104,6 +105,11 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 		if summary {
 			summaries.Add(1)
 			fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"compact checkpoint\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+			return
+		}
+		if outputLimit.Load() {
+			// Even complete tool JSON must not execute when the response is truncated.
+			fmt.Fprint(w, `data: {"choices":[{"index":0,"delta":{"content":"safe partial answer","tool_calls":[{"index":0,"id":"truncated-todo","type":"function","function":{"name":"todo_write","arguments":"{\"todos\":[{\"content\":\"must not execute\",\"status\":\"pending\"}]}"}}]},"finish_reason":"length"}]}`+"\n\ndata: [DONE]\n\n")
 			return
 		}
 		if mainCalls.Add(1) == 1 {
@@ -227,6 +233,11 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 		t.Fatal(restored)
 	}
 	prompt("Continue the synthetic restored session.")
+	outputLimit.Store(true)
+	limited := rpc("session/prompt", map[string]any{"sessionId": id, "prompt": []any{map[string]any{"type": "text", "text": "Exercise the output limit."}}})
+	if limited["stopReason"] != "max_tokens" {
+		t.Fatalf("output limit became a retry or error: %v", limited)
+	}
 	rpc("session/close", map[string]any{"sessionId": id})
 	mu.Lock()
 	for _, model := range models[aCount:] {
@@ -244,6 +255,9 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	}
 	if !bytes.Contains(data, []byte(`"type":"todo/write"`)) || !bytes.Contains(data, []byte(`"type":"session/model-selected"`)) {
 		t.Fatal("todo/model selection missing durable events")
+	}
+	if count := bytes.Count(data, []byte(`"type":"todo/write"`)); count != 1 {
+		t.Fatalf("truncated tool executed: %d durable todo writes, want only the control write", count)
 	}
 	_ = input.Close()
 	err = child.Wait()
