@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="docs/assets/openpero-mark.svg" width="72" alt="OpenPero 标志">
+  <img src="docs/assets/openpero-mark.svg" width="72" alt="Pero 标志">
 </p>
 
-<h1 align="center">OpenPero</h1>
+<h1 align="center">Pero</h1>
 
 <p align="center">
-  <b>面向科研与研发的分布式 Agent 协作。</b><br>
-  把问题写成任务契约，交给研究者、Agent 或算力完成，<br>
-  复核后的成果留在项目里。
+  <b>可组合的科研应用与分布式 Agent 协作。</b><br>
+  把领域工具做成应用，独立交付，也能组合进共享工作台。<br>
+  随着工作展开，连接研究者、Agent 与算力。
 </p>
 
 <p align="center">
-  <a href="#快速开始">快速开始</a> ·
+  <a href="DEVELOPMENT.md">开发指南</a> ·
   <a href="#当前状态">当前状态</a> ·
   <a href="#工作方式">工作方式</a> ·
   <a href="#仓库结构">仓库结构</a> ·
@@ -20,53 +20,26 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/openpero-overview.zh-CN.svg" alt="OpenPero 工作流：研究问题整理成任务契约，由研究者、Agent 或算力完成，运行被记录，复核后的成果回到项目记忆" width="900">
+  <img src="docs/assets/openpero-overview.zh-CN.svg" alt="Pero 工作流：研究问题整理成任务契约，由研究者、Agent 或算力完成，运行被记录，复核后的成果回到项目记忆" width="900">
 </p>
 
 > [!NOTE]
-> **项目处于早期阶段。** Desktop 工作台、共享任务和远程 Worker 已经可以运行。多 Agent 编排、结果验证，以及完整的 AI4S 工作流仍在建设中。目前没有发布版或安装包，需要从源码构建。
+> **项目处于早期阶段。** Desktop 工作台、共享任务和远程 Worker 已经可以运行。多 Agent 编排、结果验证，以及完整的 AI4S 工作流仍在建设中。Virtual Cell 已可构建为独立 macOS 应用；安装包仍属开发构建，尚无正式发布版。
 
 ## 为什么做
 
-AI4S 需要串起文献、数据、方法与实验；研发协作需要衔接需求、代码、测试与评审。相关的人、代码和算力通常分散在不同团队和机器上，单次 Agent 执行只能看到其中一小块。
+一个有用的科研工具，往往从脚本、Notebook 或模型 Demo 开始。把它交给别人使用，还需要领域界面、可复现的运行环境、持久数据和交付方式。再加入 Agent 辅助或团队协作，又要处理执行与协调。
 
-OpenPero 以**项目与任务**组织这些工作：专家定义问题和验收标准，贡献者与 Agent 分工，复核后的成果交回项目。
+**Pero 以领域 App 作为可复用的组合单元。** 从一个具体工作流开始，例如探索细胞图谱或模拟化学反应：可以打包为独立应用，也可以将同一个 App 放进工作台，与其他工具一起使用。App 复用平台提供的壳、SDK 和 Host 运行时，让领域开发集中在方法和使用体验上。
 
-| | 单次 Agent 执行 | OpenPero |
-| --- | --- | --- |
-| **背景** | 当前的提示词 | 项目里的需求、文献、数据、方法与决定 |
-| **协作** | 由人串联各次执行 | 任务认领、分工与交接 |
-| **执行** | 一个运行环境 | 获准的本机、实验室服务器或云端 |
-| **完成的标准** | “跑通了” | 执行、验证与人工验收分别记录 |
+随着工作展开，Pero 的目标是将这些 App 接入 Agent 会话、获准算力与共享项目。无论由研究者、Agent 还是计算程序执行，方法、输入、输出与检查规则都应清楚可查。目前产品装配已可用，App 与 Agent 工具的接线，以及任务到结果验证的完整闭环仍在建设中。
 
-## 快速开始
-
-### Desktop
-
-需要 Node.js 22.12+、Rust stable 与 `nightly-2026-10-28`，以及 `ec89cfc` 版本的 [gpui-kit](https://github.com/longbridge/gpui-kit) 本地检出。
-
-```bash
-git clone https://github.com/phodal/pero.git && cd pero
-npm ci
-node node_modules/electron/install.js
-rustup toolchain install nightly-2026-10-28 --profile minimal --target wasm32-unknown-unknown
-export PERO_GPUI_KIT_PATH=/absolute/path/to/gpui-kit
-npm run dev
-```
-
-在应用中选择 **New task**，再选一个 Agent（Codex、Claude，或经 OpenCode 使用的 Grok）和工作区。各 Agent 使用自己的本机登录。Agent 配置、字体与离线构建见 [desktop/README.md](desktop/README.md)。
-
-想试用本地 App，可运行 `npm run dev:apps`，它会在独立配置中打开 Virtual Cell，见 [apps/README.md](apps/README.md)。
-
-### 控制面（可选）
-
-共享任务、远程 Worker 和 GitHub 同步需要 Go 服务。需要 Go 1.24+ 和 PostgreSQL。
-
-```bash
-cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=change-me go run ./cmd/server
-```
-
-服务监听 `127.0.0.1:8787`。之后[让 Desktop 连接它](desktop/README.md#remote-tasks)，需要时再[绑定 GitHub 仓库](server/README.md#github-issue-intake)。
+| 需求 | Pero 的方式 |
+| --- | --- |
+| 交付一个实用工具 | 将领域 App 打包为独立产品 |
+| 组合多个工具 | 在 Desktop 工作台中打开不同 App |
+| 加入 Agent 辅助 | 复用 Host 管理的会话与权限；App 接线是下一步 |
+| 扩展到团队科研 | 通过可选控制面连接任务、算力与复核后的成果 |
 
 ## 当前状态
 
@@ -74,6 +47,7 @@ cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=cha
 | --- | --- | --- |
 | Desktop 工作台：Electron + GPUI/WASM、ACP 对话、中英文、主题 | 🟢 开发构建可用 | [desktop](desktop/README.md) |
 | 本地 App，首个为 Virtual Cell | 🟢 首版 | [apps](apps/README.md)、[ADR 0007](docs/adr/0007-local-app-platform.md) |
+| 独立 App 产品：Virtual Cell + 随包 Python | 🟡 macOS arm64 开发包已验证 | [产品模型](docs/adr/0008-product-distributions.md)、[验收记录](docs/fitness/products.md) |
 | Task、Run、Worker、租约、取消与恢复 | 🟡 本地流程已接通，真实远程环境验收待完成 | [server](server/README.md)、[ADR 0002](docs/adr/0002-remote-task-dispatch.md) |
 | GitHub Issue 与 ROADMAP 同步、项目范围认领 | 🟡 已实现 | [server](server/README.md#github-issue-intake) |
 | 社区任务广场：GitHub OAuth、Worker 归属、验收记分 | 🟡 已实现 | [server](server/README.md#community-tasks-and-contributions-2) |
@@ -97,9 +71,25 @@ cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=cha
 - **计算留在数据所在的地方。** 任务可以在个人电脑、获准的实验室服务器或云端执行，协调服务可以自部署。
 - **跑通不等于验收。** 每个结果关联输入、方法版本、参数和环境；接受结果是一次明确的复核。
 
-### 架构
+### 可组合的 App 与产品
 
-![OpenPero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
+组合分为两个范围：**产品装配已经可用**；领域方法、Agent 工具与结果验证的组合是下一步。
+
+| 概念 | 拥有的职责 | 当前实现 |
+| --- | --- | --- |
+| **App** | 领域界面、数据与可选 Python 后端 | `apps/<name>/app.json`，首个实例为 Virtual Cell |
+| **Product** | 产品身份、版本、App 清单、壳、入口面板与 Python 策略 | `products/`，由 `packages/product` 校验 |
+| **Distribution** | 面向平台与架构组装的壳、Host、所选 App 和运行时 | `target/products/`，当前仅构建本机目标 |
+| **Host runtime** | App 安装、启停、后端进程与 ACP 会话 | 两种壳复用同一实现；各独立产品启动自己的 Host 与配置目录 |
+| **控制面** | 共享任务、认领、Run 与远程 Worker | 可选的 `server/`；独立 App 无需它即可本地运行 |
+
+工作台通过 GPUI/Wasm 导航打开 App；独立产品选择固定面板，使用全窗口 Electron 壳，无需 GPUI 导航。两者复用 App SDK、私有后端代理与 Host 生命周期。Product 组合交付入口，领域行为保留在 App 中。
+
+整体方向借鉴 **PBC（Packaged Business Capabilities，封装业务能力）**：围绕领域目标组合功能，明确输入、输出与检查规则。完整领域包可以组合 App、方法、Agent 工具与验证规则；目前实现的是 App 与产品装配，清单尚不能组合这些工作流契约。后续接线继续复用 Host 执行与控制面权威。当前模型和演进边界见[可组合应用与产品](docs/ARCHITECTURE.md#可组合应用与产品)。
+
+### 运行时架构
+
+![Pero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
 
 实线框表示已有基础，虚线表示规划中。使用入口（Web、Desktop）、执行位置（本机、实验室、云端）和部署方式（自部署、托管）是相互独立的选择。运行时拓扑与不变量见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，技术决定见 [docs/adr](docs/adr/README.md)。
 
@@ -126,22 +116,16 @@ cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=cha
 | `desktop/`、`web/` | Electron 壳，以及 WASM 加载与共享资源 |
 | `server/` | 基于 PostgreSQL 的 Go 控制面 |
 | `protocol/` | TypeSpec 契约与生成的 Schema |
-| `apps/`、`packages/` | 本地 App、App SDK 与产品定义 |
+| `apps/` | 领域 App：清单、界面、可选后端与证据 |
+| `packages/app-sdk/`、`packages/product/` | 共享 App API/控件与不可变 Product 模型 |
+| `products/` | 工作台默认配置与独立产品定义 |
+| `scripts/build/` | App 编译、产品装配与 Desktop 打包 |
 | `docs/` | 架构、ADR、路线图、验收记录；同时是 openpero.com 站点 |
 | `deployment/` | Task Center 主机安装脚本 |
 
 ## 开发
 
-```bash
-npm run check                    # TypeScript、生成的主题、文案目录、契约
-npm test                         # Rust 测试
-npm run test:contracts           # Host stdio 输出对照 JSON Schema
-go -C server test -race ./...    # 控制面；PostgreSQL 用例需要 PERO_TEST_DATABASE_URL
-```
-
-CI 在 Linux、Windows 和 macOS 上运行以上命令，并运行 Bazel `//:checks`。Electron、PostgreSQL、公开 GitHub 和真实模型套件需显式运行。各套件及其验证范围见 [docs/fitness](docs/fitness/README.md)。
-
-第一次看代码，建议依次阅读 [ARCHITECTURE](docs/ARCHITECTURE.md)、[ADR 索引](docs/adr/README.md) 和 [fitness](docs/fitness/README.md)。色彩遵循 [DESIGN.md](DESIGN.md)。重新生成 README 图示：`npm run gen:architecture` 与 `npm run gen:overview`。
+环境准备、本地开发、独立 App 打包与验证命令统一见 [DEVELOPMENT.md](DEVELOPMENT.md)。
 
 ## 参与贡献
 

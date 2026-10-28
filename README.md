@@ -1,17 +1,17 @@
 <p align="center">
-  <img src="docs/assets/openpero-mark.svg" width="72" alt="OpenPero logo">
+  <img src="docs/assets/openpero-mark.svg" width="72" alt="Pero logo">
 </p>
 
-<h1 align="center">OpenPero</h1>
+<h1 align="center">Pero</h1>
 
 <p align="center">
-  <b>Distributed agent collaboration for research and R&amp;D.</b><br>
-  Turn a question into a task contract, let people, agents, or compute do the work,<br>
-  and keep the reviewed result with the project.
+  <b>Composable research apps and distributed agent collaboration.</b><br>
+  Build a domain tool, ship it as an app, and bring it into a shared workbench.<br>
+  Connect people, agents and compute as the work grows.
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick start</a> ·
+  <a href="DEVELOPMENT.md">Development</a> ·
   <a href="#status">Status</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#repository-layout">Repository</a> ·
@@ -20,53 +20,26 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/openpero-overview.svg" alt="OpenPero workflow: a question becomes a task contract, researchers, agents, or compute do the work, the run is recorded, and the reviewed result returns to the project memory" width="900">
+  <img src="docs/assets/openpero-overview.svg" alt="Pero workflow: a question becomes a task contract, researchers, agents, or compute do the work, the run is recorded, and the reviewed result returns to the project memory" width="900">
 </p>
 
 > [!NOTE]
-> **Early stage.** The Desktop workbench, shared tasks, and remote workers run today. Multi-agent orchestration, result verification, and complete AI4S workflows are still being built. There is no release or installer yet; build from source.
+> **Early stage.** The Desktop workbench, shared tasks, and remote workers run today. Multi-agent orchestration, result verification, and complete AI4S workflows are still being built. Virtual Cell can also be built as a standalone macOS application. Packages are development builds; there is no production release yet.
 
 ## Why
 
-AI4S work connects literature, data, methods, and experiments. R&D work connects requirements, code, tests, and review. The people, code, and compute involved are usually spread across teams and machines, and a single agent run sees only one slice of it.
+A useful research tool often starts as a script, a notebook or a model demo. Turning it into an application takes more work: a domain interface, a reproducible runtime, durable data and a way for others to use it. Adding Agent assistance or team collaboration brings another set of execution and coordination needs.
 
-OpenPero organizes that work around **projects and tasks**. Experts define the problem and the acceptance criteria, contributors and agents divide the work, and reviewed results return to the project.
+**Pero makes domain Apps the reusable building block.** Start with one workflow, such as exploring a cell atlas or simulating a reaction. Deliver it as a standalone application, or use the same App inside a workbench alongside other tools. Apps reuse the platform's shell, SDK and Host runtime so each domain can focus on its own methods and user experience.
 
-| | A single agent run | OpenPero |
-| --- | --- | --- |
-| **Context** | The current prompt | Project requirements, papers, data, methods, and decisions |
-| **Collaboration** | People stitch runs together | Task claims, division of work, and handoffs |
-| **Execution** | One environment | Approved local, lab, or cloud environments |
-| **Done means** | "It ran" | Execution, verification, and human acceptance, recorded separately |
+As the work grows, the aim is to connect those Apps to Agent sessions, approved compute and shared projects. Methods, inputs, outputs and checks should remain explicit as execution moves between people, agents and machines. Product assembly works today; App-to-Agent tools and the full task-to-result verification loop are still being built.
 
-## Quick start
-
-### Desktop
-
-Requirements: Node.js 22.12+, Rust stable and `nightly-2026-10-28`, and a [gpui-kit](https://github.com/longbridge/gpui-kit) checkout at `ec89cfc`.
-
-```bash
-git clone https://github.com/phodal/pero.git && cd pero
-npm ci
-node node_modules/electron/install.js
-rustup toolchain install nightly-2026-10-28 --profile minimal --target wasm32-unknown-unknown
-export PERO_GPUI_KIT_PATH=/absolute/path/to/gpui-kit
-npm run dev
-```
-
-In the app, choose **New task**, pick an agent (Codex, Claude, or Grok through OpenCode) and a workspace. Each agent uses its own local login. Agent setup, fonts, and offline builds are in [desktop/README.md](desktop/README.md).
-
-To try a local App instead, run `npm run dev:apps`. It opens Virtual Cell in a separate profile; see [apps/README.md](apps/README.md).
-
-### Control plane (optional)
-
-Shared tasks, remote workers, and GitHub intake need the Go service. Requirements: Go 1.24+ and PostgreSQL.
-
-```bash
-cd server && PERO_DATABASE_URL=postgres://localhost/pero PERO_OPERATOR_TOKEN=change-me go run ./cmd/server
-```
-
-It listens on `127.0.0.1:8787`. Then [connect Desktop to it](desktop/README.md#remote-tasks) and, if you want, [bind GitHub repositories](server/README.md#github-issue-intake).
+| Need | Pero's approach |
+| --- | --- |
+| Deliver one useful tool | Package a domain App as a standalone product |
+| Bring several tools together | Open Apps in the shared Desktop workbench |
+| Add Agent assistance | Reuse Host-owned sessions and permissions; App integration is next |
+| Scale to collaborative research | Connect tasks, compute and reviewed results through the optional control plane |
 
 ## Status
 
@@ -74,6 +47,7 @@ It listens on `127.0.0.1:8787`. Then [connect Desktop to it](desktop/README.md#r
 | --- | --- | --- |
 | Desktop workbench: Electron + GPUI/WASM, ACP conversations, English/Chinese, themes | 🟢 Development builds | [desktop](desktop/README.md) |
 | Local Apps, starting with Virtual Cell | 🟢 First version | [apps](apps/README.md), [ADR 0007](docs/adr/0007-local-app-platform.md) |
+| Standalone App products: Virtual Cell + bundled Python | 🟡 macOS arm64 development package verified | [product model](docs/adr/0008-product-distributions.md), [verification](docs/fitness/products.md) |
 | Tasks, runs, workers, leases, cancellation, and recovery | 🟡 Works locally; real remote-environment acceptance pending | [server](server/README.md), [ADR 0002](docs/adr/0002-remote-task-dispatch.md) |
 | GitHub Issue and ROADMAP intake, project-scoped claims | 🟡 Implemented | [server](server/README.md#github-issue-intake) |
 | Community task board: GitHub OAuth, worker ownership, reviewed contribution points | 🟡 Implemented | [server](server/README.md#community-tasks-and-contributions-2) |
@@ -97,9 +71,25 @@ A few principles shape the design:
 - **Compute stays where the data is.** Tasks run on a laptop, an approved lab server, or the cloud. The coordinator can be self-hosted.
 - **A successful run is not an accepted result.** Every result links to its inputs, method version, parameters, and environment; acceptance is an explicit review.
 
-### Architecture
+### Composable Apps and products
 
-![OpenPero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
+Composition has two scopes: **product assembly works today**; connecting domain methods, Agent tools and result verification is the next step.
+
+| Concept | Owns | Current implementation |
+| --- | --- | --- |
+| **App** | Domain UI, data and optional Python backend | `apps/<name>/app.json`; Virtual Cell is the first App |
+| **Product** | Identity, version, included Apps, shell, entry panel and Python policy | `products/`; validated by `packages/product` |
+| **Distribution** | Assembled shell, Host, selected Apps and runtime for a platform/architecture | `target/products/`; current builder targets the build machine |
+| **Host runtime** | App installation, enable state, backend processes and ACP sessions | Shared implementation reused by both shells; each standalone product starts its own Host/profile |
+| **Control plane** | Shared tasks, claims, runs and remote workers | Optional `server/`; standalone Apps run locally without it |
+
+The workbench uses GPUI/Wasm navigation to open Apps. An App product selects a fixed panel and uses a full-window Electron shell without GPUI navigation. Both reuse the App SDK, private backend proxy and Host lifecycle. Product assembly changes the delivery entry, while domain behavior stays in the App.
+
+The direction follows **Packaged Business Capabilities (PBC)**: compose around a domain outcome, with explicit inputs, outputs and checks. A full domain package could join its App, methods, Agent tools and verification rules. Today only App/product assembly is implemented; the manifest does not yet compose those workflow contracts. Future integrations should reuse Host execution and control-plane authority. See [composition boundaries](docs/ARCHITECTURE.md#可组合应用与产品) for the current model and next steps.
+
+### Runtime architecture
+
+![Pero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
 
 Solid outlines exist today; dashed ones are planned. Interface (Web, Desktop), execution location (local, lab, cloud), and deployment (self-hosted, managed) are independent choices. Runtime topology and invariants are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); decisions are in [docs/adr](docs/adr/README.md).
 
@@ -126,22 +116,16 @@ Solid outlines exist today; dashed ones are planned. Interface (Web, Desktop), e
 | `desktop/`, `web/` | Electron shell and the WASM loader with shared assets |
 | `server/` | Go control plane on PostgreSQL |
 | `protocol/` | TypeSpec contracts and generated schemas |
-| `apps/`, `packages/` | Local Apps, the App SDK, and product definitions |
+| `apps/` | Domain Apps: manifests, UI, optional backends and evidence |
+| `packages/app-sdk/`, `packages/product/` | Shared App API/UI and the immutable Product model |
+| `products/` | Workbench defaults and standalone product definitions |
+| `scripts/build/` | App compilation, product assembly and Desktop packaging |
 | `docs/` | Architecture, ADRs, roadmap, verification records; also the openpero.com site |
 | `deployment/` | Task Center host install script |
 
 ## Development
 
-```bash
-npm run check                    # TypeScript, generated theme, locales, contracts
-npm test                         # Rust tests
-npm run test:contracts           # Host stdio output against the JSON Schema
-go -C server test -race ./...    # control plane; PostgreSQL cases need PERO_TEST_DATABASE_URL
-```
-
-CI runs these on Linux, Windows, and macOS, plus Bazel `//:checks`. Electron, PostgreSQL, live GitHub, and real-model suites are opt-in. Every suite and what it proves is listed in [docs/fitness](docs/fitness/README.md).
-
-New to the code? Read [ARCHITECTURE](docs/ARCHITECTURE.md), then the [ADR index](docs/adr/README.md), then [fitness](docs/fitness/README.md). Colors follow [DESIGN.md](DESIGN.md). Regenerate the README diagrams with `npm run gen:architecture` and `npm run gen:overview`.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, local development, standalone App packaging and verification commands.
 
 ## Contribute
 
