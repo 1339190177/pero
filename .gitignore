@@ -155,3 +155,7 @@ design-qa.md
 # Local dependency/cache symlinks are ignored as well as directories.
 /node_modules
 /target
+
+# Additional master ignore rules
+fonts/*.ttf
+.idea
