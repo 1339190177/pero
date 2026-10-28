@@ -37,7 +37,10 @@
     "dev:apps": "npm run build && node scripts/dev/apps.mjs",
     "build:apps": "node scripts/build/apps.mjs",
     "test:apps": "node tests/e2e/apps.mjs",
-    "test:apps:contracts": "node tests/contracts/apps.mjs"
+    "test:apps:contracts": "node tests/contracts/apps.mjs",
+    "build:product": "node scripts/build/product.mjs",
+    "test:product": "node --test packages/product/product.test.ts",
+    "test:product:e2e": "node tests/e2e/product.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",
