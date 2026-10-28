@@ -11,6 +11,7 @@ import (
 )
 
 type wireRequest struct {
+	Thinking        *wireThinking           `json:"thinking,omitempty"`
 	Model           string                  `json:"model"`
 	ReasoningEffort harness.ReasoningEffort `json:"reasoning_effort,omitempty"`
 	Temperature     *float64                `json:"temperature,omitempty"`
@@ -20,6 +21,10 @@ type wireRequest struct {
 	Stop            []string                `json:"stop,omitempty"`
 	Stream          bool                    `json:"stream,omitempty"`
 	StreamOptions   wireStreamOptions       `json:"stream_options"`
+}
+
+type wireThinking struct {
+	Type string `json:"type"`
 }
 
 type wireStreamOptions struct {
@@ -67,6 +72,11 @@ func (a *Adapter) Generate(ctx context.Context, request harness.GenerateRequest,
 	if _, err := a.ResolveModelInfo(ctx, request.Provider, request.Model); err != nil {
 		return harness.Completion{}, err
 	}
+	if request.ReasoningEffort == "" {
+		if reasoning := a.models[request.Model].Reasoning; reasoning != nil {
+			request.ReasoningEffort = reasoning.DefaultEffort
+		}
+	}
 	if request.ReasoningEffort != "" {
 		supported := false
 		if reasoning := a.models[request.Model].Reasoning; reasoning != nil {
@@ -83,9 +93,15 @@ func (a *Adapter) Generate(ctx context.Context, request harness.GenerateRequest,
 	if request.PrepareExtensions != nil {
 		return harness.Completion{}, harness.NewProviderError("request extensions are not enabled", "UNSUPPORTED", nil)
 	}
+	if a.maxOutputTokens > 0 && (request.MaxTokens == 0 || request.MaxTokens > a.maxOutputTokens) {
+		request.MaxTokens = a.maxOutputTokens
+	}
 	wire, err := encodeRequest(request)
 	if err != nil {
 		return harness.Completion{}, err
+	}
+	if a.disableThinking {
+		wire.Thinking = &wireThinking{Type: "disabled"}
 	}
 	payload, err := json.Marshal(wire)
 	if err != nil {
@@ -97,6 +113,11 @@ func (a *Adapter) Generate(ctx context.Context, request harness.GenerateRequest,
 	activity := make(chan struct{}, 1)
 	streamCtx = context.WithValue(streamCtx, streamActivityContextKey{}, activity)
 	events := make(chan openAIStreamEvent, 1)
+	// Consume budget immediately before any HTTP generation; failed requests count.
+	// The SDK has retries disabled, and exhaustion is not a retryable error.
+	if a.maxRequests > 0 && a.requests.Add(1) > a.maxRequests {
+		return harness.Completion{}, harness.NewProviderError("provider request budget exhausted", "BUDGET_EXHAUSTED", nil)
+	}
 	go a.pumpStream(streamCtx, params, events)
 	timer := time.NewTimer(a.streamIdleTimeout)
 	defer timer.Stop()

@@ -34,6 +34,7 @@ func run() (resultErr error) {
 	enableShell := flag.Bool("enable-shell", false, "enable approved shell execution without an OS sandbox (requires --workspace)")
 	shellPath := flag.String("shell", "/bin/bash", "absolute Bash executable for explicitly enabled shell")
 	approval := flag.String("approval", "ask", "tool approval policy: never or ask via ACP client")
+	budget := bindProviderBudget(flag.CommandLine)
 	flag.Parse()
 	if flag.NArg() != 0 || strings.TrimSpace(*model) == "" || strings.TrimSpace(*sessions) == "" {
 		return errors.New("--model and --session-dir are required; positional arguments are unsupported")
@@ -48,7 +49,11 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
-	adapter, err := openai.New(openai.Config{Endpoint: *endpoint, APIKey: credential, ProviderName: "configured", Models: []openai.ModelConfig{{ID: *model}}})
+	providerConfig, err := configuredProvider(*endpoint, *model, credential, *budget)
+	if err != nil {
+		return err
+	}
+	adapter, err := openai.New(providerConfig)
 	if err != nil {
 		return err
 	}
@@ -103,4 +108,45 @@ func takeProviderCredential(name string) (string, error) {
 		return "", errors.New("could not clear provider credential environment variable")
 	}
 	return value, nil
+}
+
+// Zero request/token caps preserve prior behavior. -1 is only the CLI sentinel
+// for omitted retry policy; an explicit zero becomes a non-nil zero pointer.
+type providerBudget struct {
+	DisableThinking     bool
+	UseEnvironmentProxy bool
+	MaxRequests         int
+	MaxTokens           int
+	MaxRetries          int
+	ReasoningEffort     string
+}
+
+func bindProviderBudget(flags *flag.FlagSet) *providerBudget {
+	budget := &providerBudget{}
+	flags.BoolVar(&budget.DisableThinking, "disable-thinking", false, "explicitly send thinking.type=disabled to a compatible provider")
+	flags.BoolVar(&budget.UseEnvironmentProxy, "use-env-proxy", false, "opt in to standard HTTP(S)_PROXY/NO_PROXY routing; TLS verification remains enabled")
+	flags.IntVar(&budget.MaxRequests, "max-requests", 0, "hard provider HTTP attempt cap for this process (0 keeps unlimited)")
+	flags.IntVar(&budget.MaxTokens, "max-tokens", 0, "hard per-request output token cap (0 keeps provider default)")
+	flags.IntVar(&budget.MaxRetries, "max-retries", -1, "provider recovery retry count (0 disables; -1 preserves default)")
+	flags.StringVar(&budget.ReasoningEffort, "reasoning-effort", "", "explicit provider reasoning effort/default; omitted preserves existing behavior")
+	return budget
+}
+func configuredProvider(endpoint, model, credential string, budget providerBudget) (openai.Config, error) {
+	if budget.MaxRequests < 0 || budget.MaxTokens < 0 || budget.MaxRetries < -1 {
+		return openai.Config{}, errors.New("provider budgets must be nonnegative (max-retries may be -1 for default)")
+	}
+	if len(budget.ReasoningEffort) > 64 || strings.ContainsAny(budget.ReasoningEffort, " \t\r\n\x00") {
+		return openai.Config{}, errors.New("reasoning effort must be a provider identifier of at most 64 bytes")
+	}
+	declared := openai.ModelConfig{ID: model, MaxTokens: budget.MaxTokens}
+	if budget.ReasoningEffort != "" {
+		effort := harness.ReasoningEffort(budget.ReasoningEffort)
+		declared.Reasoning = &harness.ModelReasoningInfo{DefaultEffort: effort, Efforts: []harness.ReasoningEffortInfo{{ID: effort, Name: budget.ReasoningEffort}}}
+	}
+	config := openai.Config{Endpoint: endpoint, APIKey: credential, ProviderName: "configured", Models: []openai.ModelConfig{declared}, MaxRequests: budget.MaxRequests, MaxOutputTokens: budget.MaxTokens, UseEnvironmentProxy: budget.UseEnvironmentProxy, DisableThinking: budget.DisableThinking}
+	if budget.MaxRetries >= 0 {
+		count := budget.MaxRetries
+		config.RetryPolicy = &harness.RetryPolicyConfig{Mode: harness.RetryNormal, MaxRetries: &count}
+	}
+	return config, nil
 }

@@ -15,7 +15,10 @@
     "MCP HTTP refuses redirects to avoid reapplying explicit credentials to another destination; regression added.",
     "CLI removes the actual credential variable from process environment before MCP can inherit it; arbitrary-name subprocess regression added.",
     "Signal cancellation suppresses only expected closed-reader errors, never final session flush/close or Harness Dispose/Drain errors; regression preserves durability failure.",
-    "Optional native file/shell composition is tracked by fstools/SOURCE.json, shell/SOURCE.json and nativetools/SOURCE.json; existing agent loop is unchanged."
+    "Optional native file/shell composition is tracked by fstools/SOURCE.json, shell/SOURCE.json and nativetools/SOURCE.json; existing agent loop is unchanged.",
+    "Optional explicit provider request/output/retry/reasoning budgets for bounded smoke tests; defaults retained.",
+    "Explicit --use-env-proxy opt-in uses existing HTTP(S) proxy configuration; default direct transport and TLS verification unchanged.",
+    "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged."
   ],
   "excluded_features": [
     "Projects",
@@ -1054,13 +1057,13 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "0d665c32a489df6af3f2a9eeb99c107df32346ff82e3f808cd6471cd660730ed",
-      "change": "explicit native file workspace and optional approved foreground shell composition added; no product profile"
+      "sha256": "f53e3476bef7173e559e46da2648cc85b5d053f07e1bf8b5730ccb72755c8486",
+      "change": "Explicit optional provider budget CLI configuration and actual ACP/Harness HTTP budget regression."
     },
     {
       "destination": "cmd/pero-agent-acp/main_test.go",
-      "sha256": "bd99aabe6788d326595ea094b4e8f6a05cefbac78d757ae1e0d0496cf4bfa1db",
-      "change": "new extraction glue or regression test"
+      "sha256": "5077fdc0a86ae7d3f692c75d2314fc9eea91a5250564b2d10f8d05a0601fc07e",
+      "change": "Explicit optional provider budget CLI configuration and actual ACP/Harness HTTP budget regression."
     }
   ]
 }

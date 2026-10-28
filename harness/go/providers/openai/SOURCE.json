@@ -34,8 +34,13 @@
       "name": "stream.go"
     }
   ],
-  "adaptation": "Subset: stream assembly/framing and error taxonomy from pinned source; new explicit text-only constructor and request encoder. Removed defaults, identity, session-log uploads, Files API, dynamic settings.",
+  "adaptation": "Subset: stream assembly/framing and error taxonomy from pinned source; new explicit text-only constructor and request encoder. Removed defaults, identity, session-log uploads, Files API, dynamic settings. Optional atomic adapter-lifetime HTTP attempt cap, hard output-token clamp and explicit reasoning default; SDK retries remain disabled. Explicit environment-proxy opt-in preserves default direct connection and standard TLS verification. Explicit DisableThinking emits thinking.type disabled; default omits provider-specific extension.",
   "new_files": [
     "adapter_test.go"
-  ]
+  ],
+  "budget_adaptation_sha256": {
+    "adapter.go": "32f185b4897404976fbe812c3c4929820e710ddfce24fff8410d8fe7793593de",
+    "generate.go": "19ce20ac3a7ce6ac8b2021f66a7e6e0a083687b5a99b442cb1ee162f36d1b14c",
+    "adapter_test.go": "e276502f7181ae48863f5bfbb78540002e26e8d4cca0c7a2648effb936cf9741"
+  }
 }

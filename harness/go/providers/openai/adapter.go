@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -27,6 +28,13 @@ type ModelConfig struct {
 	Reasoning                *llm.ModelReasoningInfo
 }
 type Config struct {
+	// Explicit compatible-provider extension; omitted unless requested.
+	DisableThinking bool
+	// Explicit opt-in to the process environment HTTP(S) proxy; TLS verification is unchanged.
+	UseEnvironmentProxy bool
+	// Optional adapter-lifetime hard limits. Zero preserves unlimited behavior.
+	MaxRequests                    int
+	MaxOutputTokens                int
 	Endpoint, APIKey, ProviderName string
 	Models                         []ModelConfig
 	Client                         *http.Client
@@ -34,6 +42,10 @@ type Config struct {
 	StreamIdleTimeoutMS            int64
 }
 type Adapter struct {
+	disableThinking   bool
+	maxRequests       int64
+	maxOutputTokens   int
+	requests          atomic.Int64
 	client            openaisdk.ChatCompletionService
 	models            map[string]ModelConfig
 	providerName      string
@@ -42,6 +54,9 @@ type Adapter struct {
 }
 
 func New(c Config) (*Adapter, error) {
+	if c.MaxRequests < 0 || c.MaxOutputTokens < 0 {
+		return nil, errors.New("openai adapter: budget limits must be non-negative")
+	}
 	u, err := url.Parse(c.Endpoint)
 	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, errors.New("openai adapter: explicit endpoint without userinfo/query/fragment required")
@@ -98,12 +113,11 @@ func New(c Config) (*Adapter, error) {
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	transport := client.Transport
 	if transport == nil {
-		transport = http.DefaultTransport.(*http.Transport).Clone()
-		transport.(*http.Transport).Proxy = nil
+		transport = configuredTransport(c.UseEnvironmentProxy)
 	}
 	client.Transport = terminalCheckingTransport{next: transport}
 	sdk := openaisdk.NewChatCompletionService(option.WithAPIKey(c.APIKey), option.WithBaseURL(u.String()), option.WithHTTPClient(&client), option.WithMaxRetries(0), option.WithOrganization(""), option.WithProject(""), option.WithHeader("User-Agent", "pero-agent/0.1"))
-	return &Adapter{client: sdk, models: models, providerName: c.ProviderName, retryPolicy: policy, streamIdleTimeout: time.Duration(c.StreamIdleTimeoutMS) * time.Millisecond}, nil
+	return &Adapter{disableThinking: c.DisableThinking, maxRequests: int64(c.MaxRequests), maxOutputTokens: c.MaxOutputTokens, client: sdk, models: models, providerName: c.ProviderName, retryPolicy: policy, streamIdleTimeout: time.Duration(c.StreamIdleTimeoutMS) * time.Millisecond}, nil
 }
 
 func (a *Adapter) ResolveModelInfo(_ context.Context, provider, model string) (llm.ModelInfo, error) {
@@ -131,4 +145,14 @@ func (a *Adapter) PrepareAdapterCall(ctx context.Context, provider, model string
 	}
 	p, _ := a.RetryPolicyForProvider(provider)
 	return harness.PreparedAdapterCall{ModelInfo: info, RetryPolicy: &p, Generate: a.Generate}, nil
+}
+
+// Preserve system/standard SSL_CERT_FILE trust; never weaken TLS for proxies.
+func configuredTransport(useEnvironmentProxy bool) *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	if useEnvironmentProxy {
+		transport.Proxy = http.ProxyFromEnvironment
+	}
+	return transport
 }

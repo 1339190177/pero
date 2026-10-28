@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/phodal/pero/harness/go/harness"
+	"github.com/phodal/pero/harness/go/llm"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -214,6 +215,101 @@ func TestDoneWithoutFinishAndIncompleteToolsFail(t *testing.T) {
 		})
 		if _, err := a.Generate(context.Background(), request(), nil); err == nil {
 			t.Fatal("accepted incomplete response")
+		}
+	}
+}
+
+func TestHardBudgetConcurrentAndTokenClamp(t *testing.T) {
+	var received atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received.Add(1)
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if thinking, ok := body["thinking"].(map[string]any); !ok || thinking["type"] != "disabled" {
+			t.Error("explicit thinking disable absent")
+		}
+		if body["reasoning_effort"] != "none" {
+			t.Errorf("reasoning default missing: %v", body["reasoning_effort"])
+		}
+		if body["max_tokens"] != float64(512) {
+			t.Errorf("token limit missing: %v", body["max_tokens"])
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		event(w, `{"choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}]}`)
+		event(w, "[DONE]")
+	}))
+	defer server.Close()
+	zero := 0
+	a, err := New(Config{Endpoint: server.URL, APIKey: "fixture", ProviderName: "fixture", Models: []ModelConfig{{ID: "fixture-model", Reasoning: &llm.ModelReasoningInfo{Efforts: []llm.ReasoningEffortInfo{{ID: "none"}}, DefaultEffort: "none"}}}, DisableThinking: true, MaxRequests: 4, MaxOutputTokens: 512, RetryPolicy: &llm.RetryPolicyConfig{Mode: llm.RetryNormal, MaxRetries: &zero}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy, _ := a.RetryPolicyForProvider("fixture")
+	if policy.MaxRetries != 0 {
+		t.Fatal("retry enabled")
+	}
+	results := make(chan error, 12)
+	for i := 0; i < 12; i++ {
+		go func() {
+			r := request()
+			r.MaxTokens = 10000
+			_, err := a.Generate(context.Background(), r, nil)
+			results <- err
+		}()
+	}
+	successes := 0
+	for i := 0; i < 12; i++ {
+		if <-results == nil {
+			successes++
+		}
+	}
+	if received.Load() != 4 || successes != 4 {
+		t.Fatalf("requests=%d successes=%d", received.Load(), successes)
+	}
+}
+func TestFailedHTTPConsumesBudgetWithoutSDKRetry(t *testing.T) {
+	var received atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received.Add(1)
+		w.WriteHeader(500)
+		fmt.Fprint(w, `{"error":{"message":"fixture"}}`)
+	}))
+	defer server.Close()
+	a, err := New(Config{Endpoint: server.URL, APIKey: "fixture", ProviderName: "fixture", Models: []ModelConfig{{ID: "fixture-model"}}, MaxRequests: 1, MaxOutputTokens: 512})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := a.Generate(context.Background(), request(), nil); err == nil {
+			t.Fatal("expected error")
+		}
+	}
+	if received.Load() != 1 {
+		t.Fatalf("hidden retry or exceeded budget: %d", received.Load())
+	}
+}
+func TestNegativeBudgetRejected(t *testing.T) {
+	for _, c := range []Config{{MaxRequests: -1}, {MaxOutputTokens: -1}} {
+		if _, err := New(c); err == nil {
+			t.Fatal("negative budget accepted")
+		}
+	}
+}
+
+func TestProxyRequiresExplicitOptInAndPreservesTLS(t *testing.T) {
+	direct := configuredTransport(false)
+	proxy := configuredTransport(true)
+	if direct.Proxy != nil || proxy.Proxy == nil {
+		t.Fatal("proxy opt-in incorrect")
+	}
+	for _, tr := range []*http.Transport{direct, proxy} {
+		if tr.TLSClientConfig != nil && tr.TLSClientConfig.InsecureSkipVerify {
+			t.Fatal("TLS validation disabled")
+		}
+		if tr.TLSClientConfig != nil && tr.TLSClientConfig.RootCAs != nil {
+			t.Fatal("unexpected new trust roots")
 		}
 	}
 }
