@@ -71,7 +71,7 @@ fn save(c: &Contribution) -> Result<()> {
     })
 }
 pub fn load(workspace: &Path, task_id: &TaskId) -> Result<Contribution> {
-    let workspace = fs::canonicalize(workspace)
+    let workspace = dunce::canonicalize(workspace)
         .map_err(|error| ContributionError::new("workspace_missing", error.to_string()))?;
     let c: Contribution =
         serde_json::from_slice(&fs::read(binding_path(&workspace)).map_err(|_| {
@@ -110,7 +110,7 @@ pub fn prepare(
     source_url: String,
     source_revision: String,
 ) -> Result<Contribution> {
-    let parent = fs::canonicalize(parent).map_err(|_| {
+    let parent = dunce::canonicalize(parent).map_err(|_| {
         ContributionError::new(
             "parent_missing",
             "Choose an existing folder for contribution workspaces",

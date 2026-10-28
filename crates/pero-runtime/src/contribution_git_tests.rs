@@ -54,7 +54,7 @@ impl Fixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!("pero-contribution-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&root).unwrap();
-        let root = fs::canonicalize(root).unwrap();
+        let root = dunce::canonicalize(root).unwrap();
         let workspace = root.join("pero-task_test");
         let remote = root.join("fork.git");
         fs::create_dir(&workspace).unwrap();
