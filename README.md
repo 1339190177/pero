@@ -5,12 +5,11 @@
 <h1 align="center">OpenPero</h1>
 
 <p align="center">
-  <b>Research that doesn't reset when the chat does.</b><br>
-  An open-source AI-for-Science workspace where people, agents, and compute work on the same project.
+  <b>Distributed agent collaboration.</b><br>
+  Connect domain experts, open-source contributors, and computing environments for AI4S and R&amp;D.
 </p>
 
 <p align="center">
-  <a href="https://www.openpero.com/en/"><b>▶ Try the live demo</b></a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#roadmap">Roadmap</a> ·
@@ -23,7 +22,7 @@
 </p>
 
 > [!NOTE]
-> **Early stage.** The [live demo](https://www.openpero.com/en/) runs numerical calculations in your browser and simulates GitHub, agents, collaborators and remote workers. The repository also includes the locally verified implementation below. The research workflow and roadmap describe the broader product direction.
+> **Early stage.** Desktop, task claims, and remote execution are implemented foundations. Multi-agent orchestration and complete AI4S and R&D workflows are still being built.
 
 ## Run the current implementation
 
@@ -36,45 +35,30 @@ Local UI and protocol checks use provider fixtures. Deployment, real OAuth crede
 
 ## The problem
 
-AI makes a single research session faster. Then the session ends, and the context goes with it.
+AI4S connects literature, data, methods, and experimental results. R&D connects requirements, implementation, testing, and review. Expertise, code, and compute are often spread across people and machines.
 
-Next week, nobody remembers which dataset version was used, which parameters produced that figure, why the result was accepted, or who was supposed to check it. A research project needs memory, collaborators, and an audit trail. A chat window has none of those.
+OpenPero organizes this work around **projects and tasks**: experts define problems and acceptance criteria, contributors and agents divide the work, and reviewed artifacts return to the project.
 
-OpenPero makes **the project**, not the conversation, the unit of work.
-
-| | Chat-based AI research | OpenPero |
+| | A single Agent execution | OpenPero's direction |
 | --- | --- | --- |
-| **Context** | Lives in one conversation | Lives in the project: question, papers, data, methods, decisions |
-| **Agent** | Acts when you ask | Notices changes and proposes the next task |
-| **Execution** | Whatever machine you're on | Routed to a collaborator, an agent, or the compute where the data already is |
-| **Done means** | "It ran" | Ran → checked → reviewed → accepted, each step recorded |
-
-## Try it in 30 seconds
-
-**[Open the live demo →](https://www.openpero.com/en/)** No install, no account, no API key.
-
-- **Change a parameter, rerun the method.** Drag the damping ratio; an RK4 solver reruns in the browser and is compared with the baseline and the analytical solution.
-- **Open the record behind the figure.** Inputs, method version, parameters, error metrics, and the check that was applied.
-- **Walk a task through review.** Prepare it, pick a (simulated) execution route, review, then accept it into project state.
-- **Take it with you.** Export task drafts, GitHub Issue templates, JSON records, and CSV data.
-
-The example is a synthetic damped oscillator, not a replication of a published paper. State resets on reload, so export before you leave. To run it offline, open [`docs/en/index.html`](docs/en/index.html) ([中文](docs/index.html)) from a local clone.
+| **Context** | The current task | Project requirements, papers, data, methods, and decisions |
+| **Collaboration** | People connect separate executions | Task claims, division of work, and handoffs |
+| **Execution** | One environment | Approved local, lab, or cloud environments |
+| **Done means** | "It ran" | Execution, verification, and human acceptance recorded separately |
 
 ## How it works
 
 The diagram at the top is the whole loop. Step by step:
 
-1. **Describe the work.** Start from a GitHub Issue, a researcher's request, or a suggestion the project raises itself.
+1. **Describe the work.** Start from a GitHub Issue, a business or research request, or a suggestion the project raises itself.
 2. **Make it a contract.** Pin the inputs and method version, the expected outputs, resource limits, and acceptance criteria.
 3. **Assign it.** A collaborator claims it, or an approved agent or worker picks it up.
-4. **Run and record.** Produce artifacts together with everything needed to inspect or repeat the run.
+4. **Run and record.** Produce code, data, methods, or reports with the information needed to inspect or repeat the run.
 5. **Review and continue.** Record the decision, update the project, and report back to GitHub when useful.
-
-**Example:** *"Rerun our method on the new dataset and explain any difference from the approved baseline."* One contributor adapts the method, a lab server runs the comparison, and another contributor reviews it. They share a task contract, not a machine or an agent.
 
 ## What makes it different
 
-**🧠 The project remembers.** Question, papers, datasets, methods, runs, and decisions stay together. Come back a month later and see where the work stopped, why a result was accepted, and what is still open.
+**🧠 The project remembers.** Requirements, questions, papers, datasets, methods, runs, and decisions stay together. Come back a month later and see where the work stopped, why a result was accepted, and what is still open.
 
 **🔔 The agent prepares the next step.** A new dataset version, a finished run, a failed check, a relevant paper: the agent explains what changed, what it might affect, and proposes a concrete task. It works within project permissions and budgets, and it never quietly changes methods or accepted conclusions.
 
@@ -112,15 +96,15 @@ Interface (Web, Desktop), execution location (local, lab, cloud), and deployment
 
 ## Roadmap
 
-| | Stage | What we need to prove |
+| | Stage | Delivery focus |
 | --- | --- | --- |
-| 🟡 | **1. One reproducible task** | Fixed input, runnable method, inspectable result, clear acceptance decision |
-| ⚪ | **2. A shared project** | Persistent context and task history, with GitHub collaboration |
-| ⚪ | **3. Two trusted workers** | Routing, cancellation, failure recovery, independently reviewable results |
-| ⚪ | **4. Proactive research** | Relevant changes produce useful suggestions or policy-approved tasks |
-| ⚪ | **5. Reuse at scale** | Method packs, more execution adapters, self-hosting, managed Cloud evaluation |
+| 🟢 | **M0 · Bootstrap** | Desktop, Host, ACP, and versioned contracts; macOS development builds completed |
+| 🟡 | **M1 · Remote dispatch** | Local flow implemented; real remote-environment acceptance pending |
+| 🟡 | **M2 · Task sources** | GitHub intake implemented; ROADMAP import pending |
+| ⚪ | **M3 · Verification and publication** | Artifact versions, independent verification, human decisions, and authorized writeback |
+| ⚪ | **M4 · Environments and operations** | Environment matching, isolation, self-hosted upgrades and recovery |
 
-🟡 in progress · ⚪ planned
+🟢 development builds completed · 🟡 partially implemented · ⚪ planned. See the [full roadmap](docs/ROADMAP.md) for scope and acceptance criteria.
 
 ## Contribute
 
@@ -128,16 +112,18 @@ You don't need to understand the whole platform to help. Pick one bounded piece:
 
 | Area | A good first contribution |
 | --- | --- |
+| **Domain use cases** | Real problems, constraints, and acceptance criteria |
 | **Task & result contracts** | Schemas, example payloads, validators |
 | **GitHub connector** | Authenticated event intake, deduplication, task mapping, status updates |
 | **Worker SDK** | Capability registration, claims, heartbeats, cancellation, result submission |
 | **Coordination & recovery** | Dependencies, leases, safe retries, rejecting stale results |
 | **Result validation** | Artifact checks, baseline comparisons, independent review hooks |
-| **Research method packs** | One small runnable example with pinned inputs and explicit checks |
+| **Research method packs** | Fixed inputs, environments, baselines, and explicit checks |
+| **R&D workflows** | Playbooks for requirements verification, testing, and review |
 
 These are proposed areas, not existing Issues. For anything substantial, open an Issue first to agree on scope, interfaces, and acceptance criteria, and include a way to run or test it locally. AI-assisted contributions go through the same review as any other.
 
-**Researchers welcome too.** Package a method with its inputs, environment, expected outputs, and checks. Replicate a result, compare alternatives, or review someone else's contribution.
+**Business and domain experts welcome too.** Bring problems, constraints, and acceptance criteria, contribute scientific methods, or review results independently.
 
 <details>
 <summary>Working on the demo pages</summary>
@@ -148,6 +134,6 @@ Chinese copy lives in `pages/src`; English strings in `pages/locales/en.js`. Reb
 
 ---
 
-<p align="center"><b>Start with one research question. Make the next contribution easier.</b></p>
+<p align="center"><b>Start with one problem. Make the next contribution easier.</b></p>
 
 <!-- Maintainer publication checklist: choose and add the repository LICENSE; confirm source ownership and third-party notices; replace prototype status with verified release status as implementation lands. No license, hosted service, or installation command is implied by this draft. -->
