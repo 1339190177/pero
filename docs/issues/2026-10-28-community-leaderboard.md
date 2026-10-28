@@ -68,5 +68,9 @@ Final local checks after integrating the committed Client/Issue interfaces:
   migrations 2, 3 and 10 applied. Public pages/assets and health returned 200;
   unauthenticated task APIs remained 401.
 
-Implementation is committed locally; GitHub issue remains open pending branch
-integration/public delivery. No push or deployment was performed in this task.
+All five feature commits are included in the local master integration. An
+integration correction makes public list/detail and claim decisions use the
+latest GitHub source state while preserving frozen execution inputs. The combined
+Go race suite and 21 Chromium scenarios passed, including changed/closed sources.
+GitHub issue remains open pending public delivery; no push or deployment was
+performed in this task.

@@ -112,6 +112,11 @@ independent verification, PR publication, Kubernetes providers and deployment to
 openpero.com remain unimplemented. The Go service has configurable listen,
 database and token settings for a future separate deployment.
 
-The independent conversation regression is tracked in
-[conversation scroll follow](../issues/2026-10-28-conversation-scroll-follow.md).
-The complete pre-existing Desktop suite is therefore not reported as passing.
+During the [master worktree integration](worktree-integration.md), the
+[conversation scroll follow](../issues/2026-10-28-conversation-scroll-follow.md)
+regression was resolved by cancelling stale layout-follow requests after reader
+movement. The original single-wheel assertions passed twice, and the full
+Desktop tool/conversation and i18n suites passed. The combined remote suite
+again passed with 51 Tasks, and the two-client GitHub flow passed with frozen
+source/Run evidence and no requests from disabled Execute controls. The earlier
+failure table is retained as historical evidence from the original slice.
