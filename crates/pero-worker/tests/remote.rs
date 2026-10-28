@@ -105,7 +105,10 @@ fn expiry() -> String {
 
 impl Fixture {
     fn new(prompt: &str, cancel: bool, lose_lease: bool) -> Self {
-        let root = std::env::temp_dir().join(format!("pero-remote-{}", uuid::Uuid::new_v4()));
+        Self::new_under(prompt, cancel, lose_lease, std::env::temp_dir())
+    }
+    fn new_under(prompt: &str, cancel: bool, lose_lease: bool, parent: PathBuf) -> Self {
+        let root = parent.join(format!("pero-remote-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("workspace")).unwrap();
         std::fs::write(root.join("agent.mjs"), AGENT).unwrap();
         let node = std::env::split_paths(&std::env::var_os("PATH").unwrap())
@@ -344,4 +347,47 @@ fn interrupted_claim_is_reconciled_without_replaying_prompt() {
     );
     assert_eq!(state.completion.as_ref().unwrap()["outcome"], "reconcile");
     assert!(!fixture.root.join("marker").exists());
+}
+
+
+// Native protocol fixture, never executes tools or makes model/network calls.
+#[test]
+fn pinned_operator_policy_admits_only_one_native_shell_permission() {
+    let fixture = Fixture::new_under("hello", false, false, std::env::current_dir().unwrap());
+    let source = fixture.root.join("fixture.c");
+    let binary = fixture.root.join("native-fixture");
+    std::fs::write(&source, r#"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+int main(void) {
+ if(getenv("LD_PRELOAD") || getenv("UNTRUSTED_INHERITED") || getenv("PERO_WORKER_TOKEN")) return 4;
+ char line[65536], prompt[128]="0";
+ while(fgets(line,sizeof(line),stdin)) {
+  char *id=strstr(line,"\"id\":"); char n[128]="0";
+  if(id) { id+=5; size_t count=strcspn(id,",}"); if(count>=sizeof(n)) return 3; memcpy(n,id,count); n[count]=0; }
+  if(strstr(line,"\"initialize\"")) printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"protocolVersion\":1,\"agentCapabilities\":{}}}\n",n);
+  else if(strstr(line,"session/new")) printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"sessionId\":\"fixture\"}}\n",n);
+  else if(strstr(line,"session/prompt")) { strcpy(prompt,n); puts(getenv("FIXTURE_PERMISSION")); }
+  else if(strcmp(n,"900")==0) {
+   if(!strstr(line,"selected")) return 2;
+   printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"stopReason\":\"end_turn\"}}\n",prompt);
+  }
+  fflush(stdout);
+ }
+ return 0;
+}
+"#).unwrap();
+    assert!(Command::new("cc").arg(&source).arg("-o").arg(&binary).status().unwrap().success());
+    let sha256: String = ring::digest::digest(&ring::digest::SHA256, &std::fs::read(&binary).unwrap()).as_ref().iter().map(|b| format!("{b:02x}")).collect();
+    let workspace = fixture.root.join("workspace");
+    let permission = json!({"jsonrpc":"2.0","id":900,"method":"session/request_permission","params":{"sessionId":"fixture","toolCall":{"toolCallId":"native-shell"},"options":[{"optionId":"once","kind":"allow_once","name":"Once"}],"_meta":{"pero.dev/native-approval":{"version":1,"operation":"shell","workspace":workspace,"sandbox_mode":"workspace-write","enforcement":"required","network":"deny"}}}});
+    let env = json!({"FIXTURE_PERMISSION":permission.to_string()});
+    std::fs::write(fixture.root.join("agents.json"), json!([{"id":"fixture","name":"Native fixture","command":binary,"args":[],"env":env}]).to_string()).unwrap();
+    std::fs::write(fixture.root.join("config.json"), json!({"workspaces":{"fixture":workspace},"agents_file":fixture.root.join("agents.json"),"native_approvals":{"fixture":{"agent_id":"fixture","executable":binary,"sha256":sha256,"args":[],"env":env,"operations":["shell"],"sandbox_mode":"workspace-write"}}}).to_string()).unwrap();
+    let output = fixture.command().env("LD_PRELOAD", "").env("UNTRUSTED_INHERITED", "present").output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let state=fixture.state.lock().unwrap();
+    assert_eq!(state.completion.as_ref().unwrap()["outcome"], "succeeded");
+    assert_eq!(state.events.iter().filter(|e| e["kind"] == "permission_approved").count(),1);
 }

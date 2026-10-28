@@ -124,9 +124,10 @@ impl Process {
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
         // The Agent process inherits provider authentication, never control-plane credentials.
-        command
-            .env_clear()
-            .envs(std::env::vars_os().filter(|(key, _)| execution_env_allowed(key)));
+        command.env_clear();
+        if execution.inherit_environment() {
+            command.envs(std::env::vars_os().filter(|(key, _)| execution_env_allowed(key)));
+        }
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;

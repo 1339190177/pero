@@ -51,7 +51,8 @@ monotonic watchdog stops execution when its lease expires. The Worker first
 requests ACP cancellation, then enforces bounded cleanup of its executor and
 the Agent's separate SDK process group. The executor also detects supervisor
 death. Failure to confirm cleanup produces `reconcile` and stops task intake.
-Unattended permission requests are denied. All `PERO_*` environment variables are
+Unattended permission requests are denied by default (see the opt-in native shell
+policy below). All `PERO_*` environment variables are
 removed from the executor and Agent configuration; provider credentials should
 use the provider's own variable names.
 
@@ -68,3 +69,43 @@ independent verification, acceptance and publication remain separate.
 Run `node scripts/cargo.mjs test -p pero-worker` for journal, protocol, subprocess,
 permission, cancellation, lease-loss and interrupted-claim checks. The HTTP/ACP
 fixtures do not establish production or real model-provider acceptance.
+
+
+### Opt-in native shell admission
+
+Default unattended permission behavior remains **deny**. A trusted operator may
+add `native_approvals` to the Worker config, keyed by an already allowed workspace
+key. Each entry must contain `agent_id`, canonical absolute `executable`, lowercase
+`sha256`, exact `args` and `env`, `operations: ["shell"]`, and `sandbox_mode`
+(`workspace-write` or `read-only`). An explicit `agents_file` is required. The
+config, agent allowlist, executable, and their ancestors must be operator-owned,
+not group/world writable, and outside every configured writable workspace.
+Do not put these files under `/tmp` or a model-editable checkout.
+
+The executable pin is checked before dispatch and again in the supervised child.
+Opted-in executions inherit **no environment**; configure necessary provider
+settings explicitly in the operator-owned agent environment. Never pin a general
+interpreter or a launcher that loads model-writable plugins/config/code. The
+operator must trust the pinned native agent to implement this contract; a digest
+alone does not certify agent behavior. Installation replacement requires stopping
+Workers first; this is not an executable-file locking mechanism.
+
+Only live ACP requests from that process, matching the active session and exact
+workspace, may select one `allow_once` option. A version-1 descriptor under ACP
+`_meta["pero.dev/native-approval"]` must carry `operation: "shell"`, the canonical
+`workspace`, matching `sandbox_mode`, `enforcement: "required"`, and
+`network: "deny"`. This describes a required plan, **not proof that a command has
+already run in a sandbox**. The native executor must refuse dispatch if actual OS
+enforcement is unavailable. Permission requests without this native shell
+descriptor (including write/edit or MCP-origin approval requests) remain denied.
+This policy does not sandbox or disable separately configured MCP servers.
+Titles, model arguments, permission names, and MCP hints are never authority.
+Replayed calls, unknown sessions, ambiguous/persistent options and requests after
+cancellation or completion are denied. Only a redacted decision event is uploaded;
+no approval controls or tool arguments are sent to the coordinator.
+
+Strict sandbox admission also requires operator-controlled workspace ancestors and
+runtime mounts, with no concurrent external host mutation during admission/launch.
+The native sandbox's workspace scan rejects hardlinked files and special endpoints;
+it does not provide an adversarial filesystem snapshot. Do not enroll untrusted
+shared checkouts or runtime mounts in this opt-in policy.

@@ -1,3 +1,4 @@
+mod approval;
 mod control;
 mod executor;
 mod journal;
@@ -215,3 +216,4 @@ fn run() -> Result<(), String> {
         }
     }
 }
+
