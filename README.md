@@ -1,142 +1,144 @@
-# OpenPero
+<p align="center">
+  <img src="docs/assets/openpero-mark.svg" width="72" alt="OpenPero logo">
+</p>
 
-**An open-source AI research workspace for people, agents, and compute.**
+<h1 align="center">OpenPero</h1>
 
-Bring papers, data, methods, and results into one research project. Turn questions into tasks, coordinate work across collaborators and computing environments, and bring reviewed results back to the project.
+<p align="center">
+  <b>Research that doesn't reset when the chat does.</b><br>
+  An open-source AI-for-Science workspace where people, agents, and compute work on the same project.
+</p>
 
-**Keep the context. Share the work. Build on the results.**
+<p align="center">
+  <a href="https://www.openpero.com/en/"><b>▶ Try the live demo</b></a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="#contribute">Contribute</a> ·
+  <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Interactive prototype](docs/index.html) · [English prototype](docs/en/index.html)
+<p align="center">
+  <img src="docs/assets/openpero-overview.svg" alt="OpenPero workflow: a question becomes a task contract, researchers, agents, or compute do the work, the run is recorded, and the reviewed result returns to the project memory" width="900">
+</p>
 
-> **Early-stage project.** The included prototype runs numerical calculations and exports results in your browser. Task coordination, GitHub integration, collaborators, and remote execution are simulated. The platform capabilities below describe the direction we are building toward, not a production service.
+> [!NOTE]
+> **Early stage.** The [live demo](https://www.openpero.com/en/) runs real numerical calculations in your browser. GitHub integration, agents, collaborators, and remote workers are simulated. Everything else below is the direction we are building toward.
 
-## Why OpenPero?
+## The problem
 
-A research project is more than a conversation. It has a question, source material, methods, previous results, unresolved issues, and decisions that need to survive the next session.
+AI makes a single research session faster. Then the session ends, and the context goes with it.
 
-OpenPero is being built around that continuity. The project—not the chat—is the unit of work. People contribute judgment and expertise; agents help prepare and carry out tasks; workers connect those tasks to the right tools and computing environments.
+Next week, nobody remembers which dataset version was used, which parameters produced that figure, why the result was accepted, or who was supposed to check it. A research project needs memory, collaborators, and an audit trail. A chat window has none of those.
 
-The goal is not to replace scientific judgment. It is to make research easier to continue, share, inspect, and reproduce.
+OpenPero makes **the project**, not the conversation, the unit of work.
 
-## What we are building
+| | Chat-based AI research | OpenPero |
+| --- | --- | --- |
+| **Context** | Lives in one conversation | Lives in the project: question, papers, data, methods, decisions |
+| **Agent** | Acts when you ask | Notices changes and proposes the next task |
+| **Execution** | Whatever machine you're on | Routed to a collaborator, an agent, or the compute where the data already is |
+| **Done means** | "It ran" | Ran → checked → reviewed → accepted, each step recorded |
 
-### A project that keeps its context
+## Try it in 30 seconds
 
-Keep the research question, papers, datasets, methods, runs, and decisions together. Pick up where the work stopped, understand why a result was accepted, and see which questions remain open.
+**[Open the live demo →](https://www.openpero.com/en/)** No install, no account, no API key.
 
-### An agent that prepares the next step
+- **Change a parameter, rerun the method.** Drag the damping ratio; an RK4 solver reruns in the browser and is compared with the baseline and the analytical solution.
+- **Open the record behind the figure.** Inputs, method version, parameters, error metrics, and the check that was applied.
+- **Walk a task through review.** Prepare it, pick a (simulated) execution route, review, then accept it into project state.
+- **Take it with you.** Export task drafts, GitHub Issue templates, JSON records, and CSV data.
 
-Follow relevant changes: a new dataset version, a completed run, a failed check, or a paper that may affect the project. Explain what changed, identify potentially affected work, and propose a concrete next task.
+The example is a synthetic damped oscillator, not a replication of a published paper. State resets on reload, so export before you leave. To run it offline, open [`docs/en/index.html`](docs/en/index.html) ([中文](docs/index.html)) from a local clone.
 
-Actions should follow project permissions and budgets. Important changes to methods, accepted conclusions, or public results remain explicit decisions—not side effects of an agent run.
+## How it works
 
-### Work shared across people, agents, and compute
+The diagram at the top is the whole loop. Step by step:
 
-Define tasks that a collaborator can claim, an agent can work on, or a worker can execute. Coordinate dependencies, execution attempts, cancellation, and recovery without assuming that all work happens on one machine.
+1. **Describe the work.** Start from a GitHub Issue, a researcher's request, or a suggestion the project raises itself.
+2. **Make it a contract.** Pin the inputs and method version, the expected outputs, resource limits, and acceptance criteria.
+3. **Assign it.** A collaborator claims it, or an approved agent or worker picks it up.
+4. **Run and record.** Produce artifacts together with everything needed to inspect or repeat the run.
+5. **Review and continue.** Record the decision, update the project, and report back to GitHub when useful.
 
-Cloud-based coordination is a core architectural direction. A coordinator should also be self-hostable; computation can stay on a personal machine, an approved lab server, or cloud infrastructure. Hosting the coordinator does not require moving every dataset into the cloud.
+**Example:** *"Rerun our method on the new dataset and explain any difference from the approved baseline."* One contributor adapts the method, a lab server runs the comparison, and another contributor reviews it. They share a task contract, not a machine or an agent.
 
-### Results with an inspectable history
+## What makes it different
 
-Associate each result with its inputs, method version, parameters, environment, and execution record. Compare it with the baseline and review the limitations before accepting it into the project.
+**🧠 The project remembers.** Question, papers, datasets, methods, runs, and decisions stay together. Come back a month later and see where the work stopped, why a result was accepted, and what is still open.
 
-**A successful run is not the same as an accepted research result.** Traceability supports review; it does not by itself establish scientific validity.
+**🔔 The agent prepares the next step.** A new dataset version, a finished run, a failed check, a relevant paper: the agent explains what changed, what it might affect, and proposes a concrete task. It works within project permissions and budgets, and it never quietly changes methods or accepted conclusions.
 
-## From an issue to a research result
+**🌐 Compute stays where the data is.** Tasks can run on a laptop, an approved lab server, or the cloud. The coordinator can be self-hosted, and hosting it does not mean moving your data to the cloud.
 
-GitHub is an entry point for collaboration—not the entire research runtime.
+**🔍 Every result has a history.** Each result links to its inputs, method version, parameters, environment, and execution record. A successful run is not an accepted result. Acceptance is an explicit, reviewed decision.
 
-A proposed workflow:
-
-1. **Describe the work.** Start with a GitHub Issue, a researcher request, or a project-triggered suggestion.
-2. **Make it actionable.** Fix the inputs and method versions, expected outputs, resource constraints, and acceptance criteria.
-3. **Authorize and assign.** A collaborator claims the work, or an approved agent or worker receives it.
-4. **Run and record.** Produce artifacts together with the execution details needed to inspect or repeat the work.
-5. **Review and continue.** Check the result, record the decision, update the project, and report back to GitHub when appropriate.
-
-For example, a project can ask contributors to rerun an existing method on a new dataset and explain differences from an approved baseline. One contributor adapts the method, a worker runs the comparison, and another contributor reviews the result. They share a task contract rather than needing the same machine or agent.
-
-Not every internal run needs an Issue. Publish work to GitHub when it benefits from discussion, independent contribution, or public review. Closing an Issue is not a substitute for recording acceptance.
-
-## Architecture direction
+## Architecture
 
 ![OpenPero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
 
-Solid outlines mark existing foundations; dashed modules and connections are planned. Regenerate the diagram with `node scripts/generate-architecture.mjs`.
+Solid outlines are existing foundations; dashed ones are planned. Regenerate the diagrams with `node scripts/generate-architecture.mjs` and `node scripts/generate-overview.mjs`.
 
 | Part | Responsibility |
 | --- | --- |
-| **Project** | Research goals, shared context, accepted results, open questions, and decisions. |
-| **Task** | A bounded contribution with fixed inputs, expected outputs, constraints, and acceptance criteria. |
-| **Coordinator** | Dependencies, authorization, assignment, execution state, cancellation, and recovery. |
-| **Worker** | Execute approved tasks with declared capabilities and scoped access. |
-| **Result and review** | Preserve artifacts and provenance; distinguish execution success, validation, and acceptance. |
-| **Web / Desktop / GitHub** | Different ways to enter, follow, contribute to, and review the same work. |
+| **Project** | Goals, shared context, accepted results, open questions, decisions |
+| **Task** | A bounded contribution with fixed inputs, expected outputs, constraints, and acceptance criteria |
+| **Coordinator** | Dependencies, authorization, assignment, execution state, cancellation, recovery |
+| **Worker** | Runs approved tasks with declared capabilities and scoped access |
+| **Result & review** | Keeps artifacts and provenance; separates execution success, validation, and acceptance |
+| **Web / Desktop / GitHub** | Different ways into the same work |
 
-Web and Desktop are interfaces. Local, lab, and cloud are execution locations. Self-hosting and a potential managed Cloud are deployment choices. These should remain separate decisions.
+Interface (Web, Desktop), execution location (local, lab, cloud), and deployment (self-hosted, managed) are independent choices.
 
-A coordinator can remain available while a worker is offline, but it cannot make an unavailable local tool or dataset run remotely without an authorized, compatible replacement.
+<details>
+<summary><b>Safety by design</b></summary>
 
-## Try the interactive prototype
+- Issue text, pull requests, and task payloads are **untrusted input**. Submitting work is not permission to run it.
+- Execution uses scoped credentials, resource limits, approved data access, and isolation that fits each task.
+- Retries account for side effects; duplicate delivery must not repeat consequential actions.
+- Publishing results or changing accepted conclusions follows the project's review policy.
+- Never attach an unrestricted personal or lab machine to an untrusted public task stream.
 
-Open [`docs/index.html`](docs/index.html) locally in a browser after downloading or cloning this repository. The English page is [`docs/en/index.html`](docs/en/index.html). No installation, account, API key, or remote service is required for the demo. GitHub may show the HTML source rather than execute it; open the downloaded file to interact with it.
-
-Chinese copy lives in `pages/src`. English strings live in `pages/locales/en.js`. Rebuild both pages with `node pages/scripts/build.mjs`. Colors follow `DESIGN.md`.
-
-The prototype walks through preparing a task, selecting a simulated execution route, comparing numerical results, reviewing them, and accepting them into the page's project state. It also exports task drafts, Issue templates, JSON records, and CSV data.
-
-| In the prototype | Scope |
-| --- | --- |
-| Numerical calculations and JSON / CSV export | Executed locally in the browser. |
-| Task preparation, cancellation, review, and acceptance | Interactive, page-local workflow. |
-| GitHub events, agent suggestions, contributors, and remote workers | Simulated; no external integration. |
-| Persistent projects, authenticated collaboration, and hosted Cloud | Not provided by this prototype. |
-
-The numerical example uses a synthetic damped oscillator and compares a numerical solution with an analytical reference. It is not a replication of a published paper or validation against a physical experiment. Page state resets on reload; export records before leaving.
-
-## Contribute
-
-You should not need to understand the whole platform to make a useful contribution. We want clear, bounded tasks with examples and acceptance checks.
-
-**Build OpenPero.** Contribute task contracts, the coordinator, worker adapters, connectors, validation, interfaces, or documentation.
-
-**Contribute research methods.** Package a runnable method with its inputs, environment requirements, expected outputs, and checks. Replicate a result, compare alternatives, or independently review a contribution.
-
-**Connect execution environments.** Help build adapters for approved local and remote resources. An open, anonymous compute network is not the initial goal; third-party workers require explicit trust, isolation, and data-access decisions.
-
-### Initial contribution areas
-
-These are proposed work areas, not a list of existing Issues or completed modules.
-
-| Area | A useful first contribution |
-| --- | --- |
-| Task and result contracts | Schemas, example payloads, and validators. |
-| GitHub connector | Authenticated event intake, deduplication, task mapping, and status updates. |
-| Worker SDK | Capability registration, task claims, heartbeats, cancellation, and result submission. |
-| Coordination and recovery | Dependency handling, leases, safe retries, and rejection of stale results. |
-| Result validation | Artifact checks, baseline comparisons, and independent review hooks. |
-| Research method packs | One small, runnable example with pinned inputs and explicit verification rules. |
-
-Before implementing a substantial change, use an Issue to agree on scope, interfaces, and acceptance criteria. Include a way to run or test the contribution locally. AI-assisted contributions should meet the same review and verification requirements as other contributions.
-
-## Execution boundaries
-
-Issue text, pull requests, and task payloads are untrusted inputs. Submitting work is not permission to execute it.
-
-The execution design should enforce scoped credentials, resource limits, approved data access, and isolation appropriate to each task. Retrying a task must account for side effects; duplicate delivery must not silently duplicate consequential actions. Public results and changes to accepted conclusions require the project's review policy.
-
-Do not attach an unrestricted personal or lab machine to an untrusted public task stream.
+</details>
 
 ## Roadmap
 
-| Stage | Outcome to validate |
-| --- | --- |
-| **1. One reproducible task** | A fixed input, executable method, inspectable result, and clear acceptance decision. |
-| **2. A shared project** | Persistent context and task history, with GitHub collaboration. |
-| **3. Two trusted workers** | Task routing, cancellation, failure recovery, and independently reviewable results. |
-| **4. Proactive research** | Relevant changes produce useful suggestions or policy-authorized tasks. |
-| **5. Reusable methods and wider collaboration** | Method packs, more execution adapters, self-hosting, and evaluation of managed Cloud. |
+| | Stage | What we need to prove |
+| --- | --- | --- |
+| 🟡 | **1. One reproducible task** | Fixed input, runnable method, inspectable result, clear acceptance decision |
+| ⚪ | **2. A shared project** | Persistent context and task history, with GitHub collaboration |
+| ⚪ | **3. Two trusted workers** | Routing, cancellation, failure recovery, independently reviewable results |
+| ⚪ | **4. Proactive research** | Relevant changes produce useful suggestions or policy-approved tasks |
+| ⚪ | **5. Reuse at scale** | Method packs, more execution adapters, self-hosting, managed Cloud evaluation |
 
-**Start with one research question. Make the next contribution easier.**
+🟡 in progress · ⚪ planned
+
+## Contribute
+
+You don't need to understand the whole platform to help. Pick one bounded piece:
+
+| Area | A good first contribution |
+| --- | --- |
+| **Task & result contracts** | Schemas, example payloads, validators |
+| **GitHub connector** | Authenticated event intake, deduplication, task mapping, status updates |
+| **Worker SDK** | Capability registration, claims, heartbeats, cancellation, result submission |
+| **Coordination & recovery** | Dependencies, leases, safe retries, rejecting stale results |
+| **Result validation** | Artifact checks, baseline comparisons, independent review hooks |
+| **Research method packs** | One small runnable example with pinned inputs and explicit checks |
+
+These are proposed areas, not existing Issues. For anything substantial, open an Issue first to agree on scope, interfaces, and acceptance criteria, and include a way to run or test it locally. AI-assisted contributions go through the same review as any other.
+
+**Researchers welcome too.** Package a method with its inputs, environment, expected outputs, and checks. Replicate a result, compare alternatives, or review someone else's contribution.
+
+<details>
+<summary>Working on the demo pages</summary>
+
+Chinese copy lives in `pages/src`; English strings in `pages/locales/en.js`. Rebuild both pages with `node pages/scripts/build.mjs`. Colors follow [`DESIGN.md`](DESIGN.md).
+
+</details>
+
+---
+
+<p align="center"><b>Start with one research question. Make the next contribution easier.</b></p>
 
 <!-- Maintainer publication checklist: choose and add the repository LICENSE; confirm source ownership and third-party notices; replace prototype status with verified release status as implementation lands. No license, hosted service, or installation command is implied by this draft. -->
