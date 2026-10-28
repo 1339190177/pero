@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -110,4 +111,33 @@ func NormalizeServerName(name string) string {
 	}
 	digest := sha256.Sum256([]byte(name))
 	return prefix + "_" + hex.EncodeToString(digest[:4])
+}
+
+// ErrAuthentication requires an explicit operator credential/configuration change.
+// It is not a transient connection failure and must never trigger automatic login.
+var ErrAuthentication = errors.New("MCP authentication rejected; operator action required")
+
+// SafeError keeps machine-readable causes without displaying endpoint URLs,
+// response bodies, command arguments, or other operator secrets in diagnostics.
+func SafeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return safeError{cause: err}
+}
+
+type safeError struct{ cause error }
+
+func (e safeError) Unwrap() error { return e.cause }
+func (e safeError) Error() string {
+	switch {
+	case errors.Is(e.cause, ErrAuthentication):
+		return ErrAuthentication.Error()
+	case errors.Is(e.cause, context.Canceled):
+		return "MCP request canceled"
+	case errors.Is(e.cause, context.DeadlineExceeded):
+		return "MCP request timed out"
+	default:
+		return "MCP operation failed (details withheld)"
+	}
 }

@@ -27,7 +27,7 @@ func ListTools(ctx context.Context, session *mcp.ClientSession) ([]*mcp.Tool, er
 	for cursor := ""; ; {
 		page, err := session.ListTools(ctx, &mcp.ListToolsParams{Cursor: cursor})
 		if err != nil {
-			return nil, err
+			return nil, SafeError(err)
 		}
 		tools = append(tools, page.Tools...)
 		if page.NextCursor == "" {
@@ -70,7 +70,7 @@ func buildMCPTools(session *mcp.ClientSession, serverName string, remotes []*mcp
 				defer cancel()
 				result, err := session.CallTool(requestCtx, &mcp.CallToolParams{Name: remoteName, Arguments: arguments})
 				if err != nil {
-					return harnesstool.Result{}, err
+					return harnesstool.Result{}, SafeError(err)
 				}
 				return fromMCPResult(result), nil
 			},

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -312,8 +313,9 @@ func newMCPTransport(config MCPServerConfig) (mcp.Transport, error) {
 		command.Env = mergedEnvironment(config.Env)
 		return &mcp.CommandTransport{Command: command}, nil
 	}
-	client := &http.Client{Transport: &headerRoundTripper{base: http.DefaultTransport, headers: config.Headers}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	return &mcp.StreamableClientTransport{Endpoint: config.URL, HTTPClient: client}, nil
+	headers := &headerRoundTripper{base: http.DefaultTransport, headers: config.Headers}
+	client := &http.Client{Transport: headers, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &authenticationTransport{StreamableClientTransport: &mcp.StreamableClientTransport{Endpoint: config.URL, HTTPClient: client}, headers: headers}, nil
 }
 
 func mergedEnvironment(overrides map[string]string) []string {
@@ -347,16 +349,44 @@ func scrubMCPEnvironmentName(name string) bool {
 		strings.Contains(upper, "PASSWORD") || strings.Contains(upper, "SECRET") || strings.Contains(upper, "TOKEN")
 }
 
+// Retain authentication classification independently of SDK error wrapping and
+// discovery fallback. Each configured connection remains terminal until reloaded.
+type authenticationTransport struct {
+	*mcp.StreamableClientTransport
+	headers *headerRoundTripper
+}
+
+func (t *authenticationTransport) TerminalError() error {
+	if t.headers.authenticationRejected.Load() {
+		return harnessmcp.ErrAuthentication
+	}
+	return nil
+}
+
 type headerRoundTripper struct {
-	base    http.RoundTripper
-	headers map[string]string
+	authenticationRejected atomic.Bool
+	base                   http.RoundTripper
+	headers                map[string]string
 }
 
 func (t *headerRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	if t.authenticationRejected.Load() {
+		return nil, harnessmcp.ErrAuthentication
+	}
 	clone := request.Clone(request.Context())
 	clone.Header = request.Header.Clone()
 	for name, value := range t.headers {
 		clone.Header.Set(name, value)
 	}
-	return t.base.RoundTrip(clone)
+	response, err := t.base.RoundTrip(clone)
+	if err == nil && response != nil && (response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden) {
+		t.authenticationRejected.Store(true)
+		// Never expose an authentication error body to the SDK, logs, or model.
+		// A typed sentinel survives SDK wrapping and stops the outer supervisor.
+		if response.Body != nil {
+			_ = response.Body.Close()
+		}
+		return nil, harnessmcp.ErrAuthentication
+	}
+	return response, err
 }

@@ -94,7 +94,7 @@ func (d *ResourceDirectory) Request(ctx context.Context, server, method string, 
 		return nil, fmt.Errorf("unsupported MCP resource method %q", method)
 	}
 	if err != nil {
-		return nil, err
+		return nil, SafeError(err)
 	}
 	return marshalResource(result)
 }

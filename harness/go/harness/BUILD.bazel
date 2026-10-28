@@ -129,6 +129,7 @@ go_test(
     ],
     embed = [":harness"],
     deps = [
+        "//mcp",
         "//runtime",
         "@com_github_modelcontextprotocol_go_sdk//mcp",
     ],

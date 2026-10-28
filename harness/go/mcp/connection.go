@@ -28,10 +28,11 @@ type ConnectionOptions struct {
 }
 
 type mcpGeneration struct {
-	id       uint64
-	session  *mcp.ClientSession
-	waitDone chan struct{}
-	waitErr  error
+	transport mcp.Transport
+	id        uint64
+	session   *mcp.ClientSession
+	waitDone  chan struct{}
+	waitErr   error
 }
 
 type mcpDownEvent struct {
@@ -114,15 +115,15 @@ func MountConnection(ctx context.Context, run *point.Run, options ConnectionOpti
 	}
 	retrySafe, initialErr := supervisor.connect(ctx)
 	if initialErr != nil && options.FailOnStartupError {
-		return errors.Join(initialErr, supervisor.shutdown())
+		return SafeError(errors.Join(initialErr, supervisor.shutdown()))
 	}
 	if err := run.Go("mcp:"+options.ServerName+":connection-supervisor", func(workerCtx context.Context) error {
 		return supervisor.run(workerCtx, initialErr, retrySafe)
 	}); err != nil {
-		return errors.Join(err, supervisor.shutdown())
+		return SafeError(errors.Join(err, supervisor.shutdown()))
 	}
 	if initialErr != nil {
-		run.Logger().Warn("MCP mounted without initial tools; reconnect supervisor is active", "mcp.server", options.ServerName)
+		run.Logger().Warn("MCP mounted without initial tools; see connection supervisor status", "mcp.server", options.ServerName)
 	}
 	return nil
 }
@@ -130,11 +131,11 @@ func MountConnection(ctx context.Context, run *point.Run, options ConnectionOpti
 func (s *mcpConnectionSupervisor) connect(ctx context.Context) (retrySafe bool, err error) {
 	transport, err := s.transportFactory()
 	if err != nil {
-		return true, fmt.Errorf("create transport: %w", err)
+		return !errors.Is(err, ErrAuthentication), SafeError(fmt.Errorf("create transport: %w", err))
 	}
 	trackedTransport := &trackedMCPTransport{inner: transport}
 	s.nextGeneration++
-	generation := &mcpGeneration{id: s.nextGeneration, waitDone: make(chan struct{})}
+	generation := &mcpGeneration{id: s.nextGeneration, waitDone: make(chan struct{}), transport: transport}
 	client := mcp.NewClient(&mcp.Implementation{Name: "point-harness", Version: "0.1.0"}, &mcp.ClientOptions{
 		ToolListChangedHandler: func(context.Context, *mcp.ToolListChangedRequest) {
 			if s.activeGeneration.Load() != generation.id {
@@ -152,7 +153,7 @@ func (s *mcpConnectionSupervisor) connect(ctx context.Context) (retrySafe bool, 
 		if errors.Is(closeErr, mcp.ErrConnectionClosed) {
 			closeErr = nil
 		}
-		return closeErr == nil, errors.Join(fmt.Errorf("connect: %w", err), closeErr)
+		return closeErr == nil && !errors.Is(err, ErrAuthentication) && terminalTransportError(transport) == nil, SafeError(errors.Join(fmt.Errorf("connect: %w", err), closeErr))
 	}
 	generation.session = session
 	s.current = generation
@@ -162,7 +163,7 @@ func (s *mcpConnectionSupervisor) connect(ctx context.Context) (retrySafe bool, 
 		s.current = nil
 		s.activeGeneration.Store(0)
 		closeErr := closeMCPGeneration(generation)
-		return closeErr == nil, errors.Join(err, closeErr)
+		return closeErr == nil && !errors.Is(err, ErrAuthentication) && terminalTransportError(transport) == nil, SafeError(errors.Join(err, closeErr))
 	}
 	s.publishResourceSession(generation.session)
 	s.connectedAt = time.Now()
@@ -222,10 +223,10 @@ func (s *mcpConnectionSupervisor) clearTools(ctx context.Context) error {
 
 func (s *mcpConnectionSupervisor) run(ctx context.Context, initialErr error, retrySafe bool) (runErr error) {
 	defer func() {
-		runErr = errors.Join(runErr, s.shutdown())
+		runErr = SafeError(errors.Join(runErr, s.shutdown()))
 	}()
 	if initialErr != nil {
-		s.ownerRun.Logger().Warn("MCP initial connection failed", "mcp.server", s.serverName, "error", initialErr)
+		s.ownerRun.Logger().Warn("MCP initial connection failed", "mcp.server", s.serverName, "error", SafeError(initialErr))
 		if !retrySafe {
 			return s.waitUntilCanceled(ctx)
 		}
@@ -265,9 +266,9 @@ func (s *mcpConnectionSupervisor) run(ctx context.Context, initialErr error, ret
 			if ctx.Err() != nil {
 				return nil
 			}
-			s.ownerRun.Logger().Warn("MCP reconnect attempt failed", "mcp.server", s.serverName, "error", err)
+			s.ownerRun.Logger().Warn("MCP reconnect attempt failed", "mcp.server", s.serverName, "error", SafeError(err))
 			if !safe {
-				s.ownerRun.Logger().Error("MCP failed generation did not close; reconnect stopped to prevent overlap", "mcp.server", s.serverName)
+				s.ownerRun.Logger().Error("MCP reconnect stopped; operator action or safe cleanup required", "mcp.server", s.serverName)
 				return s.waitUntilCanceled(ctx)
 			}
 			s.failedAttempts++
@@ -282,7 +283,7 @@ func (s *mcpConnectionSupervisor) run(ctx context.Context, initialErr error, ret
 				continue
 			}
 			if err := s.syncGeneration(ctx, s.current); err != nil && ctx.Err() == nil {
-				s.ownerRun.Logger().Error("MCP tool-list resync failed", "mcp.server", s.serverName, "error", err)
+				s.ownerRun.Logger().Error("MCP tool-list resync failed", "mcp.server", s.serverName, "error", SafeError(err))
 			}
 		case event := <-s.down:
 			if s.current != event.generation {
@@ -298,11 +299,15 @@ func (s *mcpConnectionSupervisor) run(ctx context.Context, initialErr error, ret
 			}
 			if err := closeMCPGeneration(event.generation); err != nil {
 				s.ownerRun.Logger().Error("MCP disconnected generation did not close; reconnect stopped to prevent overlap",
-					"mcp.server", s.serverName, "error", err)
+					"mcp.server", s.serverName, "error", SafeError(err))
+				return s.waitUntilCanceled(ctx)
+			}
+			if errors.Is(event.err, ErrAuthentication) || terminalTransportError(event.generation.transport) != nil {
+				s.ownerRun.Logger().Warn("MCP authentication rejected; waiting for owner reload", "mcp.server", s.serverName)
 				return s.waitUntilCanceled(ctx)
 			}
 			s.failedAttempts++
-			s.ownerRun.Logger().Warn("MCP connection lost", "mcp.server", s.serverName, "error", event.err)
+			s.ownerRun.Logger().Warn("MCP connection lost", "mcp.server", s.serverName, "error", SafeError(event.err))
 		}
 	}
 }
@@ -358,4 +363,12 @@ func closeMCPGeneration(generation *mcpGeneration) error {
 	case <-deadline.C:
 		return errors.New("harness: MCP generation close timed out")
 	}
+}
+
+// Transport status survives SDK error flattening and unrelated later disconnects.
+func terminalTransportError(transport mcp.Transport) error {
+	if terminal, ok := transport.(interface{ TerminalError() error }); ok {
+		return terminal.TerminalError()
+	}
+	return nil
 }
