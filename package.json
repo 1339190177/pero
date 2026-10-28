@@ -25,6 +25,7 @@
     "test:e2e": "node tests/e2e/desktop.mjs",
     "test:e2e:real": "node tests/e2e/real-session.mjs",
     "test:remote": "node tests/e2e/remote.mjs",
+    "test:community": "node tests/e2e/community.mjs",
     "test:i18n": "node tests/e2e/i18n.mjs"
   },
   "devDependencies": {
