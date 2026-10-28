@@ -23,6 +23,7 @@ pub(crate) struct RemoteState {
     pub(crate) form_error: Option<&'static str>,
     pub(crate) filter: usize,
     pub(crate) technical: bool,
+    pub(crate) public_contributions: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -64,6 +65,7 @@ impl RemoteState {
             form_error: None,
             filter: 0,
             technical: false,
+            public_contributions: false,
             _subscriptions: subscriptions,
         }
     }
@@ -221,6 +223,14 @@ impl Workbench {
             .as_bool()
             .unwrap_or(false);
         self.remote.data = event.data.clone();
+        if !self.remote.configured() {
+            self.contribution.requested = false;
+            self.contribution.data = Default::default();
+        } else if self.remote.client() && !self.contribution.requested {
+            self.contribution.requested = true;
+            self.remote.public_contributions = was_authenticating || self.remote.data["identity"]["projects"].as_array().is_some_and(Vec::is_empty);
+            self.command(json!({"action":"remote_contribution_refresh"}), cx);
+        }
         if was_authenticating
             && !self.remote.data["connection"]["authenticating"]
                 .as_bool()

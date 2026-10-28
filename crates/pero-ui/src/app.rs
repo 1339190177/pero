@@ -37,6 +37,7 @@ pub(crate) struct Workbench {
     pub dark: bool,
     pub navigation: usize,
     pub remote: crate::remote::RemoteState,
+    pub contribution: crate::contributions::ContributionState,
     pub apps: crate::apps::AppWorkspace,
     pub app_surface: String,
     pub tab: usize,
@@ -103,6 +104,7 @@ impl Workbench {
         let remote = crate::remote::RemoteState::new(window, cx);
         Self {
             remote,
+            contribution: Default::default(),
             apps: crate::apps::AppWorkspace::default(),
             app_surface: String::new(),
             input,
@@ -161,6 +163,9 @@ impl Workbench {
     }
 
     pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
+        if self.receive_contribution(&event, cx) {
+            return;
+        }
         if self.receive_apps(&event, cx) {
             return;
         }
@@ -323,7 +328,7 @@ pub fn snapshot() -> String {
     let mut value = serde_json::json!({"ready": false});
     update(|ui, cx| {
         value = serde_json::json!({
-            "ready": true, "remote": ui.remote.snapshot(cx), "connected": ui.connected, "input": ui.input.read(cx).value().as_ref(),
+            "ready": true, "remote": ui.remote.snapshot(cx), "contribution": ui.contribution.data, "publicContributions": ui.remote.public_contributions, "connected": ui.connected, "input": ui.input.read(cx).value().as_ref(),
             "received": ui.received, "lastEcho": ui.last_echo, "pending": ui.pending,
             "error": ui.error, "dark": ui.dark, "navigation": ui.navigation,
             "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading,

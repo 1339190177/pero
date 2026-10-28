@@ -306,6 +306,11 @@ impl Workbench {
             .or_else(|| self.agents.get(self.agent_index).map(|a| a.id.clone()))
             .unwrap_or_else(|| "codex".into());
         div().flex_1().min_h_0().flex().flex_col()
+            .when(self.contribution.data["local"]["thread_id"].as_str()==Some(id.as_str()),|el|el.child(
+                div().px(px(16.)).py(px(8.)).border_b_1().border_color(p.color("border")).child(
+                    Button::new("contribution-return").outline().small().label(self.t("contribution.return_review")).on_click(cx.listener(|this,_,_,cx|{
+                        this.remote.public_contributions=true;this.navigation=3;this.sync_follow(cx);cx.notify();
+                    })))))
             .child(div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.chat_scroll).px(px(16.)).py(px(10.))
                 .when(chat.is_none_or(|c|c.messages.is_empty()),|el|el.child(div().py(px(24.)).flex().flex_col().gap(px(12.))
                     .child(div().text_size(px(18.)).font_weight(FontWeight::BOLD).child(self.t("chat.welcome")))

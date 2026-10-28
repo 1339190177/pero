@@ -166,7 +166,16 @@ impl Workbench {
                 },
             )
             .when(editing, |el| el.child(self.remote_connection_view(cx)))
-            .when(!editing, |el| {
+            .when(!editing && self.remote.client(), |el| el.child(
+                div().px(px(20.)).py(px(8.)).flex().gap(px(8.)).border_b_1().border_color(p.color("border"))
+                    .child(Button::new("public-contributions-tab").ghost().small().label(self.t("contribution.title")).toggled(self.remote.public_contributions).on_click(cx.listener(|this,_,_,cx| {
+                        this.remote.public_contributions=true;
+                        this.command(json!({"action":"remote_contribution_refresh"}),cx);
+                    })))
+                    .child(Button::new("private-remote-tab").ghost().small().label(self.t("contribution.remote_tasks")).toggled(!self.remote.public_contributions).on_click(cx.listener(|this,_,_,cx| {this.remote.public_contributions=false;cx.notify();})))
+            ))
+            .when(!editing && self.remote.public_contributions && self.remote.client(), |el| el.child(self.contribution_view(narrow,cx)))
+            .when(!editing && (!self.remote.public_contributions || !self.remote.client()), |el| {
                 el.child(
                     div()
                         .flex_1()

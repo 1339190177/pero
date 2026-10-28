@@ -30,6 +30,8 @@ mod remote;
 mod remote_connection;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod remote_view;
+#[cfg(any(target_family = "wasm", feature = "native"))]
+mod contributions;
 
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
 pub mod native;
