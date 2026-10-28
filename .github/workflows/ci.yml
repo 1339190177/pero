@@ -155,6 +155,9 @@ jobs:
               ;;
           esac
 
+      - name: Resolve pinned local GPUI packages
+        run: node scripts/cargo.mjs check -p pero-contracts
+
       - name: Build
         run: npm run build
 
