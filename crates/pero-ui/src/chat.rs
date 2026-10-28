@@ -94,6 +94,7 @@ impl Workbench {
         if session_command(&value.to_string()).is_err() {
             if let Some(chat) = self.active_chat.and_then(|index| self.chats.get_mut(index)) {
                 chat.pending_model = None;
+                chat.pending_setting = None;
             }
             self.error = Some("error.connection".into());
         }
@@ -138,7 +139,7 @@ impl Workbench {
         }
         let index = self.active_chat.unwrap();
         let chat = &mut self.chats[index];
-        if !matches!(chat.state.as_str(), "draft" | "idle") || chat.pending_model.is_some() {
+        if !matches!(chat.state.as_str(), "draft" | "idle") || chat.pending_model.is_some() || chat.pending_setting.is_some() {
             return;
         }
         if chat.messages.is_empty() {
@@ -260,6 +261,10 @@ impl Workbench {
                 chat.config(&event.data);
                 chat.pending_model = None;
             }
+            "configuration_changed" => {
+                if let Ok(settings) = serde_json::from_value(event.data.clone()) { chat.settings = settings; }
+                chat.pending_setting = None;
+            }
             "turn_started" => chat.state = "running".into(),
             "turn_finished" => {
                 chat.flush(cx);
@@ -268,6 +273,7 @@ impl Workbench {
             }
             "permission" => chat.permission = Some(event.data.clone()),
             "session_error" => {
+                chat.pending_setting = None;
                 chat.pending_model = None;
                 chat.flush(cx);
                 chat.error = Some(event.text.clone());
@@ -275,6 +281,7 @@ impl Workbench {
                 chat.permission = None;
             }
             "session_closed" => {
+                chat.pending_setting = None;
                 chat.pending_model = None;
                 chat.flush(cx);
                 chat.state = "closed".into();

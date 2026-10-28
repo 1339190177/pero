@@ -28,7 +28,8 @@ try{
  await page.screenshot({path:resolve(out,'chat-empty.png')});
  await page.mouse.click(680,1030);
  await page.screenshot({path:resolve(out,'agent-options.png')});
- await page.mouse.click(680,986);
+ await page.keyboard.press('ArrowUp');
+ await page.keyboard.press('Enter');
  await expect.poll(async()=>(await state()).chats[0].agent).toBe('fixture');
  const input=async(text)=>{
   await page.mouse.click(950,975);await page.waitForTimeout(150);
