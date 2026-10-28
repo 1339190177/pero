@@ -7,6 +7,9 @@ What each suite proves, and where screenshots land, is [tests/README.md](../../t
 The pushed GitHub/ROADMAP connector's public-source and Desktop acceptance is
 recorded in [github-connector-verification.md](github-connector-verification.md).
 
+Native release matrix, package checks and observed platform limits:
+[release products](release-products.md).
+
 The incremental [Bazel pilot](bazel.md) covers the Go control plane and seven
 theme/protocol/locale checks. Its generators write to `bazel-bin`; the existing
 npm/Cargo commands below continue to own Rust, GPUI Wasm and Desktop verification.

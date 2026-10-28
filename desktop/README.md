@@ -117,8 +117,13 @@ same UI without the native Agent/remote bridge.
    and registers its URL and commit with the task. A failed registration preserves
    the PR and exposes **Retry linking PR**. Submission stays pending maintainer review.
 
-Git, an authenticated coding CLI and GitHub CLI (`gh`) must be installed on this
-computer. Run `gh auth login --hostname github.com` for GitHub publishing and set
+No source checkout is needed before starting: select a save folder and Pero clones
+the public repository and creates a task branch. Git and an authenticated coding
+CLI are required for coding. GitHub CLI (`gh`) is required only for PR publication.
+Install it from [cli.github.com](https://cli.github.com/), then run
+`gh auth login --hostname github.com --git-protocol https` in any terminal directory
+and check changes again in Pero. The setup link is available before cloning;
+missing installation or login is shown after workspace preparation. Set
 Git's `user.name`/`user.email`. GitHub identity login does not authenticate the
 model or grant `gh` repository access. Setup errors keep the workspace available.
 
@@ -265,7 +270,18 @@ return, encrypted cloud credentials and embedded App panels are not connected in
 this shell. Unsupported cloud requests display an explicit error. Native
 cross-platform packaging remains unverified. See [native verification](../docs/fitness/native-preview.md).
 
-### Portable macOS development package (Electron)
+### Native development packages (Electron)
+
+`npm run package:desktop` packages for the current machine: macOS DMG, Windows
+portable ZIP or Linux portable tar.gz. Extract portable archives before launching
+`Pero.exe` or `pero`. Linux desktop installations must provide Electron's usual
+system libraries; these archives are not an OS dependency installer.
+
+GitHub Release builds all three OS packages in parallel and builds the standalone
+Virtual Cell App on a separate macOS arm64 runner. Publication waits for all four
+native package checks. The standalone App bundles Python and needs no source
+checkout, coding CLI or GitHub CLI. Current verification limits and artifact
+names are in [release products](../docs/fitness/release-products.md).
 
 Run `npm run package:macos` on the target Mac architecture. This builds release
 Wasm, optimizes it with pinned Binaryen 132, and packages the release Rust Host,
