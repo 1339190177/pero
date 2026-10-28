@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "agentinstructions",
+    srcs = [
+        "app.go",
+        "config.go",
+        "files.go",
+        "render.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/agentinstructions",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//fstools",
+        "//harness",
+        "//runtime",
+    ],
+)
+
+go_test(
+    name = "agentinstructions_test",
+    srcs = ["app_test.go"],
+    embed = [":agentinstructions"],
+    deps = ["//harness"],
+)
