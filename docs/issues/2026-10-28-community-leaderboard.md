@@ -1,6 +1,6 @@
 ---
 kind: feature
-status: in_progress
+status: implemented
 github_issue: 2
 github_state: open
 github_url: https://github.com/phodal/pero/issues/2
@@ -58,3 +58,15 @@ Issue ingestion remains the separate remote-dispatch task's responsibility.
 The feature is developed in the isolated `feat/community-leaderboard` worktree.
 Production OAuth credentials, real provider execution and public deployment are
 outside this local delivery. No binary captures are committed to Git.
+
+Final local checks after integrating the committed Client/Issue interfaces:
+
+- `PERO_TEST_DATABASE_URL=... go test -race ./...` passed all Go packages.
+- `go vet ./...` and the generated-theme check passed.
+- `PERO_TEST_DATABASE_URL=... npm run test:community` passed 19 browser scenarios.
+- Built and started the real server against an existing version-1 database;
+  migrations 2, 3 and 10 applied. Public pages/assets and health returned 200;
+  unauthenticated task APIs remained 401.
+
+Implementation is committed locally; GitHub issue remains open pending branch
+integration/public delivery. No push or deployment was performed in this task.
