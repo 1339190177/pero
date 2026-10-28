@@ -21,7 +21,11 @@
     "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged.",
     "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain.",
     "ACP resume/load interprets latest supported controller receipt and requires client MCP presence when recorded; malformed/unknown receipts fail explicitly. No configuration-equivalence or secret persistence is introduced.",
-    "Optional explicit read-only Skills catalog is tracked by skills/SOURCE.json; original Point SkillRegistry, provider scopes, implicit home/project roots, product bundles and invocation hooks remain excluded. Existing Harness tool registration/generation and fstools descriptor authority are reused."
+    "Optional explicit read-only Skills catalog is tracked by skills/SOURCE.json; original Point SkillRegistry, provider scopes, implicit home/project roots, product bundles and invocation hooks remain excluded. Existing Harness tool registration/generation and fstools descriptor authority are reused.",
+    "Explicit operator context-window compaction wiring reuses the existing engine for new and resumed ACP sessions.",
+    "ACP projects provisional text/thought stream chunks with committed-output deduplication and callback lifetime fences; load replays committed history only.",
+    "Trusted native approval descriptors preserve registration ownership and validate generation before request_permission; only strict shell composition produces version 1 descriptors.",
+    "MCP terminal HTTP authorization failures stop reconnect and SDK fallback; public errors are sanitized while preserving classifications."
   ],
   "excluded_features": [
     "Projects",
@@ -151,14 +155,14 @@
     },
     {
       "destination": "harness/approval.go",
-      "sha256": "9af8c0cc1a5bfb1d594d8f24a30a6d6c28136589305e655ce35f5729c676e664",
+      "sha256": "1cae067ede8e947e6ccc8c1ef358b5892bd70b66ade7a6bce8ed1a85fc2f25a1",
       "source_path": "go/harness/approval.go",
       "source_blob_sha1": "4555d89ac5573a97be2c5a8367775655d0860327",
       "change": "adapted; review pinned source diff"
     },
     {
       "destination": "harness/approval_test.go",
-      "sha256": "e5b88b507e65b3cba41a6f1493f8afe5b9fefad0c797f6d7ad4c0bf97e170e6b",
+      "sha256": "23ba77467f9e9b82f52906e32306355c85f26ded577c272c2ee6a987ef5770ac",
       "source_path": "go/harness/approval_test.go",
       "source_blob_sha1": "b8d10ee48ec92878d0f0057cb2414a2c41cde6af",
       "change": "adapted; review pinned source diff"
@@ -345,21 +349,21 @@
     },
     {
       "destination": "harness/main_request.go",
-      "sha256": "eb0c5a369730f9888225aae868f20face6fe0c0573fba1d6feecc3c31c1e4b33",
+      "sha256": "419aef1c982bdc4bedb88ca289d9739dc098b53f1a90a064a5254424dc8cb91a",
       "source_path": "go/harness/main_request.go",
       "source_blob_sha1": "a0734e74c0a4e3a0b288af99f4b93ea14e6c96e8",
       "change": "imports only"
     },
     {
       "destination": "harness/mcp.go",
-      "sha256": "5fdc8689b0a9a1ee8acf66da862358e10439db70d8a1f84f62d9581722a92e3e",
+      "sha256": "c17703ddf91dfc2b043072fdd5236afa42502e8b1180a18962094812998a15f2",
       "source_path": "go/harness/mcp.go",
       "source_blob_sha1": "9101f80063db36eaa5c89c55e8afdcb98a074bd3",
       "change": "adapted; review pinned source diff"
     },
     {
       "destination": "harness/mcp_security_test.go",
-      "sha256": "f1eea92859b680f277bb2cd9125894d85e0aaa0d7796421522cd6f196b4ff12e",
+      "sha256": "c8ae05ebb7f6f2b01fe860c817caff709c32e3d7b572ec140d94a796b8b1dc5d",
       "change": "new extraction glue or regression test"
     },
     {
@@ -530,7 +534,7 @@
     },
     {
       "destination": "harness/tool_owners.go",
-      "sha256": "6fd7468acce6b0b976cab9e50669e14e0354125f024a5a832e36225b62863597",
+      "sha256": "6b63231ff8bed8bb957a71a551c42a52d490f3494226cef8ccd970b81e71d8db",
       "source_path": "go/harness/tool_owners.go",
       "source_blob_sha1": "9269712681b738271211dfd27e619052e7a6f3b8",
       "change": "imports only"
@@ -558,7 +562,7 @@
     },
     {
       "destination": "harness/tools.go",
-      "sha256": "f568178782bb44f00d3806b30804d820f3441d01b07a9019fbf14c29daa05111",
+      "sha256": "588f0426d43fef15dd4c4767db13919610c09edc5c8a6d411f700cd9c50c5ff3",
       "source_path": "go/harness/tools.go",
       "source_blob_sha1": "5c0c3c1831bec1d79cbecbc21205072332e910f0",
       "change": "imports only"
@@ -628,7 +632,7 @@
     },
     {
       "destination": "harness/tools_execute.go",
-      "sha256": "11a078ef5288fcc18d980f5d1bf82d05dff4b4a6d77684391425d6828f46e8ba",
+      "sha256": "ad51822bbe39828c2f944285d48ea734d9850f2e2439c4f0d3ce552c396dbb16",
       "source_path": "go/harness/tools_execute.go",
       "source_blob_sha1": "25e13cd43586496f95def20c5f5365149e8ef48f",
       "change": "adapted; review pinned source diff"
@@ -752,7 +756,7 @@
     },
     {
       "destination": "acp/server.go",
-      "sha256": "28a607733442d961eb283b0715226f195cdaf9017239057b8f1d6eaf7890dbbd",
+      "sha256": "377941f5f85bae5f2b44fe1732a6b5867f5b0088db4db41dfddb6bbe55a1a825",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
       "change": "adapted; review pinned source diff"
@@ -850,21 +854,21 @@
     },
     {
       "destination": "mcp/config.go",
-      "sha256": "63798bfd62bc8952cf2dca1815c174cdfaff6fd62073cadf1b335de6ed993a81",
+      "sha256": "0c9129c55f29e56fc19784f8517c8ab52b17d2ff838a2fa4ee569dca75376272",
       "source_path": "go/harness/mcp/config.go",
       "source_blob_sha1": "c1fa9a0cc5be4bc61e171b871cd0813ae8664073",
       "change": "imports only"
     },
     {
       "destination": "mcp/connection.go",
-      "sha256": "1191e8af537590fac88f8f31141d474adc8746cf7a91905ae60c0d66c224e8e4",
+      "sha256": "5ba5f162e637da70ad91ae3ea8bee28bad108d26289b58e1ec2ada463480c516",
       "source_path": "go/harness/mcp/connection.go",
       "source_blob_sha1": "042724008626c8294ad5b8f4d26646c2ea1a7ec4",
       "change": "imports only"
     },
     {
       "destination": "mcp/resources.go",
-      "sha256": "fb92af1f555f3403bf8e3899c37ca19dffdfae29d8021354e0fe93c8c31ef06d",
+      "sha256": "80f0cfe1ad24673c3b45859ef40767bc32ee86b27b3860e3bf7689dbff5724b4",
       "source_path": "go/harness/mcp/resources.go",
       "source_blob_sha1": "a97eaf2175eed3ac3215b6b36455f42e01080bf6",
       "change": "imports only"
@@ -878,7 +882,7 @@
     },
     {
       "destination": "mcp/tools.go",
-      "sha256": "607a297f113927bdbfcb491ac18ec040442aa8c4c45088f631f6e55dc0cd7d0e",
+      "sha256": "afe5d0872c90e6905cf98380664d71c015961c1b29307543c188b0e22fe10cc6",
       "source_path": "go/harness/mcp/tools.go",
       "source_blob_sha1": "a063b2a06878fc28b99809ae0f7b03220318d70e",
       "change": "imports only"
@@ -1060,7 +1064,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "457df2c6fa3aacf4be52cb912c615591d025eb3c6f1875832df3600e692b37f3",
+      "sha256": "032b2f02d45d9968d8ab38835a54f3c4cbd4e15d2131d7f23dca847290a613ae",
       "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     },
     {

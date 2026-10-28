@@ -68,7 +68,10 @@ silently coerced into text. Unsupported inputs fail closed.
 Without `--workspace`, no native tools are registered. An explicit workspace
 enables bounded read/write/edit/list/search; `--enable-shell` separately enables
 approved foreground Bash. Writes, edits and every shell call require approval.
-See `nativetools/README.md` for the limits and non-sandbox boundary. Skills are
+Optional `--sandbox strict-workspace-write` or `strict-read-only`, with explicit
+`--sandbox-runtime` paths, requires the strict backend and denies network access.
+Unsupported backends fail closed. See `sandbox/README.md` and
+`nativetools/README.md` for workspace trust assumptions and limits. Skills are
 default-off; explicit `--skills-root` enables the [read-only catalog](skills/README.md).
 Web and subagent tools remain absent.
 An ACP client can explicitly supply MCP stdio/HTTP servers in `session/new`.
@@ -91,8 +94,9 @@ workspaces, as well as the earlier isolated protocol fixture.
 
 The actual loop retains tool continuation, schema validation, tool result
 projection, cancellation, retry, lifecycle/generation safety, persistence,
-compaction primitives, and durable inbox processing. ACP receives committed
-assistant output; it is not currently a token-by-token SSE passthrough.
+compaction primitives, and durable inbox processing. ACP streams provisional assistant text/thought chunks and suppresses duplicate
+committed output. Durable load replays only committed messages; ACP cannot retract
+a failed provisional prefix.
 
 Absent: Point Projects/Hub/Pages, web/desktop UI, accountsync, product prompts,
 telemetry, workflows/jobs/schedules, subagent orchestration, plugin/default
@@ -109,3 +113,9 @@ notices are retained with their packages. This extraction does **not** assign an
 MIT (or other blanket) license to the entire module; remaining source licensing
 must be decided by its owner.
 
+
+## Long-session configuration
+
+Use `--context-window` only with a capacity supported by the configured model.
+It enables the existing compaction engine for pressure, overflow and resume;
+see [compaction options](cmd/pero-agent-acp/COMPACTION.md). No capacity is guessed.
