@@ -60,3 +60,20 @@ The sessionview header's inherited claim of a present JavaScript oracle was also
 corrected: that oracle/test is not in this extraction. The unused package is not
 deleted or presented as verified UI parity. MCP structuredContent/outputSchema
 canonical integration remains a documented gap, not silently expanded scope.
+
+## Final local gates
+
+Code snapshot `309e47f9409504fbf6261c6808313a7ad636cb9d` passed all standalone
+Go tests, race tests, vet and CLI build. Rebuilt binary SHA-256
+`24a0c51c79daf622e8c30b22b22310c0657cfceabe41247f732f03f5343766ac`
+passed the actual repository repair/restart scenario (10 scripted loopback
+requests) and active child cancellation/next-turn scenario (5 requests).
+The repair scenario deliberately injects a BOM defect into an isolated copy;
+it is separate from the actual CLI todo-mode regression described above.
+
+All 179 checked current destination-hash entries match; 401 Go files remain
+within the 1000-line limit (maximum 956). This is not verification of every
+upstream source blob. The original `d258dacf` validation checkout remains clean.
+No independent harness Bazel run was possible (Bazel unavailable), no real
+paid-model call or Rust/UI acceptance is asserted. Evidence remains in the
+local `pero-module-restoration-evidence` directory; publication is separate.

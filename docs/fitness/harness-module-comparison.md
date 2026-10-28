@@ -109,3 +109,17 @@ settings attribution; remaining Point mapping is provenance, not byte-equivalenc
   approval are intentional. No full upstream plugin/profile parity is claimed.
 - **Cross-language evidence:** native tests and source comparison do not replace
   the omitted official JavaScript source-oracle suites.
+
+## Provenance verification boundary
+
+Official DSH is the primary behavioral baseline; Point is extraction provenance
+and helps identify inherited issues. Current destination hashes were checked,
+not every upstream origin. A separate partial Point-source collection checked
+80 of 343 mappings: 74 matched, while six test-file declared blob hashes differed
+from the file at the declared commit/path (`approval_test.go`, `harness_test.go`,
+`retry_test.go`, `tools_arguments_dsh_test.go`,
+`tools_arguments_dsh_todo_numbers_test.go`, `tools_arguments_dsh_todo_test.go`).
+Those source mappings need reconciliation; no origin hash was silently replaced.
+Collection stopped when the requested focus moved to official DSH. This does
+not invalidate the individually inspected official behavior references, but
+precludes a blanket claim that all source provenance is independently verified.
