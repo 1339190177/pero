@@ -21,6 +21,6 @@ await stageWorkbench(join(output, 'resources/app'), product);
 // Keep Unix executable modes/symlinks in tar; Windows users extract the ZIP and run Pero.exe.
 const archive = join(destination, name + (process.platform === 'win32' ? '.zip' : '.tar.gz'));
 rmSync(archive, { force: true });
-if (process.platform === 'win32') execFileSync('tar', ['-a', '-cf', archive, '-C', destination, name], { stdio: 'inherit' });
+if (process.platform === 'win32') execFileSync(join(process.env.SystemRoot, 'System32', 'tar.exe'), ['-a', '-cf', archive, '-C', destination, name], { stdio: 'inherit' });
 else execFileSync('tar', ['-czf', archive, '-C', destination, name], { stdio: 'inherit' });
 console.log(`Portable package: ${archive}`);

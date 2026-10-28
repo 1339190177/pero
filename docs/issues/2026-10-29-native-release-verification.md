@@ -25,3 +25,8 @@ JSON boundaries. The HTTP lifecycle fixture binds TCP directly and avoids
 HTTPServer's reverse DNS lookup; it still waits for the backend readiness line.
 The Linux launch check will explicitly select the CI software Vulkan adapter and
 retain browser diagnostics. None of these failures is accepted as a passing gate.
+
+Windows packaging also selected Git Bash GNU tar from PATH, which interpreted
+`D:` as a remote archive host and cannot emit the intended ZIP. The Windows
+packager now explicitly invokes System32/tar.exe (Windows bsdtar) with ZIP mode.
+The earlier candidates remain unpublished; tags are not rewritten.
