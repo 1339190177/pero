@@ -1,0 +1,4 @@
+# Architecture decisions
+
+- [0001: Electron and GPUI bootstrap](0001-electron-gpui-bootstrap.md)
+- [0002: Remote task dispatch and task sources](0002-remote-task-dispatch.md)
