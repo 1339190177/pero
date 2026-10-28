@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { normalizeLocale, translate, type Locale, type MessageKey } from '../../../locales';
 import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 import { DesktopApps } from './apps';
+import { DesktopContributions } from './contributions';
 
 // Register before ready so macOS cannot deliver the callback before the listener.
 // pero://connect/ completes sign-in; pero://tasks/<id> opens a Cloud task from the task square.
@@ -78,6 +79,18 @@ const remote = new RemoteAdapter(send, {
   },
   save: saveRemotePreference,
 });
+const contributions = new DesktopContributions(send, {
+  request: (path, method, body) => remote.contributionRequest(path, method, body),
+  identity: () => remote.contributionIdentity,
+  host: request => {
+    if (!ready || !host?.stdin.writable) throw new Error('The local runtime is unavailable. Reopen Desktop.');
+    host.stdin.write(JSON.stringify(request) + '\n');
+  },
+  chooseParent: async () => {
+    const selected = await dialog.showOpenDialog(window, { title: t('contribution.choose_parent'), properties: ['openDirectory', 'createDirectory'] });
+    return selected.canceled ? undefined : selected.filePaths[0];
+  },
+});
 const event = (kind: string, message_key: MessageKey) => ({ version: 1, kind, request_id: null, text: '', message_key });
 const changeLocale = (value: string) => {
   if (!ready || !['en', 'zh-CN'].includes(value)) throw new Error('Invalid locale');
@@ -134,6 +147,7 @@ app.whenReady().then(async () => {
     try {
       const message = JSON.parse(line);
       if (apps.accept(message)) return;
+      if (contributions.accept(message)) return;
       if (message.kind === 'remote_settings_saved' || message.kind === 'remote_settings_error') {
         const pending = preferenceWrites.get(message.request_id);
         if (pending) {
@@ -150,8 +164,8 @@ app.whenReady().then(async () => {
     catch { console.error('Invalid Host event'); }
   });
   host.stderr.on('data', (data) => console.error(String(data)));
-  host.on('error', () => { ready = false; apps.close(); rejectPreferenceWrites(); send(event('disconnected', 'error.host_start')); });
-  host.on('exit', () => { ready = false; apps.close(); rejectPreferenceWrites(); send(event('disconnected', 'error.host_stopped')); });
+  host.on('error', () => { ready = false; apps.close(); contributions.close(); rejectPreferenceWrites(); send(event('disconnected', 'error.host_start')); });
+  host.on('exit', () => { ready = false; apps.close(); contributions.close(); rejectPreferenceWrites(); send(event('disconnected', 'error.host_stopped')); });
   void remote.initialize();
   const trusted = (sender: Electron.IpcMainInvokeEvent) => {
     if (sender.sender !== window.webContents || sender.senderFrame?.url !== 'pero://workbench/') throw new Error('Untrusted sender');
@@ -163,7 +177,12 @@ app.whenReady().then(async () => {
     return event(ready ? 'ready' : 'disconnected', ready ? 'status.host_ready' : 'error.host_wait');
   });
   ipcMain.handle('pero:locale:get', (sender) => { trusted(sender); return locale; });
-  ipcMain.handle('pero:remote', (sender, command: unknown) => { trusted(sender); return remote.command(command); });
+  ipcMain.handle('pero:remote', async (sender, command: unknown) => {
+    trusted(sender);
+    if ((command as { action?: string })?.action?.startsWith('remote_contribution_')) return contributions.command(command);
+    if (['remote_disconnect', 'remote_configure'].includes((command as { action?: string })?.action || '')) contributions.reset();
+    await remote.command(command);
+  });
   ipcMain.handle('pero:apps', (sender, command: unknown) => { trusted(sender); return apps.command(command); });
   ipcMain.handle('pero:locale:set', (sender, value: string) => { trusted(sender); changeLocale(value); });
   ipcMain.handle('pero:probe', (sender, request: unknown) => {
@@ -212,4 +231,4 @@ app.whenReady().then(async () => {
   pendingDeepLink = undefined;
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { remote.close(); apps.close(); rejectPreferenceWrites(); host?.stdin.end(); });
+app.on('before-quit', () => { remote.close(); apps.close(); contributions.close(); rejectPreferenceWrites(); host?.stdin.end(); });

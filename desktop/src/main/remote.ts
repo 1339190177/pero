@@ -136,6 +136,13 @@ export class RemoteAdapter {
     })();
   }
   close() { this.login.cancel(); this.closed = true; this.token = ''; clearTimeout(this.timer); }
+  get contributionIdentity() { return this.state.identity; }
+  async contributionRequest(path: string, method = 'GET', body?: unknown): Promise<unknown> {
+    await this.initialize();
+    if (!this.state.configured || !this.clientMode) throw new Error('Sign in with a GitHub contributor account first.');
+    if (!/^\/api\/client\/v1\/contributions(?:\?|\/|$)/.test(path)) throw new Error('Invalid contribution endpoint');
+    return this.request(path, method, body);
+  }
   private publish() {
     this.connectionState();
     if (!this.closed) this.emit({ version: 1, kind: 'remote_state', request_id: null, text: '', data: this.state });
