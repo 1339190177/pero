@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: TypeScript 与生成物检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # 检查只需要依赖，不需要 Electron 二进制
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # web/src/wasm/ 是构建产物（已被 gitignore），由 wasm-bindgen 生成，需要 nightly 和 wasm 工具链。
+      # 类型检查只需要声明，这里写一个最小桩，签名与 web/src/bootstrap.ts 的用法一致。
+      - name: 为 tsc 生成 wasm 类型桩
+        run: |
+          mkdir -p web/src/wasm
+          cat > web/src/wasm/pero_ui.d.ts <<'EOF2'
+          export default function init(): Promise<unknown>;
+          export function run(themes: string, dark: boolean, locale: string): void;
+          export function receive_host_event(event: string): void;
+          export function snapshot(): string;
+          EOF2
+      # tsc --noEmit、theme/locales/contracts 的 --check
+      - run: npm run check
+
+  rust:
+    name: Rust 测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: Swatinem/rust-cache@v2
+      # 等价于 npm test，但不经过 scripts/cargo.mjs：
+      # 它要求本地 gpui-kit 检出，CI 里没有。pero-ui 的 gpui-kit 只在 wasm 目标下编译。
+      - run: cargo test -p pero-contracts -p pero-runtime -p pero-host -p pero-ui -p pero-worker
+
+  server:
+    name: Go 控制面测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      # 没有 PERO_TEST_DATABASE_URL 时，PostgreSQL 集成用例会自动跳过
+      - run: go test -race ./...
