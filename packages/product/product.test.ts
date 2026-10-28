@@ -5,6 +5,9 @@ const base = { schemaVersion: 1, id: 'com.openpero.virtualcell', name: 'Virtual 
 test('Product delivery invariants', () => {
   for (const [label, value, accepted] of [
     ['standalone entry', base, true],
+    ['SVG icon', { ...base, icon: 'brand/cell.svg' }, true],
+    ['icon outside product', { ...base, icon: '../icon.svg' }, false],
+    ['unsupported icon format', { ...base, icon: 'icon.png' }, false],
     ['workbench', { ...base, shell: 'workbench', entry: undefined }, true],
     ['entry excluded', { ...base, apps: [] }, false],
     ['missing panel', { ...base, entry: { app: 'virtual-cell' } }, false],

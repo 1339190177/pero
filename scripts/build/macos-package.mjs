@@ -73,6 +73,19 @@ for (const [name, key, executable] of [['codex-acp', 'CODEX_PATH', 'codex'], ['c
   symlinkSync(`../../bin/${name}`, join(payload, 'node_modules/.bin', name));
 }
 }
+// Generate platform assets from the Product's SVG; keep generated binaries out of source.
+if (product.icon) {
+  const svg = resolve(staged || resolve(root, 'products'), product.icon);
+  const iconset = join(destination, 'product.iconset');
+  rmSync(iconset, { recursive: true, force: true });
+  mkdirSync(iconset, { recursive: true });
+  for (const size of [16, 32, 128, 256, 512]) for (const scale of [1, 2]) {
+    execFileSync('rsvg-convert', ['--width', String(size * scale), '--height', String(size * scale),
+      '--output', join(iconset, `icon_${size}x${size}${scale === 2 ? '@2x' : ''}.png`), svg]);
+  }
+  execFileSync('/usr/bin/iconutil', ['--convert', 'icns', '--output', join(resources, 'product.icns'), iconset]);
+  rmSync(join(resources, 'electron.icns'), { force: true });
+}
 const plist = join(output, 'Contents/Info.plist');
 let content = readFileSync(plist, 'utf8')
   .replace(/(<key>CFBundleExecutable<\/key>\s*)<string>Electron<\/string>/, '$1<string>Pero</string>')
@@ -81,6 +94,7 @@ let content = readFileSync(plist, 'utf8')
 ;
 if (!staged) content = content.replace('</dict>\n</plist>', '<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>Pero Desktop</string><key>CFBundleURLSchemes</key><array><string>pero</string></array></dict></array></dict>\n</plist>');
 content = content.replace(/(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]+/, `$1${product.version}`);
+if (product.icon) content = content.replace(/(<key>CFBundleIconFile<\/key>\s*<string>)[^<]+/, '$1product.icns');
 writeFileSync(plist, content);
 execFileSync('/usr/bin/plutil', ['-lint', plist], { stdio: 'inherit' });
 execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', output], { stdio: 'pipe' });

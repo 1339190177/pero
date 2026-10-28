@@ -4,7 +4,13 @@
   "name": "Virtual Cell",
   "version": "0.2.0",
   "shell": "app",
-  "entry": { "app": "virtual-cell", "panel": "main" },
-  "apps": ["virtual-cell"],
-  "python": "bundled"
+  "entry": {
+    "app": "virtual-cell",
+    "panel": "main"
+  },
+  "apps": [
+    "virtual-cell"
+  ],
+  "python": "bundled",
+  "icon": "icon.svg"
 }
