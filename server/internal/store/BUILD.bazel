@@ -24,6 +24,7 @@ go_test(
     env = {"PERO_REQUIRE_TEST_DATABASE": "1"},
     env_inherit = ["PERO_TEST_DATABASE_URL"],
     tags = [
+        "external",  # Always rerun against the current database, including locally.
         "local",
         "manual",
         "no-cache",

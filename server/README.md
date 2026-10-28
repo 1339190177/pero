@@ -224,7 +224,8 @@ PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' bazel test //s
 ```
 
 This manual suite inherits only the test database URL, requires it instead of
-skipping, runs locally, and disables test-result caching and remote execution.
+skipping, runs locally, and disables remote caching and execution. Its `external`
+tag forces fresh test execution even when a previous local run passed.
 It creates and drops isolated schemas in that database, which must be disposable
 and allow schema creation. The normal `go test ./...` skip behavior is preserved.
 For the same strict check through Go, set `PERO_REQUIRE_TEST_DATABASE=1` alongside
