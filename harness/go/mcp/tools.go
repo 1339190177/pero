@@ -23,6 +23,10 @@ type Tool struct {
 }
 
 func ListTools(ctx context.Context, session *mcp.ClientSession) ([]*mcp.Tool, error) {
+	// Resources-only servers need not implement tools/list.
+	if session.InitializeResult().Capabilities.Tools == nil {
+		return nil, nil
+	}
 	var tools []*mcp.Tool
 	for cursor := ""; ; {
 		page, err := session.ListTools(ctx, &mcp.ListToolsParams{Cursor: cursor})
