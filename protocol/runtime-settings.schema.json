@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Set runtime language preference",
+  "type": "object",
+  "required": ["method", "locale"],
+  "additionalProperties": false,
+  "properties": {
+    "method": { "const": "settings.locale" },
+    "locale": { "enum": ["en", "zh-CN"] }
+  }
+}
