@@ -1,10 +1,16 @@
 use crate::app::Workbench;
+use crate::components::{
+    ActionHandler, Ui,
+    sidebar::{self, SidebarAction, SidebarProps},
+    workspace::{self, AgentRow, WorkspaceAction},
+};
 use gpui_kit::{
     component::{button::*, input::Input, *},
     prelude::*,
     *,
 };
 use serde_json::json;
+use std::rc::Rc;
 
 const TASKS: [(&str, &str, &str, &str, &str); 5] = [
     (
@@ -45,11 +51,7 @@ const TASKS: [(&str, &str, &str, &str, &str); 5] = [
 ];
 impl Workbench {
     pub fn icon(&self, name: &str) -> Svg {
-        svg()
-            .path(format!("icons/{name}.svg"))
-            .size(px(19.))
-            .flex_shrink_0()
-            .text_color(self.palettes.get(self.dark).color("text-muted"))
+        self.ui().icon(name)
     }
     fn badge(&self, label: impl Into<SharedString>, kind: &str) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
@@ -69,180 +71,35 @@ impl Workbench {
             .text_color(p.color(fg))
             .child(label.into())
     }
-    fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
-        div()
-            .w(px(width))
-            .h_full()
-            .flex_shrink_0()
-            .flex()
-            .flex_col()
-            .bg(p.color("bg"))
-            .border_r_1()
-            .border_color(p.color("border"))
-            .px(px(12.))
-            .py(px(16.))
-            .gap(px(4.))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(10.))
-                    .px(px(6.))
-                    .mb(px(8.))
-                    .child(self.icon("circle-filled").text_color(p.color("action")))
-                    .child(
-                        div()
-                            .text_size(px(18.))
-                            .font_weight(FontWeight::BOLD)
-                            .child(self.t("workbench.title")),
-                    ),
-            )
-            .child(
-                Button::new("workspace-label")
-                    .outline()
-                    .label(self.t("workspace.local"))
-                    .w_full()
-                    .h(px(32.))
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.command(json!({"action":"choose_workspace"}), cx)
-                    })),
-            )
-            .children(
-                [
-                    ("layout-list", "nav.tasks"),
-                    ("folder", "nav.projects"),
-                    ("devices", "nav.environments"),
-                ]
-                .into_iter()
-                .enumerate()
-                .map(|(i, (icon, label))| {
-                    div()
-                        .id(("nav", i))
-                        .flex()
-                        .items_center()
-                        .gap(px(4.))
-                        .px(px(12.))
-                        .h(px(32.))
-                        .rounded(px(6.))
-                        .cursor_pointer()
-                        .bg(p.color(if self.navigation == i {
-                            "accent-soft"
-                        } else {
-                            "bg"
-                        }))
-                        .text_color(p.color(if self.navigation == i {
-                            "accent-text"
-                        } else {
-                            "text-muted"
-                        }))
-                        .child(self.icon(icon).text_color(p.color(if self.navigation == i {
-                            "accent-text"
-                        } else {
-                            "text-muted"
-                        })))
-                        .child(
-                            div()
-                                .font_weight(if self.navigation == i {
-                                    FontWeight::BOLD
-                                } else {
-                                    FontWeight::NORMAL
-                                })
-                                .child(self.t(label)),
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.navigation = i;
-                            this.sync_follow(cx);
-                            cx.notify();
-                        }))
-                }),
-            )
-            .child(
-                Button::new("nav-remote")
-                    .ghost()
-                    .label(self.t("nav.remote"))
-                    .w_full()
-                    .h(px(32.))
-                    .bg(p.color(if self.navigation == 3 {
-                        "accent-soft"
-                    } else {
-                        "bg"
-                    }))
-                    .on_click(cx.listener(|this, _, _, cx| this.open_remote(cx))),
-            )
-            .child(div().flex_1())
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.))
-                    .child(
-                        Button::new("language")
-                            .ghost()
-                            .small()
-                            .w(px(32.))
-                            .h(px(32.))
-                            .icon(Icon::default().path("icons/languages.svg"))
-                            .tooltip(format!("{} · 中文 / English", self.t("menu.language")))
-                            .accessibility_label(self.t("menu.language"))
-                            .on_click(cx.listener(|this, _, _, cx| this.toggle_locale(cx))),
-                    )
-                    .child(
-                        Button::new("theme")
-                            .ghost()
-                            .small()
-                            .w(px(32.))
-                            .h(px(32.))
-                            .icon(Icon::default().path(if self.dark {
-                                "icons/sun.svg"
-                            } else {
-                                "icons/moon.svg"
-                            }))
-                            .tooltip(self.t(if self.dark {
-                                "appearance.light"
-                            } else {
-                                "appearance.dark"
-                            }))
-                            .accessibility_label(self.t(if self.dark {
-                                "appearance.light"
-                            } else {
-                                "appearance.dark"
-                            }))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.dark = !this.dark;
-                                this.palettes.apply(this.dark, cx);
-                                cx.notify();
-                            })),
-                    ),
-            )
-            .when(self.navigation != 3, |el| {
-                el.child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(9.))
-                        .px(px(8.))
-                        .text_size(px(12.))
-                        .text_color(p.color("text-muted"))
-                        .child(self.icon("brand-github"))
-                        .child(self.t("github.unconnected")),
-                )
-            })
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(9.))
-                    .px(px(8.))
-                    .text_size(px(12.))
-                    .text_color(p.color("text-muted"))
-                    .child(self.icon("devices"))
-                    .child(self.t(if self.connected {
-                        "status.local_connected"
-                    } else {
-                        "status.disconnected"
-                    })),
-            )
+    fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> Div {
+        let on_action = Rc::new(cx.listener(|this, action: &SidebarAction, _, cx| {
+            match action {
+                SidebarAction::Navigate(index) => {
+                    this.navigation = *index;
+                    this.sync_follow(cx);
+                }
+                SidebarAction::OpenRemote => this.open_remote(cx),
+                SidebarAction::ChooseWorkspace => {
+                    this.command(json!({"action":"choose_workspace"}), cx)
+                }
+                SidebarAction::ToggleLocale => this.toggle_locale(cx),
+                SidebarAction::ToggleTheme => {
+                    this.dark = !this.dark;
+                    this.palettes.apply(this.dark, cx);
+                }
+            }
+            cx.notify();
+        }));
+        sidebar::sidebar(
+            self.ui(),
+            width,
+            SidebarProps {
+                navigation: self.navigation,
+                connected: self.connected,
+                dark: self.dark,
+            },
+            on_action,
+        )
     }
     fn task_list(&self, width: f32, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
@@ -854,6 +711,39 @@ impl Workbench {
                 )
             })
     }
+    fn ui(&self) -> Ui<'_> {
+        Ui {
+            palette: self.palettes.get(self.dark),
+            locale: &self.locale,
+        }
+    }
+    fn workspace_actions(&self, cx: &mut Context<Self>) -> ActionHandler<WorkspaceAction> {
+        Rc::new(
+            cx.listener(|this, action: &WorkspaceAction, _, cx| match action {
+                WorkspaceAction::ChooseWorkspace => {
+                    this.command(json!({"action":"choose_workspace"}), cx)
+                }
+                WorkspaceAction::NewSession(index) => {
+                    this.agent_index = *index;
+                    this.new_chat(cx);
+                }
+            }),
+        )
+    }
+    fn projects(&self, cx: &mut Context<Self>) -> Div {
+        workspace::projects(self.ui(), &self.workspace, self.workspace_actions(cx))
+    }
+    fn environments(&self, cx: &mut Context<Self>) -> Div {
+        let agents: Vec<_> = self
+            .agents
+            .iter()
+            .map(|agent| AgentRow {
+                name: agent.name.clone(),
+                available: agent.available,
+            })
+            .collect();
+        workspace::environments(self.ui(), &agents, self.workspace_actions(cx))
+    }
 }
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -890,81 +780,7 @@ impl Render for Workbench {
                 el.child(self.task_list(if compact { 300. } else { 360. }, cx))
                     .child(self.detail(cx))
             })
-            .when(self.navigation == 1, |el| {
-                el.child(
-                    div()
-                        .p(px(32.))
-                        .flex_1()
-                        .child(
-                            div()
-                                .text_size(px(28.))
-                                .font_weight(FontWeight::BOLD)
-                                .child(self.t("nav.projects")),
-                        )
-                        .child(
-                            div()
-                                .mt(px(28.))
-                                .text_color(p.color("text-muted"))
-                                .child(self.workspace.clone()),
-                        )
-                        .child(
-                            Button::new("open-workspace")
-                                .outline()
-                                .label(self.t("chat.workspace"))
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.command(json!({"action":"choose_workspace"}), cx)
-                                })),
-                        ),
-                )
-            })
-            .when(self.navigation == 2, |el| {
-                el.child(
-                    div()
-                        .p(px(32.))
-                        .flex_1()
-                        .child(
-                            div()
-                                .text_size(px(28.))
-                                .font_weight(FontWeight::BOLD)
-                                .child(self.t("nav.environments")),
-                        )
-                        .child(
-                            div()
-                                .mt(px(12.))
-                                .text_color(p.color("text-muted"))
-                                .child(self.t("agents.description")),
-                        )
-                        .children(self.agents.iter().enumerate().map(|(i, a)| {
-                            div()
-                                .py(px(24.))
-                                .border_b_1()
-                                .border_color(p.color("border"))
-                                .flex()
-                                .items_center()
-                                .gap(px(16.))
-                                .child(self.icon("terminal"))
-                                .child(a.name.clone())
-                                .child(div().flex_1())
-                                .child(self.badge(
-                                    self.t(if a.available {
-                                        "agents.installed"
-                                    } else {
-                                        "agents.missing"
-                                    }),
-                                    if a.available { "success" } else { "warning" },
-                                ))
-                                .child(
-                                    Button::new(("connect-agent", i))
-                                        .outline()
-                                        .label(self.t("chat.new"))
-                                        .disabled(!a.available)
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.agent_index = i;
-                                            this.new_chat(cx);
-                                        })),
-                                )
-                        })),
-                )
-            })
+            .when(self.navigation == 1, |el| el.child(self.projects(cx)))
+            .when(self.navigation == 2, |el| el.child(self.environments(cx)))
     }
 }

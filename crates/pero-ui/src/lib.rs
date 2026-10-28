@@ -5,6 +5,8 @@ mod assets;
 #[cfg(target_family = "wasm")]
 mod chat;
 #[cfg(target_family = "wasm")]
+mod components;
+#[cfg(target_family = "wasm")]
 mod conversation;
 #[cfg(target_family = "wasm")]
 mod theme;
