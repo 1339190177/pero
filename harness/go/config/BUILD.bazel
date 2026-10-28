@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "credentials.go",
         "credentials_file.go",
+        "credentials_yaml.go",
         "errors.go",
         "keys.go",
         "launch_environment.go",
@@ -12,7 +13,9 @@ go_library(
         "settings.go",
         "settings_external.go",
         "settings_file.go",
+        "settings_json.go",
         "settings_redact.go",
+        "settings_scope.go",
         "settings_watch.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/config",
