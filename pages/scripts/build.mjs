@@ -146,6 +146,7 @@ function fill(html, locale) {
     .replaceAll('__LANG_HREF__', locale === 'en' ? '../' : 'en/')
     .replaceAll('__LANG_CODE__', locale === 'en' ? 'zh-CN' : 'en')
     .replaceAll('__LANG_LABEL__', locale === 'en' ? '中文' : 'English')
+    .replaceAll('__FAVICON__', locale === 'en' ? '../favicon.svg' : 'favicon.svg')
     .replaceAll('__CANONICAL__', locale === 'en' ? 'https://phodal.github.io/pero/en/' : 'https://phodal.github.io/pero/')
     .replaceAll('__OG_LOCALE__', locale === 'en' ? 'en_US' : 'zh_CN')
     .replaceAll('__STYLES__', asReplacement(styles.trim()))
@@ -186,6 +187,7 @@ const docs = path.join(root, 'docs');
 fs.mkdirSync(path.join(docs, 'en'), { recursive: true });
 fs.writeFileSync(path.join(docs, 'index.html'), chinese);
 fs.writeFileSync(path.join(docs, 'en/index.html'), english);
+fs.writeFileSync(path.join(docs, 'favicon.svg'), brandSvg + '\n');
 fs.writeFileSync(path.join(docs, '.nojekyll'), '');
 const brandAssets = path.join(docs, 'assets');
 fs.mkdirSync(brandAssets, { recursive: true });
@@ -201,7 +203,7 @@ for (const { key, start, end } of brandColors) {
 }
 fs.writeFileSync(path.join(brandAssets, 'openpero-mark-monochrome.svg'), brandSvg.replace('fill="url(#openpero-ribbon-gradient)"', 'fill="currentColor"') + '\n');
 fs.writeFileSync(path.join(docs, 'brand-preview.html'), `<!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenPero 配色预览</title>
+<html lang="zh-CN"><meta charset="utf-8"><link rel="icon" href="favicon.svg" type="image/svg+xml"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenPero 配色预览</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#F7F9FC;color:#142B45;font-family:Inter,"Helvetica Neue",Arial,"PingFang SC",sans-serif}
 main{max-width:800px;margin:24px auto;padding:0 24px}section{--mark:#007F86;padding:32px;border:1px solid #DCE4ED;background:#fff}
@@ -222,6 +224,7 @@ footer{display:flex;justify-content:space-between;gap:16px;padding:16px 0;font-s
 fs.writeFileSync(path.join(docs, 'preview.html'), `<!DOCTYPE html>
 <html lang="zh-CN">
 <meta charset="utf-8"/>
+<link rel="icon" href="favicon.svg" type="image/svg+xml"/>
 <meta http-equiv="refresh" content="0; url=./index.html"/>
 <link rel="canonical" href="./index.html"/>
 <title>OpenPero</title>
