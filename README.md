@@ -33,6 +33,10 @@ A useful research tool often starts as a script, a notebook or a model demo. Tur
 
 **Pero makes domain Apps the reusable building block.** Start with one workflow, such as exploring a cell atlas or simulating a reaction. Deliver it as a standalone application, or use the same App inside a workbench alongside other tools. Apps reuse the platform's shell, SDK and Host runtime so each domain can focus on its own methods and user experience.
 
+![Pero domain building blocks: an App provides UI, data and an optional backend; a planned Agent Plugin bundles Skills and Tools; the same App runs in standalone products or the workbench](docs/assets/openpero-building-blocks.svg)
+
+The diagram shows the composition direction: a **Domain** supplies methods and their contracts; an **App** makes them usable; an **Agent Plugin** would bundle **Skills** (instructions) and **Tools** (callable capabilities) for agents. Dashed elements are planned; Plugin/Skill composition is not part of today's App manifest.
+
 As the work grows, the aim is to connect those Apps to Agent sessions, approved compute and shared projects. Methods, inputs, outputs and checks should remain explicit as execution moves between people, agents and machines. Product assembly works today; App-to-Agent tools and the full task-to-result verification loop are still being built.
 
 | Need | Pero's approach |

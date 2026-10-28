@@ -33,6 +33,10 @@
 
 **Pero 以领域 App 作为可复用的组合单元。** 从一个具体工作流开始，例如探索细胞图谱或模拟化学反应：可以打包为独立应用，也可以将同一个 App 放进工作台，与其他工具一起使用。App 复用平台提供的壳、SDK 和 Host 运行时，让领域开发集中在方法和使用体验上。
 
+![Pero 领域组合单元：App 提供界面、数据和可选后端；规划中的 Agent Plugin 组合 Skills 与 Tools；同一个 App 可用于独立产品或工作台](docs/assets/openpero-building-blocks.svg)
+
+图中展示组合方向：**Domain** 定义领域方法及其契约，**App** 提供使用界面，**Agent Plugin** 则计划将 **Skills**（方法指引）与 **Tools**（可调用能力）组合给 Agent 使用。虚线表示规划中的部分；当前 App 清单尚不支持 Plugin/Skill 组合。
+
 随着工作展开，Pero 的目标是将这些 App 接入 Agent 会话、获准算力与共享项目。无论由研究者、Agent 还是计算程序执行，方法、输入、输出与检查规则都应清楚可查。目前产品装配已可用，App 与 Agent 工具的接线，以及任务到结果验证的完整闭环仍在建设中。
 
 | 需求 | Pero 的方式 |
