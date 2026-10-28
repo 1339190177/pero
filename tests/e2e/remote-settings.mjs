@@ -52,11 +52,14 @@ async function launch(withEnvironment = false) {
     PERO_HISTORY_PATH: resolve(temp, 'history.jsonl'), PERO_LOCALE: 'en' };
   for (const key of ['ELECTRON_RUN_AS_NODE', 'PERO_CLOUD_URL', 'PERO_CLIENT_TOKEN', 'PERO_OPERATOR_TOKEN']) delete env[key];
   if (withEnvironment) { env.PERO_CLOUD_URL = base; env.PERO_OPERATOR_TOKEN = operatorToken; }
-  app = await electron.launch({ args: [resolve(root, 'desktop')], cwd: root, env });
+  // Match npm's Desktop workspace launch, where the shell cwd is desktop/.
+  app = await electron.launch({ args: [resolve(root, 'desktop')], cwd: resolve(root, 'desktop'), env });
   const page = await app.firstWindow();
   page.on('pageerror', error => errors.push(error.message));
   const state = () => page.evaluate(() => window.peroDiagnostics ? JSON.parse(window.peroDiagnostics.snapshot()) : { ready: false });
   await expect.poll(async () => (await state()).ready, { timeout: 60000 }).toBe(true);
+  await expect.poll(async () => (await state()).agents?.find(agent => agent.id === 'codex')?.available).toBe(true);
+  expect((await state()).workspace).toBe(root);
   await page.evaluate(() => window.pero.remoteCommand({ action: 'remote_refresh' }));
   return { page, state, command: value => page.evaluate(command => window.pero.remoteCommand(command), value) };
 }
@@ -161,7 +164,7 @@ try {
   expect(JSON.stringify(final)).not.toContain(saved.encrypted_token);
   expect(errors).toEqual([]);
   await writeFile(resolve(out, 'result.json'), JSON.stringify({ checks: [
-    'OS safeStorage encrypted credential', 'Host-only 0600 preference write', 'client status and source/tag query',
+    'project-local Codex available from Desktop workspace launch', 'OS safeStorage encrypted credential', 'Host-only 0600 preference write', 'client status and source/tag query',
     'pinned Unicode source URL validation', 'saved client identity after restart', 'invalid client never escalates',
     'credential metadata binding', 'storage unavailable recovery', 'failed disconnect remains retryable', 'persistent disconnect overrides environment',
     'renderer credentials excluded',
