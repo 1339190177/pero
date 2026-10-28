@@ -177,7 +177,11 @@ func (a *API) tasks(w http.ResponseWriter, r *http.Request) {
 		invalid(w)
 		return
 	}
-	page, err := a.db.Tasks(r.Context(), cursor, limit)
+	filter, ok := taskFilter(w, r)
+	if !ok {
+		return
+	}
+	page, err := a.db.Tasks(r.Context(), cursor, limit, filter)
 	if err != nil {
 		failure(w, err)
 		return

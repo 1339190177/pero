@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,6 +65,19 @@ func TestGitHubSourceEndpointsRemainOperatorOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	request(t, server, "GET", "/api/v1/github/status", clientToken, nil, "", 401)
+	clientStatus := request(t, server, "GET", "/api/client/v1/github/status", clientToken, nil, "", 200)
+	var scoped github.Status
+	if err = json.Unmarshal(clientStatus, &scoped); err != nil || len(scoped.Repositories) != 1 || scoped.Repositories[0].ProjectID != "project" {
+		t.Fatalf("client source status: %s %v", clientStatus, err)
+	}
+	_, foreignToken, err := db.CreateClient(ctx, "Foreign", []string{"hidden"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateStatus := request(t, server, "GET", "/api/client/v1/github/status", foreignToken, nil, "", 200)
+	if strings.Contains(string(privateStatus), "acme") || strings.Contains(string(privateStatus), "private-token") {
+		t.Fatalf("source status leaked repository: %s", privateStatus)
+	}
 	request(t, server, "POST", "/api/v1/github/sync", clientToken, map[string]any{}, "", 401)
 	status := request(t, server, "GET", "/api/v1/github/status", "test-operator", nil, "", 200)
 	var decoded github.Status
@@ -75,4 +89,10 @@ func TestGitHubSourceEndpointsRemainOperatorOnly(t *testing.T) {
 	if err = json.Unmarshal(result, &imported); err != nil || imported.Imported != 1 || imported.Dispatched != 0 {
 		t.Fatalf("source sync: %s %v", result, err)
 	}
+	filtered := request(t, server, "GET", "/api/client/v1/tasks?source_kind=roadmap", clientToken, nil, "", 200)
+	var page store.TaskPage
+	if err = json.Unmarshal(filtered, &page); err != nil || len(page.Tasks) != 0 {
+		t.Fatalf("source filter ignored: %s %v", filtered, err)
+	}
+	request(t, server, "GET", "/api/client/v1/tasks?source_kind=invalid", clientToken, nil, "", 400)
 }
