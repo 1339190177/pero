@@ -1,0 +1,764 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpero.com/protocol/remote.schema.json",
+  "title": "RemoteProtocol",
+  "description": "Generated from protocol/remote.tsp. Do not edit.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RemoteProtocol"
+    }
+  ],
+  "$defs": {
+    "Claim": {
+      "title": "Claim",
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "request_id",
+        "instance_id"
+      ],
+      "additionalProperties": false
+    },
+    "ClaimResult": {
+      "title": "ClaimResult",
+      "type": "object",
+      "properties": {
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Run"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "run"
+      ],
+      "additionalProperties": false
+    },
+    "Closed": {
+      "title": "Closed",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "Complete": {
+      "title": "Complete",
+      "type": "object",
+      "properties": {
+        "generation": {
+          "type": "integer"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 16000
+        }
+      },
+      "required": [
+        "generation",
+        "instance_id",
+        "outcome",
+        "summary"
+      ],
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "not": {}
+          },
+          {
+            "not": {}
+          }
+        ]
+      }
+    },
+    "Detail": {
+      "title": "Detail",
+      "type": "object",
+      "properties": {
+        "task": {
+          "$ref": "#/$defs/Task"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Run"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RunEvent"
+          }
+        },
+        "events_truncated": {
+          "type": "boolean"
+        },
+        "events_first_seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "events_last_seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "task",
+        "run",
+        "events",
+        "events_truncated",
+        "events_first_seq",
+        "events_last_seq"
+      ],
+      "additionalProperties": false
+    },
+    "Dispatch": {
+      "title": "Dispatch",
+      "type": "object",
+      "properties": {
+        "worker_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "title": "ErrorResponse",
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "EventBatch": {
+      "title": "EventBatch",
+      "type": "object",
+      "properties": {
+        "generation": {
+          "type": "integer"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RunEvent"
+          }
+        }
+      },
+      "required": [
+        "generation",
+        "instance_id",
+        "events"
+      ],
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "not": {}
+          },
+          {
+            "not": {}
+          }
+        ]
+      }
+    },
+    "EventReceipt": {
+      "title": "EventReceipt",
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "integer"
+        },
+        "last_seq": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "accepted",
+        "last_seq"
+      ],
+      "additionalProperties": false
+    },
+    "Id": {
+      "title": "Id",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "LeaseIdentity": {
+      "title": "LeaseIdentity",
+      "type": "object",
+      "properties": {
+        "generation": {
+          "type": "integer"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "generation",
+        "instance_id"
+      ],
+      "additionalProperties": false
+    },
+    "Outcome": {
+      "title": "Outcome",
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "succeeded"
+        },
+        {
+          "type": "string",
+          "const": "failed"
+        },
+        {
+          "type": "string",
+          "const": "cancelled"
+        },
+        {
+          "type": "string",
+          "const": "reconcile"
+        }
+      ]
+    },
+    "ProvisionWorker": {
+      "title": "ProvisionWorker",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "projects"
+      ],
+      "additionalProperties": false
+    },
+    "RemoteProtocol": {
+      "title": "RemoteProtocol",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TaskSpec"
+        },
+        {
+          "$ref": "#/$defs/Task"
+        },
+        {
+          "$ref": "#/$defs/Run"
+        },
+        {
+          "$ref": "#/$defs/Worker"
+        },
+        {
+          "$ref": "#/$defs/RunEvent"
+        },
+        {
+          "$ref": "#/$defs/RemoteState"
+        },
+        {
+          "$ref": "#/$defs/TaskPage"
+        },
+        {
+          "$ref": "#/$defs/EventReceipt"
+        },
+        {
+          "$ref": "#/$defs/ProvisionWorker"
+        },
+        {
+          "$ref": "#/$defs/WorkerCredential"
+        },
+        {
+          "$ref": "#/$defs/Dispatch"
+        },
+        {
+          "$ref": "#/$defs/Claim"
+        },
+        {
+          "$ref": "#/$defs/ClaimResult"
+        },
+        {
+          "$ref": "#/$defs/LeaseIdentity"
+        },
+        {
+          "$ref": "#/$defs/RenewResult"
+        },
+        {
+          "$ref": "#/$defs/EventBatch"
+        },
+        {
+          "$ref": "#/$defs/Complete"
+        },
+        {
+          "$ref": "#/$defs/ErrorResponse"
+        }
+      ]
+    },
+    "RemoteState": {
+      "title": "RemoteState",
+      "type": "object",
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Task"
+          }
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "workers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Worker"
+          }
+        },
+        "selected_task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Detail"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "configured",
+        "loading",
+        "error",
+        "tasks",
+        "has_more",
+        "workers",
+        "selected_task_id",
+        "detail"
+      ],
+      "additionalProperties": false
+    },
+    "RenewResult": {
+      "title": "RenewResult",
+      "type": "object",
+      "properties": {
+        "cancel_requested": {
+          "type": "boolean"
+        },
+        "lease_expires_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cancel_requested",
+        "lease_expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "Run": {
+      "title": "Run",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "generation": {
+          "type": "integer"
+        },
+        "worker_id": {
+          "type": "string"
+        },
+        "instance_id": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "lease_expires_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spec": {
+          "$ref": "#/$defs/TaskSpec"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "generation",
+        "status",
+        "spec"
+      ],
+      "additionalProperties": false
+    },
+    "RunEvent": {
+      "title": "RunEvent",
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {},
+        "created_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "kind",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "RunStatus": {
+      "title": "RunStatus",
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "queued"
+        },
+        {
+          "type": "string",
+          "const": "running"
+        },
+        {
+          "type": "string",
+          "const": "cancel_requested"
+        },
+        {
+          "type": "string",
+          "const": "succeeded"
+        },
+        {
+          "type": "string",
+          "const": "failed"
+        },
+        {
+          "type": "string",
+          "const": "cancelled"
+        },
+        {
+          "type": "string",
+          "const": "reconcile"
+        }
+      ]
+    },
+    "Task": {
+      "title": "Task",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64000
+        },
+        "acceptance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "workspace_key": {
+          "$ref": "#/$defs/Id"
+        },
+        "agent_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "state": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "current_run_id": {
+          "type": "string"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Run"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "prompt",
+        "acceptance",
+        "project_id",
+        "workspace_key",
+        "agent_id",
+        "id",
+        "state"
+      ],
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "not": {}
+          },
+          {
+            "not": {}
+          }
+        ]
+      }
+    },
+    "TaskPage": {
+      "title": "TaskPage",
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Task"
+          }
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "tasks",
+        "has_more",
+        "next_cursor"
+      ],
+      "additionalProperties": false
+    },
+    "TaskSpec": {
+      "title": "TaskSpec",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64000
+        },
+        "acceptance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "workspace_key": {
+          "$ref": "#/$defs/Id"
+        },
+        "agent_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "title",
+        "prompt",
+        "acceptance",
+        "project_id",
+        "workspace_key",
+        "agent_id"
+      ],
+      "additionalProperties": false
+    },
+    "TaskStatus": {
+      "title": "TaskStatus",
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "draft"
+        },
+        {
+          "$ref": "#/$defs/RunStatus"
+        }
+      ]
+    },
+    "Worker": {
+      "title": "Worker",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "last_seen_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "projects"
+      ],
+      "additionalProperties": false
+    },
+    "WorkerCredential": {
+      "title": "WorkerCredential",
+      "type": "object",
+      "properties": {
+        "worker": {
+          "$ref": "#/$defs/Worker"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "worker",
+        "token"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
