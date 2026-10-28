@@ -1,23 +1,35 @@
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { compile as compileTypeSpec, NodeHost, logDiagnostics } from '@typespec/compiler';
 import { compile } from 'json-schema-to-typescript';
-import { root } from '../lib/paths.mjs';
+import { scriptOptions } from '../lib/options.mjs';
+
+const { root, outDir, check } = scriptOptions('protocol/generated');
 
 // TypeSpec emits one $id per type; rewrite to a self-contained $defs bundle that
 // ajv, json-schema-to-typescript, typify and datamodel-code-generator all read.
-const emit = (name) => {
-  const temp = mkdtempSync(`${tmpdir()}/pero-contracts-`);
-  try {
-    execFileSync(`${root}/node_modules/.bin/tsp`, ['compile', `${root}/protocol/${name}.tsp`,
-      '--emit', '@typespec/json-schema', '--output-dir', temp, '--warn-as-error',
-      '--option', '@typespec/json-schema.file-type=json',
-      '--option', `@typespec/json-schema.bundleId=${name}.schema.json`], { stdio: 'pipe' });
-    return JSON.parse(readFileSync(`${temp}/@typespec/json-schema/${name}.schema.json`, 'utf8'));
-  } catch (error) {
-    process.stderr.write(`${error.stdout ?? ''}${error.stderr ?? ''}`);
-    throw new Error('TypeSpec compilation failed');
-  } finally { rmSync(temp, { recursive: true, force: true }); }
+const emit = async (name) => {
+  const files = new Map();
+  // Intermediate bundles stay in memory, including in --check mode.
+  const host = {
+    ...NodeHost,
+    mkdirp: async () => {},
+    writeFile: async (path, content) => { files.set(resolve(path), content); },
+    logSink: { log: message => NodeHost.logSink.log(message) },
+  };
+  const program = await compileTypeSpec(host, resolve(root, 'protocol', `${name}.tsp`), {
+    emit: ['@typespec/json-schema'],
+    outputDir: outDir,
+    warningAsError: true,
+    options: { '@typespec/json-schema': { 'file-type': 'json', bundleId: `${name}.schema.json` } },
+  });
+  if (program.hasError()) {
+    logDiagnostics(program.diagnostics, NodeHost.logSink);
+    throw new Error(`TypeSpec compilation failed: ${name}`);
+  }
+  const bundle = files.get(resolve(outDir, '@typespec/json-schema', `${name}.schema.json`));
+  if (!bundle) throw new Error(`TypeSpec did not emit ${name}.schema.json`);
+  return JSON.parse(bundle);
 };
 
 // `...Record<never>` emits `{ not: {} }`, i.e. no further properties are allowed.
@@ -36,7 +48,7 @@ const normalize = (node) => {
   return out;
 };
 async function generate(name, title, roots) {
-const emitted = emit(name);
+const emitted = await emit(name);
 const $defs = Object.fromEntries(Object.entries(emitted.$defs).sort(([a], [b]) => a.localeCompare(b))
   .map(([name, schema]) => [name, { title: name, ...normalize(schema) }]));
 const schema = {
@@ -53,12 +65,12 @@ const types = await compile(structuredClone(schema), title, {
 });
 
 const outputs = {
-  [`${root}/protocol/generated/${name}.schema.json`]: JSON.stringify(schema, null, 2) + '\n',
-  [`${root}/protocol/generated/${name}.ts`]: types,
+  [resolve(outDir, `${name}.schema.json`)]: JSON.stringify(schema, null, 2) + '\n',
+  [resolve(outDir, `${name}.ts`)]: types,
 };
-mkdirSync(`${root}/protocol/generated`, { recursive: true });
+if (!check) mkdirSync(outDir, { recursive: true });
 for (const [path, output] of Object.entries(outputs)) {
-  if (process.argv.includes('--check')) {
+  if (check) {
     let current = '';
     try { current = readFileSync(path, 'utf8'); } catch {}
     if (current !== output) throw new Error(`${path} is stale. Run npm run gen:contracts`);
