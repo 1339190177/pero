@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1056" viewBox="0 0 1600 1056" role="img" aria-labelledby="title description" lang="en">
+<title id="title">OpenPero — Overall Architecture</title>
+<desc id="description">Target architecture derived from ROADMAP.md. Clients access shared Cloud coordination and Host execution through versioned contracts. Host owns local permissions, credentials and execution identity. Apps, playbooks, connectors and replaceable agents use authorized environments. Artifacts pass independent verification and human acceptance before returning to project knowledge. Dashed modules and connections are planned; solid outlines indicate existing foundations only.</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#596B7D" stroke-width="1.5"/></marker>
+  <marker id="start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 9 1 L 1 5 L 9 9" fill="none" stroke="#596B7D" stroke-width="1.5"/></marker>
+  <marker id="accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="#007F86" stroke-width="1.5"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="1056" rx="0" fill="#F7F9FC" stroke="none" stroke-width="1.5"/>
+<g font-family="Inter, Helvetica Neue, Arial, sans-serif">
+<text x="64" y="50" font-size="32" fill="#142B45" font-weight="650" >OpenPero Architecture</text>
+<g transform="translate(0 -48)">
+<path d="M 1536 1030 H 1570 V 128 H 30 V 470 H 64" fill="none" stroke="#007F86" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#accent)"/>
+<rect x="745" y="109" width="110" height="34" rx="0" fill="#F7F9FC" stroke="none" stroke-width="1.5"/>
+<text x="800" y="133" font-size="18" fill="#00777D" font-weight="550" text-anchor="middle">Feedback</text>
+<rect x="64" y="170" width="332" height="80" rx="8" fill="#FFFFFF" stroke="#007F86" stroke-width="1.5"/>
+<text x="82" y="203" font-size="22" fill="#142B45" font-weight="650" >Desktop</text>
+<text x="82" y="230" font-size="16" fill="#596B7D" font-weight="400" >Electron · GPUI / WASM</text>
+<path d="M 230 250 V 272" fill="none" stroke="#596B7D" stroke-width="1.7"/>
+<rect x="444" y="170" width="332" height="80" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="462" y="203" font-size="22" fill="#142B45" font-weight="650" >Web</text>
+<text x="462" y="230" font-size="16" fill="#596B7D" font-weight="400" >Shared workbench</text>
+<path d="M 610 250 V 272" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="824" y="170" width="332" height="80" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="842" y="203" font-size="22" fill="#142B45" font-weight="650" >Mobile / Editor</text>
+<text x="842" y="230" font-size="16" fill="#596B7D" font-weight="400" >Remote access &amp; approvals</text>
+<path d="M 990 250 V 272" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="1204" y="170" width="332" height="80" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1222" y="203" font-size="22" fill="#142B45" font-weight="650" >Events &amp; Collaboration</text>
+<text x="1222" y="230" font-size="16" fill="#596B7D" font-weight="400" >GitHub · Channels · Automations</text>
+<path d="M 1370 250 V 272" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<path d="M 230 272 H 1370" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<path d="M 800 272 V 286" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="64" y="286" width="1472" height="38" rx="8" fill="#E7F3F5" stroke="#007F86" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="800" y="312" font-size="19" fill="#142B45" font-weight="550" text-anchor="middle">Versioned Contracts · API / Events / Sync</text>
+<path d="M 280 324 V 344" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 800 324 V 344" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<rect x="64" y="344" width="432" height="400" rx="8" fill="#EEF3F8" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="84" y="382" font-size="26" fill="#142B45" font-weight="650" >Cloud</text>
+<text x="84" y="406" font-size="16" fill="#596B7D" font-weight="400" >Shared project authority</text>
+<rect x="84" y="428" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="102" y="461" font-size="22" fill="#142B45" font-weight="650" >Projects &amp; Knowledge</text>
+<text x="102" y="488" font-size="16" fill="#596B7D" font-weight="400" >Context · Pages · Results · Memory</text>
+<rect x="84" y="532" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="102" y="565" font-size="22" fill="#142B45" font-weight="650" >Tasks &amp; Coordination</text>
+<text x="102" y="592" font-size="16" fill="#596B7D" font-weight="400" >Contracts · Snapshots · Dispatch</text>
+<rect x="84" y="636" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="102" y="669" font-size="22" fill="#142B45" font-weight="650" >Teams &amp; Sync</text>
+<text x="102" y="696" font-size="16" fill="#596B7D" font-weight="400" >Identity · Policy · Journal replication</text>
+<rect x="584" y="344" width="432" height="400" rx="8" fill="#EEF3F8" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="604" y="382" font-size="26" fill="#142B45" font-weight="650" >Host / Daemon</text>
+<text x="604" y="406" font-size="16" fill="#596B7D" font-weight="400" >Local execution authority</text>
+<rect x="604" y="428" width="392" height="64" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="622" y="455" font-size="20" fill="#142B45" font-weight="650" >Policy &amp; Local State</text>
+<text x="622" y="477" font-size="16" fill="#596B7D" font-weight="400" >Permissions · Credentials · Journal</text>
+<rect x="604" y="506" width="392" height="64" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="622" y="533" font-size="20" fill="#142B45" font-weight="650" >Managed Runs</text>
+<text x="622" y="555" font-size="16" fill="#596B7D" font-weight="400" >Run · Session · Cancel · Recover</text>
+<rect x="604" y="584" width="392" height="64" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="622" y="611" font-size="20" fill="#142B45" font-weight="650" >Harness &amp; Tools</text>
+<text x="622" y="633" font-size="16" fill="#596B7D" font-weight="400" >Agent loop · Files · Terminal · Browser</text>
+<rect x="604" y="662" width="392" height="64" rx="8" fill="#FFFFFF" stroke="#007F86" stroke-width="1.5"/>
+<text x="622" y="689" font-size="20" fill="#142B45" font-weight="650" >ACP Sessions</text>
+<text x="622" y="711" font-size="16" fill="#596B7D" font-weight="400" >Events · Prompts · Approval flow</text>
+<rect x="1104" y="344" width="432" height="400" rx="8" fill="#EEF3F8" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1124" y="382" font-size="26" fill="#142B45" font-weight="650" >Capability Ecosystem</text>
+<text x="1124" y="406" font-size="16" fill="#596B7D" font-weight="400" >Replaceable backends &amp; extensions</text>
+<rect x="1124" y="428" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1142" y="461" font-size="22" fill="#142B45" font-weight="650" >Apps &amp; Playbooks</text>
+<text x="1142" y="488" font-size="16" fill="#596B7D" font-weight="400" >Research · Software · Engineering</text>
+<rect x="1124" y="532" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1142" y="565" font-size="22" fill="#142B45" font-weight="650" >Connectors</text>
+<text x="1142" y="592" font-size="16" fill="#596B7D" font-weight="400" >MCP · Data · Platforms · Devices</text>
+<rect x="1124" y="636" width="392" height="84" rx="8" fill="#FFFFFF" stroke="#007F86" stroke-width="1.5"/>
+<text x="1142" y="669" font-size="22" fill="#142B45" font-weight="650" >Agent Backends</text>
+<text x="1142" y="696" font-size="16" fill="#596B7D" font-weight="400" >Codex · Claude · OpenCode</text>
+<path d="M 486 470 H 594" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)" marker-start="url(#start)"/>
+<text x="540" y="457" font-size="16" fill="#596B7D" font-weight="400" text-anchor="middle">Sync</text>
+<path d="M 486 574 H 544 V 538 H 594" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<text x="540" y="524" font-size="16" fill="#596B7D" font-weight="400" text-anchor="middle">Run</text>
+<path d="M 1114 470 H 1078 V 538 H 1006" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<text x="1060" y="457" font-size="15" fill="#596B7D" font-weight="400" text-anchor="middle">Methods</text>
+<path d="M 1006 616 H 1060 V 574 H 1114" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)" marker-start="url(#start)"/>
+<text x="1060" y="562" font-size="16" fill="#596B7D" font-weight="400" text-anchor="middle">Tools</text>
+<path d="M 1006 694 H 1060 V 678 H 1114" fill="none" stroke="#596B7D" stroke-width="1.7" marker-end="url(#arrow)" marker-start="url(#start)"/>
+<text x="1060" y="665" font-size="16" fill="#00777D" font-weight="550" text-anchor="middle">ACP</text>
+<text x="64" y="792" font-size="23" fill="#142B45" font-weight="650" >Execution Environments &amp; Workers</text>
+<text x="1536" y="792" font-size="17" fill="#596B7D" font-weight="400" text-anchor="end">Resource owners · Bindings · Use leases</text>
+<path d="M 800 744 V 802" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<path d="M 230 802 H 1370" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="64" y="814" width="332" height="88" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="82" y="847" font-size="22" fill="#142B45" font-weight="650" >Local Machine</text>
+<text x="82" y="874" font-size="16" fill="#596B7D" font-weight="400" >Workspace · Desktop · Container</text>
+<path d="M 230 802 V 814" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 230 902 V 914" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="444" y="814" width="332" height="88" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="462" y="847" font-size="22" fill="#142B45" font-weight="650" >Lab &amp; HPC</text>
+<text x="462" y="874" font-size="16" fill="#596B7D" font-weight="400" >Python · SSH · Instruments</text>
+<path d="M 610 802 V 814" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 610 902 V 914" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="824" y="814" width="332" height="88" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="842" y="847" font-size="22" fill="#142B45" font-weight="650" >Cloud &amp; Kubernetes</text>
+<text x="842" y="874" font-size="16" fill="#596B7D" font-weight="400" >Pods · Sandboxes · Compute</text>
+<path d="M 990 802 V 814" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 990 902 V 914" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<rect x="1204" y="814" width="332" height="88" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1222" y="847" font-size="22" fill="#142B45" font-weight="650" >Trusted Workers</text>
+<text x="1222" y="874" font-size="16" fill="#596B7D" font-weight="400" >Capabilities · Leases · Results</text>
+<path d="M 1370 802 V 814" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 1370 902 V 914" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<path d="M 230 914 H 1370" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5"/>
+<path d="M 230 914 V 942 H 280 V 988" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<text x="244" y="936" font-size="16" fill="#596B7D" font-weight="400" >Artifacts</text>
+<path d="M 800 914 V 988" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)" marker-start="url(#start)"/>
+<text x="818" y="951" font-size="17" fill="#596B7D" font-weight="400" >Independent verification Use</text>
+<text x="64" y="970" font-size="23" fill="#142B45" font-weight="650" >Trusted Delivery</text>
+<rect x="64" y="988" width="432" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="82" y="1021" font-size="22" fill="#142B45" font-weight="650" >Artifact Versions</text>
+<text x="82" y="1048" font-size="16" fill="#596B7D" font-weight="400" >Outputs · Provenance · Evidence</text>
+<rect x="584" y="988" width="432" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="602" y="1021" font-size="22" fill="#142B45" font-weight="650" >Verification</text>
+<text x="602" y="1048" font-size="16" fill="#596B7D" font-weight="400" >Independent checks · CI · Verifiers</text>
+<rect x="1104" y="988" width="432" height="84" rx="8" fill="#FFFFFF" stroke="#748599" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1122" y="1021" font-size="22" fill="#142B45" font-weight="650" >Human Decision</text>
+<text x="1122" y="1048" font-size="16" fill="#596B7D" font-weight="400" >Accept · Reject · Rework</text>
+<path d="M 506 1030 H 574" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<path d="M 1026 1030 H 1094" fill="none" stroke="#596B7D" stroke-width="1.7" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+</g></g></svg>

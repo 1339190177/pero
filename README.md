@@ -60,24 +60,9 @@ Not every internal run needs an Issue. Publish work to GitHub when it benefits f
 
 ## Architecture direction
 
-```mermaid
-flowchart TD
-    UI[Web / Desktop] --> C[Project coordinator]
-    GH[GitHub Issues and pull requests] --> I[Task intake and authorization]
-    I --> C
-    P[(Project context and decisions)] <--> C
-    C --> H[Human contributors]
-    C --> A[Agent workers]
-    C --> W[Compute workers]
-    W --> L[Local / lab / cloud environments]
-    H --> R[Artifacts and execution records]
-    A --> R
-    L --> R
-    R --> V[Validation and human review]
-    V --> P
-    V --> S[Collaboration status updates]
-    S --> GH
-```
+![OpenPero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
+
+Solid outlines mark existing foundations; dashed modules and connections are planned. Regenerate the diagram with `node scripts/generate-architecture.mjs`.
 
 | Part | Responsibility |
 | --- | --- |
