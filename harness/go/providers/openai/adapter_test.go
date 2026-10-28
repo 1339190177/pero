@@ -399,3 +399,51 @@ func TestContextOverflowClassificationPreservesRecovery(t *testing.T) {
 		})
 	}
 }
+
+func TestUsageBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name, usage                  string
+		invalid                      bool
+		input, output, total, cached int
+	}{
+		{"negative prompt", `{"prompt_tokens":-3,"completion_tokens":1,"total_tokens":-2}`, true, 0, 0, 0, 0},
+		{"negative output", `{"prompt_tokens":3,"completion_tokens":-1}`, true, 0, 0, 0, 0},
+		{"negative total", `{"prompt_tokens":3,"completion_tokens":1,"total_tokens":-1}`, true, 0, 0, 0, 0},
+		{"negative cache", `{"prompt_tokens":3,"prompt_tokens_details":{"cached_tokens":-1}}`, true, 0, 0, 0, 0},
+		{"cache larger than prompt", `{"prompt_tokens":2,"completion_tokens":1,"prompt_tokens_details":{"cached_tokens":5}}`, true, 0, 0, 0, 0},
+		{"negative fallback cache", `{"prompt_tokens":3,"prompt_cache_hit_tokens":-1}`, true, 0, 0, 0, 0},
+		{"negative cache write", `{"prompt_tokens":3,"prompt_tokens_details":{"cache_write_tokens":-1}}`, true, 0, 0, 0, 0},
+		{"negative reasoning", `{"completion_tokens":3,"completion_tokens_details":{"reasoning_tokens":-1}}`, true, 0, 0, 0, 0},
+		{"fractional counter", `{"prompt_tokens":1.5}`, true, 0, 0, 0, 0},
+		{"wrong counter type", `{"prompt_tokens":"3"}`, true, 0, 0, 0, 0},
+		{"huge positive", `{"prompt_tokens":1e100}`, true, 0, 0, 0, 0},
+		{"huge negative", `{"prompt_tokens":-1e100}`, true, 0, 0, 0, 0},
+		{"int64 overflow", `{"prompt_tokens":9223372036854775808}`, true, 0, 0, 0, 0},
+		{"unsafe integer", `{"prompt_tokens":9007199254740992}`, true, 0, 0, 0, 0},
+		{"overflowing sum", `{"prompt_tokens":9223372036854775807,"completion_tokens":1}`, true, 0, 0, 0, 0},
+		{"integral numeric notation", `{"prompt_tokens":3.0,"completion_tokens":1e0}`, false, 3, 1, 4, 0},
+		{"no optional fields", `{"prompt_tokens":3,"completion_tokens":1}`, false, 3, 1, 4, 0},
+		{"fallback cache", `{"prompt_tokens":3,"completion_tokens":1,"prompt_cache_hit_tokens":2}`, false, 1, 1, 4, 2},
+		{"explicit cache wins", `{"prompt_tokens":3,"completion_tokens":1,"prompt_tokens_details":{"cached_tokens":1},"prompt_cache_hit_tokens":2}`, false, 2, 1, 4, 1},
+		{"mismatched total remains unknown", `{"prompt_tokens":3,"completion_tokens":1,"total_tokens":9}`, false, 3, 1, 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, _ := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				event(w, `{"choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":"stop"}],"usage":`+tc.usage+`}`)
+				event(w, "[DONE]")
+			})
+			completion, err := a.Generate(context.Background(), request(), nil)
+			if tc.invalid {
+				if harness.ProviderFailureFromError(err).Code != harness.MalformedResponseCode {
+					t.Fatalf("invalid usage accepted or misclassified: usage=%+v error=%v", completion.Usage, err)
+				}
+				return
+			}
+			u := completion.Usage
+			if err != nil || u == nil || u.InputTokens != tc.input || u.OutputTokens != tc.output || u.TotalTokens != tc.total || u.CacheReadTokens != tc.cached {
+				t.Fatalf("usage=%+v error=%v", u, err)
+			}
+		})
+	}
+}

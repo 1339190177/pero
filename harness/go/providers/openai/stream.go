@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"mime"
 	"net/http"
 	"time"
@@ -182,9 +183,39 @@ func mapUsage(usage openaisdk.CompletionUsage) (*harness.TokenUsage, error) {
 	}
 	cacheWrite := usage.PromptTokensDetails.CacheWriteTokens
 	reasoning := usage.CompletionTokensDetails.ReasoningTokens
+	// Validate wire counters once before subtraction, addition, or int conversion.
+	// Upstream accepts only nonnegative safe integers; the Go model must also fit
+	// the native int width on every supported target.
+	limit := min(int64(^uint(0)>>1), int64(1<<53-1))
+	for _, counter := range []struct {
+		value int64
+		field respjson.Field
+	}{
+		{usage.PromptTokens, usage.JSON.PromptTokens},
+		{usage.CompletionTokens, usage.JSON.CompletionTokens},
+		{usage.TotalTokens, usage.JSON.TotalTokens},
+		{cacheRead, usage.PromptTokensDetails.JSON.CachedTokens},
+		{cacheWrite, usage.PromptTokensDetails.JSON.CacheWriteTokens},
+		{reasoning, usage.CompletionTokensDetails.JSON.ReasoningTokens},
+	} {
+		// The SDK coerces numeric strings and fractional numbers into int64.
+		// Inspect supplied wire values rather than accepting that coercion.
+		if raw := counter.field.Raw(); raw != "" && raw != respjson.Null {
+			var number float64
+			if err := json.Unmarshal([]byte(raw), &number); err != nil || math.Trunc(number) != number {
+				return nil, errors.New("usage counters must be integers")
+			}
+		}
+		if counter.value < 0 || counter.value > limit {
+			return nil, errors.New("usage counters must be nonnegative safe integers")
+		}
+	}
+	if cacheRead > usage.PromptTokens || usage.PromptTokens > limit-usage.CompletionTokens {
+		return nil, errors.New("usage counters exceed their prompt or total bound")
+	}
 	total := 0
 	combined := usage.PromptTokens + usage.CompletionTokens
-	if usage.PromptTokens >= 0 && usage.CompletionTokens >= 0 && (!usage.JSON.TotalTokens.Valid() || usage.TotalTokens == combined) {
+	if !usage.JSON.TotalTokens.Valid() || usage.TotalTokens == combined {
 		total = int(combined)
 	}
 	return &harness.TokenUsage{
