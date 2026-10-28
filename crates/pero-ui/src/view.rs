@@ -215,17 +215,19 @@ impl Workbench {
                             })),
                     ),
             )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(9.))
-                    .px(px(8.))
-                    .text_size(px(12.))
-                    .text_color(p.color("text-muted"))
-                    .child(self.icon("brand-github"))
-                    .child(self.t("github.unconnected")),
-            )
+            .when(self.navigation != 3, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(9.))
+                        .px(px(8.))
+                        .text_size(px(12.))
+                        .text_color(p.color("text-muted"))
+                        .child(self.icon("brand-github"))
+                        .child(self.t("github.unconnected")),
+                )
+            })
             .child(
                 div()
                     .flex()
