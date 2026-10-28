@@ -4,6 +4,13 @@ Remote dispatch is covered by the Worker tests and `tests/e2e/remote.mjs`. The i
 
 What each suite proves, and where screenshots land, is [tests/README.md](../../tests/README.md). Acceptance levels L0–L3 are defined in [ROADMAP.md](../ROADMAP.md).
 
+The incremental [Bazel pilot](bazel.md) covers the Go control plane and six
+theme/protocol/locale checks. Its generators write to `bazel-bin`; the existing
+npm/Cargo commands below continue to own Rust, GPUI Wasm and Desktop verification.
+See [ADR 0004](../adr/0004-incremental-bazel-build.md) for the scope. The explicit
+Bazel PostgreSQL suite is manual and uncached, and fails when its database is
+not configured. Setup and invocation instructions live in [Bazel quality gates](bazel.md).
+
 1. `npm run build`: native Host, GPUI WASM, web assets, and the Electron shell.
 2. `npm run check`: TypeScript, generated DESIGN.md theme, locale catalogs, and generated contracts.
 3. `npm test`: Rust tests for `pero-contracts`, `pero-runtime`, `pero-host`, `pero-ui`, and `pero-worker`, including the ACP lifecycle cases in `tests/runtime/`.
