@@ -1,6 +1,9 @@
 {
   "workspace.local": "本机工作区",
   "nav.tasks": "任务",
+  "nav.sessions": "本机会话",
+  "sessions.empty": "还没有本机会话，点击“新会话”开始。",
+  "sessions.search": "搜索会话…",
   "nav.projects": "项目",
   "nav.environments": "执行环境",
   "appearance.light": "浅色外观",

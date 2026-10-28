@@ -345,7 +345,7 @@ impl Workbench {
         let configured = self.remote.configured();
         div().flex_1().min_w_0().h_full().flex().flex_col()
             .child(div().px(px(20.)).h(px(58.)).flex_shrink_0().flex().items_center().gap(px(10.)).border_b_1().border_color(p.color("border"))
-                .child(div().flex_1().min_w_0().text_size(px(20.)).font_weight(FontWeight::BOLD).child(self.t("nav.remote")))
+                .child(div().flex_1().min_w_0().text_size(px(20.)).font_weight(FontWeight::BOLD).child(self.t("nav.tasks")))
                 .child(Button::new("remote-connector").outline().small().label(self.t("connector.title")).disabled(loading)
                     .on_click(cx.listener(|this,_,window,cx|this.open_remote_connection(window,cx))))
                 .when(self.remote.operator() && self.remote.data["github"]["configured"].as_bool().unwrap_or(false),|el|el.child(

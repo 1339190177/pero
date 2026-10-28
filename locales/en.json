@@ -1,6 +1,9 @@
 {
   "workspace.local": "Local workspace",
   "nav.tasks": "Tasks",
+  "nav.sessions": "Local sessions",
+  "sessions.empty": "No local sessions. Start a new session to continue.",
+  "sessions.search": "Search sessions…",
   "nav.projects": "Projects",
   "nav.environments": "Environments",
   "appearance.light": "Light appearance",
