@@ -49,13 +49,18 @@
     },
     {
       "destination": "workspace.go",
-      "sha256": "6b59a925c27a07ffacfc103be36e787a18f5a032a8d3b73061b7f178a77a0fc3",
+      "sha256": "d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be",
       "changes": "new bounded workspace adapter or deterministic regression test"
     },
     {
       "destination": "workspace_test.go",
-      "sha256": "0a4bab0d21bd42b2f59e566cbc169967cf29c23f3c298c394277475170101972",
+      "sha256": "460a6b8680a8687a4bbbebd7ec6847c13545571ca4afd7815ce511531a02247f",
       "changes": "new bounded workspace adapter or deterministic regression test"
     }
-  ]
+  ],
+  "upstream_behavior_review": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-upstream-parity.md"
+  }
 }

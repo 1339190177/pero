@@ -2,10 +2,12 @@ package fstools
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func workspace(t *testing.T) (*Workspace, string) {
@@ -90,7 +92,7 @@ func TestWorkspaceCapsCancellationAndAmbiguousEdit(t *testing.T) {
 	w.Write(t.Context(), "result", strings.Repeat("x", 32000))
 	value, _ := w.Read(t.Context(), "result")
 	out, e := FormatRead(value, 1, 200)
-	if e != nil || !out["truncated"].(bool) {
+	if e != nil || !out.Truncated {
 		t.Fatalf("read cap %v %v", out, e)
 	}
 }
@@ -154,6 +156,72 @@ func TestCreatedFileUncertainAfterParentOrRootReplacement(t *testing.T) {
 			data, e := os.ReadFile(filepath.Join(moved, "file"))
 			if e != nil || string(data) != "approved-content" {
 				t.Fatalf("effect evidence %q %v", data, e)
+			}
+		})
+	}
+}
+
+// Read windows must keep physical line numbers stable for follow-up coding reads.
+func TestReadWindow(t *testing.T) {
+	for _, tc := range []struct {
+		name, text           string
+		offset, limit        int
+		content              string
+		total, next          int
+		truncated, wantError bool
+	}{
+		{name: "empty", offset: 1},
+		{name: "trailing newline", text: "a\nb\n", offset: 1, content: "a\nb", total: 2},
+		{name: "blank final physical line", text: "a\n\n", offset: 2, content: "", total: 2},
+		{name: "CRLF", text: "a\r\nb\r\n", offset: 1, content: "a\nb", total: 2},
+		{name: "phantom line rejected", text: "a\n", offset: 2, wantError: true},
+		{name: "empty past EOF", offset: 2, wantError: true},
+		{name: "line window continuation", text: "a\nb\nc", offset: 1, limit: 2, content: "a\nb", total: 3, next: 3, truncated: true},
+		{name: "byte window continuation", text: strings.Repeat(strings.Repeat("x", 1000)+"\n", 20), offset: 1, limit: 20, content: strings.TrimSuffix(strings.Repeat(strings.Repeat("x", 1000)+"\n", 16), "\n"), total: 20, next: 17, truncated: true},
+		{name: "long unicode line", text: strings.Repeat("界", 3000) + "\nafter", offset: 1, content: strings.Repeat("界", 2000) + "... (line truncated to 2000 chars)\nafter", total: 2, truncated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := FormatRead(ScopedText{Path: "source.txt", Text: tc.text, Digest: "digest"}, tc.offset, tc.limit)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("out-of-range read accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := json.Marshal(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Content   string
+				Total     int `json:"total_lines"`
+				Next      int `json:"next_offset"`
+				Truncated bool
+			}
+			if err = json.Unmarshal(raw, &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Content != tc.content || got.Total != tc.total || got.Next != tc.next || got.Truncated != tc.truncated {
+				t.Fatalf("window %+v; want content=%q total=%d next=%d truncated=%v", got, tc.content, tc.total, tc.next, tc.truncated)
+			}
+			if !utf8.ValidString(got.Content) || len(got.Content) > 16<<10 {
+				t.Fatal("invalid or over-budget content")
+			}
+			if got.Next != 0 {
+				next, err := FormatRead(ScopedText{Text: tc.text}, got.Next, 1)
+				if err != nil {
+					t.Fatal(err)
+				}
+				raw, _ := json.Marshal(next)
+				var continuation struct{ Content string }
+				json.Unmarshal(raw, &continuation)
+				want := strings.Split(tc.text, "\n")[got.Next-1]
+				if continuation.Content != want {
+					t.Fatalf("continuation skipped or cut a line: %q != %q", continuation.Content, want)
+				}
 			}
 		})
 	}

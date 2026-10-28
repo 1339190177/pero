@@ -449,7 +449,19 @@ func (w *Workspace) Search(ctx context.Context, base, query string) (SearchResul
 	return out, ctx.Err()
 }
 
-func FormatRead(text ScopedText, offset, limit int) (map[string]any, error) {
+// ReadWindow is a bounded physical-line window with an explicit continuation.
+// Long lines are shortened visibly; next_offset always starts a complete line.
+type ReadWindow struct {
+	Path       string `json:"path"`
+	Content    string `json:"content"`
+	Offset     int    `json:"offset"`
+	TotalLines int    `json:"total_lines"`
+	NextOffset int    `json:"next_offset,omitempty"`
+	Truncated  bool   `json:"truncated"`
+	Digest     string `json:"digest"`
+}
+
+func FormatRead(text ScopedText, offset, limit int) (ReadWindow, error) {
 	if offset == 0 {
 		offset = 1
 	}
@@ -457,24 +469,44 @@ func FormatRead(text ScopedText, offset, limit int) (map[string]any, error) {
 		limit = 200
 	}
 	if offset < 1 || limit < 1 || limit > 2000 {
-		return nil, errors.New("offset must be positive and limit at most 2000")
+		return ReadWindow{}, errors.New("offset must be positive and limit at most 2000")
 	}
 	lines := strings.Split(text.Text, "\n")
-	if offset > len(lines) {
-		return nil, fmt.Errorf("offset exceeds %d lines", len(lines))
+	// A terminal newline closes its preceding line; it does not create another.
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
 	}
-	end := offset - 1 + limit
-	if end > len(lines) {
-		end = len(lines)
+	if offset > len(lines) && !(offset == 1 && len(lines) == 0) {
+		return ReadWindow{}, fmt.Errorf("offset exceeds %d lines", len(lines))
 	}
-	content := strings.Join(lines[offset-1:end], "\n")
-	truncated := end < len(lines)
-	if len(content) > 16<<10 {
-		content = content[:16<<10]
-		for !utf8.ValidString(content) {
-			content = content[:len(content)-1]
+	result := ReadWindow{Path: text.Path, Offset: offset, TotalLines: len(lines), Digest: text.Digest}
+	var content strings.Builder
+	end := offset - 1
+	for end < len(lines) && end-(offset-1) < limit {
+		line := strings.TrimSuffix(lines[end], "\r")
+		runes := []rune(line)
+		shortened := len(runes) > 2000
+		if shortened {
+			line = string(runes[:2000]) + "... (line truncated to 2000 chars)"
 		}
-		truncated = true
+		separator := 0
+		if end > offset-1 {
+			separator = 1
+		}
+		if content.Len()+separator+len(line) > 16<<10 {
+			break
+		}
+		if separator != 0 {
+			content.WriteByte('\n')
+		}
+		content.WriteString(line)
+		result.Truncated = result.Truncated || shortened
+		end++
 	}
-	return map[string]any{"path": text.Path, "content": content, "offset": offset, "truncated": truncated, "digest": text.Digest}, nil
+	result.Content = content.String()
+	if end < len(lines) {
+		result.NextOffset = end + 1
+		result.Truncated = true
+	}
+	return result, nil
 }
