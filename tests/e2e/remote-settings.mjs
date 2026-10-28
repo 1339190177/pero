@@ -140,6 +140,14 @@ try {
   await app.evaluate(({ safeStorage }) => { safeStorage.isAsyncEncryptionAvailable = globalThis.originalStorageAvailable; });
   await configure(ui);
   expect((await ui.state()).remote.state.error).toBe(null);
+  // A failed Host write must leave disconnect retryable until the tombstone is durable.
+  const beforeDisconnect = await readFile(settings, 'utf8');
+  await rm(settings); await mkdir(settings);
+  await ui.command({ action: 'remote_disconnect' });
+  expect((await ui.state()).remote.state.error).toBeTruthy();
+  expect((await ui.state()).remote.state.configured).toBe(true);
+  expect((await ui.state()).remote.state.connection.url).toBe(base);
+  await rm(settings, { recursive: true }); await writeFile(settings, beforeDisconnect, { mode: 0o600 });
   await ui.command({ action: 'remote_disconnect' });
   expect((await readSettings()).remote_connection).toBe(null);
   expect((await ui.state()).remote.state.configured).toBe(false);
@@ -155,7 +163,7 @@ try {
   await writeFile(resolve(out, 'result.json'), JSON.stringify({ checks: [
     'OS safeStorage encrypted credential', 'Host-only 0600 preference write', 'client status and source/tag query',
     'pinned Unicode source URL validation', 'saved client identity after restart', 'invalid client never escalates',
-    'credential metadata binding', 'storage unavailable recovery', 'persistent disconnect overrides environment',
+    'credential metadata binding', 'storage unavailable recovery', 'failed disconnect remains retryable', 'persistent disconnect overrides environment',
     'renderer credentials excluded',
   ], errors }, null, 2));
   console.log(JSON.stringify({ checks: 'Desktop encrypted connection settings', errors }));

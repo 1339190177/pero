@@ -228,10 +228,11 @@ export class RemoteAdapter {
     try {
       if (action === 'remote_configure') { await this.configure(command); return; }
       if (action === 'remote_disconnect') {
+        if (!this.preferences) throw new Error('Local runtime preferences are unavailable. Retry disconnecting.');
+        await this.preferences.save(null);
         this.token = ''; this.base = null; this.clientMode = true; this.api = '/api/client/v1'; this.configError = null;
         this.clearTasks(); this.state.source_kind = ''; this.state.tag = '';
-        if (!this.preferences) throw new Error('Local runtime preferences are unavailable. Retry disconnecting.');
-        await this.preferences.save(null); return;
+        return;
       }
       await this.storageAvailable();
       if (!this.state.configured) { this.state.error = this.configError; return; }
