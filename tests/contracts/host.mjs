@@ -2,9 +2,10 @@
 // line in both directions against protocol/generated/host.schema.json.
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import Ajv2020 from 'ajv/dist/2020.js';
 import schema from '../../protocol/generated/host.schema.json' with { type: 'json' };
 
@@ -31,7 +32,10 @@ const explain = (name, value) => {
 
 const temp = mkdtempSync(`${tmpdir()}/pero-contract-`);
 const agents = resolve(temp, 'agents.json');
-writeFileSync(agents, JSON.stringify([{ id: 'fixture', name: 'ACP test fixture', command: process.execPath, args: [resolve(root, 'tests/fixtures/acp-agent.mjs')] }]));
+writeFileSync(agents, JSON.stringify([
+ { id: 'fixture', name: 'ACP test fixture', command: process.execPath, args: [resolve(root, 'tests/fixtures/acp-agent.mjs')] },
+ { id: 'settings-fixture', name: 'ACP settings fixture', command: process.execPath, args: [resolve(root, 'tests/runtime/lifecycle-agent.mjs')], env: {PERO_FIXTURE_SCENARIO:'settings'} },
+]));
 writeFileSync(resolve(temp, 'notes.txt'), 'Context file for the contract test.\n');
 const env = { ...process.env, PERO_LOCALE: 'en', PERO_SETTINGS_PATH: resolve(temp, 'settings.json'), PERO_HISTORY_PATH: resolve(temp, 'sessions.jsonl'), PERO_AGENTS_FILE: agents };
 
@@ -54,8 +58,9 @@ function startHost() {
   });
   const send = (input, { invalid = false } = {}) => {
     if (!invalid && !validInput(input)) {
-      const name = input.action ? commandVariants.get(input.action) : input.method ? 'SetLocaleRequest' : 'EchoRequest';
-      failures.push(`input ${JSON.stringify(input)}: ${explain(name, input)}`);
+      const name = input.action ? commandVariants.get(input.action) : input.method === 'settings.remote' ? 'SetRemoteSettingsRequest' : input.method ? 'SetLocaleRequest' : 'EchoRequest';
+      const preview = input.method === 'settings.remote' ? '[remote settings redacted]' : JSON.stringify(input);
+      failures.push(`input ${preview}: ${explain(name, input)}`);
     }
     child.stdin.write((typeof input === 'string' ? input : JSON.stringify(input)) + '\n');
   };
@@ -83,6 +88,25 @@ try {
   await host.next('error');
   host.send({ method: 'settings.locale', locale: 'zh-CN' });
   await host.next('settings', (e) => e.text === 'zh-CN');
+
+  host.send({ method: 'contribution', id: 'contribution-invalid', operation: 'prepare',
+    task_id: 'task_contract', repository: '../invalid', parent: temp, title: 'Contract test',
+    source_url: 'https://github.com/acme/repo/issues/1', source_revision: 'contract-revision' });
+  await host.next('contribution_error', e => e.request_id === 'contribution-invalid' && e.data.code === 'invalid_request');
+
+  const storedConnection = { url: 'https://openpero.com', mode: 'client', encrypted_token: 'ZW5jcnlwdGVk' };
+  host.send({ method: 'settings.remote', id: 'remote-save', connection: storedConnection });
+  const saved = await host.next('remote_settings_saved', e => e.request_id === 'remote-save');
+  if (saved.text || saved.data !== undefined) failures.push('remote preference acknowledgement exposed a payload');
+  const preferences = () => JSON.parse(readFileSync(env.PERO_SETTINGS_PATH, 'utf8'));
+  if (!isDeepStrictEqual(preferences().remote_connection, storedConnection)) failures.push('Host did not persist encrypted remote preference');
+  if (preferences().locale !== 'zh-CN') failures.push('Saving remote connection replaced locale');
+  if (process.platform !== 'win32' && (statSync(env.PERO_SETTINGS_PATH).mode & 0o777) !== 0o600) failures.push('Runtime preferences must be private to the user');
+  for (const connection of [{ ...storedConnection, token: 'never-store-plaintext' }, { ...storedConnection, encrypted_token: '====' }, undefined]) {
+    host.send({ method: 'settings.remote', id: 'remote-invalid', ...(connection === undefined ? {} : { connection }) }, { invalid: true });
+    await host.next('remote_settings_error', e => e.request_id === 'remote-invalid');
+  }
+  if (!isDeepStrictEqual(preferences().remote_connection, storedConnection)) failures.push('Invalid remote preference changed existing settings');
 
   host.send({ action: 'list_agents' });
   await host.next('agents');
@@ -123,11 +147,21 @@ try {
   await host.next('session_closed', inThread);
   host.send({ action: 'prompt', thread_id: thread, text: 'after close' });
   await host.next('session_error', inThread);
+  host.send({action:'new_session',thread_id:'settings-contract',agent_id:'settings-fixture'});
+  await host.next('session_ready',e=>e.thread_id==='settings-contract');
+  host.send({action:'configure',thread_id:'settings-contract',config_id:'effort',value:'low'});
+  await host.next('configuration_changed',e=>e.thread_id==='settings-contract');
+  host.send({action:'close',thread_id:'settings-contract'});
+  await host.next('session_closed',e=>e.thread_id==='settings-contract');
   await host.stop();
 
   // A fresh Host replays the journal written above.
   host = startHost();
   await host.next('ready');
+  if (!isDeepStrictEqual(preferences().remote_connection, storedConnection)) failures.push('Remote preference was lost after Host restart');
+  host.send({ method: 'settings.remote', id: 'remote-disconnect', connection: null });
+  await host.next('remote_settings_saved', e => e.request_id === 'remote-disconnect');
+  if (preferences().remote_connection !== null || preferences().locale !== 'zh-CN') failures.push('Disconnect must retain a tombstone and preserve locale');
   host.send({ action: 'list_agents' });
   const replay = await host.next('replay');
   if (!replay.data.events.length) failures.push('replay after restart contained no events');

@@ -11,15 +11,25 @@ union TaskStatus { "draft", RunStatus }
 union Outcome { "succeeded", "failed", "cancelled", "reconcile" }
 
 model Source {
-  kind: "github";
+  kind: "github" | "roadmap";
   repository: string;
-  issue_number: safeint;
+  issue_number?: safeint;
   url: string;
   revision: string;
-  state: "open" | "closed";
+  state: "open" | "closed" | "missing";
   updated_at?: string;
-  issue_id: string;
+  issue_id?: string;
   repository_id: string;
+  path?: string;
+  item_id?: string;
+  parent_item_id?: string;
+  line?: safeint;
+  depth?: safeint;
+  headings?: string[];
+  tags?: string[];
+  commit_sha?: string;
+  blob_sha?: string;
+  missing_at_commit?: string;
   ...Closed;
 }
 model Claimant { id: Id; name: string; ...Closed }
@@ -27,13 +37,14 @@ model Identity { id: Id; name: string; role: "operator" | "client"; projects: st
 model GitHubRepositoryStatus {
   project_id: string; owner: string; repo: string; auto_dispatch: boolean; required_label: string;
   last_synced_at?: string; partial: boolean; error?: string;
+  roadmap_path?: string;
   ...Closed;
 }
 model GitHubStatus {
   configured: boolean; repositories: GitHubRepositoryStatus[]; errors: string[]; running: boolean;
   ...Closed;
 }
-model GitHubSyncResult { imported: safeint; updated: safeint; dispatched: safeint; partial: boolean; errors: string[]; ...Closed }
+model GitHubSyncResult { imported: safeint; updated: safeint; dispatched: safeint; missing?: safeint; partial: boolean; errors: string[]; ...Closed }
 model ClientCredential { client: Identity; token: string; ...Closed }
 
 model TaskSpec {
@@ -44,6 +55,8 @@ model TaskSpec {
   workspace_key: Id;
   agent_id: Id;
   source?: Source;
+  parent_task_id?: string;
+  tags?: string[];
   ...Closed;
 }
 model Run {
@@ -111,6 +124,17 @@ model RemoteState {
   detail: Detail | null;
   identity?: Identity | null;
   github?: GitHubStatus | null;
+  connection?: RemoteConnection;
+  source_kind?: "" | "github" | "roadmap";
+  tag?: string;
+  ...Closed;
+}
+model RemoteConnection {
+  url: string;
+  mode: "client" | "operator";
+  credential_configured: boolean;
+  persistence_available: boolean;
+  authenticating?: boolean;
   ...Closed;
 }
 model ProvisionWorker { name: string; projects: string[]; labels?: string[]; ...Closed }

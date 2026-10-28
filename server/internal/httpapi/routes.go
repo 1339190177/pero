@@ -34,6 +34,7 @@ func Handler(db *store.Store, operatorToken string, services ...*gh.Service) htt
 	}
 	mux := http.NewServeMux()
 	a.registerClients(mux)
+	a.registerContributions(mux)
 	a.registerGitHub(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := db.Ping(r.Context()); err != nil {
@@ -112,6 +113,9 @@ func failure(w http.ResponseWriter, err error) {
 	case errors.Is(err, store.ErrNotFound):
 		status = 404
 		message = err.Error()
+	case errors.Is(err, store.ErrContributionInput):
+		status = 400
+		message = err.Error()
 	case errors.Is(err, store.ErrForbidden):
 		status = 403
 		message = err.Error()
@@ -177,7 +181,11 @@ func (a *API) tasks(w http.ResponseWriter, r *http.Request) {
 		invalid(w)
 		return
 	}
-	page, err := a.db.Tasks(r.Context(), cursor, limit)
+	filter, ok := taskFilter(w, r)
+	if !ok {
+		return
+	}
+	page, err := a.db.Tasks(r.Context(), cursor, limit, filter)
 	if err != nil {
 		failure(w, err)
 		return

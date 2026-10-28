@@ -34,12 +34,18 @@ impl AgentConfig {
     }
 }
 pub fn registry(root: &Path) -> Result<Vec<AgentConfig>, String> {
+    let agent_root = std::env::var_os("PERO_AGENT_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root.to_path_buf());
     let grok_env=BTreeMap::from([("OPENCODE_CONFIG_CONTENT".into(),serde_json::json!({"model":"xai/grok-code-fast-1","provider":{"xai":{"npm":"@ai-sdk/xai","name":"xAI","models":{"grok-code-fast-1":{"name":"Grok Code Fast 1"}}}}}).to_string())]);
     let mut agents = vec![
         AgentConfig {
             id: "codex".into(),
             name: "Codex".into(),
-            command: "codex-acp".into(),
+            command: agent_root
+                .join("node_modules/.bin/codex-acp")
+                .to_string_lossy()
+                .into(),
             args: vec![],
             env: BTreeMap::new(),
             model: None,
@@ -48,13 +54,18 @@ pub fn registry(root: &Path) -> Result<Vec<AgentConfig>, String> {
         AgentConfig {
             id: "claude".into(),
             name: "Claude".into(),
-            command: root
+            command: agent_root
                 .join("node_modules/.bin/claude-agent-acp")
                 .to_string_lossy()
                 .into(),
             args: vec![],
             env: BTreeMap::new(),
             model: None,
+            mcp_servers: vec![],
+        },
+        AgentConfig {
+            id: "copilot".into(), name: "GitHub Copilot".into(), command: "copilot".into(),
+            args: vec!["--acp".into(), "--stdio".into()], env: BTreeMap::new(), model: None,
             mcp_servers: vec![],
         },
         AgentConfig {

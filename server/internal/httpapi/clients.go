@@ -78,7 +78,11 @@ func (a *API) clientTasks(w http.ResponseWriter, r *http.Request) {
 		invalid(w)
 		return
 	}
-	page, err := a.db.ClientTasks(r.Context(), clientIdentity(r), cursor, limit)
+	filter, ok := taskFilter(w, r)
+	if !ok {
+		return
+	}
+	page, err := a.db.ClientTasks(r.Context(), clientIdentity(r), cursor, limit, filter)
 	if err != nil {
 		failure(w, err)
 		return

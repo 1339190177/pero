@@ -22,6 +22,7 @@ type GitHubRepository struct {
 	AutoDispatch  bool   `json:"auto_dispatch"`
 	RequiredLabel string `json:"required_label"`
 	WorkerID      string `json:"worker_id,omitempty"`
+	RoadmapPath   string `json:"roadmap_path,omitempty"`
 }
 
 func (r GitHubRepository) Name() string { return r.Owner + "/" + r.Repo }
@@ -42,12 +43,12 @@ type GitHubIssue struct {
 type GitHubChange struct{ Imported, Updated, Dispatched bool }
 
 func gitHubSource(issue GitHubIssue, revision string) *Source {
-	return &Source{Kind: "github", Repository: issue.Repository, IssueNumber: issue.Number, URL: issue.URL, Revision: revision, State: issue.State, UpdatedAt: issue.UpdatedAt, IssueID: issue.ID, RepositoryID: issue.RepositoryID}
+	return &Source{Kind: "github", Repository: issue.Repository, IssueNumber: issue.Number, URL: issue.URL, Revision: revision, State: issue.State, UpdatedAt: issue.UpdatedAt, IssueID: issue.ID, RepositoryID: issue.RepositoryID, Tags: issue.Labels}
 }
 
-func (s *Store) BindGitHubRepository(ctx context.Context, config GitHubRepository, id string) error {
+func (s *Store) BindGitHubRepository(ctx context.Context, config GitHubRepository, id string, private bool) error {
 	var bound string
-	err := s.pool.QueryRow(ctx, `INSERT INTO github_repositories(project_id,name,repository_id) VALUES($1,$2,$3) ON CONFLICT(project_id,name) DO UPDATE SET name=EXCLUDED.name RETURNING repository_id`, config.ProjectID, strings.ToLower(config.Name()), id).Scan(&bound)
+	err := s.pool.QueryRow(ctx, `INSERT INTO github_repositories(project_id,name,repository_id,private) VALUES($1,$2,$3,$4) ON CONFLICT(project_id,name) DO UPDATE SET private=CASE WHEN github_repositories.repository_id=EXCLUDED.repository_id THEN EXCLUDED.private ELSE github_repositories.private END RETURNING repository_id`, config.ProjectID, strings.ToLower(config.Name()), id, private).Scan(&bound)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func (s *Store) SyncGitHubIssue(ctx context.Context, config GitHubRepository, is
 	hash := sha256.Sum256(data)
 	revision := hex.EncodeToString(hash[:])
 	source := gitHubSource(issue, revision)
-	spec := Spec{Title: issue.Title, Prompt: strings.TrimSpace(issue.Title + "\n\n" + issue.Body), Acceptance: config.Acceptance, ProjectID: config.ProjectID, WorkspaceKey: config.WorkspaceKey, AgentID: config.AgentID, Source: source}
+	spec := Spec{Title: issue.Title, Prompt: strings.TrimSpace(issue.Title + "\n\n" + issue.Body), Acceptance: config.Acceptance, ProjectID: config.ProjectID, WorkspaceKey: config.WorkspaceKey, AgentID: config.AgentID, Source: source, Tags: issue.Labels}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return change, err
@@ -104,6 +105,9 @@ func (s *Store) SyncGitHubIssue(ctx context.Context, config GitHubRepository, is
 			return change, err
 		}
 		change.Imported = true
+	}
+	if err = publishPublicSource(ctx, tx, config, id, spec); err != nil {
+		return change, err
 	}
 	var current string
 	var claimed *string

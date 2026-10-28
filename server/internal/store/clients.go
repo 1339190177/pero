@@ -35,7 +35,7 @@ func (s *Store) AuthenticateClient(ctx context.Context, token string) (*Client, 
 	}
 	c := &Client{Role: "client"}
 	var expected []byte
-	err := s.pool.QueryRow(ctx, `SELECT id,name,projects,token_hash FROM clients WHERE id=$1`, id).Scan(&c.ID, &c.Name, &c.Projects, &expected)
+	err := s.pool.QueryRow(ctx, `SELECT id,name,projects,token_hash FROM clients WHERE id=$1 UNION ALL SELECT c.id,c.name,c.projects,d.token_hash FROM desktop_credentials d JOIN clients c ON c.id=d.client_id WHERE d.id=$1`, id).Scan(&c.ID, &c.Name, &c.Projects, &expected)
 	actual := sha256.Sum256([]byte(token))
 	if err != nil || subtle.ConstantTimeCompare(expected, actual[:]) != 1 {
 		return nil, ErrForbidden
@@ -43,39 +43,51 @@ func (s *Store) AuthenticateClient(ctx context.Context, token string) (*Client, 
 	return c, nil
 }
 
-func (s *Store) ClientTasks(ctx context.Context, client *Client, cursor string, limit int) (*TaskPage, error) {
+func (s *Store) ClientTasks(ctx context.Context, client *Client, cursor string, limit int, filters ...TaskFilter) (*TaskPage, error) {
 	if err := s.Reap(ctx); err != nil {
 		return nil, err
 	}
-	var before *time.Time
-	if cursor != "" {
-		var value time.Time
-		err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1 AND spec->>'project_id'=ANY($2)`, cursor, client.Projects).Scan(&value)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
+	filter := TaskFilter{}
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	ids := []string{}
+	var err error
+	if filter.SourceKind == "roadmap" {
+		ids, err = s.roadmapTaskIDs(ctx, client, cursor, limit, filter)
 		if err != nil {
 			return nil, err
 		}
-		before = &value
-	}
-	rows, err := s.pool.Query(ctx, `SELECT id FROM tasks WHERE spec->>'project_id'=ANY($1) AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::text)) ORDER BY created_at DESC,id DESC LIMIT $4`, client.Projects, before, cursor, limit+1)
-	if err != nil {
-		return nil, err
-	}
-	ids := []string{}
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
+	} else {
+		var before *time.Time
+		if cursor != "" {
+			var value time.Time
+			err := s.pool.QueryRow(ctx, `SELECT created_at FROM tasks WHERE id=$1 AND spec->>'project_id'=ANY($2)`, cursor, client.Projects).Scan(&value)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
+			if err != nil {
+				return nil, err
+			}
+			before = &value
+		}
+		rows, err := s.pool.Query(ctx, `SELECT tasks.id FROM tasks LEFT JOIN github_issues g ON g.task_id=tasks.id LEFT JOIN roadmap_items road ON road.task_id=tasks.id WHERE spec->>'project_id'=ANY($1) AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::text)) AND ($5='' OR spec->'source'->>'kind'=$5) AND ($6='' OR (CASE WHEN road.task_id IS NOT NULL THEN COALESCE(road.latest->'tags','[]'::jsonb) WHEN g.task_id IS NOT NULL THEN COALESCE(g.latest->'labels','[]'::jsonb) ELSE COALESCE(spec->'tags','[]'::jsonb) END) ? $6) ORDER BY created_at DESC,id DESC LIMIT $4`, client.Projects, before, cursor, limit+1, filter.SourceKind, filter.Tag)
+		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
+		for rows.Next() {
+			var id string
+			if err = rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 	page := &TaskPage{Tasks: []Task{}}
 	used := 0
@@ -135,15 +147,17 @@ func (s *Store) ClientTask(ctx context.Context, client *Client, id string) (*Tas
 	return clientTaskTx(ctx, tx, client, id, false)
 }
 
-func taskBusy(t *Task) bool {
+func taskBusy(t *Task) bool { return t.contributionSubmitted || taskExecutionBusy(t) }
+
+func taskExecutionBusy(t *Task) bool {
 	return t.Run != nil && (t.Run.Status == "queued" || t.Run.Status == "running" || t.Run.Status == "cancel_requested" || t.Run.Status == "reconcile")
 }
 
 func taskSourceClosed(t *Task) bool {
 	if t.LatestSource != nil {
-		return t.LatestSource.State == "closed"
+		return t.LatestSource.State == "closed" || t.LatestSource.State == "missing"
 	}
-	return t.Source != nil && t.Source.State == "closed"
+	return t.Source != nil && (t.Source.State == "closed" || t.Source.State == "missing")
 }
 func taskSourceStale(t *Task) bool {
 	return t.Source != nil && t.LatestSource != nil && t.Source.Revision != t.LatestSource.Revision
@@ -187,17 +201,12 @@ func (s *Store) ClaimTask(ctx context.Context, client *Client, id string) (*Task
 	if err != nil {
 		return nil, err
 	}
-	if taskSourceClosed(t) {
-		return nil, ErrConflict
+	changed, err := t.claim(TaskClaimant{ID: client.ID, Name: client.Name})
+	if err != nil {
+		return nil, err
 	}
-	if t.ClaimedBy != nil {
-		if t.ClaimedBy.ID == client.ID {
-			return t, nil
-		}
-		return nil, ErrConflict
-	}
-	if taskBusy(t) {
-		return nil, ErrConflict
+	if !changed {
+		return t, nil
 	}
 	if _, err = tx.Exec(ctx, `UPDATE tasks SET claimed_by_client_id=$2 WHERE id=$1`, id, client.ID); err != nil {
 		return nil, err
@@ -222,14 +231,12 @@ func (s *Store) ReleaseTask(ctx context.Context, client *Client, id string) (*Ta
 	if err != nil {
 		return nil, err
 	}
-	if t.ClaimedBy == nil {
+	changed, err := t.release(client.ID)
+	if err != nil {
+		return nil, err
+	}
+	if !changed {
 		return t, nil
-	}
-	if t.ClaimedBy.ID != client.ID {
-		return nil, ErrForbidden
-	}
-	if taskBusy(t) {
-		return nil, ErrConflict
 	}
 	if _, err = tx.Exec(ctx, `UPDATE tasks SET claimed_by_client_id=NULL WHERE id=$1`, id); err != nil {
 		return nil, err

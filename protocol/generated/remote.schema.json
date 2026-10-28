@@ -278,6 +278,9 @@
         },
         "error": {
           "type": "string"
+        },
+        "roadmap_path": {
+          "type": "string"
         }
       },
       "required": [
@@ -332,6 +335,9 @@
           "type": "integer"
         },
         "dispatched": {
+          "type": "integer"
+        },
+        "missing": {
           "type": "integer"
         },
         "partial": {
@@ -457,6 +463,43 @@
       "required": [
         "name",
         "projects"
+      ],
+      "additionalProperties": false
+    },
+    "RemoteConnection": {
+      "title": "RemoteConnection",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "client"
+            },
+            {
+              "type": "string",
+              "const": "operator"
+            }
+          ]
+        },
+        "credential_configured": {
+          "type": "boolean"
+        },
+        "persistence_available": {
+          "type": "boolean"
+        },
+        "authenticating": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "mode",
+        "credential_configured",
+        "persistence_available"
       ],
       "additionalProperties": false
     },
@@ -605,6 +648,28 @@
               "type": "null"
             }
           ]
+        },
+        "connection": {
+          "$ref": "#/$defs/RemoteConnection"
+        },
+        "source_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "const": "github"
+            },
+            {
+              "type": "string",
+              "const": "roadmap"
+            }
+          ]
+        },
+        "tag": {
+          "type": "string"
         }
       },
       "required": [
@@ -753,8 +818,16 @@
       "type": "object",
       "properties": {
         "kind": {
-          "type": "string",
-          "const": "github"
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "github"
+            },
+            {
+              "type": "string",
+              "const": "roadmap"
+            }
+          ]
         },
         "repository": {
           "type": "string"
@@ -777,6 +850,10 @@
             {
               "type": "string",
               "const": "closed"
+            },
+            {
+              "type": "string",
+              "const": "missing"
             }
           ]
         },
@@ -788,16 +865,50 @@
         },
         "repository_id": {
           "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "item_id": {
+          "type": "string"
+        },
+        "parent_item_id": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "depth": {
+          "type": "integer"
+        },
+        "headings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commit_sha": {
+          "type": "string"
+        },
+        "blob_sha": {
+          "type": "string"
+        },
+        "missing_at_commit": {
+          "type": "string"
         }
       },
       "required": [
         "kind",
         "repository",
-        "issue_number",
         "url",
         "revision",
         "state",
-        "issue_id",
         "repository_id"
       ],
       "additionalProperties": false
@@ -832,6 +943,15 @@
         },
         "source": {
           "$ref": "#/$defs/Source"
+        },
+        "parent_task_id": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "id": {
           "$ref": "#/$defs/Id"
@@ -947,6 +1067,15 @@
         },
         "source": {
           "$ref": "#/$defs/Source"
+        },
+        "parent_task_id": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [

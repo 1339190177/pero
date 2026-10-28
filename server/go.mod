@@ -2,7 +2,10 @@ module github.com/phodal/pero/server
 
 go 1.24
 
-require github.com/jackc/pgx/v5 v5.7.6
+require (
+	github.com/jackc/pgx/v5 v5.7.6
+	github.com/yuin/goldmark v1.8.2
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

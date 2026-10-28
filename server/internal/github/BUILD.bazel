@@ -4,20 +4,31 @@ go_library(
     name = "github",
     srcs = [
         "client.go",
+        "roadmap.go",
+        "roadmap_parser.go",
         "service.go",
     ],
     importpath = "github.com/phodal/pero/server/internal/github",
     visibility = ["//server:__subpackages__"],
-    deps = ["//server/internal/store"],
+    deps = ["//server/internal/store",
+        "@com_github_yuin_goldmark//:goldmark",
+        "@com_github_yuin_goldmark//ast",
+        "@com_github_yuin_goldmark//extension",
+        "@com_github_yuin_goldmark//extension/ast",
+        "@com_github_yuin_goldmark//text",
+    ],
 )
 
 go_test(
     name = "github_test",
     srcs = [
         "client_test.go",
+        "roadmap_test.go",
+        "roadmap_parser_test.go",
         "service_test.go",
     ],
     embed = [":github"],
+    data = ["//:docs/ROADMAP.md"],
     env = {"PERO_REQUIRE_TEST_DATABASE": "1"},
     env_inherit = ["PERO_TEST_DATABASE_URL"],
     tags = [

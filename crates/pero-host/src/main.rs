@@ -1,6 +1,10 @@
-use pero_contracts::{EchoRequest, HostEvent};
+use pero_contracts::{
+    EchoRequest, HostEvent, RemoteConnectionPreference, SetRemoteSettingsRequest,
+};
 use std::io::{self, BufRead, Write};
 mod agents;
+mod apps;
+mod contributions;
 
 fn emit(event: HostEvent) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
@@ -16,6 +20,7 @@ fn main() -> io::Result<()> {
     }
     let mut agents = agents::Manager::new(std::env::current_dir()?);
     let settings_path = std::env::var_os("PERO_SETTINGS_PATH").map(std::path::PathBuf::from);
+    let mut apps = apps::Apps::new(settings_path.as_deref());
     let locale = settings_path
         .as_deref()
         .and_then(pero_runtime::settings::load_locale)
@@ -30,8 +35,44 @@ fn main() -> io::Result<()> {
     for line in io::stdin().lock().lines() {
         let line = line?;
         let value: serde_json::Value = serde_json::from_str(&line).unwrap_or_default();
+        if value.get("method").and_then(|v| v.as_str()) == Some("contribution") {
+            contributions::dispatch(value);
+            continue;
+        }
+        if value.get("method").and_then(|v| v.as_str()) == Some("apps") {
+            emit(apps.dispatch(value))?;
+            continue;
+        }
         if value.get("action").is_some() {
             agents.dispatch(value);
+            continue;
+        }
+        if value.get("method").and_then(|v| v.as_str()) == Some("settings.remote") {
+            let request_id = value
+                .get("id")
+                .and_then(|id| id.as_str())
+                .filter(|id| !id.is_empty() && id.len() <= 128)
+                .map(str::to_string);
+            let saved = serde_json::from_value::<SetRemoteSettingsRequest>(value)
+                .ok()
+                .filter(|request| !request.id.is_empty() && request.id.len() <= 128)
+                .zip(settings_path.as_deref())
+                .is_some_and(|(request, path)| {
+                    let connection = match &request.connection {
+                        RemoteConnectionPreference::Configured(connection) => Some(connection),
+                        RemoteConnectionPreference::Disconnected(()) => None,
+                    };
+                    pero_runtime::settings::save_remote_connection(path, connection).is_ok()
+                });
+            emit(HostEvent::new(
+                if saved {
+                    "remote_settings_saved"
+                } else {
+                    "remote_settings_error"
+                },
+                request_id,
+                String::new(),
+            ))?;
             continue;
         }
         if value.get("method").and_then(|v| v.as_str()) == Some("settings.locale") {

@@ -19,6 +19,8 @@ import (
 const apiVersion = "2026-03-10"
 const maxResponseBytes = 2 * 1024 * 1024
 
+var errNotFound = errors.New("GitHub repository unavailable")
+
 type rawIssue struct {
 	ID          json.Number     `json:"id"`
 	NodeID      string          `json:"node_id"`
@@ -35,7 +37,11 @@ type rawIssue struct {
 }
 
 func (s *Service) get(ctx context.Context, path string, q url.Values, target any) (http.Header, error) {
-	u := s.base.ResolveReference(&url.URL{Path: path, RawQuery: q.Encode()})
+	decoded, decodeErr := url.PathUnescape(path)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("invalid GitHub read path")
+	}
+	u := s.base.ResolveReference(&url.URL{Path: decoded, RawPath: path, RawQuery: q.Encode()})
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid GitHub read")
@@ -63,7 +69,7 @@ func (s *Service) get(ctx context.Context, path string, q url.Values, target any
 		case 403:
 			return nil, fmt.Errorf("GitHub repository access denied")
 		case 404:
-			return nil, fmt.Errorf("GitHub repository unavailable")
+			return nil, errNotFound
 		default:
 			return nil, fmt.Errorf("GitHub returned HTTP %d", response.StatusCode)
 		}
@@ -85,8 +91,9 @@ func numericID(value json.Number) bool {
 func (s *Service) observe(ctx context.Context, config store.GitHubRepository) ([]store.GitHubIssue, bool, error) {
 	path := "/repos/" + url.PathEscape(config.Owner) + "/" + url.PathEscape(config.Repo)
 	var repo struct {
-		ID   json.Number `json:"id"`
-		Name string      `json:"full_name"`
+		ID      json.Number `json:"id"`
+		Name    string      `json:"full_name"`
+		Private bool        `json:"private"`
 	}
 	if _, err := s.get(ctx, path, nil, &repo); err != nil {
 		return nil, true, err
@@ -94,7 +101,7 @@ func (s *Service) observe(ctx context.Context, config store.GitHubRepository) ([
 	if !numericID(repo.ID) || !strings.EqualFold(repo.Name, config.Name()) {
 		return nil, true, fmt.Errorf("GitHub repository identity mismatch")
 	}
-	if err := s.db.BindGitHubRepository(ctx, config, repo.ID.String()); err != nil {
+	if err := s.db.BindGitHubRepository(ctx, config, repo.ID.String(), repo.Private); err != nil {
 		if errors.Is(err, store.ErrConflict) {
 			return nil, true, fmt.Errorf("GitHub repository identity changed; review its binding")
 		}

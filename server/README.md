@@ -11,7 +11,7 @@ make outbound requests; ACP execution remains on the execution machine.
 Set `PERO_GITHUB_REPOSITORIES` to a JSON array of explicit repository bindings:
 
 ```json
-[{"project_id":"default","owner":"acme","repo":"repo","workspace_key":"default","agent_id":"codex","acceptance":"Run the project checks and report their results","auto_dispatch":false,"required_label":"pero:ready"}]
+[{"project_id":"default","owner":"acme","repo":"repo","workspace_key":"default","agent_id":"codex","acceptance":"Run the project checks and report their results","auto_dispatch":false,"required_label":"pero:ready","roadmap_path":"auto"}]
 ```
 
 `PERO_GITHUB_TOKEN` optionally supplies a server-only fine-grained token with
@@ -31,6 +31,41 @@ finish before requesting another; overlapping manual sync returns 409. Each repo
 2 MiB per response; invalid/oversized goals are skipped with an explicit partial
 result. A limited scan never proves that an absent Issue was deleted or closed.
 See [GitHub's Issues API](https://docs.github.com/en/rest/issues/issues).
+
+`roadmap_path` is optional and disabled when omitted. `auto` tries `ROADMAP.md`,
+then `docs/ROADMAP.md`; an explicit relative `.md` path selects one file. Reads pin
+the repository's default-branch commit, decode the complete Contents API response,
+and verify its Git blob digest before parsing. Private repositories additionally
+need Contents read permission. A failed/partial read never closes missing tasks.
+
+Each Markdown checkbox becomes one Task, including checked items (closed source).
+Heading paths define groups; nested checkboxes retain `parent_task_id`, source
+parent identity and depth. Inline `#tags` outside code become tags, and Issue
+labels become tags. No heading names or status labels are invented as tags.
+ROADMAP tasks always enter as drafts; repository Issue auto-dispatch policy does
+not execute them. Checked or removed source items cannot be claimed/dispatched.
+
+Use `<!--pero:id:stable-name-->` for identities that survive renames/moves within a file.
+Otherwise identity hashes the heading path, parent identity and normalized first
+goal line. Line shifts, file commit changes, completion toggles and continuation
+edits keep that identity. Ambiguous duplicate IDs/goals are reported as partial,
+without merging guesses or closing omitted items. The semantic source revision
+excludes line/commit/blob metadata; claimed/executed goals keep their exact frozen
+revision. A complete later parse marks absent items missing and cancels only
+their queued Runs. Running work and acceptance records remain independent.
+Each project/repository binding selects one path. If a complete read selects a
+replacement path, including the `auto` fallback, prior-path items become missing.
+The new path has new Task identities; IDs are never guessed across files. Partial
+reads keep prior-path states. Missing items retain their last known URL, commit
+and blob, with `missing_at_commit` recording the absence observation.
+
+Both operator and client task lists accept `source_kind=github|roadmap` and `tag`
+before pagination. Tags filter the latest source observation while preserving
+frozen Run tags. ROADMAP pages follow repository, path and current document line,
+then Task ID, so parents precede their children across page boundaries. Their
+cursor must match the same project scope, source kind and tag filter. Other lists
+keep newest-created ordering. `GET /api/client/v1/github/status` exposes only repositories and
+errors within that Client's projects; configuration and sync stay operator-only.
 
 The repository ID is pinned on first read. Issue identity uses project + immutable
 repository ID + Issue ID; names, Issue numbers and URLs are display/reference
@@ -57,8 +92,8 @@ atomically before execution; a Run already running continues until explicitly
 cancelled or completed. Reopening or editing a completed Issue never silently
 retries it. Agent completion never updates GitHub labels, assignees or Issue state.
 
-GitHub webhook intake, GitHub App installation/OAuth, external assignee writeback,
-and ROADMAP adapters remain later slices. Human claim refers to the internal
+GitHub webhook intake, GitHub App installation/OAuth and external assignee writeback
+remain later slices. Human claim refers to the internal
 project-scoped client identity, independently of the execution Worker device.
 
 ## Client identities and shared tasks
@@ -104,8 +139,9 @@ POST /api/client/v1/tasks/{id}/cancel
 Claim, release and cancel accept `{}`. Dispatch accepts the same optional
 `worker_id` and idempotency header as operator dispatch. API checks enforce
 ownership even when another Desktop has stale data. Client credentials cannot
-provision Workers/clients or invoke the operator GitHub sync routes. Public
-signup, GitHub OAuth and credential revocation are not implemented.
+provision Workers/clients or invoke the operator GitHub sync routes. GitHub
+sign-in can issue Desktop credentials for an existing Client scope. Project
+provisioning remains operator-owned; a credential revocation UI is not implemented.
 
 ## Run
 
@@ -120,6 +156,7 @@ embedded migrations are applied under a database advisory lock.
 | `PERO_OPERATOR_TOKEN` | Required operator bearer credential |
 | `PERO_LISTEN` | Bind address; defaults to `127.0.0.1:8787` |
 | `PERO_LEASE_SECONDS` | Lease duration, 1–3600 seconds; defaults to 60 |
+| `PERO_GITHUB_SYNC_SECONDS` | Source polling interval, 60–86400 seconds; defaults to 60. The public Task Center uses 600 to stay within anonymous GitHub quotas. |
 
 `GET /healthz` checks database connectivity without authentication. API routes
 require a bearer credential; community pages use the separate sessions described below. Protect any non-loopback deployment with
@@ -253,6 +290,28 @@ their lifecycle through the same Task/Run protocol. It does not require moving
 control-plane state or scheduling into Rust. Kubernetes provisioning, sandbox
 isolation and production deployment are not implemented by this slice.
 
+## Local Desktop contributions
+
+GitHub-linked Desktop identities can use `/api/client/v1/contributions` without a
+private project grant or Worker assignment. The dedicated API returns reviewed
+public GitHub-backed goals, not private Task prompts, execution logs or paths.
+Public repository intake already publishes its public source goals; private
+repository work requires explicit reviewed community publication.
+
+- `GET /api/client/v1/contributions` accepts `limit` (1–50) and an opaque cursor.
+- `GET /api/client/v1/contributions/{id}` reads a published coding goal.
+- `POST .../{id}/claim` and `/release` use the existing task claim owner.
+- `POST .../{id}/pull-request` accepts `{url,branch,head_sha,source_revision}` for
+  the current claimant. The PR must target the published repository and frozen
+  requirement revision. Retrying the same evidence is safe; reviewed follow-up
+  commits may update the same PR's head.
+
+Submission records a candidate awaiting maintainer review. It creates no Worker
+Run, independent verification or contribution-point award. Private task and
+Worker endpoints retain their project scopes. Migration 013 applies through the
+existing startup migration owner. See [Desktop workflow](../desktop/README.md#contribute-on-this-computer)
+and [verification](../docs/fitness/contributor-workflow.md).
+
 ## Community tasks and contributions (#2)
 
 The same Go binary serves `/tasks`, `/tasks/{id}`, `/leaderboard` and
@@ -320,3 +379,23 @@ execution state, acceptance, reversal, history, recovery and responsive themes.
 Screenshots and `verification.json` land in `test-results/community/`. Fixture
 success does not establish real GitHub OAuth configuration, real Agent execution,
 production isolation or deployment to openpero.com.
+
+### Desktop sign-in handoff
+
+The existing GitHub OAuth configuration also supports Desktop connection:
+
+- `GET /connect/desktop?state=…&code_challenge=…` resumes browser login and consent.
+- `POST /connect/desktop` requires the signed-in contributor session, origin and CSRF.
+- `POST /auth/desktop/token` exchanges a two-minute code and S256 verifier exactly once.
+
+The fixed return URL is `pero://connect/callback`. Client Secret, GitHub access
+tokens and Desktop bearer credentials are never put in that URL. Each Desktop
+credential is hashed separately and authenticates the existing GitHub Client.
+OAuth itself does not add projects or execution rights. The immutable GitHub ID
+owns identity; the operator owns `clients.projects`. Existing Worker binding adds
+the Worker's projects to that same Client, as before. Operators may explicitly
+provision an existing account's Client scope when no Worker is assigned.
+
+Live configuration is held in `/etc/openpero/server.env` (0600); the GitHub App
+callback is `https://app.openpero.com/auth/github/callback`. Never commit its
+Client Secret. The service discards the GitHub access token after identity lookup.

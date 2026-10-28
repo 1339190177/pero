@@ -1,5 +1,18 @@
 # Pero Desktop
 
+## Local Apps preview
+
+Run `npm run dev:apps` from the repository root to build Desktop and open
+Virtual Cell. The first build installs its pinned frontend dependencies when
+missing. Python 3 must be available; `PERO_APP_PYTHON` may select a trusted local
+interpreter. This preview uses `target/apps-preview`, separate from your normal
+Desktop profile. Close its window to stop the preview.
+
+The normal Desktop also includes **Apps**: open Virtual Cell, or install a
+built App directory and enable it. Disable stops its backend; removing an App
+retains its data. [App package contract](../apps/README.md) and
+[verification](../docs/fitness/apps.md) describe the supported scope.
+
 Electron loads the shared GPUI Web/WASM workbench. The isolated renderer has no
 Node.js access. A bounded preload bridge connects it to `pero-host --stdio`.
 The Rust Host uses the official ACP SDK to supervise one Agent process per live
@@ -37,7 +50,7 @@ native file chooser. The Agent and workspace are fixed once connected.
 
 | Agent | Local adapter | Setup |
 | --- | --- | --- |
-| Codex | `codex-acp` on PATH | Install the ACP adapter and authenticate Codex. Select a model offered by the Agent. |
+| Codex | Project dependency `@agentclientprotocol/codex-acp` 2.3.0 | `npm ci` installs the official [Codex ACP adapter](https://github.com/agentclientprotocol/codex-acp) and its locked Codex CLI. Authenticate Codex, then select a model offered by the Agent. |
 | Claude | Bundled `@agentclientprotocol/claude-agent-acp` | Authenticate Claude using its supported local login. |
 | Grok | `opencode acp` | Install OpenCode and configure xAI authentication. The registry selects `xai/grok-code-fast-1`. |
 
@@ -45,6 +58,10 @@ Installed means an adapter executable was found; it does not establish provider
 authentication. Advertised Agent login methods are explicit actions. Terminal
 login methods are displayed but require login in a terminal. Authentication
 does not automatically resend a failed prompt.
+
+The built-in Codex entry uses this project's `node_modules/.bin/codex-acp` and
+does not fall back to a global adapter. Run
+`node_modules/.bin/codex login` for the installed CLI's supported login flow.
 
 Optional adapters live in ignored `agents.local.json`, or a path supplied with
 `PERO_AGENTS_FILE`. Start with [agents.example.json](../agents.example.json).
@@ -77,31 +94,84 @@ Run desktop tests sequentially because they control native input focus.
 See [provider verification](../docs/fitness/acp-provider-verification.md) for
 actual Codex/Claude replies and the outstanding Grok authentication check.
 
-The original task overview remains labeled example data. **Remote tasks** is a
-separate real Task/Run view backed by the Go service described below. GitHub/PR
-publishing, a persistent local Desktop daemon, signed packaging and physical
-macOS IME testing remain separate slices. `npm run dev:web` renders the same UI
-without the native Agent/remote bridge.
+**Public contributions** connects published work to local ACP sessions and draft
+PR submission. **Remote tasks** remains the separate Task/Run/Worker path backed
+by the Go service below. A persistent local Desktop daemon, notarized packaging
+and physical macOS IME acceptance remain separate. `npm run dev:web` renders the
+same UI without the native Agent/remote bridge.
+
+## Contribute on this computer
+
+1. Open **Tasks**, choose **Sign in with GitHub**, and return from browser consent.
+   New GitHub accounts can browse **Public contributions** without a private
+   project grant or Worker assignment. Only GitHub-backed published tasks appear.
+2. Select a task and **Claim** it. Choose your installed coding Agent, then
+   **Start on this computer** and select a parent folder. Pero clones into its own
+   task directory and creates a `codex/pero-…` branch; existing checkouts are untouched.
+3. Use the normal coding conversation, authentication, permission and Stop
+   controls. The Agent receives the public requirement and frozen source revision.
+4. Return to the contribution and choose **Review changes**. This shows actual
+   tracked and untracked changes. A later edit requires another review.
+5. Choose **Commit, push and create draft PR**. Pero uses your authenticated
+   GitHub CLI, forks when needed, pushes the branch, creates or finds the draft PR,
+   and registers its URL and commit with the task. A failed registration preserves
+   the PR and exposes **Retry linking PR**. Submission stays pending maintainer review.
+
+Git, an authenticated coding CLI and GitHub CLI (`gh`) must be installed on this
+computer. Run `gh auth login --hostname github.com` for GitHub publishing and set
+Git's `user.name`/`user.email`. GitHub identity login does not authenticate the
+model or grant `gh` repository access. Setup errors keep the workspace available.
+
+The public requirement and branch binding are persisted in the prepared
+checkout. After restarting Desktop, select the task and the same parent folder
+to recover it. A changed public goal cannot silently relabel old work. Creating a
+PR is explicit; viewing, claiming and coding do not publish or award acceptance.
+
+`npm run test:contribution` exercises real Electron, Host, PostgreSQL and Git with
+local OAuth/GitHub and file-writing ACP fixtures. Requires an isolated
+`PERO_TEST_DATABASE_URL` and the current development build. Set
+`PERO_CONTRIBUTION_REAL_AGENT=1` to use your authenticated Codex and actual tools
+in the disposable repository; GitHub publication remains a fixture in that test.
 
 ## Remote tasks
 
-Start the [Go control plane](../server/README.md) with PostgreSQL. Launch Desktop
-with `PERO_CLOUD_URL` set to its HTTPS origin (loopback HTTP is allowed for local
-development). Ordinary clients use an operator-provisioned `PERO_CLIENT_TOKEN`;
-operators use `PERO_OPERATOR_TOKEN`. A configured client token always selects
-client authority, even if an operator variable is also present. These are process
-configuration; there is no separate Desktop preference store. Credentials stay in
-Electron's main process and are filtered out of the local Host environment.
+The default Task Center is `https://app.openpero.com`. For this service, leave
+the URL at its default and enter your project-scoped Pero client token. Existing
+saved connections and explicit disconnects retain priority. See the
+[deployment runbook](../deployment/task-center/README.md).
+
+Start the [Go control plane](../server/README.md) with PostgreSQL and provision a
+project-scoped client token. In Desktop, open **Remote tasks**, enter the service
+URL and that token in the connection form, keep **Project client** selected, and
+choose **Connect and save**. Use an HTTPS origin; loopback HTTP is allowed for local development.
+This is a Pero client token, not a GitHub personal access token. Repository
+bindings, provider credentials and optional ROADMAP intake are configured on the
+[Go service](../server/README.md#github-issue-intake).
+
+The connection survives an app restart and reopens Remote tasks. URL and access
+mode use the runtime-owned preferences; the credential is encrypted by the OS
+credential store. If that store is unavailable, unlock or enable it and reconnect.
+**Disconnect** persists the disconnected state, including across restarts.
+Environment-only setup remains supported with `PERO_CLOUD_URL` plus
+`PERO_CLIENT_TOKEN` or `PERO_OPERATOR_TOKEN`. A saved connection takes precedence;
+a saved disconnect prevents environment fallback. Client authority never falls
+back to an operator token. Credentials are excluded from renderer diagnostics and
+the local Host environment.
 
 Open **Remote tasks**. Clients see **Available / Mine / All**, claim an idle Task,
-and choose **Execute**. Filters cover loaded pages; **Load more** extends them.
+and choose **Execute**. These ownership filters cover loaded pages; **Load more**
+extends them. **Issues / ROADMAP** and tag filters run on the service before
+pagination. Issue labels and ROADMAP inline tags appear as selectable tag chips;
+nested ROADMAP items retain their parent link and heading path.
 Only the claim's owner can execute/cancel it or release an idle claim to another
 client. These are Pero client identities and claims, not GitHub login or assignee
 changes. Provisioning instructions are in the
 [server setup](../server/README.md#client-identities-and-shared-tasks).
 
-Operators can **Sync issues** from configured repositories and see their manual
-or label-gated automatic dispatch policy. Imported Tasks link to the source Issue.
+Operators can **Sync sources** from configured repositories and see their manual
+or label-gated automatic dispatch policy. Imported Tasks link to the source Issue
+or a commit-pinned ROADMAP line. ROADMAP intake is opt-in and always creates drafts;
+Issue auto-dispatch policy does not execute ROADMAP items.
 Closed sources block new work; changed sources keep the saved goal frozen and
 require the indicated refresh/review step. Independent verification and GitHub
 writeback are separate operations.
@@ -135,3 +205,96 @@ does not deploy a service to openpero.com or certify a real model provider.
 adds the read-only GitHub fixture, two project-scoped Desktop clients, claim
 conflicts/handoff and automatic dispatch to the same real local service/Worker
 path. Fixture checks do not establish public GitHub or real-model acceptance.
+
+The connector and saved-connection checks use the existing `npm run build`
+outputs. They do not need a Worker or model login:
+
+```sh
+npm run test:remote-settings
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:connector
+PERO_TEST_DATABASE_URL='postgres://.../pero_test?sslmode=disable' npm run test:connector:live
+```
+
+`test:remote-settings` uses real Electron, the OS credential store and Host writes
+against a local HTTP fixture; it needs no Go service or database. It checks
+encrypted persistence, restart, client authority, disconnect and recovery errors.
+`test:connector` needs Go and an isolated PostgreSQL database, then drives the real
+Desktop connection form against a local Go service with GitHub/ROADMAP fixtures.
+It checks source counts, filters, hierarchy, scoped visibility and restart.
+`test:connector:live` uses that same local service and Desktop against read-only
+public `phodal/pero` data at `api.github.com`, so outbound access and available
+public API quota are required; no GitHub token is needed. Its counts come from
+the observed repository snapshot. Both connector tests import without execution
+or GitHub writes. These checks verify a local setup; openpero.com has not been
+deployed by them.
+
+### GitHub sign-in
+
+In **Tasks → GitHub Connector**, choose **Sign in with GitHub**. The system
+browser opens the configured service, completes GitHub login, and asks to connect
+Desktop. Choose **Open Pero Desktop** to return. No token copying is required.
+The connection is saved through the existing OS-encrypted runtime settings.
+The access-token form remains available for operator-provisioned connections.
+
+GitHub sign-in does not assign private project or Worker access. An unprovisioned
+account can use Public contributions with its empty private-project scope; the
+operator grants private projects separately. The current
+`phodal` GitHub identity is provisioned for project `pero` on app.openpero.com.
+
+For local macOS URL delivery, run `npm run build` then
+`npm run build:macos-dev`. Open `target/local/Pero.app` before signing in. This is
+an ad-hoc-signed development bundle referencing the checkout; it is not a portable,
+notarized distribution. Other OS protocol registration has not been accepted.
+
+Run `npm run test:desktop-login` with an isolated `PERO_TEST_DATABASE_URL` and,
+if necessary, `PERO_CHROMIUM_PATH`. It exercises Go/PostgreSQL, a local OAuth
+provider fixture, Chromium consent and Electron's native callback event, encrypted
+saving, restart, cancellation and wrong/repeated callbacks.
+
+### Native GPUI preview
+
+Run `npm run build:macos-native`, then open `target/native/Pero Native.app`.
+This optional preview reuses the GPUI workbench and Rust Host without Electron,
+Chromium, WebView or Wasm. Local ACP sessions use the existing installed adapters
+and model authentication. Preview history and preferences are isolated under
+`~/.pero/native-preview`; they do not overwrite the Electron profile.
+
+This is a development preview: it references the checkout's Host and adapters.
+It is not yet a portable release. Cloud HTTP coordination, GitHub OAuth/deep-link
+return, encrypted cloud credentials and embedded App panels are not connected in
+this shell. Unsupported cloud requests display an explicit error. Native
+cross-platform packaging remains unverified. See [native verification](../docs/fitness/native-preview.md).
+
+### Portable macOS development package (Electron)
+
+Run `npm run package:macos` on the target Mac architecture. This builds release
+Wasm, optimizes it with pinned Binaryen 132, and packages the release Rust Host,
+Web assets and Electron into `target/package/Pero.app`. Unlike `build:macos-dev`,
+this bundle contains its resources and does not link to the checkout. Settings
+and history remain in the normal user data directory.
+
+The package retains English and Simplified Chinese Electron locales. GPUI embeds
+catalog fonts, with system canvas fallback for other Chinese text; duplicate
+public font binaries are omitted. ACP JavaScript adapters are included, while
+Codex and Claude native CLIs are not. Install the desired CLI on the machine and
+make it available on PATH (including `/opt/homebrew/bin` and `~/.local/bin`), or
+supply the existing custom Agent configuration. Electron supplies the adapters'
+Node runtime. Model authentication remains with the user's Agent installation.
+
+`target/package/size.json` reports uncompressed App bytes and compressed DMG bytes
+separately. Packaging fails if `Pero-macos-<arch>.dmg` is 100,000,000 bytes or larger.
+The App itself exceeds that limit because Electron includes Chromium. The bundle
+is ad-hoc signed and signature-verified; it is not notarized.
+
+Run the existing conversation suite against the actual package:
+
+```sh
+PERO_PACKAGED_EXECUTABLE="$PWD/target/package/Pero.app/Contents/MacOS/Pero" node tests/e2e/workbench.mjs
+```
+
+This starts outside the checkout with an isolated profile and the ACP fixture.
+It checks streaming, cancellation, permission requests, history replay, Chinese
+input, language switching, dark mode and narrow windows. It does not prove a real
+model response or native macOS deep-link delivery. On macOS this fixture uses
+`--use-mock-keychain` to avoid OS permission dialogs; real keychain persistence
+requires the separate credential suite and is not established by this check.

@@ -1,0 +1,144 @@
+name: Release macOS Desktop
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
+        default: v0.1.0-dev.20261028
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  macos-arm64:
+    # Apple Silicon image; keep the explicit architecture guard below.
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      CARGO_BUILD_JOBS: '2'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Check runner architecture
+        run: node -e "if (process.platform !== 'darwin' || process.arch !== 'arm64') throw Error('Release requires macOS arm64')"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Rust nightly
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: nightly-2026-10-28
+          targets: wasm32-unknown-unknown
+
+      - name: Set up Rust stable
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-macos-arm64
+          cache-on-failure: true
+
+      - name: Checkout pinned GPUI snapshot
+        run: |
+          kit="$RUNNER_TEMP/gpui-kit"
+          echo "PERO_GPUI_KIT_PATH=$kit" >> "$GITHUB_ENV"
+          git init --quiet "$kit"
+          git -C "$kit" remote add origin https://github.com/longbridge/gpui-kit.git
+          git -C "$kit" fetch --depth 1 origin ec89cfc36404667b7947aeb3d40b1c2859d729dd
+          git -C "$kit" checkout --detach FETCH_HEAD
+
+      - name: Install package dependencies
+        run: |
+          mkdir -p target/release-diagnostics
+          npm ci 2>&1 | tee target/release-diagnostics/npm-ci.log
+          node node_modules/electron/install.js
+          brew install librsvg
+          python3 -c 'import venv, ensurepip'
+
+      - name: Embed workflow build metadata
+        run: node scripts/release/macos.mjs prepare
+
+      - name: Resolve pinned local GPUI packages
+        run: node scripts/cargo.mjs check -p pero-contracts 2>&1 | tee target/release-diagnostics/resolve.log
+
+      - name: Build portable installer
+        run: npm run package:macos 2>&1 | tee target/release-diagnostics/package.log
+
+      - name: Check generated contracts and types
+        run: npm run check 2>&1 | tee target/release-diagnostics/check.log
+
+      - name: Verify package and checksums
+        run: node scripts/release/macos.mjs verify
+
+      - name: Launch actual packaged Desktop
+        run: node scripts/release/macos.mjs smoke 2>&1 | tee target/release-diagnostics/smoke.log
+
+      - name: Write release notes
+        run: |
+          cat > target/package/release-notes.md <<EOF_NOTES
+          Pero Desktop development build for Apple Silicon macOS, built by GitHub Actions from the tagged source.
+
+          - Task Center: https://app.openpero.com
+          - Sign in with GitHub, choose a public contribution, work with a local coding CLI, review changes and create a draft PR.
+          - Install and authenticate a supported coding CLI, Git, and GitHub CLI (gh) before publishing a PR. Native coding CLIs are not bundled.
+          - The application is ad-hoc signed and is not notarized. This is a development prerelease.
+          - Source/build details and DMG SHA-256 are in Pero-macos-arm64.build.json and SHA256SUMS.
+          EOF_NOTES
+
+      - name: Publish CI-built assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null || true)
+          if [[ -z "$draft" ]]; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --prerelease --title "Pero Desktop $RELEASE_TAG" --notes-file target/package/release-notes.md
+          elif [[ "$draft" != true ]]; then
+            echo 'A published release already exists; refusing to replace its installer.' >&2
+            exit 1
+          else
+            gh release edit "$RELEASE_TAG" --title "Pero Desktop $RELEASE_TAG" --notes-file target/package/release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" target/package/Pero-macos-arm64.dmg target/package/Pero-macos-arm64.build.json target/package/SHA256SUMS --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease=true
+
+      - name: Retain failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-macos-arm64-diagnostics
+          path: |
+            target/release-diagnostics/
+            target/package/size.json
+            desktop/dist/release.json
+            test-results/release/
+          if-no-files-found: ignore
+          retention-days: 7
