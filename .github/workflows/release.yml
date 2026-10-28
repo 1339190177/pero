@@ -64,6 +64,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: release-macos-arm64
+          cache-on-failure: true
 
       - name: Checkout pinned GPUI snapshot
         run: |
@@ -78,6 +79,7 @@ jobs:
         run: |
           mkdir -p target/release-diagnostics
           npm ci 2>&1 | tee target/release-diagnostics/npm-ci.log
+          node node_modules/electron/install.js
           brew install librsvg
           python3 -c 'import venv, ensurepip'
 

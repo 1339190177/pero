@@ -45,5 +45,15 @@ suite using PostgreSQL, Rust regression suite and Host contracts. The final
 download artifact is `target/package/Pero-macos-arm64.dmg` (98,992,233 bytes).
 
 Full results and evidence boundaries: [contributor verification](../fitness/contributor-workflow.md).
-Public deployment and release remain pending separate authorization. No live
-GitHub writes or production update were made by the implementation run.
+The user subsequently authorized full delivery and requested CI-built GitHub
+Release assets configured for the online service. The service is deployed at
+`bf3962ac`; 414 public source tasks are visible, private deployment tasks remain
+private, and source reading created no Run.
+
+The initial Release job compiled Rust/Wasm successfully, then failed because the
+repository disables npm lifecycle scripts: `npm ci` did not download Electron,
+and `Electron.app` was absent. The workflow now explicitly runs Electron's pinned
+installer, matching local development setup. Failed jobs also retain their Rust
+cache so a later packaging failure does not require another cold compilation.
+The same immutable application tag is retried through workflow dispatch; no
+failed installer was published.
