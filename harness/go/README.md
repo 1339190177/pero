@@ -68,8 +68,9 @@ silently coerced into text. Unsupported inputs fail closed.
 Without `--workspace`, no native tools are registered. An explicit workspace
 enables bounded read/write/edit/list/search; `--enable-shell` separately enables
 approved foreground Bash. Writes, edits and every shell call require approval.
-See `nativetools/README.md` for the limits and non-sandbox boundary. Web, skills
-and subagent tools remain absent.
+See `nativetools/README.md` for the limits and non-sandbox boundary. Skills are
+default-off; explicit `--skills-root` enables the [read-only catalog](skills/README.md).
+Web and subagent tools remain absent.
 An ACP client can explicitly supply MCP stdio/HTTP servers in `session/new`.
 That client is trusted: MCP stdio starts the supplied executable, inherits the
 process environment with configured additions, and HTTP reaches the supplied
@@ -94,8 +95,8 @@ compaction primitives, and durable inbox processing. ACP receives committed
 assistant output; it is not currently a token-by-token SSE passthrough.
 
 Absent: Point Projects/Hub/Pages, web/desktop UI, accountsync, product prompts,
-telemetry, workflows/jobs/schedules, subagent orchestration, plugin/skill/default
-product coding assembly, automatic file upload, and Point memory/context policies.
+telemetry, workflows/jobs/schedules, subagent orchestration, plugin/default
+product coding assembly, implicit/product skill discovery, automatic file upload, and Point memory/context policies.
 The explicit native file/shell composition is independent of those product profiles.
 Generic generation-owner and compaction seams remain because the reused tool
 and cancellation lifecycle depends on them; no Point product is mounted.

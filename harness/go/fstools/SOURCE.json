@@ -21,10 +21,10 @@
     },
     {
       "destination": "scoped.go",
-      "sha256": "aeeac10d1926dd58299da97d5a82f0d428307ffb00744e223607350d57291098",
+      "sha256": "044cb6b7a8c5cb967011505d69ebd30cbeab404e787fe574d387d5d49583aaf7",
       "source_path": "go/harness/fstools/scoped.go",
       "source_blob_sha1": "7b8d9ee52dd3db09b5efb7c16bef305c95ffe78b",
-      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained"
+      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained; explicit skills adds read-only MatchesRoot identity check / deterministic fixture"
     },
     {
       "destination": "scoped_open_unix.go",
@@ -42,10 +42,10 @@
     },
     {
       "destination": "scoped_test.go",
-      "sha256": "e97c7e57885aa96cc2a6be530a766bf0b096b8953b4524b2de34245e83c2702d",
+      "sha256": "dbee7b5fb773a7d084bc8ab8d4a733a2d0c34077a57434e27d17c86e0e6171ed",
       "source_path": "go/harness/fstools/scoped_test.go",
       "source_blob_sha1": "429b18cf2294a43ca410ade3a125b23d9710928a",
-      "changes": "source preserved"
+      "changes": "source preserved; explicit skills adds read-only MatchesRoot identity check / deterministic fixture"
     },
     {
       "destination": "workspace.go",

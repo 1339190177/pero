@@ -221,3 +221,25 @@ func TestDisableThinkingRequiresExplicitCLIOptIn(t *testing.T) {
 		t.Fatal("thinking disable flag must not invent a reasoning effort")
 	}
 }
+
+func TestExplicitSkillRootFlags(t *testing.T) {
+	flags := flag.NewFlagSet("skills", flag.ContinueOnError)
+	roots := bindSkillRoots(flags)
+	if err := flags.Parse(nil); err != nil || len(*roots) != 0 {
+		t.Fatal("skills must default off")
+	}
+	if err := flags.Parse([]string{"--skills-root", "/fixture/one", "--skills-root", "/fixture/two"}); err != nil || len(*roots) != 2 {
+		t.Fatalf("explicit roots: %v %v", *roots, err)
+	}
+	if err := flags.Parse([]string{"--skills-root="}); err == nil {
+		t.Fatal("empty root accepted")
+	}
+	for len(*roots) < 8 {
+		if err := flags.Set("skills-root", "/fixture/another"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := flags.Set("skills-root", "/fixture/overflow"); err == nil {
+		t.Fatal("unbounded root flags")
+	}
+}

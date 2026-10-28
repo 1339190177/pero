@@ -211,3 +211,25 @@ func TestScopedTextOwnerCloseAndRootReplacementFailClosed(t *testing.T) {
 		t.Fatal("closed owner still read")
 	}
 }
+
+func TestScopedTextMatchesOriginalRootOnly(t *testing.T) {
+	root, scope, _ := scopedFixture(t)
+	original, err := os.Lstat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := os.Lstat(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !scope.MatchesRoot(original) || scope.MatchesRoot(other) || scope.MatchesRoot(nil) {
+		t.Fatal("incorrect root identity match")
+	}
+	if (*ScopedTextFiles)(nil).MatchesRoot(original) {
+		t.Fatal("nil scope matched")
+	}
+	scope.Close()
+	if scope.MatchesRoot(original) {
+		t.Fatal("closed scope matched")
+	}
+}

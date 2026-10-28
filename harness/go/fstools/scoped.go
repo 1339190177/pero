@@ -36,6 +36,19 @@ type ScopedTextFiles struct {
 	afterCommit func()
 }
 
+// MatchesRoot checks whether this selection is bound to an already observed
+// root directory. It grants no authority and does not refresh the selection.
+// Discovery owners use this to reject pathname replacement (including ABA)
+// between opening their directory and selecting a manifest from that path.
+func (s *ScopedTextFiles) MatchesRoot(identity os.FileInfo) bool {
+	if s == nil || identity == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.closed && os.SameFile(s.identity, identity)
+}
+
 type scopedTextTarget struct {
 	parent   *os.Root
 	dir      string

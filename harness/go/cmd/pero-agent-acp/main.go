@@ -16,6 +16,7 @@ import (
 	"github.com/phodal/pero/harness/go/harness"
 	"github.com/phodal/pero/harness/go/nativetools"
 	"github.com/phodal/pero/harness/go/providers/openai"
+	"github.com/phodal/pero/harness/go/skills"
 )
 
 func main() {
@@ -35,6 +36,7 @@ func run() (resultErr error) {
 	shellPath := flag.String("shell", "/bin/bash", "absolute Bash executable for explicitly enabled shell")
 	approval := flag.String("approval", "ask", "tool approval policy: never or ask via ACP client")
 	budget := bindProviderBudget(flag.CommandLine)
+	skillRoots := bindSkillRoots(flag.CommandLine)
 	flag.Parse()
 	if flag.NArg() != 0 || strings.TrimSpace(*model) == "" || strings.TrimSpace(*sessions) == "" {
 		return errors.New("--model and --session-dir are required; positional arguments are unsupported")
@@ -68,16 +70,21 @@ func run() (resultErr error) {
 		return err
 	}
 	var native *nativetools.App
+	var skillCatalog *skills.Catalog
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		resultErr = errors.Join(resultErr, h.Dispose(cleanup), h.Drain(cleanup), native.Close())
+		resultErr = errors.Join(resultErr, h.Dispose(cleanup), h.Drain(cleanup), native.Close(), skillCatalog.Close())
 	}()
 	if *workspace != "" {
 		native, err = nativetools.Mount(ctx, h, nativetools.Options{Workspace: *workspace, EnableShell: *enableShell, Shell: *shellPath})
 		if err != nil {
 			return err
 		}
+	}
+	skillCatalog, err = skills.Mount(ctx, h, *skillRoots)
+	if err != nil {
+		return err
 	}
 	serverOptions := acp.Options{Harness: h, Persistence: persistence, Provider: "configured", Model: *model, Name: "pero-agent-acp", Version: "0.1"}
 	if native != nil {
@@ -153,4 +160,18 @@ func configuredProvider(endpoint, model, credential string, budget providerBudge
 		config.RetryPolicy = &harness.RetryPolicyConfig{Mode: harness.RetryNormal, MaxRetries: &count}
 	}
 	return config, nil
+}
+
+// A repeatable explicit flag is the only source of skill roots. ACP cwd and
+// tool arguments cannot add roots or trigger automatic discovery.
+func bindSkillRoots(flags *flag.FlagSet) *[]string {
+	roots := new([]string)
+	flags.Func("skills-root", "explicit read-only root containing <name>/SKILL.md (repeat up to 8 times; omitted disables skills)", func(value string) error {
+		if strings.TrimSpace(value) == "" || len(*roots) >= skills.MaxRoots {
+			return errors.New("skills-root requires a nonempty directory, at most 8 roots")
+		}
+		*roots = append(*roots, value)
+		return nil
+	})
+	return roots
 }

@@ -20,7 +20,8 @@
     "Explicit --use-env-proxy opt-in uses existing HTTP(S) proxy configuration; default direct transport and TLS verification unchanged.",
     "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged.",
     "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain.",
-    "ACP resume/load interprets latest supported controller receipt and requires client MCP presence when recorded; malformed/unknown receipts fail explicitly. No configuration-equivalence or secret persistence is introduced."
+    "ACP resume/load interprets latest supported controller receipt and requires client MCP presence when recorded; malformed/unknown receipts fail explicitly. No configuration-equivalence or secret persistence is introduced.",
+    "Optional explicit read-only Skills catalog is tracked by skills/SOURCE.json; original Point SkillRegistry, provider scopes, implicit home/project roots, product bundles and invocation hooks remain excluded. Existing Harness tool registration/generation and fstools descriptor authority are reused."
   ],
   "excluded_features": [
     "Projects",
@@ -35,7 +36,7 @@
     "jobs",
     "schedules",
     "subagent orchestration",
-    "skills",
+    "Point scoped skills registry, implicit/product skill discovery and automatic invocation hooks",
     "Point coding product profile"
   ],
   "license": "No blanket license assigned. Preserve package-specific third-party notices; remaining owner licensing decision is not inferred.",
@@ -1059,13 +1060,13 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "0a13f17692c075a6ab46cdd233604af1c742b30bfcea0791bd475f334abc224c",
-      "change": "Explicit optional provider budget CLI configuration and actual ACP/Harness HTTP budget regression."
+      "sha256": "457df2c6fa3aacf4be52cb912c615591d025eb3c6f1875832df3600e692b37f3",
+      "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     },
     {
       "destination": "cmd/pero-agent-acp/main_test.go",
-      "sha256": "5077fdc0a86ae7d3f692c75d2314fc9eea91a5250564b2d10f8d05a0601fc07e",
-      "change": "Explicit optional provider budget CLI configuration and actual ACP/Harness HTTP budget regression."
+      "sha256": "805e02c7e98223d53b39629e4d906fbe59e99afe7b9c90463535b63f6548687e",
+      "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     }
   ]
 }

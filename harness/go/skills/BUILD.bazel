@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "skills",
+    srcs = [
+        "catalog.go",
+        "tool.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/skills",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//fstools",
+        "//harness",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+    ],
+)
+
+go_test(
+    name = "skills_test",
+    srcs = ["catalog_test.go"],
+    embed = [":skills"],
+    deps = [
+        "//fstools",
+        "//harness",
+    ],
+)
