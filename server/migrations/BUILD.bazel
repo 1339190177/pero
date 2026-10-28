@@ -9,6 +9,7 @@ go_library(
         "003_github.sql",
         "004_roadmap.sql",
         "010_community.sql",
+        "011_desktop_auth.sql",
     ],
     importpath = "github.com/phodal/pero/server/migrations",
     visibility = ["//server:__subpackages__"],
