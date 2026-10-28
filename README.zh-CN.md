@@ -34,14 +34,17 @@
 
 ## 当前状态
 
-| 能力 | 状态 | 文档 |
+| 范围 | 当前状态 | Roadmap |
 | --- | --- | --- |
-| Agent 对话、工作区、附件、中英文与主题 | 开发版可用 | [Desktop 指南](desktop/README.md) |
-| 工作台或独立应用中的 Virtual Cell | macOS arm64 开发包已验证 | [App 指南](apps/README.md)、[验收记录](docs/fitness/products.md) |
-| 共享任务与远程执行 | 本地流程已验证，真实远程环境待验收 | [验收记录](docs/fitness/remote-dispatch-verification.md) |
-| GitHub 与 Roadmap 任务导入、认领及公开贡献 | 已实现，真实 GitHub PR 发布待验收 | [贡献指南](desktop/README.md#contribute-on-this-computer) |
-| App 与 Agent 工具接线、多 Agent 编排及完整 AI4S 工作流 | 规划中 | [路线图](ROADMAP.md) |
-| 独立结果验证与环境管理 | 规划中 | [路线图](ROADMAP.md) |
+| Desktop 与 Agent 会话 | ACP 对话、工具结果展示、审批界面、历史和工作区已实现 | [M0](ROADMAP.md) |
+| 任务与 Worker | 分派、租约、取消和恢复已实现；Linux 真实 Provider 验收待完成 | [M1](ROADMAP.md) |
+| GitHub 与贡献 | 来源导入、认领和本机编码已实现；真实 GitHub PR 发布待验收 | [M2](ROADMAP.md) |
+| App 与产品 | Virtual Cell 本地运行和 macOS 开发包已验证；Agent 工具和任务接线待完成 | [App 与产品](ROADMAP.md#app插件与产品) |
+| 项目、知识与团队 | 项目 journal、记忆、Pages 和团队同步规划中 | [项目与团队](ROADMAP.md) |
+| Playbook、插件与连接器 | 方法编排、多 Agent 团队和 MCP 接入规划中 | [方法与连接器](ROADMAP.md) |
+| 可信交付 | 产物版本、独立验证和接受决定规划中 | [M3](ROADMAP.md) |
+| 执行环境 | 环境模板、Use 生命周期、隔离和资源匹配规划中 | [M4](ROADMAP.md) |
+| Web 与移动工作台 | 共享工作台客户端规划中；现有 Web 页面为演示或任务浏览入口 | [多端客户端](ROADMAP.md) |
 
 ## 工作方式
 
@@ -51,7 +54,7 @@ Agent 提出建议，由人批准重要操作与最终结论。导入任务不�
 
 ![Pero 架构：客户端、Cloud 协调、Host 执行、能力生态、执行环境与可信交付](docs/assets/openpero-architecture.svg)
 
-实线框表示已有基础，虚线表示规划中的部分。实现细节见[架构文档](docs/ARCHITECTURE.md)，环境准备、构建与测试见[开发指南](DEVELOPMENT.md)。
+实线框表示已有实现基础，虚线框和连线表示规划能力或待接通的关系。完整科研工作流仍在建设中。详情见[架构文档](docs/ARCHITECTURE.md)与[开发指南](DEVELOPMENT.md)。
 
 ## 参与贡献
 

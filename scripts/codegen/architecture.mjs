@@ -58,6 +58,7 @@ add(`<defs>
 rect(0, 0, 1600, 1056, { fill: c.bg, stroke: 'none', radius: 0 });
 add('<g font-family="Inter, Helvetica Neue, Arial, sans-serif">');
 text(64, 50, 'Pero Architecture', 32, brand.navy, 650);
+text(1536, 50, 'Solid: foundation · Dashed: planned / integration', 16, c['text-muted'], 400, 'text-anchor="end"');
 add('<g transform="translate(0 -48)">');
 
 // Feedback stays outside the module boundaries.
@@ -69,7 +70,7 @@ const clients = [
   ['Desktop', 'Electron · GPUI / WASM', true],
   ['Web', 'Shared workbench', false],
   ['Mobile / Editor', 'Remote access & approvals', false],
-  ['Events & Collaboration', 'GitHub · Channels · Automations', false],
+  ['GitHub Task Intake', 'Issues · Roadmap · Claims', true],
 ];
 clients.forEach(([title, detail, current], i) => {
   const x = 64 + i * 380;
@@ -85,23 +86,24 @@ path('M 800 324 V 344');
 
 group(64, 'Cloud', 'Shared project authority');
 card(84, 428, 392, 84, 'Projects & Knowledge', 'Context · Pages · Results · Memory');
-card(84, 532, 392, 84, 'Tasks & Coordination', 'Contracts · Snapshots · Dispatch');
+card(84, 532, 392, 84, 'Tasks & Coordination', 'Tasks · Runs · Dispatch', true);
 card(84, 636, 392, 84, 'Teams & Sync', 'Identity · Policy · Journal replication');
 
-group(584, 'Host / Daemon', 'Local execution authority');
+group(584, 'Host / Worker', 'Local execution · Daemon planned');
 card(604, 428, 392, 64, 'Policy & Local State', 'Permissions · Credentials · Journal');
-card(604, 506, 392, 64, 'Managed Runs', 'Run · Session · Cancel · Recover');
+card(604, 506, 392, 64, 'Worker Execution', 'Claim · Lease · Cancel · Recover', true);
 card(604, 584, 392, 64, 'Harness & Tools', 'Agent loop · Files · Terminal · Browser');
 card(604, 662, 392, 64, 'ACP Sessions', 'Events · Prompts · Approval flow', true);
 
 group(1104, 'Capability Ecosystem', 'Replaceable backends & extensions');
-card(1124, 428, 392, 84, 'Apps & Playbooks', 'Research · Software · Engineering');
-card(1124, 532, 392, 84, 'Connectors', 'MCP · Data · Platforms · Devices');
-card(1124, 636, 392, 84, 'Agent Backends', 'Codex · Claude · OpenCode', true);
+card(1124, 428, 392, 64, 'Apps & Products', 'Virtual Cell · Local Python', true);
+card(1124, 506, 392, 64, 'Playbooks & Plugins', 'Methods · Skills · Agent tools');
+card(1124, 584, 392, 64, 'Connectors', 'MCP · Data · Platforms · Devices');
+card(1124, 662, 392, 64, 'Agent Backends', 'Codex · Claude · OpenCode', true);
 
 path('M 486 470 H 594', { both: true });
 text(540, 457, 'Sync', 16, c['text-muted'], 400, 'text-anchor="middle"');
-path('M 486 574 H 544 V 538 H 594');
+path('M 486 574 H 544 V 538 H 594', { solid: true });
 text(540, 524, 'Run', 16, c['text-muted'], 400, 'text-anchor="middle"');
 path('M 1114 470 H 1078 V 538 H 1006');
 text(1060, 457, 'Methods', 15, c['text-muted'], 400, 'text-anchor="middle"');
@@ -115,13 +117,13 @@ text(1536, 792, 'Resource owners · Bindings · Use leases', 17, c['text-muted']
 path('M 800 744 V 802', { arrow: false });
 path('M 230 802 H 1370', { arrow: false });
 [
-  ['Local Machine', 'Workspace · Desktop · Container'],
-  ['Lab & HPC', 'Python · SSH · Instruments'],
-  ['Cloud & Kubernetes', 'Pods · Sandboxes · Compute'],
-  ['Trusted Workers', 'Capabilities · Leases · Results'],
-].forEach(([title, detail], i) => {
+  ['Local Machine', 'Approved workspaces', true],
+  ['Lab & HPC', 'Python · SSH · Instruments', false],
+  ['Cloud & Kubernetes', 'Pods · Sandboxes · Compute', false],
+  ['Trusted Workers', 'Claim · Lease · Results', true],
+].forEach(([title, detail, current], i) => {
   const x = 64 + i * 380;
-  card(x, 814, 332, 88, title, detail);
+  card(x, 814, 332, 88, title, detail, current);
   path(`M ${x + 166} 802 V 814`);
   path(`M ${x + 166} 902 V 914`, { arrow: false });
 });

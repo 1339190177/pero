@@ -34,14 +34,17 @@ The longer-term goal is to connect these Apps with agents, collaborators and com
 
 ## Status
 
-| Capability | State | Docs |
+| Area | Current status | Roadmap |
 | --- | --- | --- |
-| Agent conversations, workspaces, attachments, English/Chinese and themes | Available in development builds | [Desktop guide](desktop/README.md) |
-| Virtual Cell in the workbench or as a standalone App | macOS arm64 development package verified | [App guide](apps/README.md), [verification](docs/fitness/products.md) |
-| Shared tasks and remote execution | Verified locally; remote-environment acceptance pending | [Verification](docs/fitness/remote-dispatch-verification.md) |
-| GitHub and Roadmap task intake, claims and public contributions | Implemented; real GitHub PR publication pending acceptance | [Contribution guide](desktop/README.md#contribute-on-this-computer) |
-| App-to-Agent tools, multi-agent orchestration and complete AI4S workflows | Planned | [Roadmap](ROADMAP.md) |
-| Independent result verification and environment management | Planned | [Roadmap](ROADMAP.md) |
+| Desktop & Agent sessions | ACP conversations, tool results, approval UI, history and workspaces implemented | [M0](ROADMAP.md) |
+| Tasks & Workers | Dispatch, leases, cancellation and recovery implemented; Linux real-provider acceptance pending | [M1](ROADMAP.md) |
+| GitHub & contributions | Intake, claims and local coding implemented; real GitHub PR publication acceptance pending | [M2](ROADMAP.md) |
+| Apps & products | Virtual Cell runs locally and in a macOS development package; Agent tools and task integration pending | [Apps & products](ROADMAP.md#app插件与产品) |
+| Projects, knowledge & teams | Project journals, memory, Pages and team sync planned | [Projects & teams](ROADMAP.md) |
+| Playbooks, plugins & connectors | Method orchestration, multi-agent teams and MCP integrations planned | [Methods & connectors](ROADMAP.md) |
+| Trusted delivery | Artifact versions, independent verification and acceptance decisions planned | [M3](ROADMAP.md) |
+| Execution environments | Environment templates, Use lifecycle, isolation and resource matching planned | [M4](ROADMAP.md) |
+| Web & mobile workbench | Shared workbench clients planned; current Web pages are demos or task browsing | [Clients](ROADMAP.md) |
 
 ## How it works
 
@@ -51,7 +54,7 @@ Agents propose work; people approve consequential actions and accepted conclusio
 
 ![Pero architecture: clients, Cloud coordination, Host execution, capabilities, environments, and trusted delivery](docs/assets/openpero-architecture.svg)
 
-Solid outlines mark existing foundations; dashed elements are planned. See the [architecture](docs/ARCHITECTURE.md) for implementation details and [development guide](DEVELOPMENT.md) for setup, builds and tests.
+Solid boxes mark implemented foundations; dashed boxes and links mark planned capabilities or integration. The end-to-end research workflow remains in progress. See the [architecture](docs/ARCHITECTURE.md) and [development guide](DEVELOPMENT.md) for details.
 
 ## Contribute
 
