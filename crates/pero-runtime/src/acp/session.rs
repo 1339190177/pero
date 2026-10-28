@@ -203,6 +203,10 @@ async fn run(
                 connection.send_request(InitializeRequest::new(ProtocolVersion::V1)).block_task(),
                 &mut commands, &mut deferred, &tx, &thread, "Agent initialization",
             ).await? else { return Ok(()); };
+            // Never start a session under a protocol version this client does not implement.
+            if initialized.protocol_version != ProtocolVersion::V1 {
+                return Err(failure("Agent negotiated an unsupported ACP protocol version"));
+            }
             let auth_methods = initialized.auth_methods.clone();
             event(&tx, &thread, "agent_info", "", serde_json::to_value(&initialized).unwrap_or_default());
             let mut session_data = loop {
@@ -498,3 +502,4 @@ fn next_permission_id() -> String {
 #[cfg(test)]
 #[path = "../../../../tests/runtime/acp_lifecycle.rs"]
 mod lifecycle_tests;
+

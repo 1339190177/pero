@@ -17,10 +17,14 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
   const { id, method, params, result } = JSON.parse(line);
   if (method === 'initialize') {
     if (scenario === 'initialization_hangs') return;
+    if (scenario === 'unsupported_protocol') { reply(id, { protocolVersion: 999, agentCapabilities: {}, authMethods: [] }); return; }
+    if (scenario === 'dsh_wire') { reply(id, { protocolVersion: 1, agentCapabilities: { loadSession: true }, authMethods: [] }); return; }
     reply(id, { protocolVersion: 1, agentCapabilities: {}, agentInfo: { name: 'lifecycle-fixture', version: '1' }, authMethods: [{ id: 'login', name: 'Fixture login' }, { type: 'terminal', id: 'terminal-login', name: 'Interactive fixture login' }] });
   } else if (method === 'session/new') {
+    if (scenario === 'unsupported_protocol') { update('unexpected-session-new'); return; }
     if (scenario === 'auth' && !authenticated) { fail(id, -32000, 'Fixture requires login'); return; }
     const session = { sessionId: 'fixture-session' };
+    if (scenario === 'dsh_wire') { reply(id, { ...session, configOptions: [] }); return; }
     if (scenario !== 'legacy_models' && scenario !== 'no_models') session.configOptions = configs();
     if (scenario === 'legacy_models' || scenario === 'both_models') session.models = legacyModels();
     reply(id, session);
@@ -47,10 +51,22 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
     }
     if (text === 'permission') {
       permission = 900 + turn;
+      if (scenario === 'dsh_wire') {
+        send({ id: permission, method: 'session/request_permission', params: { sessionId: 'fixture-session', toolCall: { toolCallId: 'permission-tool' }, options: [{ optionId: 'allow-once', name: 'Allow once', kind: 'allow_once' }, { optionId: 'reject-once', name: 'Reject once', kind: 'reject_once' }] } });
+        return;
+      }
       send({ id: permission, method: 'session/request_permission', params: { sessionId: 'fixture-session', toolCall: { toolCallId: 'permission-tool', title: 'Fixture permission', status: 'pending' }, options: [{ optionId: 'allow', name: 'Allow once', kind: 'allow_once' }, { optionId: 'deny', name: 'Reject', kind: 'reject_once' }] } });
       return;
     }
     if (text === 'wait') return;
+    if (scenario === 'dsh_wire') {
+      const notify = update => send({ method: 'session/update', params: { sessionId: 'fixture-session', update } });
+      notify({ sessionUpdate: 'agent_message_chunk', messageId: 'message-1', content: { type: 'text', text: 'fixture response' } });
+      notify({ sessionUpdate: 'tool_call', toolCallId: 'tool-1', title: 'fixture_tool', kind: 'other', status: 'in_progress', rawInput: { fixture: true } });
+      notify({ sessionUpdate: 'tool_call_update', toolCallId: 'tool-1', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'fixture result' } }] });
+      finish('end_turn');
+      return;
+    }
     update(`turn-${turn}:${text}`);
     setTimeout(() => finish('end_turn'), 100);
   } else if (method === 'session/cancel') {
@@ -62,3 +78,4 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
     permission = undefined;
   } else if (id !== undefined) fail(id, -32601, 'Fixture method not found');
 });
+

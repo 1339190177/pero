@@ -1,6 +1,34 @@
 use super::*;
 use std::{collections::BTreeMap, sync::mpsc, time::Instant};
 
+#[test]
+fn unsupported_protocol_never_creates_a_ready_session() {
+    let (_handle, rx) = launch("unsupported_protocol", None);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut failed = false;
+    loop {
+        let event = rx
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap();
+        assert_ne!(event.kind, "session_ready");
+        assert_ne!(event.kind, "turn_started");
+        assert_ne!(
+            event.kind, "session_update",
+            "session/new was sent after an unsupported protocol version"
+        );
+        if event.kind == "session_error" {
+            failed = true;
+        }
+        if event.kind == "session_closed" {
+            break;
+        }
+    }
+    assert!(
+        failed,
+        "protocol mismatch must be reported, not silently closed"
+    );
+}
+
 fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver<HostEvent>) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let config = AgentConfig {
@@ -17,6 +45,48 @@ fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver
     };
     let (tx, rx) = mpsc::channel();
     (start(config, root, "fixture-thread".into(), tx), rx)
+}
+
+#[test]
+fn dsh_wire_empty_model_options_and_minimal_permission_are_supported() {
+    let (handle, rx) = launch("dsh_wire", None);
+    let ready = until(&rx, "session_ready");
+    assert_eq!(ready.data["configOptions"], json!([]));
+    handle
+        .tx
+        .send(SessionCommand::Prompt("permission".into()))
+        .unwrap();
+    let permission = until(&rx, "permission");
+    let id = permission.data["permission_id"].as_str().unwrap();
+    handle
+        .permissions
+        .lock()
+        .unwrap()
+        .remove(id)
+        .unwrap()
+        .send(None)
+        .unwrap();
+    assert_eq!(
+        until(&rx, "session_update").data["content"]["text"],
+        "permission:cancelled"
+    );
+    until(&rx, "turn_finished");
+    close(&handle, &rx);
+}
+
+#[test]
+fn dsh_wire_text_and_tool_updates_are_supported_without_a_model_setter() {
+    let (handle, rx) = launch("dsh_wire", None);
+    until(&rx, "session_ready");
+    handle
+        .tx
+        .send(SessionCommand::Prompt("updates".into()))
+        .unwrap();
+    for kind in ["agent_message_chunk", "tool_call", "tool_call_update"] {
+        assert_eq!(until(&rx, "session_update").data["sessionUpdate"], kind);
+    }
+    assert_eq!(until(&rx, "turn_finished").data["stopReason"], "end_turn");
+    close(&handle, &rx);
 }
 fn until(rx: &mpsc::Receiver<HostEvent>, kind: &str) -> HostEvent {
     let deadline = Instant::now() + Duration::from_secs(5);
