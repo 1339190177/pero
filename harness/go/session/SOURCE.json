@@ -1,0 +1,356 @@
+{
+  "repository": "https://github.com/phodal/point",
+  "revision": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "files": [
+    {
+      "path": "go/harness/session/DEEPSEEK_LICENSE.txt",
+      "git_blob_sha": "c1f7a78e89e4e4dc7b86664c3b3c76eb5eee1785",
+      "export_sha256": "89c7a584b3fd9ed8ede1e1b62abebc03d24aeb130c7c86e8136d4fe3174939e0",
+      "destination": "harness/go/session/DEEPSEEK_LICENSE.txt",
+      "destination_sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be"
+    },
+    {
+      "path": "go/harness/session/admission.go",
+      "git_blob_sha": "18c645c4b3b10cf61fb75ec8d5c177232e81ef4a",
+      "export_sha256": "41a1cd36f51d29c31d35433524eefcefc87e501b6102de7b60cf79a08502e871",
+      "destination": "harness/go/session/admission.go",
+      "destination_sha256": "12d7307b475d1bc9d3412f97df4eacd9fa09f1076d432e58a491fd525e06c16b"
+    },
+    {
+      "path": "go/harness/session/admission_test.go",
+      "git_blob_sha": "dd2b0c9f45b5ad1f9c7203b2fa997d9c49dad1df",
+      "export_sha256": "45c76f93150be36565e26fcc2ef70e99dee7b0add17713d828a953f734149ee6",
+      "destination": "harness/go/session/admission_test.go",
+      "destination_sha256": "ac35a944bed6ae248610057bd8851ed06de24eaf8812e6fbd46fbde70af87131"
+    },
+    {
+      "path": "go/harness/session/checkpoint_policy.go",
+      "git_blob_sha": "636f4a78d36234ca48da2c87a6f97082d918ab4f",
+      "export_sha256": "71e6890ddc0aef5f013ecde71f6f874e53c845638f9e375039ee7332e5c9bd13",
+      "destination": "harness/go/session/checkpoint_policy.go",
+      "destination_sha256": "c6869295ea98658aa4749f77f7844fa099c7f2c9089d3480f7ce3d81e54f11bf"
+    },
+    {
+      "path": "go/harness/session/context_plan.go",
+      "git_blob_sha": "3d4350b15d59bd0a50e4ef118e79ad77b0ea9727",
+      "export_sha256": "4d190cdc5e54f723539c672c94b67dcfaf9be44c1cba6ae312a5fd0d51ac55e1",
+      "destination": "harness/go/session/context_plan.go",
+      "destination_sha256": "54911b17fc9ae121c766e18891dfbda13a7abc277317680263b80a1a86331b8b"
+    },
+    {
+      "path": "go/harness/session/developer_message.go",
+      "git_blob_sha": "ca7bea9bde94ba396ebd75177d4fe45b342c5aee",
+      "export_sha256": "2cf047285928fa2a45421085856c0cd554561e173cd4b268333936f699c80c07",
+      "destination": "harness/go/session/developer_message.go",
+      "destination_sha256": "84f2a54abcbaa45ac790a3727ad93053601b57b1d5370b4dad07e0b84729df7d"
+    },
+    {
+      "path": "go/harness/session/filesystem_sync.go",
+      "git_blob_sha": "8a2c377c68bed7c3083cc61324aac38e75a3da4d",
+      "export_sha256": "64ee7ea20fb4b440cbd83b840facb70177e52f2d7c54f24583d941e596d45750",
+      "destination": "harness/go/session/filesystem_sync.go",
+      "destination_sha256": "1b74af0463b4b9a5d63786f99f41077c893dcbd4570436b26ad420f42b20b05b"
+    },
+    {
+      "path": "go/harness/session/fork.go",
+      "git_blob_sha": "34c286d2391d97ae004fb76dd88f67b522a4af74",
+      "export_sha256": "6aefd4a3985caa904d6d3d8e642cf138d98800415e30149bcabff371d0866905",
+      "destination": "harness/go/session/fork.go",
+      "destination_sha256": "4d8fb483227db4e0a25d0afc3a1b848397f6f91a17a64f27a29791ad472beeb3"
+    },
+    {
+      "path": "go/harness/session/fork_public.go",
+      "git_blob_sha": "b999cf35f17d2585205740e68d388945c9f72677",
+      "export_sha256": "01ff54d8d786c400c4257bcb8cdc920d6252a296a61b60c0cd92a7de294d8fe8",
+      "destination": "harness/go/session/fork_public.go",
+      "destination_sha256": "852cc14ef77fffbcfb9aa01d780dace06677b793968d10564482683fd7c8b954"
+    },
+    {
+      "path": "go/harness/session/fork_subagent_exact_test.go",
+      "git_blob_sha": "8719a6ce6542544232143b968d7be926289133a0",
+      "export_sha256": "56c64143e435e9eff7c99fce3b03b312094f0bae8175049bbc76af21b689b53b",
+      "destination": "harness/go/session/fork_subagent_exact_test.go",
+      "destination_sha256": "a788d15c8eeaa072670f3f0bc78cda432d0b78259dbd29c69c782879b0493999"
+    },
+    {
+      "path": "go/harness/session/history_snapshot.go",
+      "git_blob_sha": "7c97cfa7b28c78df30e9dd2d7a974cd300053960",
+      "export_sha256": "e40b7416f55f66a36e17d1d976c5a156688748342293b629d0727a5d419feb6f",
+      "destination": "harness/go/session/history_snapshot.go",
+      "destination_sha256": "3ee2029aef7b9acf58fb2c3ec0bb76fbbd47aefeeff2efc7df61c26e173c642c"
+    },
+    {
+      "path": "go/harness/session/history_snapshot_test.go",
+      "git_blob_sha": "852e5c4a870fc181dc783c408d33f4ce9cde6d54",
+      "export_sha256": "cbf6f1dc1656fc4e506288582291b72c57ca7ce5759a8552aecec506a9c48aef",
+      "destination": "harness/go/session/history_snapshot_test.go",
+      "destination_sha256": "c420cf0c9f1db9ba80b3b329caf9633eb9df876a4427e9e0725cbf068f37eec9"
+    },
+    {
+      "path": "go/harness/session/image_offload.go",
+      "git_blob_sha": "4604c89f3a1744b0a5ca0a5627a5056d78421332",
+      "export_sha256": "824dd10a721db9cdc3a615a39c116f79ce5f9d51e334afe42c1f22639de673f6",
+      "destination": "harness/go/session/image_offload.go",
+      "destination_sha256": "7ffc223027db23fb33d89b04d78a7b668f67f880cfb88b8df237f18467e221a8"
+    },
+    {
+      "path": "go/harness/session/image_offload_test.go",
+      "git_blob_sha": "7f13cee2ab2cc148c533d7afb10f0f24dd633dc1",
+      "export_sha256": "75ca7addfb715e851b34471908771ab9976fff92a42be8d547d56e7f1a0e2888",
+      "destination": "harness/go/session/image_offload_test.go",
+      "destination_sha256": "0c35a075495297e4b975c9e95ba1d3e649180f4643ba73b8367f5957bda10404"
+    },
+    {
+      "path": "go/harness/session/inbox.go",
+      "git_blob_sha": "85f2b5f70c74cf2939eb82e75388859e7885e417",
+      "export_sha256": "0e503cc3c0d8444bc6b85a3e4f846e7159b0f0c2ab9ebe7ba36c72868d923a68",
+      "destination": "harness/go/session/inbox.go",
+      "destination_sha256": "cb2c4377ae04c767b93fc34246eabb3d991318a5dd9796bc17d49ceebaefab63"
+    },
+    {
+      "path": "go/harness/session/inbox_projection.go",
+      "git_blob_sha": "91941011e00a2361f0ef9f32a35253abdbb9ee63",
+      "export_sha256": "678958a6f897bee2e8c0963c1102f80284aaf1549826f374efb906598ee75e8b",
+      "destination": "harness/go/session/inbox_projection.go",
+      "destination_sha256": "49dcf75db68fa101421dc03f2438b1c5becb3ebd801a10f0e92b173c3875fc1e"
+    },
+    {
+      "path": "go/harness/session/inbox_projection_test.go",
+      "git_blob_sha": "d178d51627266c3b4f0f706e53707c19bf55baa5",
+      "export_sha256": "97a7501522d6c6074b838d54a5e9a914e325c2f855ad1bc37bc05d2a546c54c1",
+      "destination": "harness/go/session/inbox_projection_test.go",
+      "destination_sha256": "3fb13ff2288c39eed6b7552532ec1e601c937aa639cf944c8884d7c955296eab"
+    },
+    {
+      "path": "go/harness/session/keys.go",
+      "git_blob_sha": "d5c58ddde527a80c800d7133c9927dd2f679f041",
+      "export_sha256": "85bf0dcf9a6f7b217fd30156705a3be353151f22b05dd340817ad0f52b75be34",
+      "destination": "harness/go/session/keys.go",
+      "destination_sha256": "5f693e206b3df8693a946e79a859c11b3941e0da2375ca34570477c670f1b267"
+    },
+    {
+      "path": "go/harness/session/latest.go",
+      "git_blob_sha": "f704af10bbac6b8cd8df36671b7b92c154e48e3a",
+      "export_sha256": "25de5f41f49c1e8bf6969af8cce2420606c62e2647b0d201a8cf0d42af0fe680",
+      "destination": "harness/go/session/latest.go",
+      "destination_sha256": "11c0a1811d137a538e8a93694298e8f8a97a51de014592c28796a969c0254c30"
+    },
+    {
+      "path": "go/harness/session/opaque_events_test.go",
+      "git_blob_sha": "4d0dc64036d9294050fa6d5376893e4b7ee745b4",
+      "export_sha256": "cc029a565f405c608f26dfa637e88596a4b2aa579c5539c90aaee45db0b771c5",
+      "destination": "harness/go/session/opaque_events_test.go",
+      "destination_sha256": "fe8d3f7f996ba51ddaced6036d8f0350865152f9db82c52c66229fa40d021834"
+    },
+    {
+      "path": "go/harness/session/persistence.go",
+      "git_blob_sha": "1bb389702dab0b97f68e49bbea90edda7e140ad5",
+      "export_sha256": "aea82d7edbb9c6cca7e8192b7c1fb8de0d6c5274466656c97d7cf4567ba0dd4c",
+      "destination": "harness/go/session/persistence.go",
+      "destination_sha256": "8f460959a532db40867239971b6278e73fdf48b27c9614d572e65de75ddc19b9"
+    },
+    {
+      "path": "go/harness/session/persistence_identity_test.go",
+      "git_blob_sha": "a9b157c7edfd9a7aace17d5f2f37ddc971c15842",
+      "export_sha256": "c1709dd6ff666c37bb39c24ef56fcdce4e63dfb657ec5e9439574bce63cb65a4",
+      "destination": "harness/go/session/persistence_identity_test.go",
+      "destination_sha256": "bd3773699c784e2762b194761f2961db4e1072b6efb19eb6082a21cf4ec27e48"
+    },
+    {
+      "path": "go/harness/session/persistence_lease.go",
+      "git_blob_sha": "296d6602f481ab1ecf34b16c44e8445b4dd5c5a8",
+      "export_sha256": "79c6becac0ed0040f8dbf94533a22f1c75a7bc55259a88062511b4bbb953e271",
+      "destination": "harness/go/session/persistence_lease.go",
+      "destination_sha256": "2e6cb58d055ad352891d6f949596188e77c86db28d4b967a0d20943888d83b9d"
+    },
+    {
+      "path": "go/harness/session/persistence_lease_unix.go",
+      "git_blob_sha": "f5a52a42317749db5d8629f1c1bb7ce0703a5d45",
+      "export_sha256": "40ebd4b6a78a7b3a077ade1d8aaf1d8e38809788be6782aa52b3e6c21d16069c",
+      "destination": "harness/go/session/persistence_lease_unix.go",
+      "destination_sha256": "726e244eb850a4848cac2a39d0c57e4aff46efbc406d76d5922c22f17cc7bea4"
+    },
+    {
+      "path": "go/harness/session/persistence_lease_unix_test.go",
+      "git_blob_sha": "a493f3194a5c9b2a71b49e3277352a21e6b3c680",
+      "export_sha256": "99ef2c1a1f9d15b16d5c3509749eee314615eb6a1b3d4c2055dc79ed6fe82b73",
+      "destination": "harness/go/session/persistence_lease_unix_test.go",
+      "destination_sha256": "6f47e58366b0779709293a13e27ea31b31826abf174f3af3626f6f923fc7fd72"
+    },
+    {
+      "path": "go/harness/session/persistence_lease_windows.go",
+      "git_blob_sha": "1a214edb7c33c66d7c6413f9e1a07e26e3bcb2fa",
+      "export_sha256": "0320cbc2baacdfa2aa27e326ad10ad1a6522f91e2cbd26a1132c42ca15c52428",
+      "destination": "harness/go/session/persistence_lease_windows.go",
+      "destination_sha256": "41c49856ff92c58bd111879b6a7e4c32e11db8cf7e1e705300202c22fc6a0916"
+    },
+    {
+      "path": "go/harness/session/persistence_ownership_test.go",
+      "git_blob_sha": "ad1a87f574c05fe6a0dfcf1b0813f3abd0b963c4",
+      "export_sha256": "73059ed37f9aea5b7188ca56a3548aea93c61c8962c8aad240d45fd6ce91685e",
+      "destination": "harness/go/session/persistence_ownership_test.go",
+      "destination_sha256": "652022143bd7cd2839d872b7d2b8613dac42251d07da94b65ff544298ee2e109"
+    },
+    {
+      "path": "go/harness/session/projection.go",
+      "git_blob_sha": "014cf22a92e7e417d5b8cbbd253298a6eec07ef0",
+      "export_sha256": "bbd10faec6fe8f87e2a726e3a8826f836f8fe17f24748c86a3dee99e91ec0e3c",
+      "destination": "harness/go/session/projection.go",
+      "destination_sha256": "05f1a890082b0a6e667bb732ba425c123268716d8cf0c9f0502d1bb0145de1d8"
+    },
+    {
+      "path": "go/harness/session/publication.go",
+      "git_blob_sha": "f32243e66a28714778b69aafba45deeef07ed256",
+      "export_sha256": "00f0713efdc3fa57855ceb8b71a067466c709f1ed8845a5b2aef28ede26ed1e9",
+      "destination": "harness/go/session/publication.go",
+      "destination_sha256": "9b0e2bb32f30a2410904b0f52c8e1ef58604ac53c6ba9805809cb81166a0155d"
+    },
+    {
+      "path": "go/harness/session/publication_test.go",
+      "git_blob_sha": "cb496c0777d12e2bd64a9ac6186dc720ced87ec7",
+      "export_sha256": "d2eb55f761ad527a1902834b7c52652c848660583a2ca5b3b3dc98c2bb263996",
+      "destination": "harness/go/session/publication_test.go",
+      "destination_sha256": "f300208b27a6c4c1dad6891b3b57ce6c2d713d860b5efdbd7df72a5b4f507916"
+    },
+    {
+      "path": "go/harness/session/repair.go",
+      "git_blob_sha": "1b811b0dcc7c2aeefef2f5d9cb8492788728635f",
+      "export_sha256": "78f5ddfa6877654ae95bc0a16800aba7ad9b78950575d6647bf932791e2c75fd",
+      "destination": "harness/go/session/repair.go",
+      "destination_sha256": "3852ec65ef97e10d7be4b23a6aa31a55b9562ee268aec8c34623d5033d260790"
+    },
+    {
+      "path": "go/harness/session/repair_test.go",
+      "git_blob_sha": "7bb7ccb77f8cf03deb80d350bb526ee497e194e6",
+      "export_sha256": "6fb77615f9071fc7e449835c03664f4f120dfcd7b5563e588abb6b8518964079",
+      "destination": "harness/go/session/repair_test.go",
+      "destination_sha256": "ba53a66f83412edce60f995c64304703dfc0417575c196616ed34e0fd2d4f8e4"
+    },
+    {
+      "path": "go/harness/session/session.go",
+      "git_blob_sha": "3faeb4dc0cf41075da6c8260b898b513fbbf6d65",
+      "export_sha256": "724835336ff4165beb728c221e9a9d2333f638b0a0481841a14a1733bd5f1a36",
+      "destination": "harness/go/session/session.go",
+      "destination_sha256": "893efd0c233f23bb9d1562eaf4234cc80e4ffd88a8160c4dd99723d8a3ffef4f"
+    },
+    {
+      "path": "go/harness/session/session_events_after_test.go",
+      "git_blob_sha": "ed951067dd6843e398d8ded45b74285494071eda",
+      "export_sha256": "049bc15ba375a6b0a194ea63a564f6754328b0a62dfce93edfd61086aa291f2b",
+      "destination": "harness/go/session/session_events_after_test.go",
+      "destination_sha256": "6b24e95a73cce9b08595f9366ab93eeb78a7c858f85ad5fc89f7e062ab82e463"
+    },
+    {
+      "path": "go/harness/session/session_log_invariants_test.go",
+      "git_blob_sha": "3ac365e476ae7c8d3a25571531d287934e5c64f4",
+      "export_sha256": "e2bab271130f68272bf17f5f256e4559abd7af102664f9ec7db036582a8cab79",
+      "destination": "harness/go/session/session_log_invariants_test.go",
+      "destination_sha256": "fc02206fc2199aa3f10b7ec8e4ca3be15bef24e6635adf57f38a6b04870c0a8a"
+    },
+    {
+      "path": "go/harness/session/session_preset.go",
+      "git_blob_sha": "adc065a6f8a09c9653928d14a24e4040ff2fc7bb",
+      "export_sha256": "8667c6fde950503afc8fbd19d6497f290e5f42694ec517bbdb5db572a3700afb",
+      "destination": "harness/go/session/session_preset.go",
+      "destination_sha256": "5ef037b3f7717a25c5e75131e8a42c1ff9d8d65a487280f7a2295ba4189b22bb"
+    },
+    {
+      "path": "go/harness/session/store_append.go",
+      "git_blob_sha": "16d3bea74546cce18b80057326a8c99450784565",
+      "export_sha256": "2762863adf63a0cded783b0dd80ae393f3a581d88000bd88298334ddd76a6a0e",
+      "destination": "harness/go/session/store_append.go",
+      "destination_sha256": "195ceaa5f8526fa4410d13dcc0d9f40983ae07967e2b2a9409a1e5b14c876b10"
+    },
+    {
+      "path": "go/harness/session/store_append_test.go",
+      "git_blob_sha": "6a838053a0429e985caa7b06e460beaa1df5a6fa",
+      "export_sha256": "4e23f4682be5760504a812cdfe707e08d95b34cae319787679057dc4f99164b9",
+      "destination": "harness/go/session/store_append_test.go",
+      "destination_sha256": "bef6f8a4844665566b1acd9cb947013081cc7bc263d05628a375ef21829f7818"
+    },
+    {
+      "path": "go/harness/session/store_surface_append.go",
+      "git_blob_sha": "671611c972ba89a2531010f3baa5d5364228b2bb",
+      "export_sha256": "49a0001697a0b9e6b6baa52f3c530438f1beee857519e5b0b6363f3957eb1f74",
+      "destination": "harness/go/session/store_surface_append.go",
+      "destination_sha256": "a8dfc367a077d825d459b2677ecba406b0c32922eabfa1aaf05ca1beaefd4997"
+    },
+    {
+      "path": "go/harness/session/system_prompt.go",
+      "git_blob_sha": "4c82cfe271a38c43f134fa9aaa35158537632bfa",
+      "export_sha256": "e5892dce2ddb5f484615c750af12f3ba6aa5a07bd64fb1698d79dc14dec82c15",
+      "destination": "harness/go/session/system_prompt.go",
+      "destination_sha256": "3763351b916f727f536c5b4e49928a7cec1150ec809c0cc8c67ea6c55856a2b0"
+    },
+    {
+      "path": "go/harness/session/system_prompt_test.go",
+      "git_blob_sha": "4492cd402117e88c07e97a1d234bdb1081b58de8",
+      "export_sha256": "81950f75d6bacfecc656db996d4392bf51979a4f8f06a77b7cfbe77fb75f47ec",
+      "destination": "harness/go/session/system_prompt_test.go",
+      "destination_sha256": "ec006560010d7380db50890ac806300f4777e7782dd80385013d53413bf766c6"
+    },
+    {
+      "path": "go/harness/session/tool_history.go",
+      "git_blob_sha": "d075828320ac0cf468aaa3ee06e25841f9da31d7",
+      "export_sha256": "d96a18c3822c4c131ce09be6ac7ce1b3f4ae8a53b492cd039f18b73bf33308aa",
+      "destination": "harness/go/session/tool_history.go",
+      "destination_sha256": "bf3df03f783981026dde46d33f58d7616ddbca034430e1e711a10e2db030966f"
+    },
+    {
+      "path": "go/harness/session/tool_history_test.go",
+      "git_blob_sha": "7b9dc20b534f435fb4963d4749c5fd556fa1713d",
+      "export_sha256": "3d882a57f780c51beb4a3de2eeab7566581db449dbc72e931febf448580ef788",
+      "destination": "harness/go/session/tool_history_test.go",
+      "destination_sha256": "c8f4def7f0f3716a6eb89c6bd1b60cf5d7ba9e51a24c80931f968d407f4d3a2d"
+    },
+    {
+      "path": "go/harness/session/types.go",
+      "git_blob_sha": "2fd8cc15ff528c06e617f7a837d5da06a5d8e70c",
+      "export_sha256": "9fe88aff9df16d2586b77e18ef57811810dacdf3c7dd0d94e00a401e9c0f39e4",
+      "destination": "harness/go/session/types.go",
+      "destination_sha256": "dd9e327533f8f959f7fcf48e78104557123558820e6ef7a1bad18500a6a48b14"
+    },
+    {
+      "path": "go/harness/session/validation.go",
+      "git_blob_sha": "e4e2a87c6bb6d2dcc1dfd216602469dc330272cb",
+      "export_sha256": "a3c72a9f509c670710f6bf3e7b643d6053d569350a10f07761f2861f0917aa1a",
+      "destination": "harness/go/session/validation.go",
+      "destination_sha256": "5a5451855cd1bbaecf1a8defbc2c7bdad54bb3f05e3a8857bce9cb7132a836f0"
+    },
+    {
+      "path": "go/harness/session/working_directory_test.go",
+      "git_blob_sha": "6242594ac1bf7905b91d4f5c95259dcee118692c",
+      "export_sha256": "dc09fcdd855cc70900f84b65f6da0b823003554ec8449386653a6b0517bd837c",
+      "destination": "harness/go/session/working_directory_test.go",
+      "destination_sha256": "b436e356f1540e386ee58cbc47347bccc81f2adaf0939e663ba092cf9e572021"
+    }
+  ],
+  "changes": [
+    "Rewrite model/runtime imports into single github.com/phodal/pero/harness/go module.",
+    "Remove ProjectBinding validation/configuration/copy and DiscardUnlinkedProjectSession.",
+    "Replace Point context-plan policy and historical receipt decoders with pero.context.plan.v1 generic surface plan. Reject Point receipts.",
+    "Remove Host legacy dsh-session claimed-message rewrite exemption.",
+    "Retain selected self-contained tests only; replace old attachment-history fixture with generic suffix fixture; remove product-specific test cases.",
+    "Retain DeepSeek MIT notice and repair its relative reference."
+  ],
+  "omitted_production": [
+    "context_plan_v1.go",
+    "context_plan_v2.go",
+    "context_decode_memo.go",
+    "inbox_legacy_references.go"
+  ],
+  "new_files": [
+    "context_plan_test.go",
+    "inbox_recovery_test.go",
+    "fixtures_test.go",
+    "README.md"
+  ],
+  "layout_migration": {
+    "destination": "harness/go/session",
+    "module": "github.com/phodal/pero/harness/go",
+    "changes": [
+      "Mechanical module/import/documentation layout migration from go/agent.",
+      "Normalize license export to one terminal newline; notice wording unchanged."
+    ]
+  }
+}

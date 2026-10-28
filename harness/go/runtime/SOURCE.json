@@ -1,0 +1,268 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "scope": "Stdlib-only lifecycle kernel required by headless Go DSH, not agent loop or Pero scheduler",
+  "module": "github.com/phodal/pero/harness/go",
+  "package": "runtime",
+  "files": [
+    {
+      "source_path": "go/runtime/api_test.go",
+      "source_blob_sha1": "1c263cb402c9221c1497288fa694a1e827a720f3",
+      "destination": "api_test.go",
+      "sha256": "0440f7a9a1bb040be2ec1a3bab0526542224450df9d9635a18889cb11b7fac4c",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/application.go",
+      "source_blob_sha1": "673fad1822ee4baf7037caf0540843544acb55ab",
+      "destination": "application.go",
+      "sha256": "fdbd44d834cce93ff4496fbea096513a8cdc668c776e098ff998e0cdad380454",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:.",
+        "Remove filesystem includes, LoadApplicationFile, recursive loading, include merge helpers, and os/path imports; retain strict in-memory composition."
+      ]
+    },
+    {
+      "source_path": "go/runtime/application_test.go",
+      "source_blob_sha1": "a02023a67caf22b75dfbadb46ad17f6040ff9ff0",
+      "destination": "application_test.go",
+      "sha256": "0954435f5c08ed68084fec65d4c93d70f4e5c8e5106822ac6c579c56d671b12c",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "destination": "boundary_test.go",
+      "origin": "New extraction boundary regression tests",
+      "sha256": "7faa233fb0e613895c519121b03dea67da8c411a1571b92f74a8079a6d2933be"
+    },
+    {
+      "source_path": "go/runtime/catalog.go",
+      "source_blob_sha1": "d8fdebae90fa33495644495599a6a76a4a17ea61",
+      "destination": "catalog.go",
+      "sha256": "b52d9a70d66d4a767731eaf337cbe62d75401e33c825351455d65aea5f4c2bd6",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/cleanup_barrier_test.go",
+      "source_blob_sha1": "f22f677e693b668da889e735a95b16e9be14e34f",
+      "destination": "cleanup_barrier_test.go",
+      "sha256": "c57658b3cf7a1e3e28e5d9be2731f79ca3db03f07d06289e1f9efe82a238310b",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/definition.go",
+      "source_blob_sha1": "e2f9ddf3d0eae2e7e9f3ca0923d4e5c4d93260e8",
+      "destination": "definition.go",
+      "sha256": "d87f9042dcbb7a07bcf6e22cfa53d8c5d91b9aa32d246f5f8070a89aee0eb8a0",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/doc.go",
+      "source_blob_sha1": "75dd55dda117d600a2864171ab7e6aabdbb53bfb",
+      "destination": "doc.go",
+      "sha256": "87a2df63c8ed5d940dc05a3fe78564b24439517439f8d843c7cb54cbff4158b5",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/effect.go",
+      "source_blob_sha1": "48817607ed5b74bb19c12c1e07dd4646f32fd360",
+      "destination": "effect.go",
+      "sha256": "ff117ec63dd19b0a6c12abcae5ad7655dcf04d9baf5e78209e2bc58acb15c17a",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/effect_test.go",
+      "source_blob_sha1": "95664ba87f920c3a254faef2fb109eaf803c5243",
+      "destination": "effect_test.go",
+      "sha256": "d17ec7a91695923e2eaef3a4c6990ec135967a13bd631b550913bd13508bc0cb",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/errors.go",
+      "source_blob_sha1": "ce2f3f2b56a5b8ecc64e9a14603ea2aa8b654090",
+      "destination": "errors.go",
+      "sha256": "e0972956711449dfcdf70e73c03b7fdb838d68f79c9f5471fb44fd7f9ac8efd3",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/event.go",
+      "source_blob_sha1": "d927334430c2d73db3e321e58ad03103ddf42d61",
+      "destination": "event.go",
+      "sha256": "97573e2b17a7d5800b83f65d9fff2763e9bd870b02a16a5dba3c88a4201ea2ec",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/event_current.go",
+      "source_blob_sha1": "6f7d4c498789f9018380386694dd6a7517e6a685",
+      "destination": "event_current.go",
+      "sha256": "f08670f2aeb3f6014b4f5583e7ff1c01f00a172ef4a807153368c3c1be2e353e",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/event_current_test.go",
+      "source_blob_sha1": "a0b4b8b8420237575b8e55f4eb71115a537cc8ec",
+      "destination": "event_current_test.go",
+      "sha256": "7f64eed919b9c390b0d032bd2fdb5a3686f0586b6f31ebc9df424f681cf126b1",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/event_test.go",
+      "source_blob_sha1": "6cb5bd7f366d4b3f0fc9f8f570905a92790adbf8",
+      "destination": "event_test.go",
+      "sha256": "8f403b8d6a69cc156f9ad0ef1dc2ba457f88b4fd174d5c55d04875d13e580639",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/example_test.go",
+      "source_blob_sha1": "ea92cef40035ecf0629d9e24d8594598d6b41eab",
+      "destination": "example_test.go",
+      "sha256": "977af05d24907ab813028222201934b36b63c79485d205747b627c4cba2715bc",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:.",
+        "Rewrite import to github.com/phodal/pero/harness/go/runtime.",
+        "Use neutral lifecycle import alias in example."
+      ]
+    },
+    {
+      "source_path": "go/runtime/instance.go",
+      "source_blob_sha1": "27915d53154ccfd85ab95605e6e069fad9fa3854",
+      "destination": "instance.go",
+      "sha256": "fb095df444dabcdddada5d10e849fa6e43c2ee81e9e9bc386c5386c633eb531c",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/key.go",
+      "source_blob_sha1": "9ea4cbeab01bfca717018b16508ec8f73bb3797d",
+      "destination": "key.go",
+      "sha256": "da57291f8b2781c33e4d205efaef7275b595c9610192c6d251dc110f6ef7fff0",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/run.go",
+      "source_blob_sha1": "d3d4c96ec655560d189947180e97f5963b5f0e58",
+      "destination": "run.go",
+      "sha256": "53cdc3c5eb13aab81f95054e0bad954270314dd0c2ff8f52af1352d5fc63f329",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:.",
+        "Rename four structured logging keys from point.* to agent.*."
+      ]
+    },
+    {
+      "source_path": "go/runtime/runtime.go",
+      "source_blob_sha1": "337fdacc98472cf858ea6fbbab13c5283a18c7dc",
+      "destination": "runtime.go",
+      "sha256": "d111b36acbb56da3a083f78636248750a6a2a02c4e0731bae8e91d4b529fe40d",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/runtime_shutdown_signal_test.go",
+      "source_blob_sha1": "ae2c1a8ee78b1d056822f3949f9e6006ec9008b9",
+      "destination": "runtime_shutdown_signal_test.go",
+      "sha256": "3fb7fb162bdf6b11ddb15097ce4327964aefc7abbc8ed5b72852c7e73806307a",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/runtime_test.go",
+      "source_blob_sha1": "ad455d0755fda1f916d70e64ef9f34a7211884a5",
+      "destination": "runtime_test.go",
+      "sha256": "462940973f9c56cee2ff548a66e5c4b550b53324c9ad1f482faeb6b5c2ef90aa",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/scope.go",
+      "source_blob_sha1": "9191cdb66ab50991760b307670e496f989584be4",
+      "destination": "scope.go",
+      "sha256": "a9078c65ba5468b408a59e0dcc954de971e17f07d9e4b1c354848c121929785d",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:.",
+        "Remove unused policy overlay maps."
+      ]
+    },
+    {
+      "source_path": "go/runtime/scope_test.go",
+      "source_blob_sha1": "d4c389d99d72dfc0ad29ab59ba1fc042fcb1499f",
+      "destination": "scope_test.go",
+      "sha256": "b5da81144fde4da8f9c9fd05fa302d3c718c8a496ce0622166da86a3fdf087bf",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/service.go",
+      "source_blob_sha1": "cdfc86d81b7db64ca442938fd1e20eb1b0ba2dcb",
+      "destination": "service.go",
+      "sha256": "7427ea321d3924296fac2bce9e110bb81f630dc446ba2b4885fc64ec3efaa1fc",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    },
+    {
+      "source_path": "go/runtime/state_machine_test.go",
+      "source_blob_sha1": "3bd88234230600bf8599358ae348e3cdebfa0053",
+      "destination": "state_machine_test.go",
+      "sha256": "0049af02873f4b66ed0b31f936f2ed9eada024a891fd21ef8272d289868091a9",
+      "adaptations": [
+        "Rename package point to runtime and diagnostic prefix point: to runtime:."
+      ]
+    }
+  ],
+  "excluded": [
+    "supervisor.go",
+    "supervisor_test.go",
+    "timer.go",
+    "timer_test.go",
+    "policy.go",
+    "policy_test.go",
+    "benchmark_test.go",
+    "BUILD.bazel",
+    "go.mod",
+    "cmd/",
+    "docs/",
+    "examples/",
+    "repair/"
+  ],
+  "license_note": "No new repository-wide license grant. Upstream runtime directory contains no third-party notice files; Cordis lifecycle attribution retained in README.",
+  "layout_migration": {
+    "destination": "harness/go/runtime",
+    "module": "github.com/phodal/pero/harness/go",
+    "changes": [
+      "Mechanical module/import/documentation layout migration from go/agent.",
+      "Normalize license export to one terminal newline; notice wording unchanged."
+    ]
+  }
+}
