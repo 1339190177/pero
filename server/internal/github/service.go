@@ -26,6 +26,7 @@ type Result struct {
 	Dispatched int      `json:"dispatched"`
 	Partial    bool     `json:"partial"`
 	Errors     []string `json:"errors"`
+	Missing    int      `json:"missing,omitempty"`
 }
 type RepositoryStatus struct {
 	ProjectID     string `json:"project_id"`
@@ -36,6 +37,7 @@ type RepositoryStatus struct {
 	LastSyncedAt  string `json:"last_synced_at,omitempty"`
 	Partial       bool   `json:"partial"`
 	Error         string `json:"error,omitempty"`
+	RoadmapPath   string `json:"roadmap_path,omitempty"`
 }
 type Status struct {
 	Configured   bool               `json:"configured"`
@@ -91,6 +93,9 @@ func ParseRepositories(raw string) ([]store.GitHubRepository, error) {
 	seen := map[string]bool{}
 	for i := range configs {
 		c := &configs[i]
+		if !validRoadmapPath(c.RoadmapPath) {
+			return nil, fmt.Errorf("invalid GitHub roadmap path at index %d", i)
+		}
 		if c.RequiredLabel == "" {
 			c.RequiredLabel = "pero:ready"
 		}
@@ -133,9 +138,29 @@ func New(db *store.Store, repos []store.GitHubRepository, token string, options 
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	s := &Service{db: db, repos: configs, token: token, base: u, client: client, state: Status{Configured: len(configs) > 0, Repositories: []RepositoryStatus{}, Errors: []string{}}}
 	for _, r := range configs {
-		s.state.Repositories = append(s.state.Repositories, RepositoryStatus{ProjectID: r.ProjectID, Owner: r.Owner, Repo: r.Repo, AutoDispatch: r.AutoDispatch, RequiredLabel: r.RequiredLabel})
+		s.state.Repositories = append(s.state.Repositories, RepositoryStatus{ProjectID: r.ProjectID, Owner: r.Owner, Repo: r.Repo, AutoDispatch: r.AutoDispatch, RequiredLabel: r.RequiredLabel, RoadmapPath: r.RoadmapPath})
 	}
 	return s, nil
+}
+
+func (s *Service) StatusForProjects(projects []string) Status {
+	all := s.Status()
+	state := Status{Repositories: []RepositoryStatus{}, Errors: []string{}}
+	allowed := map[string]bool{}
+	for _, project := range projects {
+		allowed[project] = true
+	}
+	for _, repo := range all.Repositories {
+		if allowed[repo.ProjectID] {
+			state.Repositories = append(state.Repositories, repo)
+			if repo.Error != "" {
+				state.Errors = append(state.Errors, repo.Owner+"/"+repo.Repo+": "+repo.Error)
+			}
+		}
+	}
+	state.Configured = len(state.Repositories) > 0
+	state.Running = all.Running && state.Configured
+	return state
 }
 
 func (s *Service) Status() Status {
@@ -188,6 +213,29 @@ func (s *Service) Sync(ctx context.Context) (Result, error) {
 				}
 				if change.Dispatched {
 					result.Dispatched++
+				}
+			}
+		}
+		if config.RoadmapPath != "" {
+			snapshot, parseErrors, readErr := s.observeRoadmap(ctx, config)
+			if readErr != nil {
+				partial = true
+				message = readErr.Error()
+			} else {
+				change, err := s.db.SyncRoadmap(ctx, config, snapshot)
+				if err != nil {
+					partial = true
+					message = "Roadmap tasks could not be imported"
+				} else {
+					result.Imported += change.Imported
+					result.Updated += change.Updated
+					result.Missing += change.Missing
+				}
+				partial = partial || snapshot.Partial
+				for _, failure := range parseErrors {
+					if len(result.Errors) < 32 {
+						result.Errors = append(result.Errors, config.Name()+": "+failure)
+					}
 				}
 			}
 		}
