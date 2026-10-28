@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/phodal/pero/server/internal/github"
 	"github.com/phodal/pero/server/internal/httpapi"
 	"github.com/phodal/pero/server/internal/store"
 )
@@ -43,12 +44,21 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("open control-plane database: %w", err)
 	}
-	defer db.Close()
+	defer func() { stop(); db.Close() }()
+	repositories, err := github.ParseRepositories(os.Getenv("PERO_GITHUB_REPOSITORIES"))
+	if err != nil {
+		return err
+	}
+	sources, err := github.New(db, repositories, os.Getenv("PERO_GITHUB_TOKEN"))
+	if err != nil {
+		return err
+	}
+	sources.Start(ctx)
 	listen := os.Getenv("PERO_LISTEN")
 	if listen == "" {
 		listen = "127.0.0.1:8787"
 	}
-	server := &http.Server{Addr: listen, Handler: httpapi.Handler(db, token), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	server := &http.Server{Addr: listen, Handler: httpapi.Handler(db, token, sources), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()

@@ -5,6 +5,60 @@ Workers, claims, leases, events and completion receipts in PostgreSQL. The Deskt
 can create and dispatch a task, inspect progress and request cancellation. Workers
 make outbound requests; ACP execution remains on the execution machine.
 
+## GitHub Issue intake
+
+Set `PERO_GITHUB_REPOSITORIES` to a JSON array of explicit repository bindings:
+
+```json
+[{"project_id":"default","owner":"acme","repo":"repo","workspace_key":"default","agent_id":"codex","acceptance":"Run the project checks and report their results","auto_dispatch":false,"required_label":"pero:ready"}]
+```
+
+`PERO_GITHUB_TOKEN` optionally supplies a server-only fine-grained token with
+Metadata/Issues read access for private repositories or higher public quotas.
+Without it, the connector reads public repositories. The production origin is
+fixed to `https://api.github.com`; no client input can redirect credentials.
+Redirects are rejected, and pagination is checked against the same origin/path.
+The Go implementation reuses Point's connector boundaries and protocol facts;
+it does not depend on Point, MCP, a local `gh` login or a Node service.
+
+Configured repositories sync at startup and every 60 seconds through one Go
+service. Operators can call `POST /api/v1/github/sync` with `{}` or inspect
+`GET /api/v1/github/status`. Client and Worker credentials cannot configure or
+trigger the connector. A sync reports imported/updated/dispatched counts, partial
+coverage and errors. Each repository read is bounded to five 100-item pages and
+2 MiB per response; invalid/oversized goals are skipped with an explicit partial
+result. A limited scan never proves that an absent Issue was deleted or closed.
+See [GitHub's Issues API](https://docs.github.com/en/rest/issues/issues).
+
+The repository ID is pinned on first read. Issue identity uses project + immutable
+repository ID + Issue ID; names, Issue numbers and URLs are display/reference
+data. Repeated sync updates the existing Task, preserves immutable source
+revisions, and excludes pull requests returned by the Issues endpoint. Imported
+Issue bodies remain untrusted goal data.
+
+By default an imported Issue is a draft. An operator may set `auto_dispatch:true`
+for a repository; the Issue must also be open and carry the exact configured
+`required_label` (default `pero:ready`). The project, workspace, Agent and optional
+target `worker_id` come from server configuration. Auto dispatch only starts the
+first Run and skips Tasks already claimed by a client. Human claim and automatic
+dispatch share the Task row lock, so neither silently steals the other's work.
+
+Source edits update `Task.latest_source`; a claimed or previously dispatched Task
+keeps its goal and `Task.source` bound to that exact input revision. The Run keeps
+its original snapshot. A revision mismatch blocks another dispatch rather than
+labelling an old goal with new provenance. Releasing a never-run claim and syncing
+refreshes that draft. Previously dispatched goals need explicit review/a future
+refresh workflow before reuse; creating a new manual goal remains available.
+A synced closed Issue blocks
+new claims and dispatch. If its current Run is still queued, closure cancels it
+atomically before execution; a Run already running continues until explicitly
+cancelled or completed. Reopening or editing a completed Issue never silently
+retries it. Agent completion never updates GitHub labels, assignees or Issue state.
+
+GitHub webhook intake, GitHub App installation/OAuth, external assignee writeback,
+and ROADMAP adapters remain later slices. Human claim refers to the internal
+project-scoped client identity, independently of the execution Worker device.
+
 ## Run
 
 Set `PERO_DATABASE_URL` to a PostgreSQL database and `PERO_OPERATOR_TOKEN` to a
@@ -89,7 +143,7 @@ omits the optional nested Run; detail contains its full snapshot.
 Detail returns the newest 200 events, bounded to 256 KiB and ordered by sequence.
 `events_truncated` explicitly reports omitted earlier evidence, and nullable
 `events_first_seq` / `events_last_seq` identify the returned range. All events remain
-in PostgreSQL; older-event pagination/export is a later slice. Source ingestion, artifact storage, independent
+in PostgreSQL; older-event pagination/export is a later slice. Additional source adapters, artifact storage, independent
 verification, user/team login, device revocation, PR publication and public
 multi-tenant operations remain later slices. Any unresolved `reconcile` Run also
 quarantines its assigned Worker's slot, preventing another task from overlapping
