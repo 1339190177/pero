@@ -4,3 +4,4 @@
 - [0002: Remote task dispatch and task sources](0002-remote-task-dispatch.md)
 - [0003: GitHub issue intake and client ownership](0003-github-issues-and-client-claims.md)
 - [0004: Incremental Bazel build](0004-incremental-bazel-build.md)
+- [0005: GitHub ROADMAP tasks and Desktop connector](0005-github-roadmap-connector.md)
