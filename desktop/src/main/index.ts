@@ -10,9 +10,6 @@ import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 import { DesktopApps } from './apps';
 import { DesktopContributions } from './contributions';
 
-// GPUI uses WebGPU; Chromium still gates this backend on Linux.
-if (process.platform === 'linux') app.commandLine.appendSwitch('enable-unsafe-webgpu');
-
 // Register before ready so macOS cannot deliver the callback before the listener.
 // pero://connect/ completes sign-in; pero://tasks/<id> opens a Cloud task from the task square.
 const deepLink = (value: string) => value.startsWith('pero://connect/') || value.startsWith('pero://tasks/');
