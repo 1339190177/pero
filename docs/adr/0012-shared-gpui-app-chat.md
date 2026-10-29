@@ -70,9 +70,10 @@ The shell derives App and panel identity from the sending managed iframe before
 selecting its scope, rather than accepting a caller-supplied App name. Neither
 action sends a prompt. The person reviews and submits through the same Composer.
 
-Domain tools, structured App object references, workflow execution and result
-registration remain separate integrations. Chat availability does not establish
-that an Agent can operate every domain App feature.
+Agent → App semantic operations, bounded DOM fallback, task grants and panel
+evidence are implemented separately by [ADR 0014](0014-app-use.md). Structured
+Composer object references, workflow execution and result registration remain
+separate interfaces. Chat availability alone grants no App operation.
 
 ### Reported usage
 

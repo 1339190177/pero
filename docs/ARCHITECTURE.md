@@ -62,6 +62,24 @@ App SDK 的 `useAppChat().open()` 和 `compose(text)` 只打开聊天或填入�
 用量只展示 provider 实际报告的数据，缺失值不估算成真实消耗；产品装配与本地
 源码检查不代表 Electron、签名包或真实 Agent 已通过验收。
 
+### Agent App Use
+
+[ADR 0014](adr/0014-app-use.md) 补齐 Agent → App 方向：Rust Host 通过 ACP
+`session/new` 提供本机 MCP `app_use`，Desktop 绑定实际会话、面板实例、动作与授权，
+父壳通过受管跨来源 iframe 桥接 App SDK 的语义状态和操作。Workbench 与独立
+Product 共用此实现。普通会话可发现已挂载 App；App 会话限定对应面板。语义状态
+可读保留的隐藏面板，操作与截图要求面板可见、活动且未被覆盖。
+
+审批遵循 Agent 会话策略：自动模式直接执行，Agent 明确询问时使用 Chat 审批卡片；
+Desktop 不再追加人工确认。只读会话授权可在 App 状态条撤销。语义操作、
+有限 DOM 操作、面板截图、等待、计划和独立验证均有实际链路。执行成功不等于
+验证通过，截图也不自动成为结论。Composer 支持冻结对象引用、截图与区域标注；
+会话文件只通过绑定 App/任务的临时输入引用传入。`app_describe/app_write` 使用
+安装包声明的数据路由，写入沿用同一 Agent 审批策略；后端继续拥有领域校验。
+Host 内置 `/app-use` 工作流，完整回执保存会话、任务、实例、裁剪、时间与图片哈希。
+具体证据和剩余平台边界见
+[App Use 验证](fitness/app-use.md)。
+
 ### 从产品装配到领域组合
 
 可借鉴 Point 的[可组合交付](https://github.com/phodal/point/blob/main/docs/adr/0153-composable-delivery-and-harness-over-harness.md)原则：组合单元围绕领域目标，方法和结果契约保持稳定，执行实现可以替换。PBC 在此描述封装领域功能的设计方向，不新增一个同名运行时或注册中心。

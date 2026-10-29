@@ -100,3 +100,10 @@ See [Paper Agent](../../apps/paper-agent/README.md) and its
 
 See [App platform verification](../fitness/apps.md). Contracts are defined in
 [`protocol/apps.tsp`](../../protocol/apps.tsp), imported by the Host contract.
+
+## Agent control of App panels
+
+[ADR 0014](0014-app-use.md) extends the original first-slice boundary with the
+shared Desktop App Use MCP path, declared SDK objects, task authorization and
+panel evidence. This is distinct from the App-initiated research sessions above.
+See [App Use verification](../fitness/app-use.md) for actual acceptance scope.
