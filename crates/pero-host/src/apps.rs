@@ -52,6 +52,7 @@ enum Request {
 
 pub struct Apps {
     store: Result<AppStore, String>,
+    builtins: Option<PathBuf>,
 }
 impl Apps {
     pub fn new(settings: Option<&Path>) -> Self {
@@ -63,18 +64,21 @@ impl Apps {
                     .unwrap_or(Path::new(".pero"))
                     .join("apps")
             });
+        let builtins = std::env::var_os("PERO_BUILTIN_APPS_ROOT")
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from);
         let store = (|| {
             let python = settings
                 .map(pero_runtime::settings::load_app_python)
                 .transpose()?
                 .unwrap_or_default();
             let mut store = AppStore::open(root, python)?;
-            if let Some(catalog) = std::env::var_os("PERO_BUILTIN_APPS_ROOT") {
-                store.seed_builtins(Path::new(&catalog))?;
+            if let Some(catalog) = &builtins {
+                store.seed_builtins(catalog)?;
             }
             Ok(store)
         })();
-        Self { store }
+        Self { store, builtins }
     }
 
     pub fn dispatch(
@@ -98,6 +102,9 @@ impl Apps {
             match request {
                 Request::List { method, id } => {
                     let _ = (method, id);
+                    if let Some(catalog) = &self.builtins {
+                        store.seed_builtins(catalog)?;
+                    }
                     serde_json::to_value(store.list())
                 }
                 Request::Install { method, id, path } => {

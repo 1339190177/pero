@@ -1,5 +1,7 @@
 //! Local App packages and the single owner of their installed state and backends.
 pub mod agent;
+mod builtins;
+use builtins::BuiltinDiscovery;
 mod definition;
 mod process;
 mod python;
@@ -41,6 +43,7 @@ pub struct AppStore {
     installed: BTreeMap<AppName, AppInstallation>,
     processes: BTreeMap<AppName, AppProcess>,
     python: PythonEnvironments,
+    builtins: BuiltinDiscovery,
 }
 
 impl AppStore {
@@ -88,12 +91,23 @@ impl AppStore {
                 },
             );
         }
+        let receipt = root.join(".builtin-discovery.json");
+        let builtins = if receipt.is_file() {
+            serde_json::from_slice(&fs::read(receipt).map_err(|error| error.to_string())?)
+                .map_err(|error| error.to_string())?
+        } else {
+            BuiltinDiscovery::migrate(
+                root.join(".builtins-seeded").exists(),
+                installed.keys().cloned(),
+            )
+        };
         Ok(Self {
             root,
             data,
             installed,
             processes: BTreeMap::new(),
             python,
+            builtins,
         })
     }
 
@@ -122,46 +136,67 @@ impl AppStore {
         Ok(())
     }
 
-    /// Trusted composition-root catalog. Seed once; uninstall is durable across
-    /// restart rather than silently restoring an App the user removed.
+    /// Discover new trusted builtin identities while retaining user choices.
     pub fn seed_builtins(&mut self, catalog: &Path) -> Result<(), String> {
-        let marker = self.root.join(".builtins-seeded");
-        if marker.exists() {
-            return Ok(());
-        }
         if !catalog.is_dir() {
             return Ok(());
         }
-        if catalog.is_dir() {
-            for entry in fs::read_dir(catalog).map_err(|error| error.to_string())? {
-                let entry = entry.map_err(|error| error.to_string())?;
-                if !entry
-                    .file_type()
-                    .map_err(|error| error.to_string())?
-                    .is_dir()
-                    || !entry.path().join("app.json").is_file()
-                {
-                    continue;
-                }
-                // Already-installed builtins are retained with their user's
-                // enable state if a prior seed pass stopped partway through.
-                let directory = entry.file_name().to_string_lossy().into_owned();
-                if self.installed.keys().any(|name| name.as_str() == directory) {
-                    continue;
-                }
-                let name = self.install_package(&entry.path())?;
+        for entry in fs::read_dir(catalog).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            if !entry
+                .file_type()
+                .map_err(|error| error.to_string())?
+                .is_dir()
+                || !entry.path().join("app.json").is_file()
+            {
+                continue;
+            }
+            let definition = AppDefinition::parse(
+                &fs::read(entry.path().join("app.json")).map_err(|error| error.to_string())?,
+            )?;
+            let name = definition.name.clone();
+            if self
+                .builtins
+                .should_install(&name, self.installed.contains_key(&name))
+            {
+                self.install_package(&entry.path(), definition)?;
                 self.set_enabled(&name, true)?;
             }
+            // Persist each discovery so later package failures do not forget
+            // identities already offered to this profile.
+            if self.builtins.record(name) {
+                self.save_builtin_discovery()?;
+            }
         }
-        fs::write(marker, b"1\n").map_err(|error| error.to_string())
+        if !self.root.join(".builtin-discovery.json").is_file() {
+            self.save_builtin_discovery()?;
+        }
+        Ok(())
+    }
+
+    fn save_builtin_discovery(&self) -> Result<(), String> {
+        let pending = self.root.join(".builtin-discovery.pending");
+        fs::write(
+            &pending,
+            serde_json::to_vec(&self.builtins).map_err(|error| error.to_string())?,
+        )
+        .and_then(|_| fs::rename(pending, self.root.join(".builtin-discovery.json")))
+        .map_err(|error| error.to_string())
     }
 
     pub fn install(&mut self, source: &Path) -> Result<Vec<AppSummary>, String> {
-        self.install_package(source)?;
+        let definition = AppDefinition::parse(
+            &fs::read(source.join("app.json")).map_err(|error| error.to_string())?,
+        )?;
+        self.install_package(source, definition)?;
         Ok(self.list())
     }
 
-    fn install_package(&mut self, source: &Path) -> Result<AppName, String> {
+    fn install_package(
+        &mut self,
+        source: &Path,
+        definition: AppDefinition,
+    ) -> Result<AppName, String> {
         if fs::symlink_metadata(source)
             .map_err(|error| error.to_string())?
             .file_type()
@@ -173,9 +208,6 @@ impl AppStore {
         if source.starts_with(&self.root) || self.root.starts_with(&source) {
             return Err("App source and managed installation root must be separate".into());
         }
-        let definition = AppDefinition::parse(
-            &fs::read(source.join("app.json")).map_err(|error| error.to_string())?,
-        )?;
         let target = self.root.join(definition.name.as_str());
         if target.exists() {
             return Err(
@@ -239,6 +271,8 @@ impl AppStore {
         if !self.installed.contains_key(name) {
             return Err("App is not installed".into());
         }
+        self.builtins.record(name.clone());
+        self.save_builtin_discovery()?;
         self.processes.remove(name);
         fs::remove_dir_all(self.root.join(name.as_str())).map_err(|error| error.to_string())?;
         self.installed.remove(name);

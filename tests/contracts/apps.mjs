@@ -68,11 +68,11 @@ server.serve_forever()
   }));
   return { name, app, environment: await realpath(environment), dependency };
 };
-const launch = async () => {
+const launch = async ({ builtins = '', installed = resolve(temp, 'installed') } = {}) => {
   const child = spawn(resolve(root, 'target/debug/pero-host'), ['--stdio'], {
     cwd: temp, stdio: ['pipe', 'pipe', 'inherit'],
     env: { ...process.env, PERO_SETTINGS_PATH: resolve(temp, 'settings.json'),
-      PERO_APPS_ROOT: resolve(temp, 'installed'), PERO_BUILTIN_APPS_ROOT: '' },
+      PERO_APPS_ROOT: installed, PERO_BUILTIN_APPS_ROOT: builtins },
   });
   const exited = new Promise(done => child.once('exit', done));
   const pending = new Map();
@@ -165,8 +165,35 @@ try {
   const sharedPackages = await host.request('resolve', { name: 'paper-beta' });
   assert.equal(sharedPackages.ok, false);
   assert.match(sharedPackages.error, /system.site.packages/i);
+  await host.close(); host = undefined;
+  const builtins = resolve(temp, 'builtin-catalog'), builtinInstalledRoot = resolve(temp, 'auto-installed');
+  await mkdir(builtins); await mkdir(builtinInstalledRoot);
+  await writeFile(resolve(builtinInstalledRoot, '.builtins-seeded'), '1\n');
+  const addBuiltin = async name => {
+    const directory = resolve(builtins, name);
+    await mkdir(resolve(directory, 'dist'), { recursive: true });
+    await writeFile(resolve(directory, 'dist/index.html'), `<h1>${name}</h1>`);
+    await writeFile(resolve(directory, 'app.json'), JSON.stringify({ schemaVersion: 1, name, version: '0.1.0', displayName: name,
+      contributes: { panels: [{ id: 'main', title: name, entry: 'dist/index.html' }] } }));
+  };
+  host = await launch({ builtins, installed: builtinInstalledRoot });
+  assert.deepEqual((await host.request('list')).value, []);
+  await addBuiltin('paper-agent');
+  let discovered = await host.request('list');
+  assert.equal(discovered.ok, true, discovered.error);
+  assert.deepEqual(discovered.value.map(app => [app.name, app.enabled]), [['paper-agent', true]]);
+  assert.equal((await host.request('disable', { name: 'paper-agent' })).ok, true);
+  await addBuiltin('later-app');
+  // The original builtin was removed in this legacy profile, so stays absent.
+  await addBuiltin('virtual-cell');
+  discovered = await host.request('list');
+  assert.deepEqual(discovered.value.map(app => [app.name, app.enabled]), [['later-app', true], ['paper-agent', false]]);
+  assert.equal((await host.request('uninstall', { name: 'later-app' })).ok, true);
+  await host.close(); host = undefined;
+  host = await launch({ builtins, installed: builtinInstalledRoot });
+  assert.deepEqual((await host.request('list')).value.map(app => [app.name, app.enabled]), [['paper-agent', false]]);
   assert.deepEqual(failures, []);
-  console.log('App stdio wiring, generated contract, shared Python default and environment isolation passed.');
+  console.log('App stdio wiring, generated contract, Python environments, incremental builtin discovery and retained disable/removal passed.');
 } finally {
   if (host) await host.close();
   await rm(temp, { recursive: true, force: true });

@@ -108,23 +108,75 @@ fn installation_and_retained_data_lifecycle() {
 }
 
 #[test]
-fn builtin_uninstall_is_not_reversed_on_restart() {
-    let workspace = Workspace::new();
-    let source = workspace.package(None);
-    let catalog = workspace.0.join("builtin");
-    fs::create_dir(&catalog).unwrap();
-    fs::rename(&source, catalog.join("virtual-cell")).unwrap();
-    let root = workspace.0.join("managed/apps");
-    let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
-    store.seed_builtins(&catalog).unwrap();
-    assert!(store.list()[0].enabled);
-    store
-        .uninstall(&AppName::try_from("virtual-cell".to_string()).unwrap())
+fn builtin_catalog_discovers_additions_without_overwriting_choices() {
+    for legacy in [false, true] {
+        let workspace = Workspace::new();
+        let source = workspace.package(None);
+        let catalog = workspace.0.join("builtin");
+        fs::create_dir(&catalog).unwrap();
+        fs::rename(&source, catalog.join("virtual-cell")).unwrap();
+        let root = workspace.0.join("managed/apps");
+        let name = AppName::try_from("virtual-cell".to_owned()).unwrap();
+        let paper = AppName::try_from("paper-agent".to_owned()).unwrap();
+        let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
+        if legacy {
+            // This is the old on-disk format: no per-App discovery receipt.
+            store.install(&catalog.join("virtual-cell")).unwrap();
+            fs::write(root.join(".builtins-seeded"), "1\n").unwrap();
+        } else {
+            store.seed_builtins(&catalog).unwrap();
+        }
+        store.set_enabled(&name, false).unwrap();
+        drop(store);
+        let source = workspace.package(None);
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(source.join("app.json")).unwrap()).unwrap();
+        manifest["name"] = serde_json::json!("paper-agent");
+        fs::write(
+            source.join("app.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
         .unwrap();
-    drop(store);
-    let mut store = AppStore::open(root, PythonEnvironments::default()).unwrap();
-    store.seed_builtins(&catalog).unwrap();
-    assert!(store.list().is_empty());
+        fs::rename(source, catalog.join("paper-agent")).unwrap();
+        // Updating a known builtin's files does not overwrite its installed copy.
+        fs::write(
+            catalog.join("virtual-cell/dist/index.html"),
+            "changed upstream",
+        )
+        .unwrap();
+        let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
+        store.seed_builtins(&catalog).unwrap();
+        assert_eq!(store.list().len(), 2);
+        assert!(
+            !store
+                .list()
+                .iter()
+                .find(|app| app.name == name)
+                .unwrap()
+                .enabled
+        );
+        assert!(
+            store
+                .list()
+                .iter()
+                .find(|app| app.name == paper)
+                .unwrap()
+                .enabled
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("virtual-cell/dist/index.html")).unwrap(),
+            "<h1>Cell atlas</h1>"
+        );
+        store.uninstall(&paper).unwrap();
+        // Refresh and a new Host process both retain the removal.
+        store.seed_builtins(&catalog).unwrap();
+        drop(store);
+        let mut store = AppStore::open(root, PythonEnvironments::default()).unwrap();
+        store.seed_builtins(&catalog).unwrap();
+        assert_eq!(store.list().len(), 1);
+        assert_eq!(store.list()[0].name, name);
+        assert!(!store.list()[0].enabled);
+    }
 }
 
 #[test]
