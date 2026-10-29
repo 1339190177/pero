@@ -13,6 +13,7 @@ pub(crate) struct RemoteState {
     seen_connection: bool,
     pub creating: bool,
     pub(crate) submitting: bool,
+    pub search: Entity<InputState>,
     pub title: Entity<InputState>,
     pub prompt: Entity<EditorState>,
     pub acceptance: Entity<EditorState>,
@@ -29,6 +30,10 @@ pub(crate) struct RemoteState {
 
 impl RemoteState {
     pub fn new(window: &mut Window, cx: &mut Context<Workbench>) -> Self {
+        let search = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(pero_contracts::i18n::text("en", "project.search_tasks"))
+        });
         let title = cx.new(|cx| InputState::new(window, cx));
         let prompt = cx.new(|cx| {
             EditorState::new(window, cx)
@@ -43,9 +48,10 @@ impl RemoteState {
         let project = cx.new(|cx| InputState::new(window, cx).default_value("default"));
         let workspace = cx.new(|cx| InputState::new(window, cx).default_value("default"));
         let mut subscriptions = vec![];
-        for input in [&title, &project, &workspace] {
+        for input in [&search, &title, &workspace] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
+        subscriptions.push(cx.subscribe(&project, |_, _, _: &InputEvent, cx| cx.notify()));
         for input in [&prompt, &acceptance] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
@@ -55,6 +61,7 @@ impl RemoteState {
             data: json!({"configured":false,"loading":false,"tasks":[],"workers":[],"detail":null}),
             creating: false,
             submitting: false,
+            search,
             title,
             prompt,
             acceptance,
@@ -63,7 +70,7 @@ impl RemoteState {
             agent: None,
             confirm_cancel: None,
             form_error: None,
-            filter: 0,
+            filter: 2,
             technical: false,
             public_contributions: false,
             _subscriptions: subscriptions,
@@ -124,7 +131,7 @@ impl RemoteState {
             "title":self.title.read(cx).value().as_ref(),"prompt":self.prompt.read(cx).value().as_ref(),
             "acceptance":self.acceptance.read(cx).value().as_ref(),
             "project":self.project.read(cx).value().as_ref(),"workspace":self.workspace.read(cx).value().as_ref(),
-            "agent":self.agent,"form_error":self.form_error,"filter":self.filter})
+            "agent":self.agent,"form_error":self.form_error,"filter":self.filter,"search":self.search.read(cx).value().as_ref()})
     }
 }
 
@@ -208,12 +215,18 @@ pub(crate) fn remote_event_summary(event: &Value) -> String {
 impl Workbench {
     pub fn receive_remote(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
         if event.kind == "remote_open" {
-            if event.text == "desktop_login" {
+            if !self.show_local_execution_onboarding() {
                 self.navigation = 3;
-                self.sync_follow(cx);
-            } else {
-                self.open_remote(cx);
             }
+            self.selected_project = None;
+            self.project_tab = crate::projects::ProjectTab::Tasks;
+            self.remote.connection.editing = false;
+            self.remote.public_contributions = false;
+            self.sync_follow(cx);
+            if event.text != "desktop_login" {
+                self.command(json!({"action":"remote_refresh"}), cx);
+            }
+            cx.notify();
             return true;
         }
         if event.kind != "remote_state" {
@@ -223,12 +236,16 @@ impl Workbench {
             .as_bool()
             .unwrap_or(false);
         self.remote.data = event.data.clone();
+        self.reconcile_project_selection();
+        if !self.remote.loading() {
+            self.task_more_pending = false;
+        }
         if !self.remote.configured() {
             self.contribution.requested = false;
             self.contribution.data = Default::default();
         } else if self.remote.client() && !self.contribution.requested {
             self.contribution.requested = true;
-            self.remote.public_contributions = was_authenticating || self.remote.data["identity"]["projects"].as_array().is_some_and(Vec::is_empty);
+            self.remote.public_contributions = false;
             self.command(json!({"action":"remote_contribution_refresh"}), cx);
         }
         if was_authenticating
@@ -243,7 +260,13 @@ impl Workbench {
         }
         if !self.remote.seen_connection && self.remote.configured() {
             self.remote.seen_connection = true;
-            self.navigation = 3;
+            if !self.show_local_execution_onboarding()
+                && self.navigation == 1
+                && self.active_chat.is_none()
+                && self.selected_project.is_none()
+            {
+                self.navigation = 3;
+            }
             self.sync_follow(cx);
         }
         if !self.remote.loading() && self.remote.connection.submitting {
@@ -272,11 +295,6 @@ impl Workbench {
         }
         cx.notify();
         true
-    }
-    pub fn open_remote(&mut self, cx: &mut Context<Self>) {
-        self.navigation = 3;
-        self.sync_follow(cx);
-        self.command(json!({"action":"remote_refresh"}), cx);
     }
     pub(crate) fn remote_agent(&self) -> String {
         self.remote

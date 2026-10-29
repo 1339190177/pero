@@ -61,7 +61,10 @@ impl Configuration {
         let mut options = vec![];
         for option in session["configOptions"].as_array().into_iter().flatten() {
             let category = option["category"].as_str().unwrap_or("");
-            if !matches!(category, "mode" | "thought_level") || option["type"] != "select" {
+            // Categories are presentation hints, not a capability allowlist.
+            // Permission/profile selectors and future Agent settings must retain
+            // the exact advertised choices and acknowledgement semantics.
+            if category == "model" || option["id"] == "model" || option["type"] != "select" {
                 continue;
             }
             let selected: Vec<Choice> = serde_json::from_value(option["options"].clone())
@@ -168,5 +171,34 @@ impl Configuration {
                 .map_err(agent_client_protocol::Error::into_internal_error)?;
         }
         self.refresh(session)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selectors_use_advertised_semantics_including_custom_permissions() {
+        for (category, id, included) in [
+            ("mode", "mode", true),
+            ("thought_level", "effort", true),
+            ("_permission", "approval", true),
+            ("", "custom-setting", true),
+            ("model", "provider-model", false),
+        ] {
+            let mut configuration = Configuration::default();
+            configuration.refresh(&json!({"configOptions":[{
+                "category":category,"id":id,"name":"Agent setting","type":"select",
+                "currentValue":"ask","options":[{"value":"ask","name":"Ask","description":"Request approval"}]
+            }]})).unwrap();
+            assert_eq!(configuration.settings.options.len(), usize::from(included));
+            if included {
+                let (_, request) = configuration.request(&SessionId::new("thread"),id,"ask").unwrap();
+                assert_eq!(request.method, "session/set_config_option");
+                assert_eq!(request.params["configId"], id);
+                assert_eq!(configuration.settings.options[0].choices[0].description, "Request approval");
+            }
+        }
     }
 }

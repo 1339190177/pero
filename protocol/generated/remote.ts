@@ -14,6 +14,9 @@ export type RemoteProtocol1 =
   | TaskPage
   | EventReceipt
   | ProvisionWorker
+  | EnrollWorker
+  | WorkerCapability
+  | DisableWorkerResult
   | WorkerCredential
   | ClientCredential
   | Identity
@@ -193,6 +196,22 @@ export interface ProvisionWorker {
   name: string;
   projects: string[];
   labels?: string[];
+}
+export interface EnrollWorker {
+  device_id: Id;
+  request_id: Id;
+  name: string;
+  projects: string[];
+  capabilities: WorkerCapability[];
+  enrollment_secret: string;
+}
+export interface WorkerCapability {
+  project_id: Id;
+  workspace_key: Id;
+  agent_id: Id;
+}
+export interface DisableWorkerResult {
+  disabled: boolean;
 }
 export interface WorkerCredential {
   worker: Worker;

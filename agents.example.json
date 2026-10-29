@@ -1,9 +1,0 @@
-[
-  {
-    "id": "my-agent",
-    "name": "My ACP Agent",
-    "command": "/absolute/path/to/my-agent-acp",
-    "args": [],
-    "env": {}
-  }
-]

@@ -52,19 +52,23 @@ pub(crate) fn local_time(iso: &str) -> String {
     #[cfg(not(target_family = "wasm"))]
     {
         return chrono::DateTime::parse_from_rfc3339(iso)
-            .map(|date| date.with_timezone(&chrono::Local).format("%H:%M").to_string())
+            .map(|date| {
+                date.with_timezone(&chrono::Local)
+                    .format("%H:%M")
+                    .to_string()
+            })
             .unwrap_or_default();
     }
     #[cfg(target_family = "wasm")]
     {
-    if iso.is_empty() {
-        return String::new();
-    }
-    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(iso));
-    if date.get_time().is_nan() {
-        return String::new();
-    }
-    format!("{:02}:{:02}", date.get_hours(), date.get_minutes())
+        if iso.is_empty() {
+            return String::new();
+        }
+        let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(iso));
+        if date.get_time().is_nan() {
+            return String::new();
+        }
+        format!("{:02}:{:02}", date.get_hours(), date.get_minutes())
     }
 }
 
@@ -89,34 +93,12 @@ impl Workbench {
             .filter(|name| !name.is_empty())
             .unwrap_or_else(|| id.to_string())
     }
-    pub(crate) fn scope_label(&self) -> String {
-        let repos = self
-            .remote
-            .repositories()
-            .iter()
-            .map(|r| format!("{}/{}", string(r, "owner"), string(r, "repo")))
-            .collect::<Vec<_>>();
-        let mut parts = vec![];
-        if !repos.is_empty() {
-            parts.push(repos.join("、"));
-        }
-        parts.push(
-            self.t("cloud.scope_tasks")
-                .replace("{n}", &self.remote.tasks().len().to_string()),
-        );
-        parts.push(
-            self.t("cloud.scope_workers")
-                .replace("{n}", &self.worker_count().to_string()),
-        );
-        parts.join(" · ")
-    }
-
     pub fn remote_view(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
         let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
         let detail_visible = self.remote.creating || !selected.is_empty();
         let configured = self.remote.configured();
-        let editing = !configured || self.remote.connection.editing;
+        let editing = self.remote.connection.editing;
         div()
             .flex_1()
             .min_w_0()
@@ -166,40 +148,44 @@ impl Workbench {
                 },
             )
             .when(editing, |el| el.child(self.remote_connection_view(cx)))
-            .when(!editing && self.remote.client(), |el| el.child(
-                div().px(px(20.)).py(px(8.)).flex().gap(px(8.)).border_b_1().border_color(p.color("border"))
-                    .child(Button::new("public-contributions-tab").ghost().small().label(self.t("contribution.title")).toggled(self.remote.public_contributions).on_click(cx.listener(|this,_,_,cx| {
-                        this.remote.public_contributions=true;
-                        this.command(json!({"action":"remote_contribution_refresh"}),cx);
-                    })))
-                    .child(Button::new("private-remote-tab").ghost().small().label(self.t("contribution.remote_tasks")).toggled(!self.remote.public_contributions).on_click(cx.listener(|this,_,_,cx| {this.remote.public_contributions=false;cx.notify();})))
-            ))
-            .when(!editing && self.remote.public_contributions && self.remote.client(), |el| el.child(self.contribution_view(narrow,cx)))
-            .when(!editing && (!self.remote.public_contributions || !self.remote.client()), |el| {
-                el.child(
-                    div()
-                        .flex_1()
-                        .min_h_0()
-                        .flex()
-                        .when(!narrow || !detail_visible, |el| {
-                            el.child(self.remote_list(narrow, cx))
-                        })
-                        .when(!narrow || detail_visible, |el| {
-                            el.child(
-                                div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .flex()
-                                    .flex_col()
-                                    .when(self.remote.creating, |el| {
-                                        el.child(self.remote_form(narrow, cx))
-                                    })
-                                    .when(!self.remote.creating, |el| {
-                                        el.child(self.remote_detail(narrow, cx))
-                                    }),
-                            )
-                        }),
-                )
-            })
+            .when(!configured && !editing,|el|el.child(div().p(px(24.)).flex().flex_col().gap(px(12.))
+                .child(div().text_color(p.color("text-muted")).child(self.t("project.connect_tasks")))
+                .child(Button::new("project-connect").outline().label(self.t("settings.connections"))
+                    .on_click(cx.listener(|this,_,window,cx|{this.navigation=9;this.open_remote_connection(window,cx);} )))))
+            .when(
+                configured && !editing && self.remote.public_contributions && self.remote.client(),
+                |el| el.child(self.contribution_view(narrow, cx)),
+            )
+            .when(
+                configured && !editing && (!self.remote.public_contributions || !self.remote.client()),
+                |el| {
+                    el.child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .when(!detail_visible, |el| {
+                                el.child(self.remote_list(narrow, cx))
+                            })
+                            .when(detail_visible, |el| {
+                                el.child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .flex()
+                                        .flex_col()
+                                        .child(div().px(px(24.)).py(px(8.)).child(Button::new("project-task-back").ghost().small().icon(IconName::ArrowLeft).label(self.t("project.back_tasks"))
+                                            .on_click(cx.listener(|this,_,_,cx|{this.remote.creating=false;this.command(json!({"action":"remote_select","task_id":null}),cx);}))))
+                                        .when(self.remote.creating, |el| {
+                                            el.child(self.remote_form(narrow, cx))
+                                        })
+                                        .when(!self.remote.creating, |el| {
+                                            el.child(self.remote_detail(narrow, cx))
+                                        }),
+                                )
+                            }),
+                    )
+                },
+            )
     }
 }

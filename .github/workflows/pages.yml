@@ -1,0 +1,149 @@
+# Publishes the existing docs/ site and the WASM workbench to GitHub Pages.
+# The workbench is the Vite build of web/, served at /workbench/. It draws the
+# GPUI shell in the browser. Agent, remote, and Apps actions still require Desktop.
+#
+# Pages must use GitHub Actions as its source (Settings → Pages → Build and
+# deployment). The custom domain stays openpero.com. This workflow copies docs/
+# on every master push, because that folder is no longer published on its own.
+name: Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publication at a time. A newer push waits; an in-progress deploy finishes
+# so Pages is not left mid-upload.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build site and workbench
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check Pages source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          build_type=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type)
+          cname=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .cname)
+          if [[ "$cname" != "openpero.com" ]]; then
+            echo "Expected custom domain openpero.com, found: ${cname}" >&2
+            exit 1
+          fi
+          if [[ "$build_type" != "workflow" ]]; then
+            echo "Pages still publishes from the repository branch (build_type=${build_type})." >&2
+            echo "Set Settings → Pages → Build and deployment → Source to GitHub Actions, then rerun this workflow." >&2
+            echo "The custom domain openpero.com stays on the existing Pages configuration." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Set up Rust nightly
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: nightly-2026-10-28
+          targets: wasm32-unknown-unknown
+
+      - name: Set up Rust stable
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      # Outside this repo. A checkout inside it is absorbed by the Cargo workspace.
+      - name: Checkout gpui-kit
+        run: |
+          kit="$RUNNER_TEMP/gpui-kit"
+          echo "PERO_GPUI_KIT_PATH=$kit" >> "$GITHUB_ENV"
+          git init --quiet "$kit"
+          git -C "$kit" remote add origin https://github.com/longbridge/gpui-kit.git
+          git -C "$kit" fetch --depth 1 origin ec89cfc36404667b7947aeb3d40b1c2859d729dd
+          git -C "$kit" checkout --detach FETCH_HEAD
+
+      # scripts/build/fonts.mjs creates a venv when fontTools is not already installed.
+      - name: Prepare Python for font subsetting
+        run: |
+          if python3 -c 'import venv, ensurepip'; then
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install --yes python3-venv
+
+      - name: Build release workbench
+        env:
+          PERO_BUILD_RELEASE: "1"
+        run: |
+          npm run build:wasm
+          npm run build:web
+
+      - name: Assemble Pages directory
+        run: |
+          rm -rf site
+          mkdir -p site
+          rsync -a --exclude '.DS_Store' docs/ site/
+          rm -rf site/workbench
+          mkdir -p site/workbench
+          # Full Noto files are font-build inputs. The workbench embeds the faces it draws.
+          rsync -a \
+            --exclude 'fonts/NotoSansSC-Regular.ttf' \
+            --exclude 'fonts/NotoSansSC-Bold.ttf' \
+            --exclude 'fonts/.fonts-stamp.json' \
+            web/dist/ site/workbench/
+          test "$(tr -d '[:space:]' < site/CNAME)" = "openpero.com"
+          test -f site/index.html
+          test -f site/en/index.html
+          test -f site/.nojekyll
+          test -f site/workbench/index.html
+          find site/workbench -name '*.wasm' -print -quit | grep -q .
+          if grep -Eq '(src|href)="/' site/workbench/index.html; then
+            echo "workbench/index.html has root-absolute assets; keep the Vite base relative" >&2
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+          include-hidden-files: true
+
+  deploy:
+    name: Deploy GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

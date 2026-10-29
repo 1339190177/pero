@@ -91,7 +91,7 @@ func (s *Store) AuthenticateWorker(ctx context.Context, token string) (string, e
 		return "", ErrForbidden
 	}
 	var expected []byte
-	err := s.pool.QueryRow(ctx, `SELECT token_hash FROM workers WHERE id=$1`, id).Scan(&expected)
+	err := s.pool.QueryRow(ctx, `SELECT w.token_hash FROM workers w LEFT JOIN worker_devices d ON d.worker_id=w.id WHERE w.id=$1 AND COALESCE(d.enabled,true)`, id).Scan(&expected)
 	actual := sha256.Sum256([]byte(token))
 	if err != nil || subtle.ConstantTimeCompare(expected, actual[:]) != 1 {
 		return "", ErrForbidden

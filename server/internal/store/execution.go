@@ -17,8 +17,13 @@ func (s *Store) Claim(ctx context.Context, worker, instance, request string) (*R
 	defer tx.Rollback(ctx)
 	// The Worker row is its single slot and serializes duplicate claim requests.
 	var projects []string
-	if err = tx.QueryRow(ctx, `SELECT projects FROM workers WHERE id=$1 FOR UPDATE`, worker).Scan(&projects); err != nil {
+	var capabilities []byte
+	var enabled bool
+	if err = tx.QueryRow(ctx, `SELECT CASE WHEN d.worker_id IS NOT NULL AND d.owner_id<>'operator' THEN ARRAY(SELECT unnest(w.projects) INTERSECT SELECT unnest(COALESCE(c.projects,'{}'::text[]))) ELSE w.projects END,d.capabilities,COALESCE(d.enabled,true) FROM workers w LEFT JOIN worker_devices d ON d.worker_id=w.id LEFT JOIN clients c ON c.id=d.owner_id WHERE w.id=$1 FOR UPDATE OF w`, worker).Scan(&projects, &capabilities, &enabled); err != nil {
 		return nil, err
+	}
+	if !enabled {
+		return nil, ErrForbidden
 	}
 	var previous *string
 	err = tx.QueryRow(ctx, `SELECT run_id FROM claims WHERE worker_id=$1 AND instance_id=$2 AND request_id=$3`, worker, instance, request).Scan(&previous)
@@ -41,7 +46,7 @@ func (s *Store) Claim(ctx context.Context, worker, instance, request string) (*R
 	var r *Run
 	if !occupied {
 		var runID string
-		err = tx.QueryRow(ctx, `SELECT id FROM runs WHERE status='queued' AND spec->>'project_id'=ANY($1) AND (target_worker_id IS NULL OR target_worker_id=$2) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1`, projects, worker).Scan(&runID)
+		err = tx.QueryRow(ctx, `SELECT id FROM runs WHERE status='queued' AND spec->>'project_id'=ANY($1) AND (target_worker_id IS NULL OR target_worker_id=$2) AND ($3::jsonb IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements($3::jsonb) cap WHERE cap->>'project_id'=spec->>'project_id' AND cap->>'workspace_key'=spec->>'workspace_key' AND cap->>'agent_id'=spec->>'agent_id')) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1`, projects, worker, capabilities).Scan(&runID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}

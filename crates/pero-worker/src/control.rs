@@ -11,6 +11,45 @@ use std::{
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+#[derive(Debug)]
+pub struct CloudFailure {
+    message: String,
+    pub retryable: bool,
+}
+impl std::fmt::Display for CloudFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+impl From<CloudFailure> for String {
+    fn from(error: CloudFailure) -> String {
+        error.message
+    }
+}
+impl From<String> for CloudFailure {
+    fn from(message: String) -> Self {
+        Self::permanent(message)
+    }
+}
+impl From<&str> for CloudFailure {
+    fn from(message: &str) -> Self {
+        Self::permanent(message)
+    }
+}
+impl CloudFailure {
+    pub fn retained(mut self) -> Self {
+        self.message
+            .push_str("; result retained for reconciliation");
+        self
+    }
+    pub fn permanent(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            retryable: false,
+        }
+    }
+}
+
 pub struct Control {
     base: Url,
     token: String,
@@ -50,21 +89,7 @@ fn event_batch(active: &Active) -> Result<Vec<&Event>, String> {
 
 impl Control {
     pub fn new(base: &str, token: String) -> Result<Self, String> {
-        let base = Url::parse(base).map_err(|_| "Invalid PERO_CLOUD_URL")?;
-        let loopback = base
-            .host_str()
-            .is_some_and(|h| matches!(h, "localhost" | "127.0.0.1" | "[::1]" | "::1"));
-        if base.scheme() != "https" && !(base.scheme() == "http" && loopback) {
-            return Err("Worker requires HTTPS (HTTP is allowed only on loopback)".into());
-        }
-        if !base.username().is_empty()
-            || base.password().is_some()
-            || base.query().is_some()
-            || base.fragment().is_some()
-            || base.path() != "/"
-        {
-            return Err("PERO_CLOUD_URL must be an origin without credentials or a path".into());
-        }
+        let base = pero_runtime::local_worker::WorkerOrigin::parse(base)?.into_url();
         let client = Client::builder()
             .timeout(Duration::from_secs(2))
             .redirect(reqwest::redirect::Policy::none())
@@ -82,31 +107,39 @@ impl Control {
         method: reqwest::Method,
         path: &str,
         body: Option<Value>,
-    ) -> Result<T, String> {
-        let url = self.base.join(path).map_err(|_| "Invalid API route")?;
+    ) -> Result<T, CloudFailure> {
+        let url = self
+            .base
+            .join(path)
+            .map_err(|_| CloudFailure::permanent("Invalid API route"))?;
         let mut request = self.client.request(method, url).bearer_auth(&self.token);
         if let Some(body) = body {
             request = request.json(&body);
         }
-        let response = request
-            .send()
-            .map_err(|_| "Cloud connection failed".to_owned())?;
+        let response = request.send().map_err(|_| CloudFailure {
+            message: "Cloud connection failed".into(),
+            retryable: true,
+        })?;
         let status = response.status();
         if !status.is_success() {
-            return Err(format!("Cloud returned HTTP {}", status.as_u16()));
+            return Err(CloudFailure {
+                message: format!("Cloud returned HTTP {}", status.as_u16()),
+                retryable: status.is_server_error() || matches!(status.as_u16(), 408 | 429),
+            });
         }
         let mut bytes = Vec::new();
         response
             .take(1_048_577)
             .read_to_end(&mut bytes)
-            .map_err(|_| "Invalid Cloud response".to_owned())?;
+            .map_err(|_| CloudFailure::permanent("Invalid Cloud response"))?;
         if bytes.len() > 1_048_576 {
-            return Err("Cloud response exceeds size limit".into());
+            return Err(CloudFailure::permanent("Cloud response exceeds size limit"));
         }
-        serde_json::from_slice(&bytes).map_err(|_| "Invalid Cloud response".to_owned())
+        serde_json::from_slice(&bytes)
+            .map_err(|_| CloudFailure::permanent("Invalid Cloud response"))
     }
 
-    pub fn claim(&self, claim: &Claim) -> Result<Option<Run>, String> {
+    pub fn claim(&self, claim: &Claim) -> Result<Option<Run>, CloudFailure> {
         #[derive(Deserialize)]
         struct Receipt {
             run: Option<Run>,
@@ -118,7 +151,7 @@ impl Control {
         )
         .map(|r| r.run)
     }
-    pub fn inspect(&self, run: &Run) -> Result<Run, String> {
+    pub fn inspect(&self, run: &Run) -> Result<Run, CloudFailure> {
         self.request(
             reqwest::Method::GET,
             &format!(
@@ -128,14 +161,14 @@ impl Control {
             None,
         )
     }
-    pub fn renew(&self, run: &Run) -> Result<Renewal, String> {
+    pub fn renew(&self, run: &Run) -> Result<Renewal, CloudFailure> {
         self.request(
             reqwest::Method::POST,
             &format!("/api/worker/v1/runs/{}/renew", run.id),
             Some(json!({"generation":run.generation,"instance_id":run.instance_id})),
         )
     }
-    pub fn flush(&self, active: &Active) -> Result<u64, String> {
+    pub fn flush(&self, active: &Active) -> Result<u64, CloudFailure> {
         let batch = event_batch(active)?;
         if batch.is_empty() {
             return Ok(active.acknowledged);
@@ -152,7 +185,7 @@ impl Control {
         }
         Ok(receipt.last_seq)
     }
-    pub fn complete(&self, run: &Run, result: &Outcome) -> Result<Run, String> {
+    pub fn complete(&self, run: &Run, result: &Outcome) -> Result<Run, CloudFailure> {
         self.request(reqwest::Method::POST, &format!("/api/worker/v1/runs/{}/complete", run.id), Some(json!({"generation":run.generation,"instance_id":run.instance_id,"outcome":result.outcome,"summary":result.summary})))
     }
 }

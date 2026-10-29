@@ -4,10 +4,15 @@ import { DesktopLogin } from './desktop-login';
 import { safeStorage, shell } from 'electron';
 import Ajv2020 from 'ajv/dist/2020.js';
 import schema from '../../../protocol/generated/remote.schema.json';
-import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, GitHubStatus, GitHubSyncResult } from '../../../protocol/generated/remote';
+import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, GitHubStatus, GitHubSyncResult, EnrollWorker, WorkerCredential } from '../../../protocol/generated/remote';
 
 type Emit = (event: object) => void;
 type Mode = 'client' | 'operator';
+export class RemoteRequestError extends Error {
+  constructor(readonly kind: 'http' | 'network' | 'invalid_response', readonly status?: number, detail?: string) {
+    super(kind === 'http' ? `Remote ${status}: ${detail || 'request failed'}` : kind === 'network' ? 'Remote connection failed' : 'Invalid remote response');
+  }
+}
 const defaultTaskCenter = 'https://app.openpero.com';
 export type StoredRemoteConnection = { url: string; mode: Mode; encrypted_token: string };
 export type RemotePreferences = { load(): unknown; save(connection: StoredRemoteConnection | null): Promise<void> };
@@ -136,6 +141,19 @@ export class RemoteAdapter {
     })();
   }
   close() { this.login.cancel(); this.closed = true; this.token = ''; clearTimeout(this.timer); }
+  localWorkerConnection() {
+    if (this.closed || !this.state.configured || !this.base) return null;
+    return { url: this.base, mode: this.clientMode ? 'client' as const : 'operator' as const, identity: this.state.identity ?? null };
+  }
+  async enrollLocalWorker(body: EnrollWorker, expected: {url:string;mode:string;owner_id:string}): Promise<WorkerCredential> {
+    await this.initialize();
+    const connection=this.localWorkerConnection();
+    if (!connection?.identity || connection.url!==expected.url || connection.mode!==expected.mode || connection.identity.id!==expected.owner_id) throw new Error('Sign in and verify your Cloud account before enabling local execution.');
+    const path = this.clientMode ? '/api/client/v1/workers' : '/api/v1/workers/enroll';
+    const value = await this.request(path, 'POST', body);
+    try { return checked<WorkerCredential>('WorkerCredential', value); }
+    catch { throw new RemoteRequestError('invalid_response'); }
+  }
   get contributionIdentity() { return this.state.identity; }
   async contributionRequest(path: string, method = 'GET', body?: unknown): Promise<unknown> {
     await this.initialize();
@@ -152,23 +170,33 @@ export class RemoteAdapter {
     return (this.token ? message.replaceAll(this.token, '[redacted]') : message).slice(0, 500);
   }
   private async request(path: string, method = 'GET', body?: unknown): Promise<unknown> {
-    const response = await fetch(`${this.base}${path}`, {
-      method, redirect: 'error', signal: AbortSignal.timeout(8000),
-      headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json',
-        ...(method === 'POST' ? { 'Idempotency-Key': randomUUID() } : {}) },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.base}${path}`, {
+        method, redirect: 'error', signal: AbortSignal.timeout(8000),
+        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json',
+          ...(method === 'POST' ? { 'Idempotency-Key': randomUUID() } : {}) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch { throw new RemoteRequestError('network'); }
     const reader = response.body?.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
-    if (reader) for (;;) {
-      const part = await reader.read(); if (part.done) break;
-      size += part.value.length;
-      if (size > 2_000_000) { await reader.cancel(); throw new Error('Remote response is too large'); }
-      chunks.push(part.value);
+    try {
+      if (reader) for (;;) {
+        const part = await reader.read(); if (part.done) break;
+        size += part.value.length;
+        if (size > 2_000_000) { await reader.cancel(); throw new RemoteRequestError(response.ok ? 'invalid_response' : 'http', response.status); }
+        chunks.push(part.value);
+      }
+    } catch (error) {
+      if (error instanceof RemoteRequestError) throw error;
+      throw new RemoteRequestError(response.ok ? 'network' : 'http', response.status);
     }
-    const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    if (!response.ok) throw new Error(`Remote ${response.status}: ${typeof value.error === 'string' ? value.error.slice(0, 300) : 'request failed'}`);
+    let value;
+    try { value = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+    catch { throw new RemoteRequestError(response.ok ? 'invalid_response' : 'http', response.status); }
+    if (!response.ok) throw new RemoteRequestError('http', response.status, typeof value?.error === 'string' ? value.error.slice(0, 300) : undefined);
     return value;
   }
   private taskQuery(cursor?: string) {
@@ -248,8 +276,14 @@ export class RemoteAdapter {
     clearTimeout(this.timer);
     this.state.loading = true;
     if (action !== 'remote_configure') this.state.error = null;
-    this.publish();
     try {
+      // Selection belongs to this adapter. Publish the requested page with its
+      // loading state so an earlier selection cannot flash back during HTTP I/O.
+      if (action === 'remote_select') {
+        this.state.selected_task_id = command.task_id === null ? null : id(command.task_id);
+        this.state.detail = null;
+      }
+      this.publish();
       if (action === 'remote_login') {
         if (!await this.storageAvailable()) throw new Error('System credential storage is unavailable. Unlock or enable it and retry.');
         const base = endpoint(text(command.url || this.base || defaultTaskCenter, 2048))!;
@@ -276,9 +310,7 @@ export class RemoteAdapter {
         this.clearTasks();
       }
       if (action === 'remote_more') this.pages += 1;
-      if (action === 'remote_select') {
-        this.state.selected_task_id = command.task_id === null ? null : id(command.task_id); this.state.detail = null;
-      } else if (action === 'remote_create') {
+      if (action === 'remote_create') {
         if (this.clientMode) throw new Error('Only the operator can create manual tasks');
         const spec: TaskSpec = {
           title: text(command.title, 240), prompt: text(command.prompt, 64000), acceptance: text(command.acceptance, 16000),

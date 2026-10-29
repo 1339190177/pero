@@ -10,3 +10,6 @@ Fonts in `public/fonts` include the original Workbench's regular/bold Chinese
 fonts and complete Noto Sans SC fallbacks, with their OFL license. The Web
 backend uses the same explicitly registered family for the composer and text.
 Generated WASM is ignored; regenerate with `npm run build:wasm`.
+Pushes to `master` publish a static copy at `/workbench/` on the GitHub Pages
+site. That preview draws this shell in the browser and still needs Desktop for
+Agent, remote, and Apps actions.

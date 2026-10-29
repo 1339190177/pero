@@ -5,9 +5,11 @@ mod journal;
 mod model;
 mod supervisor;
 
-use control::Control;
+use control::{CloudFailure, Control};
 use journal::{Active, Claim, Journal};
-use model::Outcome;
+use model::{Outcome, ReconnectBackoff};
+use pero_contracts::local_worker::{LocalWorkerStatus, WorkerProgress};
+use std::io::Write;
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -21,6 +23,9 @@ fn main() {
     };
     if let Err(error) = result {
         eprintln!("pero-worker: {error}");
+        if std::env::args().nth(1).as_deref() != Some("--execute") {
+            progress(LocalWorkerStatus::NeedsAttention, &error, None);
+        }
         std::process::exit(1);
     }
 }
@@ -42,15 +47,15 @@ fn clear(journal: &mut Journal) -> Result<(), String> {
     journal.save()
 }
 
-fn complete(control: &Control, journal: &mut Journal) -> Result<(), String> {
+fn complete(control: &Control, journal: &mut Journal) -> Result<(), CloudFailure> {
     let active = journal.state.active.as_ref().ok_or("Missing Run journal")?;
     let result = active.result.clone().ok_or("Missing execution outcome")?;
     let run = active.run.clone();
     // Persisted result is retried verbatim, preserving the server's idempotent receipt.
     match control.complete(&run, &result) {
-        Ok(_) => clear(journal),
+        Ok(_) => clear(journal).map_err(Into::into),
         Err(error) => match control.inspect(&run) {
-            Ok(current) if terminal(&current.status) => clear(journal),
+            Ok(current) if terminal(&current.status) => clear(journal).map_err(Into::into),
             Ok(current)
                 if current.status == "cancel_requested" && result.outcome == "succeeded" =>
             {
@@ -61,12 +66,12 @@ fn complete(control: &Control, journal: &mut Journal) -> Result<(), String> {
                 journal.save()?;
                 complete(control, journal)
             }
-            _ => Err(format!("{error}; result retained for reconciliation")),
+            _ => Err(error.retained()),
         },
     }
 }
 
-fn recover(control: &Control, journal: &mut Journal) -> Result<bool, String> {
+fn recover(control: &Control, journal: &mut Journal) -> Result<bool, CloudFailure> {
     let mut needs_review = false;
     // A lost claim response is recovered using the ORIGINAL process instance and key.
     if let Some(claim) = &journal.state.pending_claim {
@@ -88,7 +93,7 @@ fn recover(control: &Control, journal: &mut Journal) -> Result<bool, String> {
         needs_review = active
             .result
             .as_ref()
-            .is_none_or(|result| result.outcome == "reconcile");
+            .is_none_or(|result| result.outcome == "reconcile" || result.needs_attention);
         if control
             .inspect(&active.run)
             .is_ok_and(|current| terminal(&current.status))
@@ -113,6 +118,22 @@ fn run() -> Result<(), String> {
     {
         return Err("Worker process supervision currently requires Unix".into());
     }
+    #[cfg(unix)]
+    if std::env::var("PERO_LOCAL_WORKER_SUPERVISED").as_deref() == Ok("1") {
+        let parent = unsafe { libc::getppid() };
+        if parent <= 1 {
+            return Err("Local Worker Host is unavailable".into());
+        }
+        std::thread::spawn(move || {
+            loop {
+                std::thread::sleep(Duration::from_millis(100));
+                if unsafe { libc::getppid() } != parent {
+                    // The durable journal survives; an orphan executor observes EOF/parent loss.
+                    std::process::exit(0);
+                }
+            }
+        });
+    }
     let control = Control::new(&required("PERO_CLOUD_URL")?, required("PERO_WORKER_TOKEN")?)?;
     let config_path = PathBuf::from(required("PERO_WORKER_CONFIG")?);
     let mut config: executor::Config = serde_json::from_slice(
@@ -135,26 +156,72 @@ fn run() -> Result<(), String> {
             *path = config_root.join(&*path);
         }
     }
+    config.ready()?;
+    progress(LocalWorkerStatus::Starting, "Connecting local Worker", None);
     let mut journal = Journal::open(PathBuf::from(required("PERO_WORKER_STATE")?))?;
-    if recover(&control, &mut journal)? {
-        eprintln!("Interrupted execution reconciled; review effects before restarting this Worker");
+    let once = std::env::args().any(|arg| arg == "--once");
+    let mut backoff = ReconnectBackoff::default();
+    let recovered = loop {
+        match recover(&control, &mut journal) {
+            Ok(needs_review) => break needs_review,
+            Err(error) if error.retryable && !once => {
+                let delay = backoff.failed().as_secs();
+                progress(
+                    LocalWorkerStatus::Offline,
+                    &format!("Cloud is unavailable; recovering the original claim in {delay}s"),
+                    None,
+                );
+                std::thread::sleep(Duration::from_secs(delay));
+            }
+            Err(error) => return Err(error.into()),
+        }
+    };
+    if recovered {
+        let message =
+            "Interrupted execution reconciled; review effects before restarting this Worker";
+        eprintln!("{message}");
+        progress(LocalWorkerStatus::NeedsAttention, message, None);
         return Ok(());
     }
     let instance_id = uuid::Uuid::new_v4().to_string();
-    let once = std::env::args().any(|arg| arg == "--once");
+    backoff = ReconnectBackoff::default();
+    let mut idle = false;
     loop {
-        journal.state.pending_claim = Some(Claim {
-            request_id: uuid::Uuid::new_v4().to_string(),
-            instance_id: instance_id.clone(),
-        });
+        if journal.state.pending_claim.is_none() {
+            journal.state.pending_claim = Some(Claim {
+                request_id: uuid::Uuid::new_v4().to_string(),
+                instance_id: instance_id.clone(),
+            });
+        }
         journal.save()?;
         let started = Instant::now();
         let claim = journal.state.pending_claim.as_ref().unwrap();
         let request_id = claim.request_id.clone();
-        let claimed = control.claim(claim)?;
+        let claimed = match control.claim(claim) {
+            Ok(claimed) => {
+                backoff = ReconnectBackoff::default();
+                claimed
+            }
+            Err(error) if error.retryable && !once => {
+                let delay = backoff.failed().as_secs();
+                progress(
+                    LocalWorkerStatus::Offline,
+                    &format!("Cloud is unavailable; retrying in {delay}s"),
+                    None,
+                );
+                idle = false;
+                std::thread::sleep(Duration::from_secs(delay));
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
         journal.state.pending_claim = None;
         let Some(run) = claimed else {
             journal.save()?;
+            if !idle {
+                progress(LocalWorkerStatus::Idle, "Ready for assigned tasks", None);
+                idle = true;
+            }
             if once {
                 return Ok(());
             }
@@ -165,6 +232,12 @@ fn run() -> Result<(), String> {
             journal.save()?;
             continue;
         }
+        idle = false;
+        progress(
+            LocalWorkerStatus::Running,
+            "Running assigned task",
+            Some(run.id.clone()),
+        );
         journal.state.active = Some(Active {
             run: run.clone(),
             request_id,
@@ -175,17 +248,17 @@ fn run() -> Result<(), String> {
         // This durable record MUST precede workspace access, Agent spawn and prompt submission.
         journal.save()?;
         let result = match config.execution(&run) {
-            Ok((execution, _workspace_lock)) => {
-                supervisor::execute(&control, &mut journal, execution, started)
-                    .unwrap_or_else(|error| Outcome::new("reconcile", error))
-            }
-            Err(error) => Outcome::new("failed", error),
+            Ok(execution) => supervisor::execute(&control, &mut journal, execution, started)
+                .unwrap_or_else(|error| Outcome::new("reconcile", error)),
+            Err(error) => Outcome::blocked(error),
         };
         eprintln!("Run {}: {}", run.id, result.outcome);
-        let stop = result.outcome == "reconcile";
+        let stop = result.outcome == "reconcile" || result.needs_attention;
+        let stop_message = result.summary.clone();
         journal.state.active.as_mut().unwrap().result = Some(result);
         journal.save()?;
         // Once execution stops, retain and upload its complete evidence before completion.
+        backoff = ReconnectBackoff::default();
         while journal
             .state
             .active
@@ -201,15 +274,58 @@ fn run() -> Result<(), String> {
                 {
                     break;
                 }
+                if error.retryable && !once {
+                    let delay = backoff.failed().as_secs();
+                    progress(
+                        LocalWorkerStatus::Offline,
+                        &format!("Execution stopped; reconnecting to upload events in {delay}s"),
+                        Some(run.id.clone()),
+                    );
+                    std::thread::sleep(Duration::from_secs(delay));
+                    continue;
+                }
                 return Err(format!("{error}; stopped Run retained for reconciliation"));
             }
-            let acknowledged = control.flush(journal.state.active.as_ref().unwrap())?;
+            let acknowledged = match control.flush(journal.state.active.as_ref().unwrap()) {
+                Ok(acknowledged) => {
+                    backoff = ReconnectBackoff::default();
+                    acknowledged
+                }
+                Err(error) if error.retryable && !once => {
+                    let delay = backoff.failed().as_secs();
+                    progress(
+                        LocalWorkerStatus::Offline,
+                        &format!("Execution stopped; retaining events for upload in {delay}s"),
+                        Some(run.id.clone()),
+                    );
+                    std::thread::sleep(Duration::from_secs(delay));
+                    continue;
+                }
+                Err(error) => return Err(error.into()),
+            };
             journal.state.active.as_mut().unwrap().acknowledged = acknowledged;
             journal.save()?;
         }
-        complete(&control, &mut journal)?;
+        backoff = ReconnectBackoff::default();
+        loop {
+            match complete(&control, &mut journal) {
+                Ok(()) => break,
+                Err(error) if error.retryable && !once => {
+                    let delay = backoff.failed().as_secs();
+                    progress(
+                        LocalWorkerStatus::Offline,
+                        &format!("Execution stopped; uploading its retained result in {delay}s"),
+                        Some(run.id.clone()),
+                    );
+                    std::thread::sleep(Duration::from_secs(delay));
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
         if stop {
-            return Err("Execution requires reconciliation; Worker stopped receiving tasks".into());
+            return Err(format!(
+                "{stop_message}; Worker stopped receiving tasks; resolve locally before restarting"
+            ));
         }
         if once {
             return Ok(());
@@ -217,3 +333,15 @@ fn run() -> Result<(), String> {
     }
 }
 
+fn progress(status: LocalWorkerStatus, message: &str, run_id: Option<String>) {
+    let progress = WorkerProgress {
+        status,
+        message: message.into(),
+        run_id,
+    };
+    let mut output = std::io::stdout().lock();
+    if serde_json::to_writer(&mut output, &progress).is_ok() {
+        let _ = writeln!(output);
+        let _ = output.flush();
+    }
+}

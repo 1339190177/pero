@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, renameSync } from 'node:fs';
-import { cargoArgs } from '../lib/cargo.mjs';
+import { cargoArgs, ensureGpuiLock } from '../lib/cargo.mjs';
 import { root } from '../lib/paths.mjs';
 import { run } from '../lib/run.mjs';
 await import('../codegen/theme.mjs');
@@ -7,6 +7,7 @@ await import('./fonts.mjs');
 const bindgen = `${root}/target/tools/bin/wasm-bindgen${process.platform === 'win32' ? '.exe' : ''}`;
 const release = process.env.PERO_BUILD_RELEASE === '1';
 if (!existsSync(bindgen)) await run('cargo', ['install', 'wasm-bindgen-cli', '--version', '0.2.127', '--locked', '--root', `${root}/target/tools`]);
+await ensureGpuiLock();
 await run('cargo', cargoArgs(['+nightly-2026-10-28', 'build', '--locked', ...(release ? ['--release'] : []), '-p', 'pero-ui', '--target', 'wasm32-unknown-unknown']));
 mkdirSync(`${root}/web/src/wasm`, { recursive: true });
 await run(bindgen, [`${root}/target/wasm32-unknown-unknown/${release ? 'release' : 'debug'}/pero_ui.wasm`, '--target', 'web', '--out-dir', `${root}/web/src/wasm`]);

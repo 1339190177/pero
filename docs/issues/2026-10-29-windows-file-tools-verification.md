@@ -92,3 +92,27 @@ absence before publication and actual no-replace collision after staging.
 Linux/static/cross-compilation results do not substitute for that native gate.
 The parent task owns publication to the existing draft PR and exact-head CI
 monitoring; this record intentionally does not claim a native pass yet.
+
+## Integration with current master
+
+The first published file-subset head was
+`2d1ee3a9165ba6d451e910cb15d55cd3f73ccada`. GitHub reported merge conflicts and
+therefore had not started its PR CI. A real two-parent merge brings
+`c611dc6802a2548e23a6f0472ce372778ade45ec` **into the feature branch**, preserving
+master's local-worker/context/composer work and the `d84e100` lockfile repairs;
+this is not merging the PR into master.
+
+Six conflicts were resolved by preserving both sides: runtime `url` and master's
+tree-sitter dependencies in Cargo.lock; native approvals plus master's agent
+allowlist/child-owned lease; both remote test groups; and both ACP fixture/test
+groups with a unique retained workspace per launch, including MCP launches.
+The migrated shared WorkspaceLease retains the old Worker lock's Unix
+`O_NOFOLLOW` refusal, with a real temporary symlink-negative regression. There
+is still one lease owner rather than a duplicate supervisor lock.
+
+Locked offline Rust tests and build passed for contracts/runtime/Worker/Host,
+including all 22 distinct ACP lifecycle tests, 14 Worker unit tests and 10 remote
+contracts. The shared lease redirect test passed. Harness Go race/vet/build and
+Windows test cross-compilation passed again after integration; the harness and
+22-outcome Windows gate are unchanged. Two independent read-only resolution
+reviews found no blockers. Exact-head native Windows CI remains pending.

@@ -1,3 +1,4 @@
+import { setAppearance } from './sidebar-controls.mjs';
 import { _electron as electron, expect } from '@playwright/test';
 import { resolve } from 'node:path';
 import { mkdir, writeFile, mkdtemp } from 'node:fs/promises';
@@ -20,19 +21,18 @@ try{
  await page.waitForFunction(()=>!document.getElementById('loading'));
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.screenshot({path:resolve(out,'overview.png')});
- await page.mouse.click(74,267);
+ await page.mouse.click(100,28);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- await page.mouse.click(1430,24);
  await expect.poll(async()=>(await state()).chats.length).toBe(1);
  await page.screenshot({path:resolve(out,'chat-empty.png')});
- await page.mouse.click(680,1030);
+ await page.mouse.click(await page.evaluate(()=>innerWidth-208),await page.evaluate(()=>innerHeight-20));
  await page.screenshot({path:resolve(out,'agent-options.png')});
  await page.keyboard.press('ArrowUp');
  await page.keyboard.press('Enter');
  await expect.poll(async()=>(await state()).chats[0].agent).toBe('fixture');
  const input=async(text)=>{
-  await page.mouse.click(950,975);await page.waitForTimeout(150);
+  await page.mouse.click(950,975);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
   const cdp=await page.context().newCDPSession(page);
   await cdp.send('Input.imeSetComposition',{text:'nihao',selectionStart:5,selectionEnd:5});
   await cdp.send('Input.insertText',{text});
@@ -53,7 +53,7 @@ try{
  await input('permission');
  await expect.poll(async()=>(await state()).chats[0].permission!==null).toBe(true);
  await page.screenshot({path:resolve(out,'permission.png')});
- await page.mouse.click(640,912);
+ await page.mouse.click(342,912);
  await expect.poll(async()=>(await state()).chats[0].state).toBe('idle');
  await input('longstream');
  await expect.poll(async()=>(await state()).chats[0].messages.at(-1).text.includes('中文片段200'),{intervals:[50],timeout:15000}).toBe(true);
@@ -75,16 +75,15 @@ try{
  const count=streamed.chats[0].messages.length;
  await page.reload();
  await expect.poll(async()=>(await state()).chats?.[0]?.messages.length,{timeout:30000}).toBe(count);
- await page.mouse.click(74,267);
+ await page.mouse.click(100,185);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- await page.mouse.click(340,130);
  await expect.poll(async()=>(await state()).activeChat).toBe(0);
  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('locale-en').click());
  await expect.poll(async()=>(await state()).locale).toBe('en');
  await page.screenshot({path:resolve(out,'english.png')});
  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('locale-zh-CN').click());
- await page.mouse.click(64,await page.evaluate(()=>innerHeight-30));
+ await setAppearance(page,'dark');
  await expect.poll(async()=>(await state()).dark).toBe(true);
  await page.screenshot({path:resolve(out,'dark.png')});
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1000,788));

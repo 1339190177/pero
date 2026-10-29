@@ -21,6 +21,8 @@ In the app, choose **New task**, pick an agent (Codex, Claude, or Grok through O
 
 To try a local App instead, run `npm run dev:apps`. It opens Virtual Cell in a separate profile; see [apps/README.md](apps/README.md).
 
+`npm run dev:native` opens the debug GPUI preview and rebuilds it when `crates/pero-ui` changes. See [desktop/README.md](desktop/README.md#native-gpui-preview).
+
 ### Standalone App: Virtual Cell
 
 After cloning and installing the npm dependencies and Electron above, build a product on macOS with Node.js 22.18+ and Rust stable. This path skips GPUI/Wasm and does not need the Go service or PostgreSQL. Supply a relocatable Python tree for the target architecture, including its standard library, shared libraries and licenses:

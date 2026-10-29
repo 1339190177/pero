@@ -1,3 +1,4 @@
+import { setAppearance, openSettings } from './sidebar-controls.mjs';
 // Real Electron, real Host installation and real Virtual Cell Python computation.
 import { _electron as electron, expect } from '@playwright/test';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
@@ -24,7 +25,7 @@ try {
   const state = () => page.evaluate(() => JSON.parse(window.peroDiagnostics.snapshot()));
   await page.waitForFunction(() => window.peroDiagnostics && !document.getElementById('loading'), undefined, { timeout: 60000 });
   await expect.poll(async () => (await state()).apps?.[0]?.name).toBe('virtual-cell');
-  await page.mouse.click(80, 409);
+  await page.mouse.click(80, await page.evaluate(() => innerHeight - 76));
   await expect.poll(async () => (await state()).navigation).toBe(7);
   await expect.poll(async () => (await state()).appsLoading).toBe(false);
   await page.screenshot({ path: resolve(out, 'catalog.png') });
@@ -68,20 +69,26 @@ try {
   checks.push('real authenticated Python import, immutable input persistence, three baseline model results');
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('locale-zh-CN').click());
   await expect(frame.getByRole('tab', { name: '单细胞与扰动' })).toBeVisible();
-  await page.mouse.click(64, await page.evaluate(() => innerHeight - 29));
+  await openSettings(page);
+  for(let i=0;i<3;i++)await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('#pero-app-surface')).toBeHidden();
+  await page.screenshot({path:resolve(out,'settings-over-app.png')});
+  await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');
   await expect.poll(async () => (await state()).dark).toBe(true);
+  await expect(page.locator('#pero-app-surface')).toBeVisible();
   await expect.poll(async () => frame.locator('html').evaluate(element => element.style.colorScheme)).toBe('dark');
   await page.screenshot({ path: resolve(out, 'dark-zh.png') });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 788));
-  await expect.poll(async () => page.locator('#pero-app-surface').evaluate(element => Math.round(element.getBoundingClientRect().width))).toBe(832);
+  await expect.poll(async () => page.locator('#pero-app-surface').evaluate(element => Math.round(element.getBoundingClientRect().width))).toBe(760);
   expect(await frame.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: resolve(out, 'narrow.png') });
   checks.push('live zh/en, dark, narrow viewport');
   // Navigating away retains the document. Returning to it retains simulation edits.
   const originalFrame = await page.locator('iframe').getAttribute('src');
-  await page.mouse.click(75, 307);
+  await page.mouse.click(75, 70);
   await expect(page.locator('#pero-app-surface')).toBeHidden();
-  await page.mouse.click(75, 409);
+  await page.mouse.click(80, await page.evaluate(() => innerHeight - 76));
   await expect(page.locator('#pero-app-surface')).toBeVisible();
   expect(await page.locator('iframe').getAttribute('src')).toBe(originalFrame);
   await frame.getByRole('tab', { name: '反应与模拟' }).click();
@@ -105,7 +112,7 @@ try {
     BrowserWindow.getAllWindows()[0].setSize(1488, 1086);
   });
   await expect.poll(async () => (await state()).locale).toBe('en');
-  await page.mouse.click(80, 409);
+  await page.mouse.click(80, await page.evaluate(() => innerHeight - 76));
   await expect.poll(async () => (await state()).navigation).toBe(7);
   await expect.poll(async () => (await state()).appsLoading).toBe(false);
   await page.evaluate(() => new Promise(resolvePaint => requestAnimationFrame(() => requestAnimationFrame(resolvePaint))));

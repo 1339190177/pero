@@ -10,36 +10,7 @@ pub(crate) struct AgentRow {
     pub available: bool,
 }
 pub(crate) enum WorkspaceAction {
-    ChooseWorkspace,
     NewSession(usize),
-}
-pub(crate) fn projects(
-    ui: Ui<'_>,
-    workspace: &str,
-    on_action: ActionHandler<WorkspaceAction>,
-) -> Div {
-    let p = ui.palette;
-    div()
-        .p(px(32.))
-        .flex_1()
-        .child(
-            div()
-                .text_size(px(28.))
-                .font_weight(FontWeight::BOLD)
-                .child(ui.t("nav.projects")),
-        )
-        .child(
-            div()
-                .mt(px(28.))
-                .text_color(p.color("text-muted"))
-                .child(workspace.to_string()),
-        )
-        .child(
-            Button::new("open-workspace")
-                .outline()
-                .label(ui.t("chat.workspace"))
-                .on_click(click(&on_action, WorkspaceAction::ChooseWorkspace)),
-        )
 }
 pub(crate) fn environments(
     ui: Ui<'_>,
@@ -54,7 +25,7 @@ pub(crate) fn environments(
             div()
                 .text_size(px(28.))
                 .font_weight(FontWeight::BOLD)
-                .child(ui.t("nav.environments")),
+                .child(ui.t("settings.agents")),
         )
         .child(
             div()

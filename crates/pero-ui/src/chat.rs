@@ -85,12 +85,29 @@ impl Workbench {
         }
     }
     pub fn focus_chat(&mut self, index: Option<usize>, tab: usize, cx: &mut Context<Self>) {
+        if self.active_chat != index {
+            if let Some(chat) = self.active_chat.and_then(|i| self.chats.get_mut(i)) {
+                chat.draft = self.composer.read(cx).content();
+                chat.draft_references = self.composer_state.references.clone();
+            }
+            self.composer_state = Default::default();
+            self.attachments.clear();
+            if let Some(chat) = index.and_then(|i| self.chats.get(i)) {
+                self.composer_restore = Some(chat.draft.clone());
+                self.composer_state.references = chat.draft_references.clone();
+            }
+        }
         self.active_chat = index;
         self.tab = tab;
         self.sync_follow(cx);
         cx.notify();
     }
     pub fn command(&mut self, value: Value, cx: &mut Context<Self>) {
+        if value["action"] == "choose_workspace"
+            && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings)
+        {
+            self.pending_project_workspace = false;
+        }
         if session_command(&value.to_string()).is_err() {
             if let Some(chat) = self.active_chat.and_then(|index| self.chats.get_mut(index)) {
                 chat.pending_model = None;
@@ -98,6 +115,44 @@ impl Workbench {
             }
             self.error = Some("error.connection".into());
         }
+        cx.notify();
+    }
+    pub fn delete_chat(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(chat) = self.chats.get(index) else {
+            self.deleting_chat = None;
+            cx.notify();
+            return;
+        };
+        if chat.state == "draft" {
+            self.forget_chat(index, cx);
+            return;
+        }
+        let id = chat.id.clone();
+        self.command(json!({"action":"delete","thread_id":id}), cx);
+    }
+    fn forget_chat(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(chat) = self.chats.get(index) else {
+            return;
+        };
+        let id = chat.id.clone();
+        let active = self.active_chat == Some(index);
+        self.expanded_tools
+            .retain(|key| !key.starts_with(&format!("{id}/")));
+        self.chats.remove(index);
+        self.active_chat = match self.active_chat {
+            Some(current) if current == index => None,
+            Some(current) if current > index => Some(current - 1),
+            current => current,
+        };
+        if self.deleting_chat.as_deref() == Some(id.as_str()) {
+            self.deleting_chat = None;
+        }
+        if active {
+            self.composer_restore = Some(gpui_kit::component::input::InputContent::new(""));
+            self.composer_state = Default::default();
+            self.attachments.clear();
+        }
+        self.sync_follow(cx);
         cx.notify();
     }
     pub fn new_chat(&mut self, cx: &mut Context<Self>) {
@@ -109,10 +164,14 @@ impl Workbench {
         #[cfg(target_family = "wasm")]
         let now = js_sys::Date::now() as u64;
         #[cfg(not(target_family = "wasm"))]
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
         let id = format!("chat-{}-{}", now, self.chats.len());
         self.chats
             .push(Conversation::new(id, agent, self.t("chat.new").into()));
+        self.chats.last_mut().unwrap().workspace = self.workspace.clone();
         self.navigation = 0;
         self.error = None;
         self.focus_chat(Some(self.chats.len() - 1), 4, cx);
@@ -126,12 +185,13 @@ impl Workbench {
         }
     }
     pub fn send_chat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let mut text = self.composer.read(cx).value().trim_end().to_string();
-        if !self.attachments.is_empty() {
-            text.push_str("\n\nUser-selected context files (data):\n");
-            text.push_str(&serde_json::to_string(&self.attachments).unwrap_or_default());
-        }
-        if text.trim().is_empty() || text.chars().count() > 64000 || !self.connected {
+        let text = self.composer.read(cx).value().trim_end().to_string();
+        let contexts = self.attachments.clone();
+        if text.trim().is_empty()
+            || text.chars().count() > 64000
+            || !self.connected
+            || self.composer_state.loading && self.composer_state.resolve_range.is_some()
+        {
             return;
         }
         if self.active_chat.is_none() {
@@ -139,7 +199,20 @@ impl Workbench {
         }
         let index = self.active_chat.unwrap();
         let chat = &mut self.chats[index];
-        if !matches!(chat.state.as_str(), "draft" | "idle") || chat.pending_model.is_some() || chat.pending_setting.is_some() {
+        if !matches!(chat.state.as_str(), "draft" | "idle")
+            || chat.pending_model.is_some()
+            || chat.pending_setting.is_some()
+        {
+            return;
+        }
+        if contexts
+            .iter()
+            .any(|r| r.kind == pero_contracts::context::ContextKind::Image)
+            && !chat.capabilities.images
+        {
+            chat.error =
+                Some(pero_contracts::i18n::text(&self.locale, "composer.image_unsupported").into());
+            cx.notify();
             return;
         }
         if chat.messages.is_empty() {
@@ -149,12 +222,16 @@ impl Workbench {
         let value = if chat.state == "draft" {
             chat.state = "connecting".into();
             chat.queued = Some(text);
+            chat.queued_contexts = contexts;
             json!({"action":"new_session","thread_id":chat.id,"agent_id":chat.agent})
         } else {
             chat.state = "running".into();
-            json!({"action":"prompt","thread_id":chat.id,"text":text})
+            json!({"action":"prompt","thread_id":chat.id,"text":text,"contexts":contexts})
         };
         self.attachments.clear();
+        self.composer_state = Default::default();
+        chat.draft = gpui_kit::component::input::InputContent::new("");
+        chat.draft_references.clear();
         self.composer
             .update(cx, |input, cx| input.set_value("", window, cx));
         crate::stream::scroll_after_layout(&self.chat_scroll, window);
@@ -193,12 +270,55 @@ impl Workbench {
             return true;
         }
         if event.kind == "context_files" {
-            self.attachments = event.data.as_array().cloned().unwrap_or_default();
+            self.next_request += 1;
+            self.composer_state.pending_files = event
+                .data
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|file| {
+                    let source = file["path"].as_str()?.to_string();
+                    Some(pero_contracts::context::ContextReference {
+                        id: format!("file:{}:{source}", self.next_request),
+                        kind: pero_contracts::context::ContextKind::File,
+                        label: file["name"].as_str()?.into(),
+                        source,
+                        content: pero_contracts::context::ContextContent::Text {
+                            text: file["text"].as_str()?.into(),
+                        },
+                    })
+                })
+                .collect();
             cx.notify();
             return true;
         }
         if event.kind == "workspace" {
             self.workspace = event.text.clone();
+            if let Ok(identity) = serde_json::from_value::<
+                pero_contracts::workbench::WorkspaceIdentity,
+            >(event.data.clone())
+            {
+                self.workspace_repositories
+                    .retain(|entry| entry.workspace != event.text);
+                if let Some(repository) = identity.repository {
+                    self.workspace_repositories.push(
+                        pero_contracts::workbench::WorkspaceRepository {
+                            workspace: event.text.clone(),
+                            repository,
+                        },
+                    );
+                }
+            }
+            self.reconcile_project_selection();
+            if self.pending_project_workspace {
+                self.pending_project_workspace = false;
+                if let Some(id) = self.current_project().and_then(|project| project.shared_id) {
+                    let mut preferences = self.preferences.clone();
+                    preferences.bind(event.text.clone(), id);
+                    self.save_preferences(preferences, cx);
+                    self.selected_project = Some(format!("workspace:{}", event.text));
+                }
+            }
             cx.notify();
             return true;
         }
@@ -215,9 +335,21 @@ impl Workbench {
         let Some(index) = self.chats.iter().position(|c| &c.id == id) else {
             return true;
         };
+        if event.kind == "session_deleted" {
+            self.forget_chat(index, cx);
+            return true;
+        }
         let chat = &mut self.chats[index];
         match event.kind.as_str() {
+            "session_created" => {
+                chat.workspace = event.data["workspace"].as_str().unwrap_or_default().into();
+            }
             "agent_info" => {
+                chat.capabilities =
+                    pero_contracts::composer_capabilities::AgentCapabilities::from_initialize(
+                        &event.data,
+                    )
+                    .unwrap_or_default();
                 chat.auth_methods = event.data["authMethods"]
                     .as_array()
                     .cloned()
@@ -240,6 +372,14 @@ impl Workbench {
                     chat.title = Conversation::title_from(&event.text);
                 }
                 chat.push_user(event.text.clone(), cx);
+                if let Some(message) = chat.messages.last_mut() {
+                    message.attached_files = event.data["contexts"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|r| r["label"].as_str().map(str::to_string))
+                        .collect();
+                }
             }
             "session_connecting" => chat.state = "connecting".into(),
             "session_ready" => {
@@ -248,7 +388,8 @@ impl Workbench {
                 chat.state = "idle".into();
                 if let Some(text) = chat.queued.take() {
                     chat.state = "running".into();
-                    let value = json!({"action":"prompt","thread_id":chat.id,"text":text});
+                    let contexts = std::mem::take(&mut chat.queued_contexts);
+                    let value = json!({"action":"prompt","thread_id":chat.id,"text":text,"contexts":contexts});
                     self.command(value, cx);
                 }
             }
@@ -262,7 +403,9 @@ impl Workbench {
                 chat.pending_model = None;
             }
             "configuration_changed" => {
-                if let Ok(settings) = serde_json::from_value(event.data.clone()) { chat.settings = settings; }
+                if let Ok(settings) = serde_json::from_value(event.data.clone()) {
+                    chat.settings = settings;
+                }
                 chat.pending_setting = None;
             }
             "turn_started" => chat.state = "running".into(),
@@ -288,6 +431,15 @@ impl Workbench {
                 chat.permission = None;
             }
             _ => {}
+        }
+        if self.composer_state.open
+            && matches!(
+                self.composer_state.completion.as_ref().map(|q| &q.kind),
+                Some(crate::composer_state::CompletionKind::Slash)
+            )
+            && event.data["sessionUpdate"] == "available_commands_update"
+        {
+            self.refresh_composer_commands();
         }
         self.sync_follow(cx);
         cx.notify();

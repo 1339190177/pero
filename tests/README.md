@@ -16,6 +16,10 @@
 | `e2e/desktop.mjs` | L1 | `npm run test:e2e` | 顺序执行 `workbench.mjs` 和 `toolcalls.mjs`，各启动一次真实 Electron |
 | `e2e/workbench.mjs` | L1 | 同上 | 中文组字、多轮、取消、权限、千段长流式、上滚不跳动、刷新后历史还在 |
 | `e2e/toolcalls.mjs` | L1 | 同上 | 九种工具行、diff、失败、取消、附件上下文 |
+| `e2e/local-execution.mjs` | L1 | `npm run test:local-execution` | 首次引导、明确授权本机执行、真实 Host/Worker 与 ACP fixture、加密配置、重启自动恢复、停止/继续和账号隔离 |
+| `e2e/local-roadmap.mjs` | L1 | `npm run test:local-roadmap` | Cloud 请求挂起时仍可加载本地 ROADMAP；搜索、已完成项、切换来源、真实 Host/ACP 临时文件写入、来源不变、文件错误恢复与明暗/窄窗 |
+| `runtime/local-worker-host.mjs` | L1 | `node tests/runtime/local-worker-host.mjs` | 临时目录与 loopback Cloud 下的真实 Host/Worker 生命周期、异常/EOF 清理、凭据不进入公共状态 |
+| `e2e/composer.mjs` | L1 | `npm run test:composer` | 类型化上下文、`@`/`/`、键盘与 token 删除/撤销、冻结快照、图片粘贴、Agent 声明的模式/强度/权限，以及明暗主题和窄窗口 |
 | `e2e/i18n.mjs` | L1 | `npm run test:i18n` | 中英文切换、原生菜单、重启后偏好、用户原文不翻译、无 Host 的预览窗口。文案源见 [locales/README.md](../locales/README.md) |
 | `e2e/remote.mjs` | L2 | `npm run test:remote` | Electron、Go、PostgreSQL、`pero-worker` 和 ACP fixture 的一轮创建、执行、取消和断线恢复。需要 `PERO_TEST_DATABASE_URL` |
 | `e2e/github.mjs` + `server/internal/httpapi/desktop_github_test.go` | L2 | `npm run test:github` | Go harness 启动真实 PostgreSQL/API 和只读 GitHub fixture；两个 Electron 客户端认领、释放、接手并经独立 Worker 执行，验证项目可见范围和自动派发不重复。需要 `PERO_TEST_DATABASE_URL` |
@@ -45,6 +49,15 @@
 URL 恢复、390px 深色与无 JavaScript 回退。设置 `PERO_TEST_DATABASE_URL`，可用
 `PERO_CHROMIUM_PATH` 指定本机 Chromium。截图和结果在 `test-results/task-browser/`。
 它不访问线上任务中心、不执行 Agent，也不发布 GitHub 内容。
+
+## 线上任务发现
+
+`PERO_DEPLOYMENT_E2E=1 node tests/e2e/task-browser-live.mjs` 验证真实
+`https://app.openpero.com/tasks`，逐项核对当前仓库 Roadmap 的标题、源码行、
+功能路径和勾选状态，并检查搜索、行内验收、全景、键盘、刷新与移动端。
+可用 `PERO_TASK_BROWSER_REVISION` 指定公开来源链接的完整 commit SHA；它与
+部署的服务端版本分别记录。该脚本只读公开页面，不登录或认领任务。
+截图及结果位于 `test-results/task-browser-live/`。贡献执行回归使用前面的本地套件。
 
 ## 层外
 

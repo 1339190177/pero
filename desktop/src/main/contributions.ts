@@ -86,7 +86,7 @@ export class DesktopContributions {
     }
     const binding = [...this.bindings.values()].find(value => value.thread_id === event.thread_id);
     if (!binding) return false;
-    const states: Record<string, string> = { session_connecting: 'connecting', session_ready: 'idle', turn_started: 'running', turn_finished: 'idle', session_error: 'idle', session_closed: 'closed', session_auth_required: 'auth_required', session_auth_error: 'auth_required', session_authenticated: 'idle' };
+    const states: Record<string, string> = { session_connecting: 'connecting', session_ready: 'idle', turn_started: 'running', turn_finished: 'idle', session_error: 'idle', session_closed: 'closed', session_deleted: 'closed', session_auth_required: 'auth_required', session_auth_error: 'auth_required', session_authenticated: 'idle' };
     if (states[event.kind]) binding.session_state = states[event.kind];
     if (event.kind === 'turn_started') { binding.status = 'ready'; binding.review_token = ''; }
     if (event.kind === 'session_ready' && this.prompts.has(event.thread_id!)) {

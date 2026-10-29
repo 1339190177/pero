@@ -178,6 +178,19 @@
       ],
       "additionalProperties": false
     },
+    "DisableWorkerResult": {
+      "title": "DisableWorkerResult",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "disabled"
+      ],
+      "additionalProperties": false
+    },
     "Dispatch": {
       "title": "Dispatch",
       "type": "object",
@@ -186,6 +199,47 @@
           "type": "string"
         }
       },
+      "additionalProperties": false
+    },
+    "EnrollWorker": {
+      "title": "EnrollWorker",
+      "type": "object",
+      "properties": {
+        "device_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkerCapability"
+          }
+        },
+        "enrollment_secret": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "device_id",
+        "request_id",
+        "name",
+        "projects",
+        "capabilities",
+        "enrollment_secret"
+      ],
       "additionalProperties": false
     },
     "ErrorResponse": {
@@ -532,6 +586,15 @@
         },
         {
           "$ref": "#/$defs/ProvisionWorker"
+        },
+        {
+          "$ref": "#/$defs/EnrollWorker"
+        },
+        {
+          "$ref": "#/$defs/WorkerCapability"
+        },
+        {
+          "$ref": "#/$defs/DisableWorkerResult"
         },
         {
           "$ref": "#/$defs/WorkerCredential"
@@ -1140,6 +1203,27 @@
         "id",
         "name",
         "projects"
+      ],
+      "additionalProperties": false
+    },
+    "WorkerCapability": {
+      "title": "WorkerCapability",
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "workspace_key": {
+          "$ref": "#/$defs/Id"
+        },
+        "agent_id": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "project_id",
+        "workspace_key",
+        "agent_id"
       ],
       "additionalProperties": false
     },

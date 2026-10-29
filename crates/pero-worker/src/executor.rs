@@ -1,11 +1,10 @@
 use crate::{
     approval::{Gate, Policy, protected_path},
-    journal::private_file,
     model::{Outcome, Run},
 };
-use fs2::FileExt;
 use pero_contracts::HostEvent;
 use pero_runtime::acp::{self, AgentConfig, SessionCommand};
+use pero_runtime::workspace_lease::WorkspaceLease;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -31,6 +30,8 @@ pub struct Config {
     pub agents_file: Option<PathBuf>,
     #[serde(default)]
     pub native_approvals: BTreeMap<String, Policy>,
+    #[serde(default)]
+    pub allowed_agents: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -49,7 +50,35 @@ impl Execution {
 }
 
 impl Config {
-    pub fn execution(&self, run: &Run) -> Result<(Execution, std::fs::File), String> {
+    fn agents(&self) -> Result<Vec<AgentConfig>, String> {
+        match &self.agents_file {
+            Some(path) => serde_json::from_slice::<Vec<AgentConfig>>(
+                &std::fs::read(path).map_err(|_| "Agent allowlist is unavailable")?,
+            )
+            .map_err(|_| "Invalid Agent allowlist".into()),
+            None => acp::registry(&std::env::current_dir().map_err(|e| e.to_string())?),
+        }
+    }
+    pub fn ready(&self) -> Result<(), String> {
+        if self.workspaces.is_empty() {
+            return Err("No local workspaces are configured".into());
+        }
+        let agents = self.agents()?;
+        if !agents.iter().any(|agent| {
+            agent.available()
+                && (self.allowed_agents.is_empty()
+                    || self
+                        .allowed_agents
+                        .values()
+                        .any(|ids| ids.contains(&agent.id)))
+        }) {
+            return Err(
+                "No allowed Agent is installed; authenticate or configure a local Agent".into(),
+            );
+        }
+        Ok(())
+    }
+    pub fn execution(&self, run: &Run) -> Result<Execution, String> {
         let workspace = self
             .workspaces
             .get(&run.spec.workspace_key)
@@ -59,13 +88,15 @@ impl Config {
         if !workspace.is_dir() {
             return Err("Allowed workspace is not a directory".into());
         }
-        let agents = match &self.agents_file {
-            Some(path) => serde_json::from_slice::<Vec<AgentConfig>>(
-                &std::fs::read(path).map_err(|_| "Agent allowlist is unavailable")?,
-            )
-            .map_err(|_| "Invalid Agent allowlist")?,
-            None => acp::registry(&std::env::current_dir().map_err(|e| e.to_string())?)?,
-        };
+        let agents = self.agents()?;
+        if !self.allowed_agents.is_empty()
+            && !self
+                .allowed_agents
+                .get(&run.spec.workspace_key)
+                .is_some_and(|ids| ids.contains(&run.spec.agent_id))
+        {
+            return Err("Agent is not allowed for this workspace on this Worker".into());
+        }
         let mut agent = agents
             .into_iter()
             .find(|agent| agent.id == run.spec.agent_id && agent.available())
@@ -99,10 +130,6 @@ impl Config {
             }
         }
         agent.env.retain(|key, _| !key.starts_with("PERO_"));
-        // All Worker instances addressing this checkout lock the same file.
-        let lock = private_file(&workspace.join(".pero-worker.lock"))?;
-        lock.try_lock_exclusive()
-            .map_err(|_| "Workspace is busy; another Run owns its write lock")?;
         let acceptance = match &run.spec.acceptance {
             Value::String(text) => text.clone(),
             Value::Null => String::new(),
@@ -116,16 +143,13 @@ impl Config {
                 run.spec.prompt, acceptance
             )
         };
-        Ok((
-            Execution {
-                workspace,
-                agent,
-                prompt,
-                run_id: run.id.clone(),
-                approval,
-            },
-            lock,
-        ))
+        Ok(Execution {
+            workspace,
+            agent,
+            prompt,
+            run_id: run.id.clone(),
+            approval,
+        })
     }
 }
 
@@ -186,9 +210,12 @@ pub fn child_execute() -> Result<(), String> {
     if let Some(policy) = &execution.approval {
         policy.validate(&execution.agent, std::slice::from_ref(&execution.workspace))?;
     }
+    // The actual executor holds the lease until it exits, including orphan cleanup.
+    // A supervisor dying must not release the checkout while its child still writes.
+    let _workspace_lease = WorkspaceLease::acquire(&execution.workspace)?;
     let mut gate = Gate::new(execution.approval.clone(), execution.workspace.clone());
     let (tx, rx) = mpsc::channel();
-    let handle = acp::start(execution.agent, execution.workspace, execution.run_id, tx);
+    let handle = acp::start_supervised(execution.agent, execution.workspace, execution.run_id, tx);
     let cancel = Arc::new(AtomicBool::new(false));
     let stdin_cancel = cancel.clone();
     std::thread::spawn(move || {
@@ -259,10 +286,7 @@ pub fn child_execute() -> Result<(), String> {
                     .map_err(|_| "Agent closed before prompt")?;
             }
             "session_auth_required" | "session_auth_error" => {
-                result = Some(Outcome::new(
-                    "failed",
-                    "Agent requires local authentication",
-                ));
+                result = Some(Outcome::blocked("Agent requires local authentication"));
             }
             "session_error" => {
                 result = Some(Outcome::new("failed", "Agent execution failed; see events"));
@@ -329,6 +353,7 @@ mod tests {
             workspaces: BTreeMap::new(),
             agents_file: None,
             native_approvals: BTreeMap::new(),
+            allowed_agents: BTreeMap::new(),
         };
         let run = Run {
             id: "r".into(),

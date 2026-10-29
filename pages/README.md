@@ -7,6 +7,8 @@ node pages/scripts/build.mjs
 ```
 
 Serve `docs/` over a local HTTP server to preview the Chinese and English pages.
+Pushes to `master` publish this site and the WASM workbench together through
+`.github/workflows/pages.yml`. The workbench is at `/workbench/`.
 The generated 3D viewer uses local assets under `docs/assets/molecule-viewer.*`;
 keep those files alongside the generated pages when deploying. No CDN or App
 backend is required.

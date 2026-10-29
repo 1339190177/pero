@@ -5,11 +5,23 @@
  */
 export type HostProtocol = HostInput | HostEvent;
 export type HostInput =
-  EchoRequest | SetLocaleRequest | SetRemoteSettingsRequest | HostCommand | AppRequest | ContributionRequest;
+  | LocalWorkerRequest
+  | EchoRequest
+  | SetLocaleRequest
+  | SetRemoteSettingsRequest
+  | GetWorkbenchSettingsRequest
+  | SetWorkbenchSettingsRequest
+  | HostCommand
+  | AppRequest
+  | ContributionRequest;
+export type LocalWorkerRequest = LocalWorkerStartCommand | LocalWorkerStopCommand | LocalWorkerGetCommand;
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
+  | LoadRoadmapCommand
   | AttachFilesCommand
+  | SearchContextCommand
+  | ResolveContextCommand
   | AuthenticateCommand
   | NewSessionCommand
   | PromptCommand
@@ -17,18 +29,24 @@ export type HostCommand =
   | PermissionCommand
   | ModelCommand
   | ConfigureCommand
-  | CloseCommand;
+  | CloseCommand
+  | DeleteCommand;
+export type ContextKind =
+  "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch";
 export type ThreadId = string;
+export type ContextContent = TextContextContent | ImageContextContent;
 export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp;
 export type RequestId = string;
 export type AppName = string;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | LocalWorkerStateEvent
   | ContributorStateEvent
   | ContributorSessionEvent
   | ContributionResultEvent
   | ContributionErrorEvent
   | SettingsEvent
+  | WorkbenchSettingsEvent
   | RemoteSettingsSavedEvent
   | RemoteSettingsErrorEvent
   | ReadyEvent
@@ -39,7 +57,11 @@ export type HostEvent =
   | AgentsEvent
   | ReplayEvent
   | WorkspaceEvent
+  | LocalRoadmapEvent
   | ContextFilesEvent
+  | ContextCandidatesEvent
+  | ContextResolvedEvent
+  | ContextErrorEvent
   | RemoteStateEvent
   | RemoteOpenEvent
   | AppsResultEvent
@@ -72,9 +94,36 @@ export type ThreadEvent =
   | ConfigurationChangedEvent
   | TurnFinishedEvent
   | SessionErrorEvent
-  | SessionClosedEvent;
+  | SessionClosedEvent
+  | SessionDeletedEvent;
 export type AppResult = AppSuccess | AppFailure;
 
+export interface LocalWorkerStartCommand {
+  action: "local_worker_start";
+  request_id: string;
+  worker: LocalWorkerConfig;
+}
+export interface LocalWorkerConfig {
+  id: string;
+  name: string;
+  url: string;
+  token: string;
+  bindings: LocalWorkerBinding[];
+}
+export interface LocalWorkerBinding {
+  project_id: string;
+  workspace_key: string;
+  path: string;
+  agent_ids: string[];
+}
+export interface LocalWorkerStopCommand {
+  action: "local_worker_stop";
+  request_id: string;
+}
+export interface LocalWorkerGetCommand {
+  action: "local_worker_get";
+  request_id: string;
+}
 /**
  * Bootstrap transport probe.
  */
@@ -99,6 +148,24 @@ export interface RemoteConnectionSettings {
   mode: "client" | "operator";
   encrypted_token: string;
 }
+export interface GetWorkbenchSettingsRequest {
+  method: "settings.workbench.get";
+}
+export interface SetWorkbenchSettingsRequest {
+  method: "settings.workbench";
+  preferences: WorkbenchPreferences;
+}
+export interface WorkbenchPreferences {
+  appearance: "light" | "dark" | "system";
+  /**
+   * @maxItems 128
+   */
+  projects: ProjectBinding[];
+}
+export interface ProjectBinding {
+  workspace: string;
+  project_id: string;
+}
 export interface ListAgentsCommand {
   action: "list_agents";
 }
@@ -106,9 +173,26 @@ export interface WorkspaceCommand {
   action: "workspace";
   path: string;
 }
+export interface LoadRoadmapCommand {
+  action: "load_roadmap";
+}
 export interface AttachFilesCommand {
   action: "attach_files";
   paths: string[];
+}
+export interface SearchContextCommand {
+  action: "search_context";
+  request_id: string;
+  kind: ContextKind;
+  query: string;
+}
+export interface ResolveContextCommand {
+  action: "resolve_context";
+  request_id: string;
+  kind: ContextKind;
+  source: string;
+  start_line?: number | null;
+  end_line?: number | null;
 }
 export interface AuthenticateCommand {
   action: "authenticate";
@@ -124,6 +208,23 @@ export interface PromptCommand {
   action: "prompt";
   thread_id: string;
   text: string;
+  contexts?: ContextReference[];
+}
+export interface ContextReference {
+  id: string;
+  kind: ContextKind;
+  label: string;
+  source: string;
+  content: ContextContent;
+}
+export interface TextContextContent {
+  type: "text";
+  text: string;
+}
+export interface ImageContextContent {
+  type: "image";
+  data: string;
+  mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
 }
 export interface CancelCommand {
   action: "cancel";
@@ -149,6 +250,10 @@ export interface ConfigureCommand {
 export interface CloseCommand {
   action: "close";
   thread_id: string;
+}
+export interface DeleteCommand {
+  action: "delete";
+  thread_id: ThreadId;
 }
 export interface ListApps {
   action: "list";
@@ -210,6 +315,30 @@ export interface ContributionPublish {
   operation: "publish";
   workspace: string;
   review_token: string;
+}
+export interface LocalWorkerStateEvent {
+  kind: "local_worker_state";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: LocalWorkerState;
+}
+export interface LocalWorkerState {
+  status: "stopped" | "starting" | "idle" | "running" | "offline" | "stopping" | "needs_attention" | "unavailable";
+  enabled: boolean;
+  configuration: LocalWorkerSummary | null;
+  worker_id: string;
+  name: string;
+  url: string;
+  message: string;
+  run_id: string | null;
+  attempt: number;
+}
+export interface LocalWorkerSummary {
+  id: string;
+  name: string;
+  url: string;
+  bindings: LocalWorkerBinding[];
 }
 export interface ContributorStateEvent {
   kind: "contributor_state";
@@ -283,6 +412,13 @@ export interface SettingsEvent {
   version: 1;
   request_id: string | null;
   text: string;
+}
+export interface WorkbenchSettingsEvent {
+  kind: "workbench_settings";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: WorkbenchPreferences;
 }
 /**
  * Main-process acknowledgements contain no persisted connection payload.
@@ -385,6 +521,10 @@ export interface UserMessageEvent {
   request_id: string | null;
   text: string;
   thread_id: string;
+  data?: UserMessageContext;
+}
+export interface UserMessageContext {
+  contexts: ContextReference[];
 }
 /**
  * `data` is the ACP SessionUpdate.
@@ -473,14 +613,51 @@ export interface SessionClosedEvent {
   text: string;
   thread_id: string;
 }
-/**
- * `text` is the selected workspace path.
- */
+export interface SessionDeletedEvent {
+  kind: "session_deleted";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+}
 export interface WorkspaceEvent {
   kind: "workspace";
   version: 1;
   request_id: string | null;
   text: string;
+  data?: WorkspaceIdentity;
+}
+export interface WorkspaceIdentity {
+  repository: RepositoryIdentity | null;
+}
+/**
+ * `text` is the selected workspace path.
+ */
+export interface RepositoryIdentity {
+  host: string;
+  owner: string;
+  name: string;
+}
+export interface LocalRoadmapEvent {
+  kind: "local_roadmap";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: LocalRoadmap;
+}
+export interface LocalRoadmap {
+  workspace: string;
+  path: string;
+  items: RoadmapItem[];
+  error: "not_found" | "read" | "invalid" | null;
+}
+export interface RoadmapItem {
+  line: number;
+  parent_line: number | null;
+  title: string;
+  text: string;
+  checked: boolean;
+  headings: string[];
 }
 export interface ContextFilesEvent {
   kind: "context_files";
@@ -492,6 +669,32 @@ export interface ContextFilesEvent {
 export interface ContextFile {
   path: string;
   name: string;
+  text: string;
+}
+export interface ContextCandidatesEvent {
+  kind: "context_candidates";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: ContextCandidate[];
+}
+export interface ContextCandidate {
+  kind: ContextKind;
+  label: string;
+  source: string;
+  detail: string;
+}
+export interface ContextResolvedEvent {
+  kind: "context_resolved";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: ContextReference;
+}
+export interface ContextErrorEvent {
+  kind: "context_error";
+  version: 1;
+  request_id: string | null;
   text: string;
 }
 export interface RemoteStateEvent {

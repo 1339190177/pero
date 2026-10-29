@@ -44,25 +44,6 @@ pub enum Group {
     Ended,
 }
 
-impl Group {
-    pub const ALL: [Group; 5] = [
-        Group::Attention,
-        Group::Running,
-        Group::Queued,
-        Group::Ready,
-        Group::Ended,
-    ];
-    pub fn label_key(self) -> &'static str {
-        match self {
-            Group::Attention => "cloud.group.attention",
-            Group::Running => "cloud.group.running",
-            Group::Queued => "cloud.group.queued",
-            Group::Ready => "cloud.group.ready",
-            Group::Ended => "cloud.group.ended",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tone {
     Muted,

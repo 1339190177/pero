@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
+pub mod composer_capabilities;
+pub mod context;
 pub mod i18n;
+pub mod local_worker;
+pub mod roadmap;
 pub mod session_settings;
+pub mod workbench;
 
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_TEXT_CHARS: usize = 4096;
@@ -27,6 +32,27 @@ pub struct HostEvent {
 }
 
 impl HostEvent {
+    /// A deleted thread stays out of replay and thread context, including events
+    /// recorded after its tombstone.
+    pub fn without_deleted_threads(events: &[Self]) -> Vec<Self> {
+        let deleted: std::collections::HashSet<&str> = events
+            .iter()
+            .filter(|event| event.kind == "session_deleted")
+            .filter_map(|event| event.thread_id.as_deref())
+            .collect();
+        events
+            .iter()
+            .filter(|event| {
+                event.kind != "session_deleted"
+                    && event
+                        .thread_id
+                        .as_deref()
+                        .is_none_or(|id| !deleted.contains(id))
+            })
+            .cloned()
+            .collect()
+    }
+
     pub fn new(kind: &str, request_id: Option<String>, text: String) -> Self {
         Self {
             version: PROTOCOL_VERSION,
@@ -52,8 +78,23 @@ pub enum HostCommand {
     Workspace {
         path: String,
     },
+    LoadRoadmap,
     AttachFiles {
         paths: Vec<String>,
+    },
+    SearchContext {
+        request_id: String,
+        kind: context::ContextKind,
+        query: String,
+    },
+    ResolveContext {
+        request_id: String,
+        kind: context::ContextKind,
+        source: String,
+        #[serde(default)]
+        start_line: Option<u32>,
+        #[serde(default)]
+        end_line: Option<u32>,
     },
     Authenticate {
         thread_id: String,
@@ -66,6 +107,8 @@ pub enum HostCommand {
     Prompt {
         thread_id: String,
         text: String,
+        #[serde(default)]
+        contexts: Vec<context::ContextReference>,
     },
     Cancel {
         thread_id: String,
@@ -85,6 +128,9 @@ pub enum HostCommand {
         value: String,
     },
     Close {
+        thread_id: String,
+    },
+    Delete {
         thread_id: String,
     },
 }
@@ -197,5 +243,30 @@ mod remote_settings_tests {
                 .valid()
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+
+    #[test]
+    fn deleted_threads_leave_visible_history() {
+        let thread = |kind: &str, id: &str| {
+            let mut event = HostEvent::new(kind, None, kind.into());
+            event.thread_id = Some(id.into());
+            event
+        };
+        let visible = HostEvent::without_deleted_threads(&[
+            thread("user_message", "keep"),
+            thread("user_message", "gone"),
+            thread("session_deleted", "gone"),
+            thread("session_closed", "gone"),
+            HostEvent::new("workspace", None, "/tmp".into()),
+        ]);
+        assert_eq!(visible.len(), 2);
+        assert_eq!(visible[0].thread_id.as_deref(), Some("keep"));
+        assert_eq!(visible[1].kind, "workspace");
+        assert!(visible[1].thread_id.is_none());
     }
 }

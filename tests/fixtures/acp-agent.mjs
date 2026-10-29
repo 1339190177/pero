@@ -1,5 +1,5 @@
 import readline from 'node:readline';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const send = value => process.stdout.write(JSON.stringify({jsonrpc:'2.0',...value})+'\n');
 let turn = 0;
@@ -7,14 +7,32 @@ let active;
 let permission;
 let timer;
 let workspace;
+const composerFixture = process.argv.includes('--composer');
+const capturePath = process.argv.find(arg => arg.startsWith('--capture='))?.slice('--capture='.length);
+const settings = { mode: 'write', effort: 'medium', approval: 'ask' };
+const configs = () => [
+ {id:'model',name:'Model',category:'model',type:'select',currentValue:'fixture',options:[{value:'fixture',name:'Fixture'}]},
+ ...(composerFixture ? [
+  {id:'mode',name:'Mode',category:'mode',type:'select',currentValue:settings.mode,options:[{value:'write',name:'Write'},{value:'ask',name:'Ask'},{value:'minimal',name:'Minimal'}]},
+  {id:'effort',name:'Thinking effort',category:'thought_level',type:'select',currentValue:settings.effort,options:[{value:'none',name:'Off'},{value:'low',name:'Low'},{value:'medium',name:'Medium'},{value:'high',name:'High'}]},
+  {id:'approval',name:'Tool permissions',category:'_permission',type:'select',currentValue:settings.approval,options:[{value:'ask',name:'Ask before tools',description:'Request approval before using tools'},{value:'read',name:'Allow reads',description:'Allow read tools only'}]},
+ ] : []),
+];
 const finish = reason => {clearInterval(timer);if(active!==undefined){send({id:active,result:{stopReason:reason}});active=undefined;}};
 readline.createInterface({input:process.stdin}).on('line',line=>{
  const message=JSON.parse(line),{id,method,params}=message;
- if (method==='initialize') send({id,result:{protocolVersion:1,agentCapabilities:{},agentInfo:{name:'test-fixture',version:'1'}}});
- else if(method==='session/new'){workspace=params.cwd;send({id,result:{sessionId:'fixture-session',configOptions:[{id:'model',name:'Model',category:'model',type:'select',currentValue:'fixture',options:[{value:'fixture',name:'Fixture'}]}]}});}
- else if(method==='session/set_config_option')send({id,result:{configOptions:[]}});
+ if (method==='initialize') send({id,result:{protocolVersion:1,agentCapabilities:composerFixture?{promptCapabilities:{image:true,embeddedContext:true}}:{},agentInfo:{name:'test-fixture',version:'1'}}});
+ else if(method==='session/new'){
+  workspace=params.cwd;send({id,result:{sessionId:'fixture-session',configOptions:configs()}});
+  if(composerFixture)send({method:'session/update',params:{sessionId:'fixture-session',update:{sessionUpdate:'available_commands_update',availableCommands:[{name:'compact',description:'Compact the conversation',input:{hint:'instructions'}}]}}});
+ }
+ else if(method==='session/set_config_option'){
+  if(composerFixture){settings[params.configId]=params.value;send({id,result:{configOptions:configs()}});}
+  else send({id,result:{configOptions:[]}});
+ }
  else if(method==='session/prompt'){
   active=id;turn++;
+  if(composerFixture && capturePath)appendFileSync(capturePath,JSON.stringify(params.prompt)+'\n');
   const text=params.prompt[0].text;
   const notify=update=>send({method:'session/update',params:{sessionId:'fixture-session',update}});
   // Explicit contribution acceptance uses real file/Git effects in a disposable

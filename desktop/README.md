@@ -164,8 +164,8 @@ back to an operator token. Credentials are excluded from renderer diagnostics an
 the local Host environment.
 
 Open **Remote tasks**. Clients see **Available / Mine / All**, claim an idle Task,
-and choose **Execute**. These ownership filters cover loaded pages; **Load more**
-extends them. **Issues / ROADMAP** and tag filters run on the service before
+and choose **Execute**. These ownership filters cover loaded pages; scrolling
+the list loads further pages. **Issues / ROADMAP** and tag filters run on the service before
 pagination. Issue labels and ROADMAP inline tags appear as selectable tag chips;
 nested ROADMAP items retain their parent link and heading path.
 Only the claim's owner can execute/cancel it or release an idle claim to another
@@ -258,16 +258,29 @@ saving, restart, cancellation and wrong/repeated callbacks.
 
 ### Native GPUI preview
 
-Run `npm run build:macos-native`, then open `target/native/Pero Native.app`.
-This optional preview reuses the GPUI workbench and Rust Host without Electron,
-Chromium, WebView or Wasm. Local ACP sessions use the existing installed adapters
-and model authentication. Preview history and preferences are isolated under
-`~/.pero/native-preview`; they do not overwrite the Electron profile.
+Run `npm run dev:native` while editing the workbench. It builds a debug Host and
+`pero-native`, opens that binary, and rebuilds when a Rust source or `Cargo.toml`
+under `crates/pero-ui` changes. Close the window to stop. A failed rebuild leaves
+the current window open.
+
+`npm run build:macos-native` still writes the release bundle at
+`target/native/Pero Native.app`. This preview reuses the GPUI workbench and Rust
+Host without Electron, Chromium, WebView or Wasm. Local ACP sessions use the
+existing installed adapters and model authentication. Preview history and
+preferences are isolated under `~/.pero/native-preview`; they do not overwrite
+the Electron profile.
 
 This is a development preview: it references the checkout's Host and adapters.
-It is not yet a portable release. Cloud HTTP coordination, GitHub OAuth/deep-link
-return, encrypted cloud credentials and embedded App panels are not connected in
-this shell. Unsupported cloud requests display an explicit error. Native
+It is not yet a portable release. GitHub sign-in opens the system browser at the
+service's `/connect/desktop` page. While this preview's app bundle is running it
+registers `pero://`, exchanges the callback, and loads cloud tasks for this
+process. Claim, release, dispatch, cancel, and an operator's create or source
+sync use the same cloud routes as Electron. Opening a task source, a pull
+request, or GitHub CLI help follows the canonical GitHub page. On macOS, native
+Cloud and device credentials use the OS keychain separately from the Electron
+profile. Other native platforms report credential storage unavailable. Preparing
+a local contribution workspace, and embedded App
+panels, are still not connected; those actions show an explicit error. Native
 cross-platform packaging remains unverified. See [native verification](../docs/fitness/native-preview.md).
 
 ### Native development packages (Electron)
@@ -314,3 +327,19 @@ input, language switching, dark mode and narrow windows. It does not prove a rea
 model response or native macOS deep-link delivery. On macOS this fixture uses
 `--use-mock-keychain` to avoid OS permission dialogs; real keychain persistence
 requires the separate credential suite and is not established by this check.
+
+## First-run connection and local execution
+
+A fresh profile can connect its Cloud account in the welcome flow or skip to local
+chats. Enable this device once by selecting a granted project, workspace key, local
+folder and installed ACP Agent. Worker credentials are separate from sign-in and
+are saved with OS encryption. Enabled configuration is restored for the same
+account on later launches; Stop and attention states require explicit Resume.
+Managed local execution stops when Desktop exits. Independent `pero-worker`
+installations keep their own lifecycle.
+
+The service must include migration 014 and the enrollment endpoints described in
+[ADR 0010](../docs/adr/0010-desktop-worker-enrollment.md). A new GitHub user with no
+project grant can sign in and use local chats, but cannot enroll a project Worker
+until granted access. See [local-execution verification](../docs/fitness/local-execution.md)
+for the exact local fixture acceptance boundary.

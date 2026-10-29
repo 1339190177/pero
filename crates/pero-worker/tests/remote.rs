@@ -51,6 +51,8 @@ struct CloudState {
     renewals: usize,
     claim_keys: Vec<(String, String)>,
     completion: Option<Value>,
+    claim_failures: usize,
+    claim_status: Option<&'static str>,
 }
 
 struct Fixture {
@@ -183,9 +185,15 @@ impl Fixture {
                             body["request_id"].as_str().unwrap().into(),
                             body["instance_id"].as_str().unwrap().into(),
                         ));
-                        state.run["instance_id"] = body["instance_id"].clone();
-                        state.run["lease_expires_at"] = json!(expiry());
-                        json!({"run":state.run})
+                        if state.claim_failures > 0 {
+                            state.claim_failures -= 1;
+                            status = state.claim_status.unwrap_or("503 Service Unavailable");
+                            json!({"error":"unavailable"})
+                        } else {
+                            state.run["instance_id"] = body["instance_id"].clone();
+                            state.run["lease_expires_at"] = json!(expiry());
+                            json!({"run":state.run})
+                        }
                     } else if path.ends_with("/renew") {
                         state.renewals += 1;
                         if lose_lease && state.renewals > 1 {
@@ -226,9 +234,14 @@ impl Fixture {
         }
     }
     fn command(&self) -> Command {
+        self.command_mode(true)
+    }
+    fn command_mode(&self, once: bool) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_pero-worker"));
+        if once {
+            command.arg("--once");
+        }
         command
-            .arg("--once")
             .env("PERO_CLOUD_URL", &self.url)
             .env("PERO_WORKER_TOKEN", "cloud-secret")
             .env("PERO_OPERATOR_TOKEN", "operator-secret")
@@ -428,4 +441,78 @@ int main(void) {
     let state=fixture.state.lock().unwrap();
     assert_eq!(state.completion.as_ref().unwrap()["outcome"], "succeeded");
     assert_eq!(state.events.iter().filter(|e| e["kind"] == "permission_approved").count(),1);
+}
+
+#[test]
+fn idle_network_reconnect_keeps_the_original_claim_and_executes_once() {
+    let fixture = Fixture::new("hello", false, false);
+    fixture.state.lock().unwrap().claim_failures = 1;
+    let mut child = fixture
+        .command_mode(false)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let output = child.stdout.take().unwrap();
+    let (progress, reported) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(output).lines().map_while(Result::ok) {
+            let _ = progress.send(serde_json::from_str::<Value>(&line).unwrap());
+        }
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut offline = false;
+    loop {
+        let state = reported
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .expect("Worker progress");
+        if state["status"] == "offline" {
+            offline = true;
+        }
+        if state["status"] == "running" {
+            break;
+        }
+    }
+    while fixture.state.lock().unwrap().completion.is_none() {
+        assert!(
+            Instant::now() < deadline,
+            "Worker never completed after reconnect"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    child.kill().unwrap();
+    child.wait().unwrap();
+    let state = fixture.state.lock().unwrap();
+    assert!(offline);
+    assert_eq!(
+        state.claim_keys[0], state.claim_keys[1],
+        "network errors must keep the original idempotent claim"
+    );
+    assert_eq!(
+        std::fs::read_to_string(fixture.root.join("marker")).unwrap(),
+        "prompt\n"
+    );
+}
+
+#[test]
+fn revoked_worker_credential_stops_before_any_execution() {
+    let fixture = Fixture::new("hello", false, false);
+    {
+        let mut state = fixture.state.lock().unwrap();
+        state.claim_failures = 1;
+        state.claim_status = Some("401 Unauthorized");
+    }
+    let output = fixture
+        .command_mode(false)
+        .stdout(Stdio::piped())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert_eq!(fixture.state.lock().unwrap().claim_keys.len(), 1);
+    assert!(!fixture.root.join("marker").exists());
+    let states = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(states.last().unwrap()["status"], "needs_attention");
 }

@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::mpsc, time::Instant};
 
 #[test]
 fn unsupported_protocol_never_creates_a_ready_session() {
-    let (_handle, rx) = launch("unsupported_protocol", None);
+    let (_handle, rx, _workspace) = launch("unsupported_protocol", None);
     let deadline = Instant::now() + Duration::from_secs(5);
     let mut failed = false;
     loop {
@@ -29,7 +29,25 @@ fn unsupported_protocol_never_creates_a_ready_session() {
     );
 }
 
-fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver<HostEvent>) {
+struct Workspace(PathBuf);
+impl Workspace {
+    fn new() -> Self {
+        let workspace = Self(
+            std::env::temp_dir().join(format!("pero-acp-test-{}", uuid::Uuid::new_v4())),
+        );
+        std::fs::create_dir(&workspace.0).unwrap();
+        workspace
+    }
+}
+impl Drop for Workspace {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+fn launch(
+    scenario: &str,
+    model: Option<&str>,
+) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let config = AgentConfig {
         id: "fixture".into(),
@@ -45,12 +63,17 @@ fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver
         mcp_servers: vec![],
     };
     let (tx, rx) = mpsc::channel();
-    (start(config, root, "fixture-thread".into(), tx), rx)
+    let workspace = Workspace::new();
+    (
+        start(config, workspace.0.clone(), "fixture-thread".into(), tx),
+        rx,
+        workspace,
+    )
 }
 
 #[test]
 fn dsh_wire_empty_model_options_and_minimal_permission_are_supported() {
-    let (handle, rx) = launch("dsh_wire", None);
+    let (handle, rx, _workspace) = launch("dsh_wire", None);
     let ready = until(&rx, "session_ready");
     assert_eq!(ready.data["configOptions"], json!([]));
     handle
@@ -77,7 +100,7 @@ fn dsh_wire_empty_model_options_and_minimal_permission_are_supported() {
 
 #[test]
 fn dsh_wire_text_and_tool_updates_are_supported_without_a_model_setter() {
-    let (handle, rx) = launch("dsh_wire", None);
+    let (handle, rx, _workspace) = launch("dsh_wire", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -116,7 +139,7 @@ fn close(handle: &SessionHandle, rx: &mpsc::Receiver<HostEvent>) {
 #[test]
 fn session_settings_follow_agent_acknowledgements() {
     for scenario in ["settings", "legacy_modes"] {
-        let (handle,rx) = launch(scenario,None);
+        let (handle, rx, _workspace) = launch(scenario,None);
         let ready = until(&rx,"session_ready");
         assert!(ready.data["peroSettings"]["options"].as_array().unwrap().iter().any(|option|
             option["id"]=="mode" && option["current"]=="agent"));
@@ -142,7 +165,7 @@ fn session_settings_follow_agent_acknowledgements() {
 }
 #[test]
 fn authentication_is_explicit_and_keeps_the_connection_for_retry() {
-    let (handle, rx) = launch("auth", Some("model-b"));
+    let (handle, rx, _workspace) = launch("auth", Some("model-b"));
     let required = until(&rx, "session_auth_required");
     assert_eq!(required.data["authMethods"].as_array().unwrap().len(), 2);
     assert!(
@@ -182,7 +205,7 @@ fn authentication_is_explicit_and_keeps_the_connection_for_retry() {
 }
 #[test]
 fn followup_messages_are_queued_instead_of_discarded_during_generation() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -205,7 +228,7 @@ fn followup_messages_are_queued_instead_of_discarded_during_generation() {
 }
 #[test]
 fn invalid_permission_selection_is_cancelled_and_session_remains_usable() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -231,7 +254,7 @@ fn invalid_permission_selection_is_cancelled_and_session_remains_usable() {
 }
 #[test]
 fn cancellation_clears_pending_permissions_without_requiring_host_cleanup() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -246,7 +269,7 @@ fn cancellation_clears_pending_permissions_without_requiring_host_cleanup() {
 }
 #[test]
 fn unacknowledged_cancellation_closes_the_session_after_a_bound() {
-    let (handle, rx) = launch("ignore_cancel", None);
+    let (handle, rx, _workspace) = launch("ignore_cancel", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -265,12 +288,12 @@ fn unacknowledged_cancellation_closes_the_session_after_a_bound() {
 }
 #[test]
 fn close_interrupts_initialization_and_model_failure_never_marks_ready() {
-    let (handle, rx) = launch("initialization_hangs", None);
+    let (handle, rx, _workspace) = launch("initialization_hangs", None);
     until(&rx, "session_connecting");
     let started = Instant::now();
     close(&handle, &rx);
     assert!(started.elapsed() < Duration::from_secs(1));
-    let (_handle, rx) = launch("bad_model", Some("model-b"));
+    let (_handle, rx, _workspace) = launch("bad_model", Some("model-b"));
     loop {
         let event = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_ne!(event.kind, "session_ready");
@@ -282,7 +305,7 @@ fn close_interrupts_initialization_and_model_failure_never_marks_ready() {
 
 #[test]
 fn prompt_time_authentication_requires_explicit_login_and_a_new_user_prompt() {
-    let (handle, rx) = launch("prompt_auth", None);
+    let (handle, rx, _workspace) = launch("prompt_auth", None);
     let ready = until(&rx, "session_ready");
     let session_id = ready.data["sessionId"].clone();
     handle
@@ -324,7 +347,7 @@ fn prompt_time_authentication_requires_explicit_login_and_a_new_user_prompt() {
 
 #[test]
 fn legacy_model_advertisement_and_updates_survive_the_current_sdk() {
-    let (handle, rx) = launch("legacy_models", Some("model-b"));
+    let (handle, rx, _workspace) = launch("legacy_models", Some("model-b"));
     let ready = until(&rx, "session_ready");
     assert_eq!(ready.data["models"]["currentModelId"], "model-b");
     assert_eq!(
@@ -359,7 +382,7 @@ fn legacy_model_advertisement_and_updates_survive_the_current_sdk() {
 
 #[test]
 fn modern_model_config_takes_precedence_over_legacy_models() {
-    let (handle, rx) = launch("both_models", Some("model-b"));
+    let (handle, rx, _workspace) = launch("both_models", Some("model-b"));
     assert_eq!(
         until(&rx, "session_ready").data["configOptions"][0]["currentValue"],
         "model-b"
@@ -378,7 +401,7 @@ fn modern_model_config_takes_precedence_over_legacy_models() {
 #[test]
 fn model_changes_require_an_advertised_id_for_each_supported_api() {
     for scenario in ["", "legacy_models", "no_models"] {
-        let (handle, rx) = launch(scenario, None);
+        let (handle, rx, _workspace) = launch(scenario, None);
         until(&rx, "session_ready");
         handle
             .tx
@@ -398,7 +421,10 @@ fn model_changes_require_an_advertised_id_for_each_supported_api() {
     }
 }
 
-fn launch_mcp(scenario: &str, servers: Value) -> (SessionHandle, mpsc::Receiver<HostEvent>) {
+fn launch_mcp(
+    scenario: &str,
+    servers: Value,
+) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     // Exercise the same operator JSON deserialization as the registry, not a hand-built request.
     let config: AgentConfig = serde_json::from_value(json!({
@@ -419,7 +445,12 @@ fn launch_mcp(scenario: &str, servers: Value) -> (SessionHandle, mpsc::Receiver<
     }
     assert!(config.public().get("mcp_servers").is_none());
     let (tx, rx) = mpsc::channel();
-    (start(config, root, "mcp-fixture".into(), tx), rx)
+    let workspace = Workspace::new();
+    (
+        start(config, workspace.0.clone(), "mcp-fixture".into(), tx),
+        rx,
+        workspace,
+    )
 }
 
 fn mcp_stdio_command() -> PathBuf {
@@ -438,7 +469,7 @@ fn mcp_servers() -> Value {
 
 #[test]
 fn mcp_operator_config_reaches_wire_and_survives_auth_retry_and_cancellation() {
-    let (handle, rx) = launch_mcp("mcp_auth", mcp_servers());
+    let (handle, rx, _workspace) = launch_mcp("mcp_auth", mcp_servers());
     until(&rx, "session_auth_required");
     handle
         .tx
@@ -460,7 +491,7 @@ fn mcp_defaults_forward_empty_list() {
     let config: AgentConfig =
         serde_json::from_value(json!({"id":"old", "name":"old", "command":"node"})).unwrap();
     assert!(config.mcp_servers.is_empty());
-    let (handle, rx) = launch_mcp("mcp", json!([]));
+    let (handle, rx, _workspace) = launch_mcp("mcp", json!([]));
     until(&rx, "session_ready");
     close(&handle, &rx);
 }
@@ -476,7 +507,7 @@ fn mcp_invalid_config_fails_before_connecting_or_child_spawn() {
         (json!([{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]},{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]}]), "Invalid or duplicate MCP server name"),
     ];
     for (servers, expected_error) in invalid {
-        let (_handle, rx) = launch_mcp("mcp", servers);
+        let (_handle, rx, _workspace) = launch_mcp("mcp", servers);
         let error = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(
             error.kind, "session_error",
@@ -493,7 +524,7 @@ fn mcp_invalid_config_fails_before_connecting_or_child_spawn() {
 
 #[test]
 fn mcp_unadvertised_remote_transport_never_creates_session() {
-    let (_handle, rx) = launch_mcp("mcp_unsupported", mcp_servers());
+    let (_handle, rx, _workspace) = launch_mcp("mcp_unsupported", mcp_servers());
     let error = until(&rx, "session_error");
     assert!(error.text.contains("does not support MCP HTTP"));
     until(&rx, "session_closed");
@@ -519,10 +550,68 @@ fn mcp_malformed_operator_json_is_rejected_without_secret_details() {
 #[test]
 fn initialization_timeout_remains_bounded() {
     let started = Instant::now();
-    let (_handle, rx) = launch("initialization_hangs", None);
+    let (_handle, rx, _workspace) = launch("initialization_hangs", None);
     let error = until(&rx, "session_error");
     assert!(error.text.contains("Agent initialization timed out"));
     until(&rx, "session_closed");
     assert!(started.elapsed() >= SETUP_TIMEOUT);
     assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+#[test]
+fn composer_commands_permissions_and_structured_context_cross_the_acp_wire() {
+    use pero_contracts::{composer_capabilities::AgentCommand, context::{ContextContent, ContextKind, ContextReference}};
+    let (handle, rx, _workspace) = launch("composer", None);
+    let info = until(&rx, "agent_info");
+    assert_eq!(info.data["agentCapabilities"]["promptCapabilities"]["image"], true);
+    let mut ready = false;
+    let mut commands = None;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !ready || commands.is_none() {
+        let event = rx.recv_timeout(deadline.saturating_duration_since(Instant::now())).unwrap();
+        if event.kind == "session_ready" {
+            assert_eq!(event.data["peroCapabilities"], json!({"images":true,"embedded_context":true}));
+            ready = true;
+        }
+        if event.kind == "session_update" && event.data["sessionUpdate"] == "available_commands_update" {
+            commands = Some(AgentCommand::from_update(&event.data).unwrap());
+        }
+    }
+    assert_eq!(commands.unwrap()[0].name, "compact");
+    handle.tx.send(SessionCommand::Configure {id:"approval".into(),value:"read".into()}).unwrap();
+    let confirmed = until(&rx, "configuration_changed");
+    assert!(confirmed.data["options"].as_array().unwrap().iter().any(|option| option["id"]=="approval" && option["current"]=="read"));
+    handle.tx.send(SessionCommand::PromptWithContext {
+        text:"Review selected context".into(),
+        context:vec![
+            ContextReference {id:"snapshot-1".into(),kind:ContextKind::File,label:"example.rs".into(),source:"example.rs".into(),content:ContextContent::Text{text:"frozen file".into()}},
+            ContextReference {id:"snapshot-2".into(),kind:ContextKind::Image,label:"example.png".into(),source:"example.png".into(),content:ContextContent::Image{data:"aGVsbG8=".into(),mime_type:"image/png".into()}},
+        ],
+    }).unwrap();
+    let rendered = until(&rx, "session_update");
+    let blocks: Value = serde_json::from_str(rendered.data["content"]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(blocks[0]["text"], "Review selected context");
+    assert_eq!(blocks[1]["type"], "resource");
+    assert!(blocks[1]["resource"]["text"].as_str().unwrap().ends_with("frozen file"));
+    assert_eq!(blocks[2]["type"], "image");
+    assert_eq!(blocks[2]["mimeType"], "image/png");
+    until(&rx, "turn_finished");
+    close(&handle, &rx);
+}
+
+#[test]
+fn local_turns_and_worker_execution_share_the_workspace_write_lease() {
+    let (handle,rx,workspace)=launch("",None);
+    until(&rx,"session_ready");
+    let worker_lease=crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).unwrap();
+    handle.tx.send(SessionCommand::Prompt("blocked".into())).unwrap();
+    assert!(until(&rx,"session_error").text.contains("Workspace is busy"));
+    drop(worker_lease);
+    handle.tx.send(SessionCommand::Prompt("wait".into())).unwrap();
+    until(&rx,"turn_started");
+    assert!(crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).is_err());
+    handle.tx.send(SessionCommand::Cancel).unwrap();
+    until(&rx,"turn_finished");
+    assert!(crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).is_ok());
+    close(&handle,&rx);
 }

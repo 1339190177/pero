@@ -5,6 +5,7 @@ use std::io::{self, BufRead, Write};
 mod agents;
 mod apps;
 mod contributions;
+mod local_worker;
 
 fn emit(event: HostEvent) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
@@ -21,6 +22,7 @@ fn main() -> io::Result<()> {
     let mut agents = agents::Manager::new(std::env::current_dir()?);
     let settings_path = std::env::var_os("PERO_SETTINGS_PATH").map(std::path::PathBuf::from);
     let mut apps = apps::Apps::new(settings_path.as_deref());
+    let workers = local_worker::LocalWorkers::new(settings_path.as_deref());
     let locale = settings_path
         .as_deref()
         .and_then(pero_runtime::settings::load_locale)
@@ -35,12 +37,49 @@ fn main() -> io::Result<()> {
     for line in io::stdin().lock().lines() {
         let line = line?;
         let value: serde_json::Value = serde_json::from_str(&line).unwrap_or_default();
+        if value
+            .get("method")
+            .and_then(|v| v.as_str())
+            .is_some_and(|method| method.starts_with("settings.workbench"))
+        {
+            use pero_contracts::workbench::WorkbenchSettingsRequest;
+            let result = serde_json::from_value::<WorkbenchSettingsRequest>(value)
+                .ok()
+                .zip(settings_path.as_deref())
+                .and_then(|(request, path)| match request {
+                    WorkbenchSettingsRequest::Get => {
+                        Some(pero_runtime::settings::load_workbench(path))
+                    }
+                    WorkbenchSettingsRequest::Set { preferences } => {
+                        pero_runtime::settings::save_workbench(path, &preferences)
+                            .ok()
+                            .map(|_| preferences)
+                    }
+                });
+            let event = if let Some(preferences) = result {
+                let mut event = HostEvent::new("workbench_settings", None, String::new());
+                event.data = serde_json::to_value(preferences)?;
+                event
+            } else {
+                HostEvent::message("error", None, "error.preferences")
+            };
+            emit(event)?;
+            continue;
+        }
         if value.get("method").and_then(|v| v.as_str()) == Some("contribution") {
             contributions::dispatch(value);
             continue;
         }
         if value.get("method").and_then(|v| v.as_str()) == Some("apps") {
             emit(apps.dispatch(value))?;
+            continue;
+        }
+        if value
+            .get("action")
+            .and_then(|action| action.as_str())
+            .is_some_and(|action| action.starts_with("local_worker_"))
+        {
+            workers.dispatch(value, settings_path.as_deref());
             continue;
         }
         if value.get("action").is_some() {

@@ -45,10 +45,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-26, platform: macos, arch: arm64, product: pero }
+          - { os: macos-15, platform: macos, arch: arm64, product: pero }
           - { os: ubuntu-24.04, platform: linux, arch: x64, product: pero }
           - { os: windows-2025, platform: windows, arch: x64, product: pero }
-          - { os: macos-26, platform: macos, arch: arm64, product: virtual-cell }
+          - { os: macos-15, platform: macos, arch: arm64, product: virtual-cell }
     timeout-minutes: 90
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
@@ -95,7 +95,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.product }}
-          cache-on-failure: true
 
       - name: Checkout pinned GPUI snapshot
         run: |
@@ -137,12 +136,7 @@ jobs:
         run: npm run build:product -- --product virtual-cell --python "$RUNNER_TEMP/virtual-cell-python/python" --package 2>&1 | tee target/release-diagnostics/package.log
 
       - name: Check generated contracts and types
-        if: matrix.product == 'pero'
         run: npm run check 2>&1 | tee target/release-diagnostics/check.log
-
-      - name: Check standalone Product model and bundling
-        if: matrix.product == 'virtual-cell'
-        run: npm run test:product
 
       - name: Verify package and checksums
         run: node scripts/release/desktop.mjs verify

@@ -51,6 +51,8 @@ impl Event {
 pub struct Outcome {
     pub outcome: String,
     pub summary: String,
+    #[serde(default)]
+    pub needs_attention: bool,
 }
 
 impl Outcome {
@@ -58,6 +60,38 @@ impl Outcome {
         Self {
             outcome: outcome.into(),
             summary: summary.into(),
+            needs_attention: outcome == "reconcile",
         }
+    }
+    pub fn blocked(summary: impl Into<String>) -> Self {
+        Self {
+            outcome: "failed".into(),
+            summary: summary.into(),
+            needs_attention: true,
+        }
+    }
+}
+
+/// Network recovery keeps the original operation identity; only the delay changes.
+#[derive(Default)]
+pub struct ReconnectBackoff {
+    attempt: u32,
+}
+impl ReconnectBackoff {
+    pub fn failed(&mut self) -> std::time::Duration {
+        self.attempt = (self.attempt + 1).min(5);
+        std::time::Duration::from_secs(1u64 << self.attempt)
+    }
+}
+#[cfg(test)]
+mod reconnect_tests {
+    use super::*;
+    #[test]
+    fn outages_back_off_to_a_bounded_delay() {
+        let mut backoff = ReconnectBackoff::default();
+        let delays = (0..7)
+            .map(|_| backoff.failed().as_secs())
+            .collect::<Vec<_>>();
+        assert_eq!(delays, vec![2, 4, 8, 16, 32, 32, 32]);
     }
 }

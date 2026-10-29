@@ -1,10 +1,12 @@
 use super::AgentConfig;
 use super::configuration::Configuration;
+use super::prompt::prompt_blocks;
+use pero_contracts::context::ContextReference;
 use agent_client_protocol::schema::{ProtocolVersion, v1::*};
 use agent_client_protocol::{
     AcpAgent, AcpAgentConfig, Agent, Client, ConnectionTo, UntypedMessage,
 };
-use pero_contracts::HostEvent;
+use pero_contracts::{HostEvent, composer_capabilities::AgentCapabilities};
 use serde_json::{Value, json};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -21,6 +23,7 @@ const MAX_DEFERRED_COMMANDS: usize = 16;
 
 pub enum SessionCommand {
     Prompt(String),
+    PromptWithContext { text: String, context: Vec<ContextReference> },
     Cancel,
     Model(String),
     Configure { id: String, value: String },
@@ -50,6 +53,15 @@ pub fn start(
     thread: String,
     tx: Sender<HostEvent>,
 ) -> SessionHandle {
+    start_with_workspace_access(config, cwd, thread, tx, true)
+}
+
+/// The independent Worker supervisor already owns this checkout's write lease.
+pub fn start_supervised(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>) -> SessionHandle {
+    start_with_workspace_access(config, cwd, thread, tx, false)
+}
+
+fn start_with_workspace_access(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>, acquire_workspace: bool) -> SessionHandle {
     let (commands, rx) = mpsc::unbounded_channel();
     let permissions: Permissions = Arc::default();
     let pending = permissions.clone();
@@ -65,6 +77,7 @@ pub fn start(
             tx.clone(),
             rx,
             pending.clone(),
+            acquire_workspace,
         ));
         pending.lock().unwrap().clear();
         if let Err(error) = result {
@@ -95,7 +108,7 @@ fn defer(
         );
         return;
     }
-    if matches!(command, SessionCommand::Prompt(_)) {
+    if matches!(command, SessionCommand::Prompt(_) | SessionCommand::PromptWithContext { .. }) {
         event(
             tx,
             thread,
@@ -137,6 +150,7 @@ async fn run(
     tx: Sender<HostEvent>,
     mut commands: mpsc::UnboundedReceiver<SessionCommand>,
     permissions: Permissions,
+    acquire_workspace: bool,
 ) -> Result<(), String> {
     config.validate_mcp()?;
     event(
@@ -270,6 +284,13 @@ async fn run(
             // Validate the standard fields without dropping legacy `models` from the raw response.
             let session: NewSessionResponse = serde_json::from_value(session_data.clone()).map_err(agent_client_protocol::Error::into_internal_error)?;
             let session_id = session.session_id.clone();
+            // Session-ready is journaled and replayed on renderer reconnect;
+            // initialization is transient, so carry its composer capabilities
+            // in the retained session snapshot as well.
+            session_data["peroCapabilities"] = serde_json::to_value(AgentCapabilities {
+                images: initialized.agent_capabilities.prompt_capabilities.image,
+                embedded_context: initialized.agent_capabilities.prompt_capabilities.embedded_context,
+            }).map_err(agent_client_protocol::Error::into_internal_error)?;
             configuration.lock().unwrap().refresh(&session_data)?;
             session_data["peroSettings"] = serde_json::to_value(&configuration.lock().unwrap().settings).unwrap_or_default();
             *model_api.lock().unwrap() = ModelApi::from_session(&session_data);
@@ -282,20 +303,37 @@ async fn run(
                 ).await? else { return Ok(()); };
                 selector.apply_response(&mut session_data, response, &model)?;
                 *model_api.lock().unwrap() = ModelApi::from_session(&session_data);
+                configuration.lock().unwrap().refresh(&session_data)?;
+                session_data["peroSettings"] = serde_json::to_value(&configuration.lock().unwrap().settings).unwrap_or_default();
             }
             event(&tx, &thread, "session_ready", "会话已就绪", session_data.clone());
             let mut needs_authentication = false;
             loop {
                 let command = if let Some(command) = deferred.pop_front() { Some(command) } else { commands.recv().await };
                 match command {
-                    Some(SessionCommand::Prompt(text)) => {
+                    Some(command @ (SessionCommand::Prompt(_) | SessionCommand::PromptWithContext { .. })) => {
+                        let (text, context) = match command {
+                            SessionCommand::Prompt(text) => (text, Vec::new()),
+                            SessionCommand::PromptWithContext { text, context } => (text, context),
+                            _ => unreachable!("matched prompt command"),
+                        };
                         if needs_authentication {
                             event(&tx, &thread, "session_auth_required", "Provider authentication required", json!({ "authMethods": auth_methods }));
                             continue;
                         }
+                        let _workspace_lease = if acquire_workspace {
+                            match crate::workspace_lease::WorkspaceLease::acquire(&cwd) {
+                                Ok(lease) => Some(lease),
+                                Err(error) => { event(&tx,&thread,"session_error",error,Value::Null); continue; },
+                            }
+                        } else { None };
+                        let blocks = match prompt_blocks(text, context, &initialized.agent_capabilities.prompt_capabilities) {
+                            Ok(blocks) => blocks,
+                            Err(error) => { event(&tx, &thread, "session_error", error.to_string(), Value::Null); continue; },
+                        };
                         event(&tx, &thread, "turn_started", "正在思考", Value::Null);
                         let prompt = connection.send_request(PromptRequest::new(
-                            session_id.clone(), vec![ContentBlock::Text(TextContent::new(text))],
+                            session_id.clone(), blocks,
                         )).block_task();
                         tokio::pin!(prompt);
                         let mut cancelled_at = None;
@@ -308,7 +346,7 @@ async fn run(
                                 command = commands.recv() => match command {
                                     Some(SessionCommand::Cancel) => {
                                         permissions.lock().unwrap().clear();
-                                        deferred.retain(|command| !matches!(command, SessionCommand::Prompt(_)));
+                                        deferred.retain(|command| !matches!(command, SessionCommand::Prompt(_) | SessionCommand::PromptWithContext { .. }));
                                         connection.send_notification(CancelNotification::new(session_id.clone()))?;
                                         cancelled_at.get_or_insert(tokio::time::Instant::now() + CANCEL_TIMEOUT);
                                     },
@@ -322,12 +360,14 @@ async fn run(
                             }
                         };
                         permissions.lock().unwrap().clear();
+                        // Completion is observable only after this turn releases write ownership.
+                        drop(_workspace_lease);
                         match result {
                             Ok(response) => event(&tx, &thread, "turn_finished", format!("{:?}", response.stop_reason), serde_json::to_value(response).unwrap_or_default()),
                             Err(error) if error.code == ErrorCode::AuthRequired => {
                                 needs_authentication = true;
                                 let before = deferred.len();
-                                deferred.retain(|command| !matches!(command, SessionCommand::Prompt(_)));
+                                deferred.retain(|command| !matches!(command, SessionCommand::Prompt(_) | SessionCommand::PromptWithContext { .. }));
                                 if deferred.len() != before {
                                     event(&tx, &thread, "command_rejected", "Queued messages were not sent because provider authentication is required", json!({ "count": before - deferred.len() }));
                                 }
