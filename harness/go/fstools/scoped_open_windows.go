@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const nativeFileWrites = false
+const nativeFileReplacement = false
 
 // Windows names have aliases beyond slash/dot traversal. The public tools use
 // one canonical spelling and never address streams, devices or DOS aliases.
@@ -57,6 +57,16 @@ func openScopedTextFile(root *os.Root, name string) (*os.File, error) {
 		return nil, err
 	}
 	defer parent.Close()
+	return openWindowsFileAt(parent, name, windows.FILE_GENERIC_READ, windows.FILE_OPEN,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, 0)
+}
+
+// The parent handle and relative name are the authority; no absolute child path
+// is reopened. Additional modes are limited to read and exclusive staging.
+func openWindowsFileAt(parent *os.File, name string, access, disposition, share, options uint32) (*os.File, error) {
+	if name == "." {
+		name = ""
+	} // NT opens the parent handle with an empty relative name.
 	objectName, err := windows.NewNTUnicodeString(filepath.FromSlash(name))
 	if err != nil {
 		return nil, err
@@ -64,9 +74,9 @@ func openScopedTextFile(root *os.Root, name string) (*os.File, error) {
 	attrs := windows.OBJECT_ATTRIBUTES{RootDirectory: windows.Handle(parent.Fd()), ObjectName: objectName, Attributes: windows.OBJ_DONT_REPARSE | windows.OBJ_CASE_INSENSITIVE}
 	attrs.Length = uint32(unsafe.Sizeof(attrs))
 	var handle windows.Handle
-	err = windows.NtCreateFile(&handle, windows.FILE_GENERIC_READ, &attrs, &windows.IO_STATUS_BLOCK{}, nil, windows.FILE_ATTRIBUTE_NORMAL,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, windows.FILE_OPEN,
-		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT|windows.FILE_OPEN_FOR_BACKUP_INTENT, 0, 0)
+	err = windows.NtCreateFile(&handle, access, &attrs, &windows.IO_STATUS_BLOCK{}, nil, windows.FILE_ATTRIBUTE_NORMAL,
+		share, disposition,
+		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT|windows.FILE_OPEN_FOR_BACKUP_INTENT|options, 0, 0)
 	if err != nil {
 		return nil, &os.PathError{Op: "openat", Path: name, Err: err}
 	}

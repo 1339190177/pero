@@ -13,7 +13,7 @@ func openScopedTextFile(root *os.Root, name string) (*os.File, error) {
 	return root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 }
 
-const nativeFileWrites = true
+const nativeFileReplacement = true
 
 func canonicalWorkspacePath(name string) (string, error) { return filepath.EvalSymlinks(name) }
 func scopedPathInfo(name string) (os.FileInfo, error)    { return os.Lstat(name) }

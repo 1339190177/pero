@@ -25,6 +25,7 @@ const MaxEntries = 256
 
 type Workspace struct {
 	afterCreate      func() // private deterministic race/failure injection, never tool arguments
+	beforePublish    func() // private Windows exclusive-publication fixture
 	beforeSearchRead func() // private deterministic root-replacement fixture
 
 	mu       sync.Mutex
@@ -61,9 +62,10 @@ func OpenWorkspace(name string) (*Workspace, error) {
 }
 func (w *Workspace) Path() string { return w.path }
 
-// ReadOnly reports the native backend capability, not a session permission.
-func (w *Workspace) ReadOnly() bool { return !nativeFileWrites }
-func (w *Workspace) Close() error   { w.mu.Lock(); defer w.mu.Unlock(); return w.root.Close() }
+// SupportsReplacement reports native capability, not session write permission.
+// Windows supports exclusive creation but cannot safely preserve all existing metadata.
+func (w *Workspace) SupportsReplacement() bool { return nativeFileReplacement }
+func (w *Workspace) Close() error              { w.mu.Lock(); defer w.mu.Unlock(); return w.root.Close() }
 func (w *Workspace) CheckCWD(cwd string) error {
 	canonical, err := canonicalWorkspacePath(cwd)
 	if err != nil || canonical != w.path {
@@ -127,7 +129,7 @@ func sameFileInfo(left, right fs.FileInfo) bool {
 // selectFile binds the reused scoped algorithm to the original workspace object,
 // not whatever directory currently occupies its pathname.
 func (w *Workspace) selectFile(name string) (*ScopedTextFiles, error) {
-	scope, err := openScopedTextFiles(w.path, []string{name}, MaxFileBytes, w.ReadOnly())
+	scope, err := openScopedTextFiles(w.path, []string{name}, MaxFileBytes, !w.SupportsReplacement())
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +159,6 @@ func (w *Workspace) Read(ctx context.Context, name string) (ScopedText, error) {
 }
 
 func (w *Workspace) Write(ctx context.Context, name, text string) (ScopedTextReceipt, error) {
-	if w.ReadOnly() {
-		return ScopedTextReceipt{}, errors.New("native Windows workspace is read-only")
-	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	name, err := w.checked(name, false)
@@ -174,6 +173,9 @@ func (w *Workspace) Write(ctx context.Context, name, text string) (ScopedTextRec
 	}
 	info, err := w.root.Lstat(name)
 	if err == nil {
+		if !w.SupportsReplacement() {
+			return ScopedTextReceipt{Path: name, State: "not-applied"}, errors.New("Windows write_file creates new files only; replacement is unavailable")
+		}
 		if !info.Mode().IsRegular() {
 			return ScopedTextReceipt{}, errors.New("target must be regular file")
 		}
@@ -199,82 +201,12 @@ func (w *Workspace) Write(ctx context.Context, name, text string) (ScopedTextRec
 	if !errors.Is(err, os.ErrNotExist) {
 		return ScopedTextReceipt{}, err
 	}
-	// Exclusive creation never follows or overwrites an attacker-installed target.
-	// A failed write may leave a partial file; report unknown rather than retrying.
-	receipt := ScopedTextReceipt{Path: name, AfterDigest: scopedTextDigest([]byte(text)), State: "not-applied"}
-	if err = w.check(); err != nil {
-		return receipt, err
-	}
-	parentName, baseName := path.Dir(name), path.Base(name)
-	parent, err := w.root.OpenRoot(parentName)
-	if err != nil {
-		return receipt, err
-	}
-	defer parent.Close()
-	parentInfo, err := parent.Stat(".")
-	if err != nil {
-		return receipt, err
-	}
-	file, err := parent.OpenFile(baseName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return receipt, err
-	}
-	receipt.State = "unknown"
-	_, writeErr := file.Write([]byte(text))
-	syncErr := file.Sync()
-	writtenInfo, statErr := file.Stat()
-	closeErr := file.Close()
-	if err = errors.Join(writeErr, syncErr, statErr, closeErr); err != nil {
-		return receipt, err
-	}
-	if w.afterCreate != nil {
-		w.afterCreate()
-	}
-	if err = w.check(); err != nil {
-		return receipt, err
-	}
-	currentParent, err := w.root.Lstat(parentName)
-	if err != nil || !currentParent.IsDir() || !os.SameFile(parentInfo, currentParent) {
-		return receipt, errors.New("file parent changed; creation outcome requires reconciliation")
-	}
-	current, err := parent.Lstat(baseName)
-	if err != nil || !sameFileInfo(writtenInfo, current) {
-		return receipt, errors.New("created target changed; creation outcome requires reconciliation")
-	}
-	readback, err := openScopedTextFile(parent, baseName)
-	if err != nil {
-		return receipt, err
-	}
-	readInfo, readStatErr := readback.Stat()
-	data, readErr := io.ReadAll(io.LimitReader(readback, MaxFileBytes+1))
-	readCloseErr := readback.Close()
-	if err = errors.Join(readStatErr, readErr, readCloseErr); err != nil {
-		return receipt, err
-	}
-	if !sameFileInfo(writtenInfo, readInfo) || !bytes.Equal(data, []byte(text)) {
-		return receipt, errors.New("created target readback uncertain; reconcile before retry")
-	}
-	dir, err := parent.Open(".")
-	if err != nil {
-		return receipt, err
-	}
-	syncErr = dir.Sync()
-	closeErr = dir.Close()
-	if err = errors.Join(syncErr, closeErr); err != nil {
-		return receipt, err
-	}
-	if err = ctx.Err(); err != nil {
-		return receipt, err
-	}
-	if err = w.check(); err != nil {
-		return receipt, err
-	}
-	receipt.State = "applied"
-	return receipt, nil
+	return w.writeNew(ctx, name, text)
 }
+
 func (w *Workspace) Edit(ctx context.Context, name, oldText, newText string, all bool) (ScopedTextReceipt, error) {
-	if w.ReadOnly() {
-		return ScopedTextReceipt{}, errors.New("native Windows workspace is read-only")
+	if !w.SupportsReplacement() {
+		return ScopedTextReceipt{}, errors.New("native Windows file replacement is unavailable")
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()

@@ -7,11 +7,15 @@ go_library(
         "scoped_open_unix.go",
         "scoped_open_windows.go",
         "workspace.go",
+        "workspace_create_unix.go",
+        "workspace_create_windows.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/fstools",
     visibility = ["//visibility:public"],
     deps = select({
-        "@rules_go//go/platform:windows": ["@org_golang_x_sys//windows"],
+        "@rules_go//go/platform:windows": [
+            "@org_golang_x_sys//windows",
+        ],
         "//conditions:default": [],
     }),
 )
@@ -21,6 +25,7 @@ go_test(
     srcs = [
         "review_race_test.go",
         "scoped_test.go",
+        "workspace_create_windows_test.go",
         "workspace_test.go",
         "workspace_windows_test.go",
     ],

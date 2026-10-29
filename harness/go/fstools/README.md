@@ -1,7 +1,7 @@
 # Workspace text files
 
-Explicit launch-time workspace authority on Linux/macOS; unsupported platforms
-fail closed at construction. This is not an OS sandbox. The workspace is
+Explicit launch-time workspace authority on Linux/macOS/Windows; unsupported
+platforms fail closed at construction. This is not an OS sandbox. The workspace is
 opened as an `os.Root` capability. Paths must be canonical relative slash paths;
 absolute paths, traversal, selected symlinks and special files are rejected.
 The reused scoped-text algorithm pins directory descriptors, checks preimages,
@@ -24,3 +24,27 @@ capabilities do not infer file provenance or provide user/OS access isolation.
 `SOURCE.json` records precise upstream algorithms. No blanket source license is
 invented. This package adds the narrow workspace adapter rather than restoring
 Point sandbox/Host/product or FS-observation services.
+
+## Windows native subset
+
+Windows supports bounded read/list/search and **create-new only**. Child opens
+use `NtCreateFile` relative to pinned directory handles with `OBJ_DONT_REPARSE`;
+all reparse tags, streams, device names and noncanonical DOS aliases are rejected.
+The explicitly selected launch root may resolve through a junction; its resolved
+handle identity is pinned. Existing hardlinks remain readable as documented above.
+
+Creation writes a randomly named sibling, flushes its content, and publishes with
+handle-relative `FileRenameInformation` and `ReplaceIfExists=FALSE`. Competing
+regular files, hardlinks and reparse points are never overwritten. New files
+inherit the selected parent's ACL; this backend does not change ACLs or labels.
+Prepublication cancellation deletes only the owned stage handle. A publication
+error with uncertain effect returns `unknown` and may retain a staging file for
+reconciliation. Observed readback is not a Windows directory-fsync or power-loss
+transaction guarantee.
+
+Existing-file `Write`, `Edit` and the public writable `OpenScopedTextFiles` API
+remain unavailable on Windows. DSH's pathname-based `ReplaceFileW` preserves
+DACLs, streams and other metadata but reopens names; a simple rooted rename would
+silently discard that metadata. Neither weaker implementation is used. Skills
+still depend on the unsupported writable-scoped constructor; explicit root
+AGENTS.md instruction loading can reuse the workspace's read capability.
