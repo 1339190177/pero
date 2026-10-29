@@ -15,3 +15,4 @@
 - [0012: Shared GPUI App Chat](0012-shared-gpui-app-chat.md)
 - [0013: Workspace content tabs and shared Chat](0013-workspace-content-tabs.md)
 - [0014: Agent App Use](0014-app-use.md)
+- [0015: Global appearance and scoped typography](0015-global-appearance.md)
