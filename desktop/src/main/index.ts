@@ -270,6 +270,10 @@ app.whenReady().then(async () => {
     webPreferences: { ...testWindowOptions.webPreferences, preload: resolve(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   window.webContents.on('did-start-navigation', (_event, _url, _inPlace, main) => { if (main) appUse?.reset(); });
   window.webContents.on('render-process-gone', () => appUse?.reset());
+  window.webContents.on('will-prevent-unload',event=>{
+    const answer=dialog.showMessageBoxSync(window,{type:'warning',message:t('content.unsaved'),detail:t('content.unsaved_window'),buttons:[t('content.keep_editing'),t('content.discard_window')],defaultId:0,cancelId:0});
+    if(answer===1)event.preventDefault();
+  });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: 'deny' };

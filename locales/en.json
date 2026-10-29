@@ -604,5 +604,7 @@
   "content.discard_reload": "Discard edits and reload",
   "content.discard_close": "Discard edits and close",
   "content.keep_editing": "Keep editing",
-  "content.link_unavailable": "This link has no available workspace target."
+  "content.link_unavailable": "This link has no available workspace target.",
+  "content.unsaved_window": "Save your changes before closing or reloading the window.",
+  "content.discard_window": "Discard changes"
 }

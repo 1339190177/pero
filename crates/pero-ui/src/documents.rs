@@ -67,6 +67,7 @@ impl Workbench {
         cx.notify();
     }
 
+    pub(crate) fn has_unsaved_documents(&self,cx:&App)->bool {self.documents.iter().any(|open|open.view.read(cx).dirty())}
     pub(crate) fn choose_document(&mut self, cx: &mut Context<Self>) {
         self.command(serde_json::json!({"action":"choose_document"}), cx);
     }

@@ -604,5 +604,7 @@
   "content.discard_reload": "放弃修改并重新载入",
   "content.discard_close": "放弃修改并关闭",
   "content.keep_editing": "继续编辑",
-  "content.link_unavailable": "此链接没有可用的工作区目标。"
+  "content.link_unavailable": "此链接没有可用的工作区目标。",
+  "content.unsaved_window": "关闭或重新载入窗口前，请先保存修改。",
+  "content.discard_window": "放弃修改"
 }

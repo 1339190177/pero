@@ -632,6 +632,15 @@ fn update(f: impl FnOnce(&mut Workbench, &mut Window, &mut Context<Workbench>)) 
     });
 }
 
+/// Closing or reloading must not silently discard editable source buffers.
+#[cfg(target_family="wasm")]
+#[wasm_bindgen]
+pub fn has_unsaved_documents()->bool {
+    let mut dirty=false;
+    update(|ui,_,cx|dirty=ui.has_unsaved_documents(cx));
+    dirty
+}
+
 /// Read-only diagnostic state. Tests still enter text through Chromium input.
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]

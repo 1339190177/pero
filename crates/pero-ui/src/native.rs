@@ -279,6 +279,17 @@ pub fn run() -> anyhow::Result<()> {
             })
         })
         .expect("native workbench window");
+        let close_view=view.downgrade();
+        let _=window.update(cx,|_,window,cx| {
+            window.on_window_should_close(cx,move|window,cx| {
+                close_view.update(cx,|view,cx| {
+                    if !view.has_unsaved_documents(cx) {return true;}
+                    let answer=window.prompt(PromptLevel::Warning,view.t("content.unsaved"),Some(view.t("content.unsaved_window")),&[view.t("content.keep_editing"),view.t("content.discard_window")],cx);
+                    cx.spawn_in(window,async move|_,cx| {if answer.await==Ok(1) {let _=cx.update(|window,_|window.remove_window());}}).detach();
+                    false
+                }).unwrap_or(true)
+            });
+        });
         let view = view.downgrade();
         cx.spawn(async move |cx| {
             while let Ok(event) = received.recv().await {
