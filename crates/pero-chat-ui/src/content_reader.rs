@@ -21,6 +21,7 @@ pub struct ContentReader {
     path: Vec<Range<usize>>,
     copied: bool,
     window: AnyWindowHandle,
+    bounds: crate::view_bounds::ViewBounds,
 }
 
 impl ContentReader {
@@ -44,6 +45,7 @@ impl ContentReader {
             path: vec![],
             copied: false,
             window: window.window_handle(),
+            bounds: Default::default(),
         };
         if source {
             this.open_source(None, window, cx);
@@ -52,7 +54,7 @@ impl ContentReader {
     }
 
     pub fn snapshot(&self, cx: &App) -> serde_json::Value {
-        serde_json::json!({"id":self.document.id,"revision":self.document.revision,"bytes":self.document.bytes,
+        serde_json::json!({"bounds":self.bounds.snapshot(),"id":self.document.id,"revision":self.document.revision,"bytes":self.document.bytes,
             "source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
@@ -220,6 +222,12 @@ impl Render for ContentReader {
             self.document.format,
             ContentFormat::Json | ContentFormat::JsonLines
         );
+        let height = if self.source {
+            let lines = self.document.source().lines().take(16).count().max(1) as f32;
+            (64. + lines * pero_theme::UiAppearance::global(cx).typography.code * 1.5).clamp(112., 400.)
+        } else {
+            self.preview.as_ref().map_or(120., |preview| (60. + 28. * preview.rows.len().max(1) as f32).min(400.))
+        };
         let toolbar = div()
             .flex()
             .items_center()
@@ -291,9 +299,11 @@ impl Render for ContentReader {
             );
         let mut view = div()
             .id("content-reader")
+            .relative()
+            .child(self.bounds.probe())
             .flex()
             .flex_col()
-            .h(px(400.))
+            .h(px(height))
             .w_full()
             .min_w_0()
             .border_1()
@@ -307,7 +317,7 @@ impl Render for ContentReader {
                     Editor::new(editor)
                         .readonly(true)
                         .aria_label(self.t("content.source"))
-                        .h(px(366.)),
+                        .h(px(height - 34.)),
                 );
             }
         } else {
