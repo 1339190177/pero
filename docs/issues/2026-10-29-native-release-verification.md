@@ -1,6 +1,6 @@
 ---
 kind: issue
-status: active
+status: resolved
 date: 2026-10-29
 ---
 
@@ -56,5 +56,7 @@ space-containing names. The published DMG bytes match the CI archive SHA-256.
 The current release asset names and checksum/build metadata were normalized to
 `Virtual-Cell`; the binary was not rebuilt or replaced. Product.artifactStem
 now owns download-safe ASCII file stems for both packagers and release metadata.
-That preventive CI/build fix is proposed in PR #13 and remains unmerged pending
-review; this record stays active until that fix is integrated.
+PR #13 integrates that preventive CI/build fix. Public downloads, checksum
+verification, four native package launch jobs and downloaded macOS acceptance
+passed; the local repackaging check preserves the App display name while emitting
+the safe archive filename. No remaining failure is tracked by this record.
