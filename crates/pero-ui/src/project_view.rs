@@ -102,6 +102,8 @@ impl Workbench {
         };
         self.selected_project = Some(key);
         self.project_tab = ProjectTab::Tasks;
+        self.local_roadmap.show_cloud = project.workspace.is_none();
+        self.local_roadmap.selected_line = None;
         self.task_status = Default::default();
         self.navigation = 3;
         self.remote.creating = false;
@@ -147,6 +149,7 @@ impl Workbench {
         }
         self.navigation = 3;
         self.project_tab = ProjectTab::Tasks;
+        self.local_roadmap.show_cloud = true;
         self.remote.creating = false;
         self.remote.connection.editing = false;
         self.remote.public_contributions = false;
@@ -326,7 +329,7 @@ impl Workbench {
                     ),
             )
             .when(self.project_tab == ProjectTab::Tasks, |el| {
-                el.child(self.remote_view(narrow, cx))
+                el.child(self.project_tasks(narrow, cx))
             })
             .when(self.project_tab == ProjectTab::Sources, |el| {
                 el.child(self.project_sources(cx))

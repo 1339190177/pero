@@ -255,7 +255,10 @@ impl Workbench {
         }
         if !self.remote.seen_connection && self.remote.configured() {
             self.remote.seen_connection = true;
-            if !self.show_local_execution_onboarding() { self.navigation = 3; }
+            if !self.show_local_execution_onboarding()
+                && self.navigation == 1 && self.active_chat.is_none() && self.selected_project.is_none() {
+                self.navigation = 3;
+            }
             self.sync_follow(cx);
         }
         if !self.remote.loading() && self.remote.connection.submitting {

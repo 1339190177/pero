@@ -97,8 +97,9 @@ try {
     if (connection) onEvent(connection);
     await window.pero.sessionCommand({method:'settings.workbench.get'});
     await window.pero.sessionCommand({action:'list_agents'});
-    await window.pero.remoteCommand({action:'remote_refresh'});
-    await window.pero.sessionCommand({action:'local_worker_init'});
+    // The local workbench is ready even while Cloud refresh/enrollment waits.
+    void window.pero.remoteCommand({action:'remote_refresh'}).catch(() => {});
+    void window.pero.sessionCommand({action:'local_worker_init'}).catch(() => onEvent({version:1,kind:'error',request_id:null,text:'',message_key:'error.connection'}));
     await window.pero.appsCommand({action:'apps_list'});
   }
   loading.remove();

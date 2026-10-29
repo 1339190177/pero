@@ -489,5 +489,21 @@
   "worker.local.status": "Execution status",
   "worker.local.error": "Setup failed. Review the message and try again.",
   "worker.local.cancel": "Cancel",
-  "worker.local.restoring": "Restoring account…"
+  "worker.local.restoring": "Restoring account…",
+  "roadmap.local": "Local ROADMAP",
+  "roadmap.cloud": "Cloud tasks",
+  "roadmap.loading": "Loading local ROADMAP…",
+  "roadmap.show_completed": "Show completed",
+  "roadmap.not_found": "No ROADMAP.md or docs/ROADMAP.md in this directory. Add a checklist, then refresh.",
+  "roadmap.read_error": "Could not read the local ROADMAP. Check file access, then refresh.",
+  "roadmap.invalid": "ROADMAP must be valid UTF-8, at most 512 KiB, with up to 2,000 nonempty checklist items. Shorten the file or goal, then refresh.",
+  "roadmap.empty": "No matching tasks. Adjust the search or show completed items.",
+  "roadmap.source_completed": "Checked in the source. This does not establish execution or acceptance.",
+  "roadmap.execute": "Execute locally",
+  "roadmap.open_chat": "Open conversation",
+  "roadmap.no_agent": "No local ACP Agent is available. Configure an Agent, then refresh Agents in settings.",
+  "roadmap.running": "Running in the local conversation",
+  "roadmap.finished": "Turn finished · review the conversation",
+  "roadmap.auth_required": "Agent sign-in required · open the conversation",
+  "roadmap.attention": "Open the conversation to review status"
 }

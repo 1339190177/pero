@@ -26,6 +26,8 @@ mod projects;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod project_view;
 #[cfg(any(target_family = "wasm", feature = "native"))]
+mod local_roadmap;
+#[cfg(any(target_family = "wasm", feature = "native"))]
 mod settings_menu;
 mod stream;
 mod tool_ui;

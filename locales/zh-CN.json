@@ -489,5 +489,21 @@
   "worker.local.status": "执行状态",
   "worker.local.error": "设置失败，请查看原因后重试。",
   "worker.local.cancel": "取消",
-  "worker.local.restoring": "正在恢复账户连接…"
+  "worker.local.restoring": "正在恢复账户连接…",
+  "roadmap.local": "本地 ROADMAP",
+  "roadmap.cloud": "Cloud 任务",
+  "roadmap.loading": "正在读取本地 ROADMAP…",
+  "roadmap.show_completed": "显示已完成",
+  "roadmap.not_found": "此目录没有 ROADMAP.md 或 docs/ROADMAP.md。添加任务清单后刷新。",
+  "roadmap.read_error": "无法读取本地 ROADMAP。检查文件访问权限后刷新。",
+  "roadmap.invalid": "ROADMAP 须为 UTF-8、不超过 512 KiB，且最多包含 2,000 个非空任务。缩短文件或任务内容后刷新。",
+  "roadmap.empty": "没有匹配的任务。调整搜索或显示已完成项。",
+  "roadmap.source_completed": "来源已勾选，不代表已执行或通过验收。",
+  "roadmap.execute": "本地执行",
+  "roadmap.open_chat": "打开会话",
+  "roadmap.no_agent": "没有可用的本地 ACP Agent。配置 Agent 后在设置中刷新 Agent。",
+  "roadmap.running": "正在本地会话中执行",
+  "roadmap.finished": "本轮已结束 · 请在会话中复核",
+  "roadmap.auth_required": "Agent 需要登录 · 请打开会话",
+  "roadmap.attention": "打开会话查看状态"
 }

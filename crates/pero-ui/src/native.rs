@@ -14,10 +14,21 @@ use std::{
 
 thread_local! {
     static COMMANDS: RefCell<Option<mpsc::Sender<String>>> = const { RefCell::new(None) };
+    static HOST_COMMANDS: RefCell<Option<mpsc::Sender<String>>> = const { RefCell::new(None) };
 }
 
 pub(crate) fn session_command(json: &str) -> Result<(), String> {
-    COMMANDS.with(|slot| {
+    let value: serde_json::Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
+    let action = value["action"].as_str().unwrap_or_default();
+    let controller = action.starts_with("remote_")
+        || action.starts_with("local_worker_")
+        || action.starts_with("choose_");
+    let channel = if controller {
+        &COMMANDS
+    } else {
+        &HOST_COMMANDS
+    };
+    channel.with(|slot| {
         slot.borrow()
             .as_ref()
             .ok_or("Native Host is unavailable")?
@@ -75,6 +86,26 @@ pub fn run() -> anyhow::Result<()> {
     let (commands, incoming) = mpsc::channel::<String>();
     COMMANDS.with(|slot| *slot.borrow_mut() = Some(commands.clone()));
     let (events, received) = async_channel::unbounded::<HostEvent>();
+    // Cloud HTTP may block its controller. Local ACP and file reads have their
+    // own writer so they never wait for a remote response.
+    let (host_commands, host_incoming) = mpsc::channel::<String>();
+    HOST_COMMANDS.with(|slot| *slot.borrow_mut() = Some(host_commands.clone()));
+    let writer_events = events.clone();
+    std::thread::spawn(move || {
+        for json in host_incoming {
+            if writeln!(stdin, "{json}")
+                .and_then(|_| stdin.flush())
+                .is_err()
+            {
+                let _ = writer_events.send_blocking(HostEvent::message(
+                    "disconnected",
+                    None,
+                    "error.host_stopped",
+                ));
+                break;
+            }
+        }
+    });
     let reader_events = events.clone();
     let worker_states = commands.clone();
     std::thread::spawn(move || {
@@ -82,8 +113,16 @@ pub fn run() -> anyhow::Result<()> {
             let Ok(line) = line else { break };
             match serde_json::from_str::<HostEvent>(&line) {
                 Ok(event) if event.version == pero_contracts::PROTOCOL_VERSION => {
-                    if event.kind=="local_worker_state" && matches!(event.data["status"].as_str(),Some("needs_attention"|"unavailable")) {
-                        let _=worker_states.send(serde_json::json!({"action":"native_local_worker_attention"}).to_string());
+                    if event.kind == "local_worker_state"
+                        && matches!(
+                            event.data["status"].as_str(),
+                            Some("needs_attention" | "unavailable")
+                        )
+                    {
+                        let _ = worker_states.send(
+                            serde_json::json!({"action":"native_local_worker_attention"})
+                                .to_string(),
+                        );
                     }
                     if reader_events.send_blocking(event).is_err() {
                         break;
@@ -92,7 +131,8 @@ pub fn run() -> anyhow::Result<()> {
                 _ => eprintln!("Invalid native Host event"),
             }
         }
-        let _=worker_states.send(serde_json::json!({"action":"native_host_disconnected"}).to_string());
+        let _ = worker_states
+            .send(serde_json::json!({"action":"native_host_disconnected"}).to_string());
         let _ = reader_events.send_blocking(HostEvent::message(
             "disconnected",
             None,
@@ -102,28 +142,32 @@ pub fn run() -> anyhow::Result<()> {
     let reply = commands.clone();
     std::thread::spawn(move || {
         let mut cloud = CloudSession::with_store(&data);
-        let mut device = NativeDevice::new(&data,cloud.has_connection());
+        let mut device = NativeDevice::new(&data, cloud.has_connection());
         loop {
-            let json=match incoming.recv_timeout(std::time::Duration::from_secs(5)) {
-                Ok(json)=>json,
-                Err(mpsc::RecvTimeoutError::Timeout) if cloud.has_connection()=>serde_json::json!({"action":"remote_refresh"}).to_string(),
-                Err(mpsc::RecvTimeoutError::Timeout)=>continue,
-                Err(mpsc::RecvTimeoutError::Disconnected)=>break,
+            let json = match incoming.recv_timeout(std::time::Duration::from_secs(5)) {
+                Ok(json) => json,
+                Err(mpsc::RecvTimeoutError::Timeout) if cloud.has_connection() => {
+                    serde_json::json!({"action":"remote_refresh"}).to_string()
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
             };
             let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
                 continue;
             };
             let action = value["action"].as_str().unwrap_or_default();
-            if action=="native_host_disconnected" {
-                let _=events.send_blocking(device.command_failed(&cloud));
-            } else if action=="native_local_worker_attention" {
-                let _=events.send_blocking(device.needs_attention(&cloud));
+            if action == "native_host_disconnected" {
+                let _ = events.send_blocking(device.command_failed(&cloud));
+            } else if action == "native_local_worker_attention" {
+                let _ = events.send_blocking(device.needs_attention(&cloud));
             } else if action.starts_with("local_worker_") {
-                let mut outcome=device.command(&value,&cloud);
-                if let Some(command)=outcome.command {
-                    if writeln!(stdin,"{command}").and_then(|_|stdin.flush()).is_err() {outcome.event=device.command_failed(&cloud);}
+                let mut outcome = device.command(&value, &cloud);
+                if let Some(command) = outcome.command {
+                    if host_commands.send(command.to_string()).is_err() {
+                        outcome.event = device.command_failed(&cloud);
+                    }
                 }
-                let _=events.send_blocking(outcome.event);
+                let _ = events.send_blocking(outcome.event);
             } else if action == "remote_login" {
                 let url = value["url"].as_str().unwrap_or("");
                 match cloud.start_login(url) {
@@ -154,24 +198,26 @@ pub fn run() -> anyhow::Result<()> {
                     }
                 }
                 let _ = events.send_blocking(outcome.event);
-                let mut outcome=device.synchronize(&cloud,action=="remote_disconnect");
-                if let Some(command)=outcome.command {
-                    if writeln!(stdin,"{command}").and_then(|_|stdin.flush()).is_err() {outcome.event=device.command_failed(&cloud);}
+                let mut outcome = device.synchronize(&cloud, action == "remote_disconnect");
+                if let Some(command) = outcome.command {
+                    if host_commands.send(command.to_string()).is_err() {
+                        outcome.event = device.command_failed(&cloud);
+                    }
                 }
-                let _=events.send_blocking(outcome.event);
-            } else if matches!(action, "choose_workspace" | "choose_context" | "choose_worker_workspace") {
+                let _ = events.send_blocking(outcome.event);
+            } else if matches!(
+                action,
+                "choose_workspace" | "choose_context" | "choose_worker_workspace"
+            ) {
                 let mut event = HostEvent::new(&format!("native_{action}"), None, String::new());
                 event.data = value;
                 let _ = events.send_blocking(event);
-            } else if writeln!(stdin, "{json}")
-                .and_then(|_| stdin.flush())
-                .is_err()
-            {
-                let _=events.send_blocking(device.command_failed(&cloud));
+            } else if host_commands.send(json).is_err() {
+                let _ = events.send_blocking(device.command_failed(&cloud));
                 break;
             }
         }
-        drop(stdin);
+        drop(host_commands);
         let _ = host.wait();
     });
     let palettes: Palettes =
@@ -344,6 +390,29 @@ fn browser_target(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::browser_target;
+
+    #[test]
+    fn local_commands_do_not_wait_for_the_cloud_controller() {
+        let (cloud, pending_cloud) = std::sync::mpsc::channel();
+        let (host, local) = std::sync::mpsc::channel();
+        super::COMMANDS.with(|slot| *slot.borrow_mut() = Some(cloud));
+        super::HOST_COMMANDS.with(|slot| *slot.borrow_mut() = Some(host));
+        // Leave the Cloud request unconsumed, as during a blocked HTTP call.
+        super::session_command(r#"{"action":"remote_refresh"}"#).unwrap();
+        for command in [
+            r#"{"action":"load_roadmap"}"#,
+            r#"{"action":"new_session","thread_id":"local","agent_id":"fixture"}"#,
+        ] {
+            super::session_command(command).unwrap();
+            assert_eq!(local.try_recv().unwrap(), command);
+        }
+        assert_eq!(
+            pending_cloud.try_recv().unwrap(),
+            r#"{"action":"remote_refresh"}"#
+        );
+        super::COMMANDS.with(|slot| *slot.borrow_mut() = None);
+        super::HOST_COMMANDS.with(|slot| *slot.borrow_mut() = None);
+    }
 
     #[test]
     fn the_browser_opens_sign_in_github_and_the_cli_help_page() {

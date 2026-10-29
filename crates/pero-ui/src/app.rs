@@ -44,6 +44,7 @@ pub(crate) struct Workbench {
     pub project_binding: Entity<InputState>,
     pub collapsed_projects: std::collections::HashSet<String>,
     pub project_tab: crate::projects::ProjectTab,
+    pub(crate) local_roadmap: crate::local_roadmap::RoadmapState,
     pub task_status: crate::projects::TaskStatusFilter,
     pub pending_project_workspace: bool,
     pub navigation: usize,
@@ -154,6 +155,7 @@ impl Workbench {
             project_binding,
             collapsed_projects: Default::default(),
             project_tab: Default::default(),
+            local_roadmap: Default::default(),
             task_status: Default::default(),
             pending_project_workspace: false,
             navigation: 1,
@@ -214,6 +216,7 @@ impl Workbench {
     }
 
     pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
+        if self.receive_roadmap(&event, cx) { return; }
         if self.receive_local_execution(&event, cx) { return; }
         if self.receive_composer(&event, cx) { return; }
         if self.receive_contribution(&event, cx) {
@@ -428,6 +431,7 @@ pub fn snapshot() -> String {
         value["preferencesStatus"]=serde_json::json!(ui.preferences_status);
         value["projectBinding"]=serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"]=serde_json::json!(ui.search.read(cx).value().as_ref());
+        value["localRoadmap"] = serde_json::json!(ui.local_roadmap);
         value["localExecution"] = ui.local_execution.snapshot(cx);
     });
     value.to_string()
