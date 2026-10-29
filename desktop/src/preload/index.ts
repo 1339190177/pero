@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('pero', {
   remoteCommand: (command: object) => ipcRenderer.invoke('pero:remote', command),
   appsCommand: (command: object) => ipcRenderer.invoke('pero:apps', command),
   chooseWorkspace: () => ipcRenderer.invoke('pero:workspace'),
-  chooseContext: () => ipcRenderer.invoke('pero:context'),
+  chooseContext: (command?: object) => ipcRenderer.invoke('pero:context', command),
   onEvent: (callback: (event: unknown) => void) => {
     const listener = (_: unknown, event: unknown) => callback(event);
     ipcRenderer.on('pero:event', listener);

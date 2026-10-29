@@ -196,7 +196,8 @@ app.whenReady().then(async () => {
     trusted(sender);
     if (!ready || !command || typeof command !== 'object') throw new Error('Invalid session command');
     const action = (command as { action?: string }).action;
-    if (!['list_agents','new_session','prompt','cancel','permission','model','configure','authenticate','close'].includes(action || '') || JSON.stringify(command).length > 260000) throw new Error('Invalid session command');
+    const method = (command as { method?: string }).method;
+    if ((!['list_agents','workspace','new_session','prompt','cancel','permission','model','configure','authenticate','close','search_context','resolve_context','attach_files'].includes(action || '') && !['settings.workbench', 'settings.workbench.get'].includes(method || '')) || JSON.stringify(command).length > 16_000_000) throw new Error('Invalid session command');
     host.stdin.write(JSON.stringify(command) + '\n');
   });
   ipcMain.handle('pero:workspace', async (sender) => {
@@ -204,10 +205,20 @@ app.whenReady().then(async () => {
     const selected = await dialog.showOpenDialog(window, { properties: ['openDirectory'] });
     if (!selected.canceled && selected.filePaths[0]) host.stdin.write(JSON.stringify({action:'workspace',path:selected.filePaths[0]})+'\n');
   });
-  ipcMain.handle('pero:context', async (sender) => {
+  ipcMain.handle('pero:context', async (sender, request?: unknown) => {
     trusted(sender);
-    const selected=await dialog.showOpenDialog(window,{properties:['openFile','multiSelections']});
-    if(!selected.canceled && selected.filePaths.length)host.stdin.write(JSON.stringify({action:'attach_files',paths:selected.filePaths})+'\n');
+    if (request === undefined) {
+      const selected = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'] });
+      if (!selected.canceled && selected.filePaths.length) host.stdin.write(JSON.stringify({ action: 'attach_files', paths: selected.filePaths }) + '\n');
+      return;
+    }
+    const command = request as { kind?: unknown; request_id?: unknown };
+    if (!command || typeof command.kind !== 'string' || !['file', 'image', 'directory'].includes(command.kind) || typeof command.request_id !== 'string' || !command.request_id || command.request_id.length > 128) throw new Error('Invalid context picker request');
+    const selected = await dialog.showOpenDialog(window, {
+      properties: command.kind === 'directory' ? ['openDirectory'] : ['openFile'],
+      ...(command.kind === 'image' ? { filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] } : {}),
+    });
+    if (!selected.canceled && selected.filePaths[0]) host.stdin.write(JSON.stringify({ action: 'resolve_context', request_id: command.request_id, kind: command.kind, source: selected.filePaths[0] }) + '\n');
   });
   window = new BrowserWindow({ width: 1488, height: 1086, minWidth: 1000, minHeight: 680,
     title: t('window.title'), backgroundColor: '#F7F9FC',

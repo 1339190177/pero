@@ -103,11 +103,9 @@ pub fn run() -> anyhow::Result<()> {
                     "error":"Native preview: cloud connection and GitHub login are not connected yet."});
                 let _ = events.send_blocking(event);
             } else if matches!(action, "choose_workspace" | "choose_context") {
-                let _ = events.send_blocking(HostEvent::new(
-                    &format!("native_{action}"),
-                    None,
-                    String::new(),
-                ));
+                let mut event = HostEvent::new(&format!("native_{action}"), None, String::new());
+                event.data = value.clone();
+                let _ = events.send_blocking(event);
             } else if writeln!(stdin, "{json}")
                 .and_then(|_| stdin.flush())
                 .is_err()
@@ -162,27 +160,44 @@ pub fn run() -> anyhow::Result<()> {
             let view = view.downgrade();
             cx.spawn(async move |cx| {
                 while let Ok(event) = received.recv().await {
-                    if matches!(
-                        event.kind.as_str(),
-                        "native_choose_workspace" | "native_choose_context"
-                    ) {
-                        let directory = event.kind == "native_choose_workspace";
-                        let paths = cx.update(|cx| {
-                            cx.prompt_for_paths(PathPromptOptions {
-                                files: !directory,
-                                directories: directory,
-                                multiple: !directory,
-                                prompt: None,
-                            })
-                        });
-                        if let Ok(Ok(Some(paths))) = paths.await {
-                            let command = if directory {
-                                serde_json::json!({"action":"workspace","path":paths[0]})
+                if matches!(
+                    event.kind.as_str(),
+                    "native_choose_workspace" | "native_choose_context"
+                ) {
+                    let workspace = event.kind == "native_choose_workspace";
+                    let typed_context = !workspace && event.data["request_id"].is_string();
+                    let context_kind = event.data["kind"].as_str().unwrap_or("file");
+                    let directory = workspace || typed_context && context_kind == "directory";
+                    let paths = cx.update(|cx| {
+                        cx.prompt_for_paths(PathPromptOptions {
+                            files: !directory,
+                            directories: directory,
+                            multiple: !directory && !typed_context,
+                            prompt: (typed_context && context_kind == "image").then(|| "Image (PNG, JPEG, GIF, WebP)".into()),
+                        })
+                    });
+                    let paths = match paths.await {
+                        Ok(Ok(paths)) => paths,
+                        _ => {
+                            if typed_context {
+                                let failure = HostEvent::new("context_error", event.data["request_id"].as_str().map(str::to_string), "Could not open the file picker. Retry or use context search.".into());
+                                let _ = view.update(cx, |view,cx| view.receive(failure,cx));
+                            }
+                            continue;
+                        }
+                    };
+                    if let Some(paths) = paths {
+                        if let Some(path) = paths.first() {
+                            let command = if workspace {
+                                serde_json::json!({"action":"workspace","path":path})
+                            } else if typed_context {
+                                serde_json::json!({"action":"resolve_context","request_id":event.data["request_id"],"kind":context_kind,"source":path})
                             } else {
                                 serde_json::json!({"action":"attach_files","paths":paths})
                             };
                             let _ = session_command(&command.to_string());
                         }
+                    }
                     } else if let Err(error) = view.update(cx, |view, cx| view.receive(event, cx)) {
                         eprintln!("Native UI delivery: {error}");
                         break;
@@ -190,6 +205,7 @@ pub fn run() -> anyhow::Result<()> {
                 }
             })
             .detach();
+            let _ = commands.send(serde_json::json!({"method":"settings.workbench.get"}).to_string());
             let _ = commands.send(serde_json::json!({"action":"list_agents"}).to_string());
             cx.on_window_closed(|cx, _| {
                 if cx.windows().is_empty() {

@@ -1,4 +1,4 @@
-import init, { run, receive_host_event, snapshot } from './wasm/pero_ui';
+import init, { run, receive_host_event, snapshot, paste_image, set_system_theme } from './wasm/pero_ui';
 import themes from './theme.generated.json';
 import './shell.css';
 import { normalizeLocale, translate } from '../../locales';
@@ -7,7 +7,7 @@ import { mountAppSurfaces, type AppSurface } from './apps';
 export interface HostEvent { version: number; kind: string; request_id: string | null; text: string; message_key?: string; thread_id?: string; data?: unknown }
 declare global {
   interface Window {
-    pero?: { connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; chooseWorkspace(): Promise<void>; chooseContext(): Promise<void> };
+    pero?: { connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; chooseWorkspace(): Promise<void>; chooseContext(command?: object): Promise<void> };
     peroSendProbe(json: string): void;
     peroSetLocale(locale: string): void;
     peroSessionCommand(json: string): void;
@@ -42,6 +42,7 @@ try {
   const onEvent = (event: HostEvent) => {
     if (event.kind === 'settings') { locale = normalizeLocale(event.text); updateDocument(); }
     receive_host_event(JSON.stringify(event));
+    if (event.kind === 'workbench_settings') applyPalette(JSON.parse(snapshot()).dark);
     apps.event(event);
   };
   window.peroSetLocale = (value) => {
@@ -50,12 +51,41 @@ try {
   };
   window.peroSessionCommand = (json) => {
     const command = JSON.parse(json);
+    if (!window.pero && command.method === 'settings.workbench') {
+      // Browser preview keeps appearance in memory; Desktop persists via Host.
+      queueMicrotask(() => onEvent({version:1,kind:'workbench_settings',request_id:null,text:'',data:command.preferences}));
+      return;
+    }
     if (!window.pero) { queueMicrotask(() => onEvent({version:1,kind:'error',request_id:null,text:'',message_key:'error.agent_browser'})); return; }
-    const pending = typeof command.action === 'string' && command.action.startsWith('apps_') ? window.pero.appsCommand(command) : typeof command.action === 'string' && command.action.startsWith('remote_') ? window.pero.remoteCommand(command) : command.action === 'choose_workspace' ? window.pero.chooseWorkspace() : command.action === 'choose_context' ? window.pero.chooseContext() : window.pero.sessionCommand(command);
-    pending.catch(() => onEvent({version:1,kind:command.thread_id?'session_error':'error',thread_id:command.thread_id,request_id:null,text:t('error.connection')}));
+    const pending = typeof command.action === 'string' && command.action.startsWith('apps_') ? window.pero.appsCommand(command) : typeof command.action === 'string' && command.action.startsWith('remote_') ? window.pero.remoteCommand(command) : command.action === 'choose_workspace' ? window.pero.chooseWorkspace() : command.action === 'choose_context' ? window.pero.chooseContext(command.kind ? command : undefined) : window.pero.sessionCommand(command);
+    pending.catch(() => onEvent({version:1,kind:command.action === 'search_context' || command.action === 'resolve_context' || command.action === 'choose_context' && command.kind ? 'context_error' : command.thread_id?'session_error':'error',thread_id:command.thread_id,request_id:command.request_id ?? null,text:t('error.connection')}));
   };
   run(JSON.stringify(themes), dark, locale);
+  function applyPalette(isDark: boolean) {
+    for (const [key, value] of Object.entries(isDark ? themes.dark : themes.light)) document.documentElement.style.setProperty(`--pero-${key}`, value);
+  }
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+    set_system_theme(event.matches);
+    applyPalette(JSON.parse(snapshot()).dark);
+  });
   window.peroDiagnostics = { snapshot };
+  document.addEventListener('paste', (event: ClipboardEvent) => {
+    const before = JSON.parse(snapshot());
+    if (!before.composerFocused || before.navigation !== 0 || before.tab !== 4) return;
+    const images = [...(event.clipboardData?.items ?? [])].filter(item=>item.kind === 'file' && item.type.startsWith('image/'));
+    if (!images.length) return;
+    event.preventDefault();
+    for (const item of images) {
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (file.size > 10_000_000) { paste_image('', file.type); continue; }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        if (JSON.parse(snapshot()).activeChat === before.activeChat) paste_image(String(reader.result).split(',')[1], file.type);
+      });
+      reader.readAsDataURL(file);
+    }
+  }, true);
   // GPUI opens its Web window after asynchronous GPU initialization.
   const deadline = performance.now() + 30000;
   while (!JSON.parse(snapshot()).ready) {
@@ -65,6 +95,7 @@ try {
   if (window.pero) {
     window.pero.onEvent(onEvent);
     if (connection) onEvent(connection);
+    await window.pero.sessionCommand({method:'settings.workbench.get'});
     await window.pero.sessionCommand({action:'list_agents'});
     await window.pero.remoteCommand({action:'remote_refresh'});
     await window.pero.appsCommand({action:'apps_list'});
