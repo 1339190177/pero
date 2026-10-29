@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { resolve } from 'node:path';
 
-export async function exerciseLocalSearch({ frame, page, out }) {
+export async function exerciseLocalSearch({ frame, page, app, out }) {
   const search = frame.getByRole('region', { name: 'Search saved text', exact: true });
   const input = search.getByRole('searchbox', { name: 'Search saved text', exact: true });
   await input.fill('source snapshot');
@@ -11,6 +11,18 @@ export async function exerciseLocalSearch({ frame, page, out }) {
   await search.locator('[data-search-hit]').first().getByText('Snapshot details', { exact: true }).click();
   await expect(search.locator('details[open] code')).toContainText('sha256:');
   await page.screenshot({ path: resolve(out, 'local-search.png') });
+  const size = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getSize());
+  const preferences = await page.evaluate(() => JSON.parse(window.peroDiagnostics.snapshot()).preferences);
+  await page.evaluate(preferences => window.pero.sessionCommand({ method: 'settings.workbench', preferences: { ...preferences, appearance: 'dark' } }), preferences);
+  await expect.poll(async () => frame.locator('html').evaluate(element => element.style.colorScheme)).toBe('dark');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 800));
+  await expect.poll(async () => frame.locator('html').evaluate(element => element.clientWidth)).toBe(760);
+  await expect.poll(async () => frame.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await expect(search.locator('details[open] code')).toBeVisible();
+  await page.screenshot({ path: resolve(out, 'local-search-dark-narrow.png') });
+  await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), size);
+  await page.evaluate(preferences => window.pero.sessionCommand({ method: 'settings.workbench', preferences }), preferences);
+
   await input.fill('unfindable-query-term');
   await input.press('Enter');
   await expect(search.getByText(/No matching passages/)).toBeVisible();

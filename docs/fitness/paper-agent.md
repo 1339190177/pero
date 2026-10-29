@@ -128,3 +128,60 @@ automatic knowledge promotion is claimed.
 
 Try the isolated preview with `npm run dev:paper`; see the
 [App workflow](../../apps/paper-agent/README.md).
+
+## Local source search and frozen retrieval (2026-10-29)
+
+This slice adds App-local SQLite FTS5 search, exact heading/page chunks and
+retrieval provenance to the existing Python backend. Host sessions, approval,
+authentication and cancellation keep their existing implementation. KiroCrew
+`19218c7fc9` informed the search/source-locator design; no gateway or embedding
+runtime was imported. See the App README's **Search saved sources** section.
+
+Verified on macOS arm64 with Python 3.14 and SQLite FTS5. The ordinary system
+interpreter lacked the App's existing PDF dependencies; verification used an
+isolated `/tmp/pero-paper-search-verify` venv with the already-declared pins
+`pypdfium2==5.0.0` and `Pillow==12.0.0`. Search itself adds no dependency.
+Concurrent Paper PDF and shared-chat work was present and advanced Git HEAD
+during this run; these results apply to the current combined development
+worktree, not an isolated release or all concurrent changes.
+
+- L0: all 20 Python tests passed, including exact Unicode/heading offsets,
+  English/Chinese/accented-word retrieval, title search, query scope, no-hit
+  handling, newest-PDF selection, withdrawn sources, index deletion/rebuild,
+  restart, frozen-input compatibility, quote refusal and export provenance.
+- L0: Paper Agent TypeScript and App production build passed. Scoped whitespace
+  checks passed; changed code files remain below 1,000 lines.
+- L1: the real Electron → Rust Host → authenticated Python backend suite passed
+  all 15 workflow checks, with no unexpected browser errors. Its source and
+  model responses are deterministic fixtures, not real model acceptance.
+- Local search was exercised through Enter, source details/digests, opening
+  sources, empty results, invalid-query error and retry, clearing with restored
+  input focus, and clicking a result to the saved PDF page. Searching starts
+  no Agent. The final run separately checked active search results in dark
+  mode at a 760px App viewport, with no horizontal overflow.
+- The same Desktop run covered PDF retrieval → Host ACP fixture answer → exact
+  saved-PDF citation region, native exports, cancellation and reopening data
+  after restart. Expected refusal responses are recorded in the result JSON.
+
+Reproduction:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 /tmp/pero-paper-search-verify/bin/python -m unittest discover -s apps/paper-agent/test -v
+npm --prefix apps/paper-agent run typecheck
+npm --prefix apps/paper-agent run build
+PERO_PAPER_TEST_OUTPUT=test-results/paper-search PERO_APP_PYTHON=/tmp/pero-paper-search-verify/bin/python node tests/e2e/paper-agent.mjs
+```
+
+Final evidence is isolated under `test-results/paper-search/` to avoid collisions
+with other Paper Agent acceptance runs: `result.json`, `local-search.png`,
+`local-search-dark-narrow.png`, `local-search-pdf.png` and
+`pdf-answer-citation.png`. These screenshots were visually inspected for
+wrapping, source/page identity, contrast, controls and overflow. The App's iframe
+blocks native form submission, so search handles its button and Enter explicitly
+without changing iframe permissions.
+
+This is lexical retrieval over saved sources. It does not certify cross-language
+recall, answer faithfulness, OCR, semantic search, scientific correctness or a
+signed/cross-platform package. Relevance scores remain separate from exact quote
+matching and research acceptance. No public source fetch or real model request
+was performed for this acceptance run.

@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { exercisePdf, reopenPdf, setPaperAppearance as setAppearance } from './paper-pdf-flow.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
-const out = resolve(root, 'test-results/paper-agent');
+const out = resolve(root, process.env.PERO_PAPER_TEST_OUTPUT || 'test-results/paper-agent');
 await mkdir(out, { recursive: true });
 await rm(resolve(out, 'failure.png'), { force: true });
 const profile = await mkdtemp(resolve(tmpdir(), 'pero-paper-e2e-'));
@@ -105,7 +105,7 @@ try {
   expect(await frame.locator('body').evaluate(() => typeof window.pero)).toBe('undefined');
   checks.push('actual installed Python backend, explicit synthetic import, immutable reading, no App preload or implicit Agent run');
   await page.screenshot({ path: resolve(out, 'source.png') });
-  await exerciseLocalSearch({ frame, page, out });
+  await exerciseLocalSearch({ frame, page, app, out });
   expect(await fixtureTurns()).toHaveLength(0);
   checks.push('local indexed search, source digest, empty/error recovery, source opening and keyboard focus');
 

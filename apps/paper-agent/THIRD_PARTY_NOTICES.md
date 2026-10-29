@@ -39,3 +39,9 @@ Interaction research: Ai2 ScholarQA `19e6827ba9e7fe05068624d0851f38cd74ff5efc`,
 especially Section.tsx, LitTable.tsx and CellWithEvidence.tsx. Its root license is
 Apache-2.0 while ui/package.json says UNLICENSED. No ScholarQA UI source or MUI
 components were copied. Pero independently implements sourced cells and citations.
+
+The local source-search design references KiroCrew's Knowledge Library at
+`19218c7fc9` (`knowledge/readers.py`, `chunker.py`, `retrieval.py`): local FTS5,
+separate search tokens and original text, and source-linked retrieval. Pero's
+index, exact-offset chunking and frozen research integration are independently
+implemented; no KiroCrew runtime or vendored embedding library is bundled.
