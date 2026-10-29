@@ -449,6 +449,13 @@
       "properties": {},
       "additionalProperties": false
     },
+    "AppDocumentSchema": {
+      "title": "AppDocumentSchema",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {},
+      "description": "Public catalog: no local paths or backend credentials."
+    },
     "AppFailure": {
       "title": "AppFailure",
       "type": "object",
@@ -540,6 +547,12 @@
           "items": {
             "$ref": "#/$defs/AppPanel"
           }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AppWriteRoute"
+          }
         }
       },
       "required": [
@@ -550,8 +563,7 @@
         "enabled",
         "panels"
       ],
-      "additionalProperties": false,
-      "description": "Public catalog: no local paths or backend credentials."
+      "additionalProperties": false
     },
     "AppRequest": {
       "title": "AppRequest",
@@ -804,6 +816,31 @@
       "required": [
         "ok",
         "value"
+      ],
+      "additionalProperties": false
+    },
+    "AppWriteRoute": {
+      "title": "AppWriteRoute",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/AppName"
+        },
+        "description": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "schema": {
+          "$ref": "#/$defs/AppDocumentSchema"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "path",
+        "schema"
       ],
       "additionalProperties": false
     },

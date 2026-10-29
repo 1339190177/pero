@@ -802,9 +802,6 @@ export interface AppSuccess {
   ok: true;
   value: AppRecord[] | AppAccess | AppAgentInfo | AppAgentStarted | AppAgentTranscript | AppAgentCancelled;
 }
-/**
- * Public catalog: no local paths or backend credentials.
- */
 export interface AppRecord {
   name: AppName;
   version: string;
@@ -812,11 +809,24 @@ export interface AppRecord {
   description: string;
   enabled: boolean;
   panels: AppPanel[];
+  writes?: AppWriteRoute[];
 }
 export interface AppPanel {
   id: AppName;
   title: string;
   entry: string;
+}
+export interface AppWriteRoute {
+  name: AppName;
+  description: string;
+  path: string;
+  schema: AppDocumentSchema;
+}
+/**
+ * Public catalog: no local paths or backend credentials.
+ */
+export interface AppDocumentSchema {
+  [k: string]: unknown | undefined;
 }
 export interface AppAccess {
   root: string;

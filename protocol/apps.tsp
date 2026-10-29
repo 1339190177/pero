@@ -9,6 +9,8 @@ model AppClosed { ...Record<never>; }
 
 model AppPanel { id: AppName; title: string; entry: string; ...AppClosed; }
 /** Public catalog: no local paths or backend credentials. */
+model AppDocumentSchema is Record<unknown>;
+model AppWriteRoute { name: AppName; description: string; path: string; schema: AppDocumentSchema; ...AppClosed; }
 model AppRecord {
   name: AppName;
   version: string;
@@ -16,6 +18,7 @@ model AppRecord {
   description: string;
   enabled: boolean;
   panels: AppPanel[];
+  writes?: AppWriteRoute[];
   ...AppClosed;
 }
 /** Host-to-main-process descriptor. Never forwarded to App or Workbench renderers. */

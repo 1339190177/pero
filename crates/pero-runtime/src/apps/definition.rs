@@ -53,8 +53,19 @@ pub struct AppPermissions {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct AppWriteRoute {
+    pub name: AppName,
+    pub description: String,
+    pub path: String,
+    pub schema: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct AppContributions {
     pub panels: Vec<AppPanel>,
+    #[serde(default,skip_serializing_if="Vec::is_empty")]
+    pub writes: Vec<AppWriteRoute>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -98,6 +109,8 @@ pub struct AppSummary {
     pub description: String,
     pub enabled: bool,
     pub panels: Vec<AppPanel>,
+    #[serde(skip_serializing_if="Vec::is_empty")]
+    pub writes: Vec<AppWriteRoute>,
 }
 
 pub(super) fn relative_entry(value: &str) -> bool {
@@ -142,6 +155,11 @@ impl AppDefinition {
                 return Err("App panel needs a title and relative HTML entry".into());
             }
         }
+        if value.contributes.writes.len()>16 || !value.contributes.writes.is_empty()&&value.backend.is_none(){return Err("App write routes require a backend and at most 16 declarations".into());}
+        let mut names=std::collections::BTreeSet::new();
+        for route in &value.contributes.writes {
+            if !names.insert(route.name.as_str())||route.description.trim().is_empty()||route.description.len()>1000||!route.path.starts_with("/api/")||!relative_entry(&route.path[1..])||!route.schema.is_object()||serde_json::to_vec(&route.schema).map_err(|e|e.to_string())?.len()>16384{return Err("App write route needs a unique name, description, local /api path and bounded schema".into());}
+        }
         if let Some(backend) = &value.backend {
             let supported = match backend.kind {
                 BackendKind::Python => backend.entry.ends_with(".py"),
@@ -168,6 +186,7 @@ impl AppDefinition {
             description: self.description.clone(),
             enabled,
             panels: self.contributes.panels.clone(),
+            writes: self.contributes.writes.clone(),
         }
     }
 }
@@ -221,6 +240,21 @@ mod tests {
                 accepted,
                 "{key}"
             );
+        }
+        for (path, backend, schema, copies, accepted) in [
+            ("/api/import", true, serde_json::json!({"type":"object"}), 1, true),
+            ("/api/import", false, serde_json::json!({"type":"object"}), 1, false),
+            ("https://example.org/api/import", true, serde_json::json!({"type":"object"}), 1, false),
+            ("/api/../../private", true, serde_json::json!({"type":"object"}), 1, false),
+            ("/host/agent", true, serde_json::json!({"type":"object"}), 1, false),
+            ("/api/import", true, serde_json::json!([]), 1, false),
+            ("/api/import", true, serde_json::json!({"type":"object"}), 2, false),
+            ("/api/import", true, serde_json::json!({"type":"object"}), 17, false),
+        ] {
+            let mut candidate=valid.clone();
+            if backend {candidate["backend"]=serde_json::json!({"type":"python","entry":"server.py"});}
+            candidate["contributes"]["writes"]=serde_json::json!(vec![serde_json::json!({"name":"import","description":"Import a document","path":path,"schema":schema});copies]);
+            assert_eq!(AppDefinition::parse(&serde_json::to_vec(&candidate).unwrap()).is_ok(),accepted,"{path}, {copies} writes");
         }
         for entry in [
             "/index.html",
