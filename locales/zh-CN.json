@@ -592,5 +592,17 @@
   "settings.increase_font": "增大字号",
   "settings.close": "关闭设置",
   "chat.tool_input": "参数",
-  "chat.tool_output": "结果"
+  "chat.tool_output": "结果",
+  "content.open_file": "打开文件…",
+  "content.save": "保存",
+  "content.saving": "正在保存…",
+  "content.conflict": "磁盘上的文件已改变。你的编辑已保留，可重新载入查看当前文件。",
+  "content.unsupported": "暂不支持此文件，请选择 UTF-8 文本文件。",
+  "content.file_failed": "无法打开或保存文件。请检查路径和权限后重试。",
+  "content.reload": "从磁盘重新载入",
+  "content.unsaved": "此文档有未保存的修改。",
+  "content.discard_reload": "放弃修改并重新载入",
+  "content.discard_close": "放弃修改并关闭",
+  "content.keep_editing": "继续编辑",
+  "content.link_unavailable": "此链接没有可用的工作区目标。"
 }

@@ -12,7 +12,29 @@ use gpui_kit::{
 use pero_contracts::content_document::{
     ContentDocument, ContentFormat, PreviewShape, StructuredPreview,
 };
+use pero_contracts::content_origin::ContentOrigin;
 use std::ops::Range;
+gpui_kit::actions!(content_document, [SaveDocument]);
+#[derive(Clone)]
+pub enum ReaderAction {
+    Save {
+        source: String,
+        revision: u64,
+        text: String,
+    },
+    Reload {
+        path: String,
+    },
+    DiscardAndClose,
+    Link(String),
+}
+impl EventEmitter<ReaderAction> for ContentReader {}
+
+#[derive(Clone, Copy)]
+enum DiscardAction {
+    Reload,
+    Close,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ReaderPlacement {
@@ -25,7 +47,16 @@ pub struct ContentReader {
     pub locale: String,
     placement: ReaderPlacement,
     editor: Option<Entity<EditorState>>,
+    editor_subscription: Option<Subscription>,
+    dirty: bool,
+    saving: bool,
+    file_error: Option<String>,
+    discard: Option<DiscardAction>,
     preview: Result<StructuredPreview, String>,
+    preview_document: ContentDocument,
+    markdown: Option<Entity<crate::stream::StreamText>>,
+    markdown_subscription: Option<Subscription>,
+    preview_scroll: ScrollHandle,
     source: bool,
     search_open: bool,
     search_input: Entity<InputState>,
@@ -46,11 +77,15 @@ impl ContentReader {
         cx: &mut Context<Self>,
     ) -> Self {
         // wasm32-unknown-unknown takes the non-macOS Kit keymap.
-        cx.bind_keys([KeyBinding::new("cmd-f", Search, Some("Input"))]);
+        cx.bind_keys([
+            KeyBinding::new("cmd-f", Search, Some("Input")),
+            KeyBinding::new("cmd-s", SaveDocument, None),
+            KeyBinding::new("ctrl-s", SaveDocument, None),
+        ]);
         let preview = document.preview();
         let source = !matches!(
             document.format,
-            ContentFormat::Json | ContentFormat::JsonLines
+            ContentFormat::Json | ContentFormat::JsonLines | ContentFormat::Markdown
         );
         let search_input = cx.new(|cx| InputState::new(window, cx));
         let search_subscription =
@@ -74,12 +109,23 @@ impl ContentReader {
                 }
                 cx.notify();
             });
+        let markdown = matches!(document.format, ContentFormat::Markdown)
+            .then(|| cx.new(|cx| crate::stream::StreamText::new(document.source(), cx)));
         let mut this = Self {
+            preview_document: document.clone(),
             document,
             locale,
             placement: ReaderPlacement::Inline,
             editor: None,
+            editor_subscription: None,
+            dirty: false,
+            saving: false,
+            file_error: None,
+            discard: None,
             preview,
+            markdown,
+            markdown_subscription: None,
+            preview_scroll: ScrollHandle::new(),
             source,
             search_open: false,
             search_input,
@@ -98,8 +144,10 @@ impl ContentReader {
     }
 
     /// The same reading state fits the workspace instead of an inline result.
-    pub fn workspace(mut self) -> Self {
+    pub fn workspace(mut self, cx: &mut Context<Self>) -> Self {
         self.placement = ReaderPlacement::Workspace;
+        self.observe_edits(cx);
+        self.observe_links(cx);
         self
     }
 
@@ -114,9 +162,15 @@ impl ContentReader {
         }
     }
 
+    pub fn set_scroll_handle(&self, scroll: Option<ScrollHandle>, cx: &mut App) {
+        if let Some(markdown) = &self.markdown {
+            markdown.update(cx, |view, _| view.set_scroll_handle(scroll));
+        }
+    }
+
     pub fn snapshot(&self, cx: &App) -> serde_json::Value {
         serde_json::json!({"bounds":self.bounds.snapshot(),"id":self.document.id,"revision":self.document.revision,"bytes":self.document.bytes,
-            "workspace":self.placement==ReaderPlacement::Workspace,"source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
+            "dirty":self.dirty,"saving":self.saving,"fileError":self.file_error,"confirmClose":self.discard.is_some(),"editable":self.editable(),"markdown":self.markdown.is_some(),"workspace":self.placement==ReaderPlacement::Workspace,"source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
             "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len(),"current":s.matcher.current()})}),
@@ -127,6 +181,117 @@ impl ContentReader {
             "editorBytes":self.editor.as_ref().map(|e|e.read(cx).text().len())})
     }
 
+    fn observe_links(&mut self, cx: &mut Context<Self>) {
+        if self.placement == ReaderPlacement::Workspace && self.markdown_subscription.is_none() {
+            if let Some(markdown) = &self.markdown {
+                markdown.update(cx, |view, _| view.capture_links = true);
+                self.markdown_subscription = Some(cx.subscribe(
+                    markdown,
+                    |_, _, link: &crate::stream::MarkdownLink, cx| {
+                        cx.emit(ReaderAction::Link(link.0.clone()))
+                    },
+                ));
+            }
+        }
+    }
+    pub fn reload(
+        &mut self,
+        document: ContentDocument,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(editor) = &self.editor {
+            editor.update(cx, |editor, cx| {
+                editor.set_value(document.source().to_owned(), window, cx)
+            });
+        }
+        self.dirty = false;
+        self.saving = false;
+        self.file_error = None;
+        self.discard = None;
+        self.replace(document, cx);
+        self.show_preview(cx);
+        if !matches!(
+            self.document.format,
+            ContentFormat::Markdown | ContentFormat::Json | ContentFormat::JsonLines
+        ) {
+            self.source = true;
+        }
+        cx.notify();
+    }
+    fn observe_edits(&mut self, cx: &mut Context<Self>) {
+        if self.editor_subscription.is_none() && self.editable() {
+            if let Some(editor) = &self.editor {
+                self.editor_subscription = Some(cx.subscribe(editor, |this, editor, event, cx| {
+                    if matches!(event, InputEvent::Change) {
+                        let text = editor.read(cx).text();
+                        this.dirty = text.len() != this.document.bytes
+                            || !text.bytes().eq(this.document.source().bytes());
+                        this.copied = false;
+                        cx.notify();
+                    }
+                }));
+            }
+        }
+    }
+    pub fn request_close(&mut self, cx: &mut Context<Self>) {
+        self.discard = Some(DiscardAction::Close);
+        cx.notify();
+    }
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+    fn editable(&self) -> bool {
+        self.placement == ReaderPlacement::Workspace
+            && matches!(self.document.origin, ContentOrigin::File { .. })
+    }
+    pub fn file_failed(&mut self, key: &str, cx: &mut Context<Self>) {
+        self.saving = false;
+        self.file_error = Some(key.into());
+        cx.notify();
+    }
+    pub fn saved(&mut self, document: ContentDocument, cx: &mut Context<Self>) {
+        self.document = document;
+        self.saving = false;
+        self.file_error = None;
+        self.discard = None;
+        self.dirty = self.editor.as_ref().is_some_and(|e| {
+            let text = e.read(cx).text();
+            text.len() != self.document.bytes || !text.bytes().eq(self.document.source().bytes())
+        });
+        cx.notify();
+    }
+    fn save(&mut self, cx: &mut Context<Self>) {
+        if !self.editable() || !self.dirty || self.saving {
+            return;
+        }
+        if let Some(editor) = &self.editor {
+            self.saving = true;
+            self.file_error = None;
+            cx.emit(ReaderAction::Save {
+                source: self.document.id.clone(),
+                revision: self.document.revision,
+                text: editor.read(cx).text().to_string(),
+            });
+            cx.notify();
+        }
+    }
+    fn show_preview(&mut self, cx: &mut Context<Self>) {
+        let draft = self.editor.as_ref().filter(|_| self.dirty).map(|editor| {
+            self.document
+                .header()
+                .into_document(editor.read(cx).text().to_string())
+        });
+        let document = draft.as_ref().unwrap_or(&self.document);
+        self.preview_document = document.clone();
+        self.preview = self.preview_document.preview();
+        self.path.clear();
+        if let Some(markdown) = &self.markdown {
+            markdown.update(cx, |view, cx| view.replace(document.source(), cx));
+        }
+        self.source = false;
+        cx.notify();
+    }
     fn t(&self, key: &str) -> &'static str {
         pero_contracts::i18n::text(&self.locale, key)
     }
@@ -148,6 +313,7 @@ impl ContentReader {
                     .default_value(self.document.source().to_owned())
             }));
         }
+        self.observe_edits(cx);
         if let (Some(editor), Some(range)) = (&self.editor, range) {
             editor.update(cx, |editor, cx| {
                 let position = editor.text().offset_to_position(range.start);
@@ -197,10 +363,18 @@ impl ContentReader {
     /// Updates run at the event boundary, outside rendering. Multiple pending
     /// source updates coalesce; an unchanged revision never resets selection.
     pub fn replace(&mut self, document: ContentDocument, cx: &mut Context<Self>) {
-        if document.id == self.document.id && document.revision == self.document.revision {
+        if document.id == self.document.id
+            && document.origin == self.document.origin
+            && document.revision == self.document.revision
+        {
+            if self.document.title!=document.title {self.document=document;cx.notify();}
             return;
         }
         self.document = document;
+        self.dirty = false;
+        self.saving = false;
+        self.file_error = None;
+        self.discard = None;
         let revision = self.document.revision;
         let id = self.document.id.clone();
         let window = self.window;
@@ -211,7 +385,21 @@ impl ContentReader {
                     if this.document.id != id || this.document.revision != revision {
                         return;
                     }
-                    this.preview = this.document.preview();
+                    this.preview_document = this.document.clone();
+                    this.preview = this.preview_document.preview();
+                    if matches!(this.document.format, ContentFormat::Markdown) {
+                        if let Some(view) = &this.markdown {
+                            view.update(cx, |view, cx| view.replace(this.document.source(), cx));
+                        } else {
+                            this.markdown = Some(cx.new(|cx| {
+                                crate::stream::StreamText::new(this.document.source(), cx)
+                            }));
+                        }
+                    } else {
+                        this.markdown = None;
+                        this.markdown_subscription = None;
+                    }
+                    this.observe_links(cx);
                     this.path.clear();
                     this.copied = false;
                     if let Some(editor) = &this.editor {
@@ -220,6 +408,7 @@ impl ContentReader {
                             editor.set_value(this.document.source().to_owned(), window, cx)
                         });
                     }
+                    if matches!(this.document.format,ContentFormat::Code(_)|ContentFormat::Text) {this.open_source(None,window,cx);}
                     cx.notify();
                 })
             });
@@ -261,7 +450,7 @@ impl ContentReader {
         }
         for (column, cell) in row.cells.iter().enumerate() {
             let range = cell.clone();
-            let raw = range.as_ref().map(|r| self.document.text(r));
+            let raw = range.as_ref().map(|r| self.preview_document.text(r));
             let nested = raw.is_some_and(|value| value.starts_with(['{', '[']));
             let text = raw
                 .map(|s| s.chars().take(160).collect::<String>())
@@ -278,7 +467,7 @@ impl ContentReader {
                     .on_click(cx.listener(move |this, _, window, cx| {
                         if let Some(range) = &range {
                             if nested {
-                                this.preview = this.document.project(range.clone());
+                                this.preview = this.preview_document.project(range.clone());
                                 this.path.push(range.clone());
                                 this.copied = false;
                                 cx.notify();
@@ -310,8 +499,9 @@ impl Render for ContentReader {
         let workspace = self.placement == ReaderPlacement::Workspace;
         let structured = matches!(
             self.document.format,
-            ContentFormat::Json | ContentFormat::JsonLines
+            ContentFormat::Json | ContentFormat::JsonLines | ContentFormat::Markdown
         );
+        let inline_markdown = !workspace && !self.source && self.markdown.is_some();
         let height = if self.source {
             let lines = self.document.source().lines().take(16).count().max(1) as f32;
             (64. + lines * pero_theme::UiAppearance::global(cx).typography.code * 1.5)
@@ -344,8 +534,7 @@ impl Render for ContentReader {
                         .label(self.t("content.preview"))
                         .toggled(!self.source)
                         .on_click(cx.listener(|this, _, _, cx| {
-                            this.source = false;
-                            cx.notify();
+                            this.show_preview(cx);
                         })),
                 )
             })
@@ -379,11 +568,25 @@ impl Render for ContentReader {
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.path.pop();
                             this.preview = this.path.last().map_or_else(
-                                || this.document.preview(),
-                                |range| this.document.project(range.clone()),
+                                || this.preview_document.preview(),
+                                |range| this.preview_document.project(range.clone()),
                             );
                             cx.notify();
                         })),
+                )
+            })
+            .when(self.editable(), |el| {
+                el.child(
+                    Button::new("document-save")
+                        .ghost()
+                        .small()
+                        .label(self.t(if self.saving {
+                            "content.saving"
+                        } else {
+                            "content.save"
+                        }))
+                        .disabled(!self.dirty || self.saving)
+                        .on_click(cx.listener(|this, _, _, cx| this.save(cx))),
                 )
             })
             .child(div().flex_1())
@@ -405,9 +608,11 @@ impl Render for ContentReader {
                         "content.copy"
                     }))
                     .on_click(cx.listener(|this, _, _, cx| {
-                        cx.write_to_clipboard(ClipboardItem::new_string(
-                            this.document.source().to_owned(),
-                        ));
+                        cx.write_to_clipboard(ClipboardItem::new_string(if this.dirty {
+                            this.editor.as_ref().unwrap().read(cx).text().to_string()
+                        } else {
+                            this.document.source().to_owned()
+                        }));
                         this.copied = true;
                         cx.notify();
                     })),
@@ -415,6 +620,10 @@ impl Render for ContentReader {
         let mut view = div()
             .id("content-reader")
             .track_focus(&self.focus_handle)
+            .capture_action(cx.listener(|this, _: &SaveDocument, _, cx| {
+                this.save(cx);
+                cx.stop_propagation();
+            }))
             .capture_action(cx.listener(|this, _: &Search, window, cx| {
                 this.search_source(window, cx);
                 cx.stop_propagation();
@@ -437,7 +646,74 @@ impl Render for ContentReader {
             .border_color(cx.theme().border)
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
-            .child(toolbar)
+            .when(!inline_markdown, |el| el.child(toolbar))
+            .when(self.file_error.is_some(), |el| {
+                el.child(
+                    div()
+                        .p(px(8.))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .child(self.t(self.file_error.as_deref().unwrap())),
+                        )
+                        .child(
+                            Button::new("document-reload")
+                                .ghost()
+                                .small()
+                                .label(self.t("content.reload"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.discard = Some(DiscardAction::Reload);
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
+            .when(self.discard.is_some(), |el| {
+                el.child(
+                    div()
+                        .p(px(8.))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .child(div().flex_1().min_w_0().child(self.t("content.unsaved")))
+                        .child(
+                            Button::new("document-discard")
+                                .ghost()
+                                .small()
+                                .label(self.t(
+                                    if matches!(self.discard, Some(DiscardAction::Reload)) {
+                                        "content.discard_reload"
+                                    } else {
+                                        "content.discard_close"
+                                    },
+                                ))
+                                .on_click(cx.listener(|this, _, _, cx| match this.discard {
+                                    Some(DiscardAction::Reload) => cx.emit(ReaderAction::Reload {
+                                        path: this.document.id.clone(),
+                                    }),
+                                    Some(DiscardAction::Close) => {
+                                        cx.emit(ReaderAction::DiscardAndClose)
+                                    }
+                                    None => {}
+                                })),
+                        )
+                        .child(
+                            Button::new("document-keep")
+                                .ghost()
+                                .small()
+                                .label(self.t("content.keep_editing"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.discard = None;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
+            .when(inline_markdown, |el| el.h_auto().border_0())
             .when(self.source && self.search_open, |el| {
                 el.child(
                     div()
@@ -529,12 +805,25 @@ impl Render for ContentReader {
                         .when(workspace, |el| el.flex_1().min_h_0())
                         .child(
                             Editor::new(editor)
-                                .readonly(true)
+                                .readonly(!self.editable())
                                 .aria_label(self.t("content.source"))
                                 .h(editor_height),
                         ),
                 );
             }
+        } else if let Some(markdown) = &self.markdown {
+            view = view.child(
+                div()
+                    .id("content-markdown")
+                    .min_w_0()
+                    .when(workspace, |el| {
+                        el.flex_1()
+                            .min_h_0()
+                            .overflow_y_scroll()
+                            .track_scroll(&self.preview_scroll)
+                    })
+                    .child(markdown.clone()),
+            );
         } else {
             match &self.preview {
                 Err(error) => {

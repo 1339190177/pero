@@ -592,5 +592,17 @@
   "settings.increase_font": "Increase font size",
   "settings.close": "Close settings",
   "chat.tool_input": "Parameters",
-  "chat.tool_output": "Result"
+  "chat.tool_output": "Result",
+  "content.open_file": "Open file…",
+  "content.save": "Save",
+  "content.saving": "Saving…",
+  "content.conflict": "The file changed on disk. Your edits are kept. Reload to review the current file.",
+  "content.unsupported": "This file is not supported as UTF-8 text.",
+  "content.file_failed": "Could not open or save this file. Check the path and permissions, then retry.",
+  "content.reload": "Reload from disk",
+  "content.unsaved": "This document has unsaved changes.",
+  "content.discard_reload": "Discard edits and reload",
+  "content.discard_close": "Discard edits and close",
+  "content.keep_editing": "Keep editing",
+  "content.link_unavailable": "This link has no available workspace target."
 }

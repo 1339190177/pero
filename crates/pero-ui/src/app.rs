@@ -37,6 +37,7 @@ extern "C" {
 }
 
 pub(crate) struct Workbench {
+    pub workspace_focus:FocusHandle,
     pub input: Entity<InputState>,
     pub documents:Vec<crate::documents::WorkspaceDocument>,
     pub locale: String,
@@ -96,9 +97,13 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys([
+            KeyBinding::new("cmd-o",crate::workspace_view::OpenDocument,None),
+            KeyBinding::new("ctrl-o",crate::workspace_view::OpenDocument,None),
             KeyBinding::new("ctrl-tab", crate::workspace_view::NextContent, None),
             KeyBinding::new("ctrl-shift-tab", crate::workspace_view::PreviousContent, None),
         ]);
+        let workspace_focus=cx.focus_handle();
+        workspace_focus.focus(window,cx);
         let input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder(pero_contracts::i18n::text(&locale, "input.placeholder"))
@@ -182,6 +187,7 @@ impl Workbench {
             false,
         );
         Self {
+            workspace_focus,
             remote,
             local_execution,
             contribution: Default::default(),
@@ -359,7 +365,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let event_kind = event.kind.clone();
-        let feature_handled = self.receive_roadmap(&event, cx)
+        let feature_handled = self.receive_document(&event,window,cx) || self.receive_roadmap(&event, cx)
             || self.receive_local_execution(&event, cx)
             || self.receive_contribution(&event, cx)
             || self.receive_apps(&event, cx)

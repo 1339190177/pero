@@ -11,7 +11,7 @@ use gpui_kit::{
 };
 use serde_json::json;
 use pero_chat_ui::theme::WorkbenchStyle as W;
-gpui_kit::actions!(workspace, [NextContent, PreviousContent]);
+gpui_kit::actions!(workspace, [NextContent, PreviousContent, OpenDocument]);
 
 impl Workbench {
     pub(crate) fn record_task_selection(&mut self, task: Option<String>) {
@@ -88,7 +88,7 @@ impl Workbench {
         }
     }
 
-    fn activate_route(
+    pub(crate) fn activate_route(
         &mut self,
         route: WorkspaceRoute,
         window: &mut Window,
@@ -132,7 +132,13 @@ impl Workbench {
     }
 
     fn close_content(&mut self, item: &WorkspaceItem, window: &mut Window, cx: &mut Context<Self>) {
-        self.documents.retain(|open|&open.item!=item);
+        if let Some(open)=self.documents.iter().find(|open|&open.item==item) {
+            if open.view.read(cx).dirty() {
+                open.view.update(cx,|view,cx| {view.request_close(cx);});
+                self.navigation.select(item);cx.notify();return;
+            }
+            self.discard_document(item,window,cx);return;
+        }
         if let Some(route) = self.navigation.close(item) {
             self.activate_route(route, window, cx);
         }
@@ -288,6 +294,8 @@ impl Workbench {
                             )
                     })),
             )
+            .child(Button::new("document-open").ghost().small().icon(IconName::File).tooltip(self.t("content.open_file"))
+                .accessibility_label(self.t("content.open_file")).on_click(cx.listener(|this,_,_,cx|this.choose_document(cx))))
             .when(
                 matches!(self.navigation.current(), Some(WorkspaceItem::App { .. })),
                 |el| {

@@ -299,6 +299,8 @@ impl Render for Workbench {
         let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("workbench")
+            .track_focus(&self.workspace_focus)
+            .capture_action(cx.listener(|this,_:&crate::workspace_view::OpenDocument,_,cx| {this.choose_document(cx);cx.stop_propagation();}))
             .capture_action(cx.listener(|this, _: &crate::workspace_view::NextContent, window, cx| this.cycle_content(false, window, cx)))
             .capture_action(cx.listener(|this, _: &crate::workspace_view::PreviousContent, window, cx| this.cycle_content(true, window, cx)))
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {

@@ -208,7 +208,7 @@ pub fn run() -> anyhow::Result<()> {
                 let _ = events.send_blocking(outcome.event);
             } else if matches!(
                 action,
-                "choose_workspace" | "choose_context" | "choose_worker_workspace"
+                "choose_workspace" | "choose_context" | "choose_worker_workspace" | "choose_document"
             ) {
                 let mut event = HostEvent::new(&format!("native_{action}"), None, String::new());
                 event.data = value;
@@ -284,8 +284,9 @@ pub fn run() -> anyhow::Result<()> {
             while let Ok(event) = received.recv().await {
                 if matches!(
                     event.kind.as_str(),
-                    "native_choose_workspace" | "native_choose_context" | "native_choose_worker_workspace"
+                    "native_choose_workspace" | "native_choose_context" | "native_choose_worker_workspace" | "native_choose_document"
                 ) {
+                    let file_document=event.kind=="native_choose_document";
                     let worker_workspace=event.kind=="native_choose_worker_workspace";
                     let workspace = event.kind == "native_choose_workspace" || worker_workspace;
                     let typed_context = !workspace && event.data["request_id"].is_string();
@@ -295,7 +296,7 @@ pub fn run() -> anyhow::Result<()> {
                         cx.prompt_for_paths(PathPromptOptions {
                             files: !directory,
                             directories: directory,
-                            multiple: !directory && !typed_context,
+                            multiple: !directory && !typed_context && !file_document,
                             prompt: (typed_context && context_kind == "image").then(|| "Image (PNG, JPEG, GIF, WebP)".into()),
                         })
                     });
@@ -320,7 +321,9 @@ pub fn run() -> anyhow::Result<()> {
                                 }).and_then(|result| result);
                                 continue;
                             }
-                            let command = if workspace {
+                            let command = if file_document {
+                                serde_json::json!({"method":"documents","action":"open","request_id":"open-file","path":path})
+                            } else if workspace {
                                 serde_json::json!({"action":"workspace","path":path})
                             } else if typed_context {
                                 serde_json::json!({"action":"resolve_context","request_id":event.data["request_id"],"kind":context_kind,"source":path})

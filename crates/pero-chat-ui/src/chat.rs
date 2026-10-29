@@ -78,6 +78,7 @@ impl ChatPanel {
             for (index, tool) in chat.tools.iter_mut().enumerate() {
                 let open = open_tools.contains(&index);
                 tool.set_body_open(open, cx);
+                if let Some(reader)=&tool.reader {reader.update(cx,|reader,cx|reader.set_scroll_handle(open.then(||self.chat_scroll.clone()),cx));}
                 if let Some(view) = &tool.view {
                     view.update(cx, |view, _| {
                         view.set_scroll_handle(open.then(|| self.chat_scroll.clone()))

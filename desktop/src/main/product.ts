@@ -131,7 +131,12 @@ app.whenReady().then(async () => {
         : { action: 'resolve_context', request_id: value.request_id, kind, source: selected.filePaths[0] }) + '\n');
       return;
     }
-    if ((!['list_agents', 'workspace', 'new_session', 'prompt', 'cancel', 'permission', 'model', 'configure', 'authenticate', 'close', 'delete', 'search_context', 'resolve_context', 'attach_files'].includes(value.action || '') && !['settings.workbench', 'settings.workbench.get'].includes(value.method || '')) || JSON.stringify(value).length > 16_000_000) throw new Error('Invalid session command');
+    if (value.action === 'choose_document') {
+      const selected=await dialog.showOpenDialog(window,{properties:['openFile']});
+      if(!selected.canceled && selected.filePaths[0]) host.stdin!.write(JSON.stringify({method:'documents',action:'open',request_id:'open-file',path:selected.filePaths[0]})+'\n');
+      return;
+    }
+    if ((!['list_agents', 'workspace', 'new_session', 'prompt', 'cancel', 'permission', 'model', 'configure', 'authenticate', 'close', 'delete', 'search_context', 'resolve_context', 'attach_files'].includes(value.action || '') && !['settings.workbench', 'settings.workbench.get', 'documents'].includes(value.method || '')) || JSON.stringify(value).length > 16_000_000) throw new Error('Invalid session command');
     appUse?.authority.command(value as {action?:string;thread_id?:string});
     host.stdin!.write(JSON.stringify(value) + '\n');
   });
