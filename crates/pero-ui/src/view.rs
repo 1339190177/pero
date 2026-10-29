@@ -293,13 +293,18 @@ impl Render for Workbench {
         let dock = layout.chat == ChatPlacement::Dock;
         let narrow = layout.narrow;
         let has_tabs = !self.navigation.items().is_empty();
-        if !layout.app_surface_visible {
+        if !layout.embedded_surface_visible || !matches!(self.navigation.current(),Some(WorkspaceItem::App {..})) {
             self.sync_app_surface(None, cx);
         }
+        #[cfg(target_family="wasm")]
+        if !layout.embedded_surface_visible || !matches!(self.navigation.current(),Some(WorkspaceItem::Web(_))) {self.sync_web_surface(None,cx);}
+        #[cfg(not(target_family="wasm"))]
+        self.sync_web_surface(None,cx);
         let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("workbench")
             .track_focus(&self.workspace_focus)
+            .capture_action(cx.listener(|this,_:&crate::web_documents::OpenWeb,window,cx| {this.choose_web(window,cx);cx.stop_propagation();}))
             .capture_action(cx.listener(|this,_:&crate::workspace_view::OpenDocument,_,cx| {this.choose_document(cx);cx.stop_propagation();}))
             .capture_action(cx.listener(|this, _: &crate::workspace_view::NextContent, window, cx| this.cycle_content(false, window, cx)))
             .capture_action(cx.listener(|this, _: &crate::workspace_view::PreviousContent, window, cx| this.cycle_content(true, window, cx)))
@@ -336,6 +341,7 @@ impl Render for Workbench {
                     .flex()
                     .flex_col()
                     .when(has_tabs, |el| el.child(self.content_tabs(cx)))
+                    .when(self.web_entry_open || self.navigation.page()==WorkbenchPage::Web,|el|el.child(self.web_toolbar(cx)))
                     .when(self.error.is_some(), |el| {
                         el.child(
                             div()
@@ -374,6 +380,7 @@ impl Render for Workbench {
                                         .h_full()
                                         .flex()
                                         .flex_col()
+                                        .when(self.navigation.page()==WorkbenchPage::Web,|el|el.child(self.web_content(cx)))
                                         .when(self.navigation.page()==WorkbenchPage::Document,|el|el.child(self.document_content(cx)))
                                         .when(
                                             self.navigation.page() == WorkbenchPage::Tasks,

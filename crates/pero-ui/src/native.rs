@@ -44,7 +44,16 @@ pub(crate) fn request_locale(locale: &str) -> Result<(), String> {
     session_command(&serde_json::json!({"method":"settings.locale","locale":locale}).to_string())
 }
 
+pub(crate) fn native_application()->Application {
+    #[cfg(target_os="linux")]
+    {gpui_kit::platform::linux(WindowingModes::X11)}
+    #[cfg(not(target_os="linux"))]
+    {gpui_kit::application()}
+}
+
 pub fn run() -> anyhow::Result<()> {
+    #[cfg(target_os="windows")]
+    unsafe {std::env::set_var("GPUI_DISABLE_DIRECT_COMPOSITION","true");}
     #[cfg(target_os = "macos")]
     relaunch_in_bundle();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -224,7 +233,8 @@ pub fn run() -> anyhow::Result<()> {
     let palettes: Palettes =
         serde_json::from_str(include_str!("../../../web/src/theme.generated.json"))?;
     let urls = commands.clone();
-    let app = gpui_kit::application().with_assets(crate::assets::UiAssets);
+    let app=native_application();
+    let app=app.with_assets(crate::assets::UiAssets);
     app.on_open_urls(move |opened| {
         for url in opened {
             let _ = urls

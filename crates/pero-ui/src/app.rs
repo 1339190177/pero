@@ -40,6 +40,12 @@ pub(crate) struct Workbench {
     pub workspace_focus:FocusHandle,
     pub input: Entity<InputState>,
     pub documents:Vec<crate::documents::WorkspaceDocument>,
+    #[cfg(not(target_family="wasm"))]
+    pub native_web_pages:std::collections::BTreeMap<String,crate::web_documents::WorkspaceNativeWeb>,
+    pub web_documents:Vec<pero_contracts::web_document::WebDocument>,
+    pub web_address:Entity<InputState>,
+    pub web_entry_open:bool,
+    pub web_surface:String,
     pub locale: String,
     pub input_locale: String,
     pub palettes: Palettes,
@@ -97,6 +103,8 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) -> Self {
         cx.bind_keys([
+            KeyBinding::new("cmd-l",crate::web_documents::OpenWeb,None),
+            KeyBinding::new("ctrl-l",crate::web_documents::OpenWeb,None),
             KeyBinding::new("cmd-o",crate::workspace_view::OpenDocument,None),
             KeyBinding::new("ctrl-o",crate::workspace_view::OpenDocument,None),
             KeyBinding::new("ctrl-tab", crate::workspace_view::NextContent, None),
@@ -168,6 +176,18 @@ impl Workbench {
             cx.notify();
         }));
         subscriptions.push(cx.subscribe(&search, |_, _, _: &InputEvent, cx| cx.notify()));
+        let web_address=cx.new(|cx|InputState::new(window,cx).placeholder("https://"));
+        subscriptions.push(cx.subscribe_in(&web_address,window,|this,input,event:&InputEvent,window,cx| {
+            if matches!(event,InputEvent::PressEnter {..}) {
+                let url=input.read(cx).value().to_string();
+                let command=match this.navigation.current() {
+                    Some(WorkspaceItem::Web(id))=>json!({"action":"web_navigate","id":id,"url":url}),
+                    _=>json!({"action":"web_open","url":url}),
+                };
+                this.web_command(command,window,cx);
+                this.workspace_focus.focus(window,cx);
+            }
+        }));
         let project_binding = cx.new(|cx| InputState::new(window, cx));
         subscriptions.push(cx.subscribe(&project_binding, |this, _, event, cx| {
             if matches!(event, InputEvent::Change) {
@@ -188,6 +208,9 @@ impl Workbench {
         );
         Self {
             workspace_focus,
+            #[cfg(not(target_family="wasm"))]
+            native_web_pages:Default::default(),
+            web_documents:vec![],web_address,web_entry_open:false,web_surface:String::new(),
             remote,
             local_execution,
             contribution: Default::default(),
@@ -365,7 +388,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let event_kind = event.kind.clone();
-        let feature_handled = self.receive_document(&event,window,cx) || self.receive_roadmap(&event, cx)
+        let feature_handled = self.receive_web(&event,window,cx) || self.receive_document(&event,window,cx) || self.receive_roadmap(&event, cx)
             || self.receive_local_execution(&event, cx)
             || self.receive_contribution(&event, cx)
             || self.receive_apps(&event, cx)
@@ -658,6 +681,9 @@ pub fn snapshot() -> String {
             "tab": ui.tab.legacy_index(), "events": ui.events, "workspace": ui.workspace,
         });
         value["chatVisible"] = serde_json::json!(ui.chat_visible());
+        value["webDocuments"]=json!(ui.web_documents);
+        value["webAddress"]=json!(ui.web_address.read(cx).value().as_ref());
+        value["webEntryOpen"]=json!(ui.web_entry_open);
         value["documents"]=json!(ui.documents.iter().map(|open|json!({"item":open.item,"title":open.view.read(cx).document.title,"reader":open.view.read(cx).snapshot(cx)})).collect::<Vec<_>>());
         value["contentTabs"] = serde_json::json!(ui.navigation.items());
         value["activeContent"] = serde_json::json!(ui.navigation.current());

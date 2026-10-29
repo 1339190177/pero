@@ -134,7 +134,7 @@ mod surface {
         pub(crate) fn sync_app_surface(&mut self, bounds: Option<Bounds<Pixels>>, cx: &App) {
             #[cfg(target_family = "wasm")]
             {
-                let bounds = bounds.filter(|_| self.layout.app_surface_visible);
+                let bounds = bounds.filter(|_| self.layout.embedded_surface_visible);
                 let payload = match (self.navigation.current(), bounds) {
                     (Some(WorkspaceItem::App { name, panel }), Some(bounds)) => {
                         json!({"visible":true,"name":name,"panel":panel,
@@ -168,7 +168,7 @@ mod surface {
                     .h_full()
                     .p(px(20.))
                     .text_color(p.text_muted)
-                    .child(if !self.layout.app_surface_visible {
+                    .child(if !self.layout.embedded_surface_visible {
                         ""
                     } else {
                         self.t(if cfg!(target_family = "wasm") {
