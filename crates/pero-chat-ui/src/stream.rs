@@ -204,17 +204,20 @@ impl StreamText {
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 impl Render for StreamText {
-    fn render(&mut self, window: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if let Some(scroll) = &self.follow_scroll {
             if near_bottom(scroll) {
                 scroll_after_layout(scroll, window);
             }
         }
-        TextView::new(&self.document).selectable(true).style(
+        let typography = pero_theme::UiAppearance::global(cx).typography;
+        pero_theme::TypographyScope::new(px(typography.chat))
+            .text_size(rems(1.))
+            .child(TextView::new(&self.document).selectable(true).style(
             TextViewStyle::default()
                 .paragraph_gap(rems(0.4))
-                .code_block(StyleRefinement::default().font_family("JetBrains Mono")),
-        )
+                .code_block(StyleRefinement::default().font_family("JetBrains Mono").text_size(px(typography.code))),
+        ))
     }
 }
 

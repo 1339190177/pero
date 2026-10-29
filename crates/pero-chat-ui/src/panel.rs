@@ -2,7 +2,6 @@
 use crate::{
     composer_state::ComposerState,
     conversation::{AgentChoice, Conversation},
-    theme::Palettes,
 };
 use gpui_kit::{
     component::input::{InlineToken, InputContent, InputEvent, TextareaState},
@@ -43,8 +42,6 @@ pub(crate) struct ComposerInsertion {
 }
 
 pub struct ChatPanel {
-    pub palettes: Palettes,
-    pub dark: bool,
     pub locale: String,
     pub connected: bool,
     pub error: Option<String>,
@@ -80,8 +77,6 @@ impl EventEmitter<ChatAction> for ChatPanel {}
 
 impl ChatPanel {
     pub fn new(
-        palettes: Palettes,
-        dark: bool,
         locale: String,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -113,8 +108,6 @@ impl ChatPanel {
             cx.observe(&composer, |this, _, cx| this.update_composer_completion(cx)),
         ];
         Self {
-            palettes,
-            dark,
             locale,
             connected: false,
             error: None,
@@ -154,8 +147,7 @@ impl ChatPanel {
         crate::assets::UiIcon::named(name).element()
     }
 
-    pub fn set_context(&mut self, dark: bool, locale: &str, cx: &mut Context<Self>) {
-        self.dark = dark;
+    pub fn set_locale(&mut self, locale: &str, cx: &mut Context<Self>) {
         self.locale = pero_contracts::i18n::normalize(locale).into();
         for chat in &self.chats {
             for tool in &chat.tools {
@@ -165,7 +157,6 @@ impl ChatPanel {
             }
         }
         gpui_kit::component::set_locale(&self.locale);
-        self.palettes.apply(dark, cx);
         cx.notify();
     }
 
@@ -307,7 +298,7 @@ impl ChatPanel {
     /// Diagnostic projection used by both shells; never a second history store.
     pub fn snapshot(&self, cx: &App) -> Value {
         json!({"chats":self.chats,"activeChat":self.active_chat,"agents":self.agents,
-            "connected":self.connected,"error":self.error,"dark":self.dark,"locale":self.locale,"scope":self.scope,
+            "connected":self.connected,"error":self.error,"dark":pero_theme::UiAppearance::global(cx).dark,"locale":self.locale,"scope":self.scope,
             "composer":self.composer.read(cx).value().as_ref(),"composerFocused":self.composer_focused,
             "workspace":self.workspace,"attachments":self.attachments.iter().map(|r|r.label.as_str()).collect::<Vec<_>>(),
             "expandedTools":self.expanded_tools,"expandedReasoning":self.expanded_reasoning,

@@ -16,7 +16,7 @@ use serde_json::json;
 
 impl ChatPanel {
     pub fn composer_view(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let focused = self.composer.read(cx).focus_handle(cx).is_focused(window);
         let chat = self.active_chat.and_then(|i| self.chats.get(i));
         let busy = chat.is_some_and(|c| c.busy());
@@ -75,7 +75,7 @@ impl ChatPanel {
             let thread = id.clone();
             let workbench = cx.entity().downgrade();
             let open_workbench = workbench.clone();
-            Button::new("model-picker").ghost().small().h(px(W::CONTROL))
+            Button::new("model-picker").ghost().small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                 .label(label).max_w(px(220.)).dropdown_caret(true)
                 .loading(model_pending).loading_icon(Icon::default().path("icons/clock.svg"))
                 .disabled(busy || model_pending || chat.state != SessionState::Idle)
@@ -112,8 +112,8 @@ impl ChatPanel {
             .relative()
             .flex_shrink_0()
             .border_t_1()
-            .border_color(p.color("border"))
-            .bg(p.color("surface"))
+            .border_color(p.border)
+            .bg(p.surface)
             .px(px(12.))
             .pt(px(W::INSET))
             .pb(px(W::INSET))
@@ -157,8 +157,8 @@ impl ChatPanel {
                 el.child(
                     div()
                         .mb(px(8.))
-                        .text_size(px(12.))
-                        .text_color(p.color("error"))
+                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                        .text_color(p.error)
                         .child(
                             self.error
                                 .as_ref()
@@ -181,7 +181,7 @@ impl ChatPanel {
                         div().flex().items_center().child(
                         Button::new(("attached-file", i))
                             .ghost()
-                            .small().h(px(W::CONTROL))
+                            .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                             .icon(IconName::File)
                             .label(format!("{} ×", file.label))
                             .tooltip(format!("{}: {}", self.t("composer.remove"), file.source))
@@ -189,7 +189,7 @@ impl ChatPanel {
                                 this.remove_composer_context(i, window, cx);
                             }))
                         ).when(cfg!(target_family="wasm"), |row| row.child(
-                            Button::new(("preview-context",i)).ghost().small().h(px(W::CONTROL)).label(self.t("composer.preview"))
+                            Button::new(("preview-context",i)).ghost().small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height())).label(self.t("composer.preview"))
                                 .on_click(cx.listener(move|_,_,_,cx|cx.emit(crate::ChatAction::PreviewContext{reference:preview.clone(),thread_id:thread_id.clone()})))
                         ))
                     }),
@@ -199,9 +199,9 @@ impl ChatPanel {
                 div()
                     .id("composer-field")
                     .border_1()
-                    .border_color(p.color(if focused { "focus" } else { "input-border" }))
+                    .border_color(if focused { p.focus } else { p.input_border })
                     .rounded(px(W::INSET))
-                    .bg(p.color("surface"))
+                    .bg(p.surface)
                     .px(px(W::INSET))
                     .pt(px(W::GAP))
                     .pb(px(W::GAP))
@@ -209,8 +209,8 @@ impl ChatPanel {
                 Textarea::new(&self.composer)
                     .bordered(false)
                     .appearance(false)
-                    .font_family("Noto Sans CJK SC")
-                    .text_size(px(14.))
+
+                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
                     .aria_label(self.t("chat.placeholder"))
                     .accessibility_id("chat-input")
                     .on_paste(move |clipboard, window, cx| {
@@ -218,7 +218,7 @@ impl ChatPanel {
                             .update(cx, |this, cx| this.composer_paste(clipboard, window, cx))
                             .unwrap_or(false)
                     })
-                    .h(px(rows as f32 * 21. + 8.)),
+                    .h(px(rows as f32 * pero_theme::UiAppearance::global(cx).typography.ui * 1.5 + 8.)),
             )
             .child(
                 div()
@@ -230,7 +230,7 @@ impl ChatPanel {
                     .child(
                         Button::new("attach-context")
                             .ghost()
-                            .small().h(px(W::CONTROL))
+                            .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                             .icon(IconName::Plus)
                             .accessibility_label(self.t("composer.context"))
                             .tooltip(self.t("composer.context"))
@@ -288,7 +288,7 @@ impl ChatPanel {
                     .child(
                         Button::new("agent-picker")
                             .ghost()
-                            .small().h(px(W::CONTROL))
+                            .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                             .icon(Icon::default().path("icons/terminal.svg"))
                             .label(agent.clone())
                             .tooltip(self.t("composer.acp"))
@@ -317,7 +317,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("workspace-picker")
                                 .ghost()
-                                .small().h(px(W::CONTROL))
+                                .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                 .icon(IconName::Folder)
                                 .label(workspace)
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -329,7 +329,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("retry-chat")
                                 .outline()
-                                .small().h(px(W::CONTROL))
+                                .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                 .label(self.t("chat.retry"))
                                 .disabled(!self.connected)
                                 .on_click(cx.listener(|this, _, _, cx| this.retry_chat(cx))),
@@ -339,7 +339,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("stop-agent")
                                 .outline()
-                                .small().h(px(W::CONTROL))
+                                .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                 .icon(IconName::Square)
                                 .label(self.t("chat.stop"))
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -355,7 +355,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("send-chat")
                                 .primary()
-                                .small().h(px(W::CONTROL))
+                                .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                 .icon(IconName::ArrowRight)
                                 .label(self.t("probe.send"))
                                 .disabled(

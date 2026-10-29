@@ -7,7 +7,7 @@ use gpui_kit::{
 };
 use pero_contracts::{i18n::text, usage::SessionUsage};
 
-pub fn render_usage(usage: &SessionUsage, locale: &str, palette: &Palette) -> impl IntoElement {
+pub fn render_usage(usage: &SessionUsage, locale: &str, palette: &Palette, cx: &App) -> impl IntoElement {
     let context_label = text(locale, "chat.usage_context");
     let summary = usage
         .context_ratio()
@@ -39,8 +39,8 @@ pub fn render_usage(usage: &SessionUsage, locale: &str, palette: &Palette) -> im
         .id("chat-usage-row")
         .px(px(16.))
         .pb(px(4.))
-        .text_size(px(11.))
-        .text_color(palette.color("text-muted"))
+        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+        .text_color(palette.text_muted)
         .child(
             Popover::new("chat-usage")
                 .trigger(
@@ -54,7 +54,7 @@ pub fn render_usage(usage: &SessionUsage, locale: &str, palette: &Palette) -> im
                 .flex_col()
                 .gap(px(6.))
                 .max_w(px(320.))
-                .text_size(px(12.))
+                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
                 .children(rows.into_iter().map(|row| div().child(row))),
         )
 }

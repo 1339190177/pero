@@ -617,7 +617,7 @@ impl ChatPanel {
         if crate::stream::near_bottom(&self.chat_scroll) {
             crate::stream::scroll_after_layout(&self.chat_scroll, window);
         }
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let chat = self.active_chat.and_then(|i| self.chats.get(i));
         let busy = chat.is_some_and(|c| c.busy());
         let id = chat.map(|c| c.id.clone()).unwrap_or_default();
@@ -627,14 +627,14 @@ impl ChatPanel {
             .unwrap_or_else(|| "codex".into());
         div().flex_1().min_h_0().flex().flex_col()
             .when(self.show_return_to_review,|el|el.child(
-                div().px(px(16.)).py(px(8.)).border_b_1().border_color(p.color("border")).child(
+                div().px(px(16.)).py(px(8.)).border_b_1().border_color(p.border).child(
                     Button::new("contribution-return").outline().small().label(self.t("contribution.return_review")).on_click(cx.listener(|_,_,_,cx|{
                         cx.emit(crate::ChatAction::ReturnToReview);
                     })))))
             .child(div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.chat_scroll).px(px(16.)).py(px(10.))
                 .when(chat.is_none_or(|c|c.messages.is_empty()),|el|el.child(div().py(px(24.)).flex().flex_col().gap(px(12.))
-                    .child(div().text_size(px(18.)).font_weight(FontWeight::BOLD).child(self.t("chat.welcome")))
-                    .child(div().text_color(p.color("text-muted")).child(self.t(if self.connected && !self.agents.iter().any(|agent|agent.available){"chat.install_agent"}else{"chat.description"})))))
+                    .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Heading)).font_weight(FontWeight::BOLD).child(self.t("chat.welcome")))
+                    .child(div().text_color(p.text_muted).child(self.t(if self.connected && !self.agents.iter().any(|agent|agent.available){"chat.install_agent"}else{"chat.description"})))))
                 .children(chat.into_iter().flat_map(render_items).enumerate().filter_map(|(i,item)|{
                     let conversation=chat?;
                     match item {
@@ -649,9 +649,9 @@ impl ChatPanel {
                                     .when(open,|el|el.child(message.view.clone())).into_any_element());
                             }
                             Some(div().id(("message",i)).mb(px(10.)).flex().flex_col().gap(px(3.))
-                                .child(div().text_size(px(11.)).font_weight(FontWeight::BOLD).text_color(p.color("text-muted")).child(if message.role=="user"{self.t("chat.you").to_string()}else{agent.clone()}))
+                                .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).font_weight(FontWeight::BOLD).text_color(p.text_muted).child(if message.role=="user"{self.t("chat.you").to_string()}else{agent.clone()}))
                                 .child(message.view.clone())
-                                .when(!message.attached_files.is_empty(),|el|el.child(div().flex().flex_wrap().gap(px(8.)).text_size(px(11.)).text_color(p.color("text-muted"))
+                                .when(!message.attached_files.is_empty(),|el|el.child(div().flex().flex_wrap().gap(px(8.)).text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).text_color(p.text_muted)
                                     .children(message.attached_files.iter().map(|name|div().flex().items_center().gap(px(4.)).child(self.icon("file").size(px(13.))).child(name.clone())))))
                                 .into_any_element())
                         },
@@ -663,12 +663,12 @@ impl ChatPanel {
 
                     }
                 }))
-                .when(busy,|el|el.child(div().text_color(p.color("text-muted")).child(self.t(if chat.is_some_and(|c|c.state==SessionState::Connecting){"chat.preparing"}else{"chat.thinking"}))))
-                .when(chat.is_some_and(|c|c.error.is_some() && c.state!=SessionState::AuthRequired),|el|el.child(div().p(px(14.)).bg(p.color("error-bg")).text_color(p.color("error")).rounded(px(6.)).child(chat.and_then(|c|c.error.clone()).unwrap_or_default()))))
+                .when(busy,|el|el.child(div().text_color(p.text_muted).child(self.t(if chat.is_some_and(|c|c.state==SessionState::Connecting){"chat.preparing"}else{"chat.thinking"}))))
+                .when(chat.is_some_and(|c|c.error.is_some() && c.state!=SessionState::AuthRequired),|el|el.child(div().p(px(14.)).bg(p.error_bg).text_color(p.error).rounded(px(6.)).child(chat.and_then(|c|c.error.clone()).unwrap_or_default()))))
             .children(chat.filter(|c|c.state==SessionState::AuthRequired).into_iter().map(|chat|{
-                div().mx(px(16.)).mb(px(10.)).p(px(12.)).bg(p.color("warning-bg")).rounded(px(4.))
+                div().mx(px(16.)).mb(px(10.)).p(px(12.)).bg(p.warning_bg).rounded(px(4.))
                     .child(div().font_weight(FontWeight::BOLD).child(self.t("chat.signin")))
-                    .when_some(chat.error.clone(),|el,error|el.child(div().mt(px(4.)).text_size(px(12.)).child(error)))
+                    .when_some(chat.error.clone(),|el,error|el.child(div().mt(px(4.)).text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).child(error)))
                     .child(div().mt(px(8.)).flex().gap(px(8.)).children(chat.auth_methods.iter().enumerate().map(|(i,method)|{
                         let method_id=method.id.clone();let thread=chat.id.clone();let interactive=method.kind.as_deref()==Some("terminal");
                         let command=method.terminal_command();
@@ -685,7 +685,7 @@ impl ChatPanel {
             }))
             .children(chat.and_then(|c|c.permission.as_ref()).into_iter().map(|permission|{
                 let request=permission["permission_id"].as_str().unwrap_or_default().to_string();
-                div().mx(px(28.)).mb(px(12.)).p(px(14.)).rounded(px(6.)).bg(p.color("warning-bg"))
+                div().mx(px(28.)).mb(px(12.)).p(px(14.)).rounded(px(6.)).bg(p.warning_bg)
                     .child(div().font_weight(FontWeight::BOLD).child(self.t("chat.permission")))
                     .child(div().my(px(10.)).child(permission["toolCall"]["title"].as_str().unwrap_or_default().to_string()))
                     .child(div().flex().gap(px(8.)).children(permission["options"].as_array().into_iter().flatten().enumerate().map(|(i,option)|{
@@ -696,7 +696,7 @@ impl ChatPanel {
                         }))
                     })))
             }))
-            .children(chat.and_then(|c| c.usage.as_ref()).map(|usage| crate::usage::render_usage(usage, &self.locale, p)))
+            .children(chat.and_then(|c| c.usage.as_ref()).map(|usage| crate::usage::render_usage(usage, &self.locale, p, cx)))
             .child(self.composer_view(window, cx))
     }
 }

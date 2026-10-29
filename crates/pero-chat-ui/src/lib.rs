@@ -25,7 +25,7 @@ mod content_reader;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod view_bounds;
 #[cfg(any(target_family = "wasm", feature = "native"))]
-pub mod theme;
+pub use pero_theme as theme;
 #[cfg_attr(not(any(target_family = "wasm", feature = "native")), allow(dead_code))]
 mod tool_ui;
 #[cfg(any(target_family = "wasm", feature = "native"))]
