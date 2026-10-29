@@ -82,3 +82,55 @@ before the canvas had painted the form. Waiting for rendered animation frames
 before native input fixed the missed click. Public pagination also needs a longer
 observable loading bound than a local fixture; the suite waits for loading to
 finish rather than pausing for a fixed duration.
+
+## Functional task discovery deployment — 2026-10-29
+
+The final server release is `20261029T012052Z-ed086f6f`, built from committed
+source `ed086f6f40bbf0b7e41880230da897f4ed0b44f8` and deployed through the existing
+runbook. The public Roadmap publications identify source commit
+`70c6d1ff93316619bc71398d96ab723982b6d47f`. Server code and imported source are
+separate revisions. The deployment retained OAuth/configuration, took its normal
+pre-deployment dump and kept the previous healthy container. No migration was
+added. The final container was running with zero restarts and HTTPS health 200.
+
+The live browser suite passed 19 checks against the real HTTPS service at
+`2026-10-29T01:27:18.250Z`:
+
+- 252 current Roadmap tasks match every committed title, line and functional
+  path: 12 domains, 48 feature groups and 33 checked sources. Three public Issues
+  remain under the final “其他任务” category. The browser displays 255 total tasks,
+  with 221 unfinished by default; historical missing sources remain outside this
+  current outline. Issue #2 was closed after integration/public delivery and synced
+  as a source closure, without Run acceptance or points; sync reported one update,
+  zero dispatches, complete coverage and no errors.
+- Domain → feature → task keyboard navigation, source/Desktop links, separate
+  inline scope/acceptance, title/acceptance search, ancestor reveal, complete-state
+  access, panorama feature drill-down, empty recovery and URL/selection restoration
+  all passed. Functional domains precede unclassified Issues.
+- Both views passed at 390px in light and dark themes without horizontal page
+  overflow. Native disclosures remained usable without JavaScript. No page errors
+  were observed; unauthenticated API access returned 401 and OAuth redirected to
+  GitHub without performing a login.
+- Before/after browser verification retained 899 total task records, 11 Runs,
+  the existing one `pero` Run association and zero point entries. The digest of
+  all task/Run links was unchanged. This check created no login, claim, execution,
+  acceptance, points or GitHub write.
+
+The final grouping adjustment also passed `go -C server test -race ./...` with
+isolated PostgreSQL and the existing community browser contribution regression
+(publication, fixture login/Worker, claim, execution, review/scoring and source
+changes). These local fixtures are distinct from live browser discovery; a real
+Agent run, OAuth round trip and PR publication were not part of this deployment
+acceptance.
+
+Reproduce live discovery with:
+
+```sh
+PERO_DEPLOYMENT_E2E=1 \
+PERO_TASK_BROWSER_REVISION=70c6d1ff93316619bc71398d96ab723982b6d47f \
+node tests/e2e/task-browser-live.mjs
+```
+
+The optional revision checks the pinned publication source. Read the source link
+before selecting a newer revision. Screenshots, the 19 checks and the database
+baseline comparison are in `test-results/task-browser-live/` and remain ignored.

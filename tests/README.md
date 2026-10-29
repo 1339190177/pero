@@ -46,6 +46,15 @@ URL 恢复、390px 深色与无 JavaScript 回退。设置 `PERO_TEST_DATABASE_U
 `PERO_CHROMIUM_PATH` 指定本机 Chromium。截图和结果在 `test-results/task-browser/`。
 它不访问线上任务中心、不执行 Agent，也不发布 GitHub 内容。
 
+## 线上任务发现
+
+`PERO_DEPLOYMENT_E2E=1 node tests/e2e/task-browser-live.mjs` 验证真实
+`https://app.openpero.com/tasks`，逐项核对当前仓库 Roadmap 的标题、源码行、
+功能路径和勾选状态，并检查搜索、行内验收、全景、键盘、刷新与移动端。
+可用 `PERO_TASK_BROWSER_REVISION` 指定公开来源链接的完整 commit SHA；它与
+部署的服务端版本分别记录。该脚本只读公开页面，不登录或认领任务。
+截图及结果位于 `test-results/task-browser-live/`。贡献执行回归使用前面的本地套件。
+
 ## 层外
 
 - `npm test` 包含 `pero-worker`。`crates/pero-worker/tests/remote.rs` 自己起本地假协调服务，不使用 PostgreSQL。

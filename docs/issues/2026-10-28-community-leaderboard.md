@@ -1,8 +1,8 @@
 ---
 kind: feature
-status: implemented
+status: resolved
 github_issue: 2
-github_state: open
+github_state: closed
 github_url: https://github.com/phodal/pero/issues/2
 ---
 
@@ -106,3 +106,15 @@ restoration after filtering out a selection, and 390px dark/no-JS rendering.
 Screenshots and verification JSON are under `test-results/task-browser/`.
 Production deployment and acceptance are recorded separately in
 [Task Center deployment](../fitness/task-center-deployment.md).
+
+
+Deployment verification (2026-10-29): server `ed086f6`, release
+`20261029T012052Z-ed086f6f`, is live. The real HTTPS browser suite passed 19
+checks against 252 Roadmap tasks plus three Issues. A screenshot review exposed
+unclassified Issues taking the first position; functional domains now render
+first, covered by the grouping table and live test. Browser verification
+preserved all existing Run links and points. Details and boundaries are in the
+[deployment report](../fitness/task-center-deployment.md#functional-task-discovery-deployment--2026-10-29).
+
+Issue #2 is closed after integration and public delivery; its earlier local-only
+verification record remains historical.
