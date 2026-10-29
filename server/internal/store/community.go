@@ -99,6 +99,7 @@ func (task PublicTask) Brief() PublicTaskBrief {
 
 func GroupPublicTasks(tasks []PublicTask) []PublicTaskGroup {
 	roots := []*PublicTaskGroup{}
+	otherRoots := []*PublicTaskGroup{}
 	byRoot := map[[2]string]*PublicTaskGroup{}
 	allGroups := []*PublicTaskGroup{}
 	for _, task := range tasks {
@@ -117,7 +118,11 @@ func GroupPublicTasks(tasks []PublicTask) []PublicTaskGroup {
 		if group == nil {
 			group = &PublicTaskGroup{Project: task.Project, Category: headings[0]}
 			byRoot[key] = group
-			roots = append(roots, group)
+			if task.Roadmap {
+				roots = append(roots, group)
+			} else {
+				otherRoots = append(otherRoots, group)
+			}
 			allGroups = append(allGroups, group)
 		}
 		for _, heading := range headings[1:] {
@@ -152,8 +157,8 @@ func GroupPublicTasks(tasks []PublicTask) []PublicTaskGroup {
 			}
 		}
 	}
-	groups := make([]PublicTaskGroup, 0, len(roots))
-	for _, root := range roots {
+	groups := make([]PublicTaskGroup, 0, len(roots)+len(otherRoots))
+	for _, root := range append(roots, otherRoots...) {
 		groups = append(groups, *root)
 	}
 	return groups

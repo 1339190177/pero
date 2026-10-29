@@ -345,12 +345,23 @@ func TestPublicTaskGrouping(t *testing.T) {
 			want: []string{"p/Agent", "p/Agent#a", "p/Agent/工具", "p/Agent/工具/MCP", "p/Agent/工具/MCP#b"},
 		},
 		{
+			name: "functional Roadmap roots precede ordinary sources",
+			tasks: []PublicTask{
+				{ID: "issue-a", Project: "p"},
+				{ID: "issue-b", Project: "q"},
+				{ID: "issue-c", Project: "p"},
+				{ID: "agent", Project: "p", Roadmap: true, Headings: []string{"Agent"}},
+				{ID: "app", Project: "p", Roadmap: true, Headings: []string{"App"}},
+			},
+			want: []string{"p/Agent", "p/Agent#agent", "p/App", "p/App#app", "p/其他任务", "p/其他任务#issue-a", "p/其他任务#issue-c", "q/其他任务", "q/其他任务#issue-b"},
+		},
+		{
 			name: "ordinary and unheaded Roadmap keep fallback categories",
 			tasks: []PublicTask{
 				{ID: "a", Project: "p", Title: "Keep. Reviewed title", Headings: []string{"private source"}},
 				{ID: "b", Project: "p", Roadmap: true},
 			},
-			want: []string{"p/其他任务", "p/其他任务#a", "p/Roadmap", "p/Roadmap#b"},
+			want: []string{"p/Roadmap", "p/Roadmap#b", "p/其他任务", "p/其他任务#a"},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
