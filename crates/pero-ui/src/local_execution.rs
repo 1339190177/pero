@@ -26,7 +26,27 @@ pub(crate) struct LocalExecutionSetup {
     #[serde(default)]
     pub has_connection: bool,
     pub error: Option<String>,
+    pub error_key: Option<String>,
+    pub error_status: Option<u16>,
     pub configuration: Option<LocalWorkerSummary>,
+}
+
+impl LocalExecutionSetup {
+    fn failed(&self) -> bool {
+        self.error_key.is_some() || self.error.is_some()
+    }
+
+    fn error_message(&self, locale: &str) -> Option<String> {
+        if let Some(key) = &self.error_key {
+            let translated = pero_contracts::i18n::text(locale, key);
+            return Some(if translated == key {
+                pero_contracts::i18n::text(locale, "worker.local.error.setup_failed").into()
+            } else {
+                translated.into()
+            });
+        }
+        self.error.clone().filter(|message| !message.is_empty())
+    }
 }
 
 pub(crate) struct LocalExecution {
@@ -73,14 +93,23 @@ impl LocalExecution {
         }
     }
 
-    pub fn snapshot(&self, cx: &App) -> serde_json::Value {
+    pub fn snapshot(&self, locale: &str, cx: &App) -> serde_json::Value {
         json!({"setup":self.setup,"status":self.status,"editing":self.editing,"pending":self.pending,
+            "error_message":self.setup.error_message(locale),
             "name":self.name.read(cx).value().as_ref(),"workspace_key":self.workspace_key.read(cx).value().as_ref(),
             "project_id":self.project_id,"path":self.path,"agent_id":self.agent_id})
     }
 }
 
 impl Workbench {
+    fn connect_local_execution_account(&mut self, cx: &mut Context<Self>) {
+        let url = self.remote.data["connection"]["url"]
+            .as_str()
+            .unwrap_or("https://app.openpero.com")
+            .to_string();
+        self.command(json!({"action":"remote_login","url":url}), cx);
+    }
+
     pub(crate) fn show_local_execution_onboarding(&self) -> bool {
         self.navigation == 1
             && self.local_execution.received_setup
@@ -96,10 +125,15 @@ impl Workbench {
             "local_worker_setup" => {
                 match serde_json::from_value::<LocalExecutionSetup>(event.data.clone()) {
                     Ok(setup) => {
-                    let newly_configured = self.local_execution.setup.configuration.is_none()
-                        && setup.configuration.is_some() && setup.enabled && setup.error.is_none();
-                    let finishing_welcome = self.show_local_execution_onboarding()
-                        && setup.onboarding_complete && setup.enabled && setup.error.is_none();
+                        let newly_configured = (self.local_execution.setup.configuration.is_none()
+                            || !self.local_execution.setup.enabled)
+                            && setup.configuration.is_some()
+                            && setup.enabled
+                            && !setup.failed();
+                        let finishing_welcome = self.show_local_execution_onboarding()
+                            && setup.onboarding_complete
+                            && setup.enabled
+                            && !setup.failed();
                         if self.local_execution.setup.configuration.is_none() {
                             self.local_execution.pending_configuration =
                                 setup.configuration.clone();
@@ -108,14 +142,16 @@ impl Workbench {
                         self.local_execution.received_setup = true;
                         self.local_execution.pending = false;
                         if self.local_execution.setup.enabled
-                            && self.local_execution.setup.error.is_none()
+                            && !self.local_execution.setup.failed()
                         {
                             self.local_execution.editing = false;
                         }
-                    if finishing_welcome { self.navigation = 5; }
-                    if newly_configured && self.remote.configured() {
-                        self.command(json!({"action":"remote_refresh"}),cx);
-                    }
+                        if finishing_welcome {
+                            self.navigation = 5;
+                        }
+                        if newly_configured && self.remote.configured() {
+                            self.command(json!({"action":"remote_refresh"}), cx);
+                        }
                     }
                     Err(error) => self.local_execution.setup.error = Some(error.to_string()),
                 }
@@ -131,7 +167,9 @@ impl Workbench {
             }
             "local_worker_workspace" => {
                 let path = event.data["path"].as_str().unwrap_or(&event.text);
-                if !path.is_empty() { self.local_execution.path = path.to_string(); }
+                if !path.is_empty() {
+                    self.local_execution.path = path.to_string();
+                }
             }
             _ => return false,
         }
@@ -181,8 +219,13 @@ impl Workbench {
             .filter_map(|project| project.as_str().map(str::to_string))
             .collect::<Vec<_>>();
         if self.remote.operator() {
-            project_ids.extend(self.project_catalog().into_iter().filter_map(|project| project.shared_id));
-            project_ids.sort(); project_ids.dedup();
+            project_ids.extend(
+                self.project_catalog()
+                    .into_iter()
+                    .filter_map(|project| project.shared_id),
+            );
+            project_ids.sort();
+            project_ids.dedup();
         }
         let no_projects = project_ids.is_empty();
         let agents = self
@@ -249,16 +292,17 @@ impl Workbench {
                 .child(div().whitespace_normal().child(self.t("worker.local.restore_hint")))
                 .child(Button::new("local-worker-connect").primary().label(self.t(if restoring {"worker.local.restoring"}else{"worker.local.connect"}))
                     .loading(authenticating || restoring).disabled(authenticating || restoring)
-                    .on_click(cx.listener(|this,_,_,cx|{
-                        let url=this.remote.data["connection"]["url"].as_str().unwrap_or("https://app.openpero.com").to_string();
-                        this.command(json!({"action":"remote_login","url":url}),cx);
-                    })))
+                    .on_click(cx.listener(|this,_,_,cx|this.connect_local_execution_account(cx))))
                 .when(authenticating,|el|el.child(Button::new("local-worker-login-cancel").ghost().label(self.t("connector.login_cancel"))
                     .on_click(cx.listener(|this,_,_,cx|this.command(json!({"action":"remote_login_cancel"}),cx)))))))
             .when(connected && first_run,|el|el.child(div().text_size(px(12.)).text_color(p.color("text-muted"))
                 .child(format!("{} · {}",self.t("worker.local.connected"),self.remote.data["identity"]["name"].as_str().unwrap_or_default()))))
-            .when_some(local.setup.error.as_ref().filter(|error|!error.is_empty()),|el,error|el.child(div().id("local-worker-error").role(Role::Alert)
-                .text_color(p.color("error")).whitespace_normal().child(error.clone())))
+            .when_some(local.setup.error_message(&self.locale),|el,error|el.child(div().id("local-worker-error").role(Role::Alert)
+                .text_color(p.color("error")).whitespace_normal().child(error)
+                .when_some(local.setup.error_status,|el,status|el.child(div().text_size(px(12.)).text_color(p.color("text-muted")).child(format!("HTTP {status}"))))))
+            .when(connected && local.setup.error_key.as_deref() == Some("worker.local.error.reauthenticate"),|el|el.child(Button::new("local-worker-reauthenticate").outline()
+                .label(self.t("worker.local.connect")).loading(authenticating).disabled(authenticating)
+                .on_click(cx.listener(|this,_,_,cx|this.connect_local_execution_account(cx)))))
             .when_some(self.remote.data["error"].as_str().filter(|error|!error.is_empty()),|el,error|el.child(div().id("local-worker-connection-error").role(Role::Alert)
                 .text_color(p.color("error")).whitespace_normal().child(error.to_string())))
             .when(!local.status.message.is_empty() && !matches!(local.status.status,LocalWorkerStatus::Idle|LocalWorkerStatus::Stopped),|el| {

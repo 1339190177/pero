@@ -456,7 +456,7 @@ pub fn snapshot() -> String {
         value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());
         value["deletingChat"] = serde_json::json!(ui.deleting_chat);
         value["localRoadmap"] = serde_json::json!(ui.local_roadmap);
-        value["localExecution"] = ui.local_execution.snapshot(cx);
+        value["localExecution"] = ui.local_execution.snapshot(&ui.locale, cx);
     });
     value.to_string()
 }

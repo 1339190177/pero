@@ -16,7 +16,9 @@ const agents=resolve(temp,'agents.json');
 await writeFile(agents,JSON.stringify([{id:'fixture',name:'ACP local execution fixture',command:process.execPath,args:[resolve(root,'tests/fixtures/acp-agent.mjs')]}]));
 const clientToken=randomUUID();
 const otherClientToken=randomUUID();
-const requests=[];const events=[];const enrollments=[];
+const requests=[];const events=[];const enrollments=[];const enrollmentAttempts=[];
+const sensitiveBody=`UNTRUSTED_BODY_${randomUUID()}`;
+let enrollmentFailure=null;
 let workerToken='';let worker;let run;let queued=false;let completed=0;
 const server=createServer(async(request,response)=>{
   const url=new URL(request.url,'http://127.0.0.1');
@@ -42,9 +44,20 @@ const server=createServer(async(request,response)=>{
   const path=url.pathname.replace('/api/client/v1','');
   if(path==='/me')reply({id:other?'other-client':'client-fixture',name:other?'Other account':'Local device user',role:'client',projects:['project-fixture']});
   else if(path==='/workers'&&request.method==='POST'){
-    enrollments.push(body);
+    enrollmentAttempts.push(body);
+    if(enrollmentFailure&&enrollmentFailure!=='network'){
+      if(enrollmentFailure==='invalid_json'){response.statusCode=200;response.end(`<html>${sensitiveBody}</html>`);return;}
+      response.statusCode=enrollmentFailure;
+      if(enrollmentFailure===404){response.setHeader('Content-Type','text/html');response.end(`<html>${sensitiveBody}</html>`);}
+      else if(enrollmentFailure===405){response.setHeader('Content-Type','text/plain');response.end(`Method Not Allowed ${sensitiveBody}`);}
+      else response.end(JSON.stringify({error:sensitiveBody}));
+      return;
+    }
+    if(!enrollments.some(previous=>previous.request_id===body.request_id))enrollments.push(body);
     worker={id:'worker-local-fixture',name:body.name,projects:body.projects,labels:['desktop']};
-    workerToken=`${worker.id}.${body.enrollment_secret}`;reply({worker,token:workerToken});
+    workerToken=`${worker.id}.${body.enrollment_secret}`;
+    if(enrollmentFailure==='network'){request.socket.destroy();return;}
+    reply({worker,token:workerToken});
   }
   else if(path==='/workers')reply({workers:worker&&!other?[worker]:[]});
   else if(path==='/workers/worker-local-fixture/disable')reply({worker});
@@ -128,7 +141,42 @@ try{
   await expect.poll(async()=>(await ui.state()).localExecution.path).toBe(await realpath(workspace));
   await ui.page.mouse.click(500,478);await ui.page.keyboard.press('ArrowUp');await ui.page.keyboard.press('Enter');
   await expect.poll(async()=>(await ui.state()).localExecution.agent_id).toBe('fixture');
-  await ui.page.mouse.click(500,550);
+  const selected=(await ui.state()).localExecution;
+  const enrollment={action:'local_worker_enroll',name:selected.name,project_id:selected.project_id,workspace_key:selected.workspace_key,path:selected.path,agent_id:selected.agent_id};
+  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('locale-zh-CN').click());
+  await expect.poll(async()=>(await ui.state()).locale).toBe('zh-CN');
+  const diagnostics=[
+    [404,'server_unsupported','当前云端服务尚不支持设备注册，请联系管理员升级服务。'],
+    [405,'server_unsupported','当前云端服务尚不支持设备注册，请联系管理员升级服务。'],
+    [401,'reauthenticate','登录已失效，请重新连接账户后重试。'],
+    [403,'permission_denied','当前账户无权为此项目启用设备，请联系项目所有者授权。'],
+    [409,'enrollment_conflict','设备注册状态已变化，请重新配置后重试。'],
+    [400,'invalid_configuration','设备配置无效，请检查项目、目录和 Agent 后重试。'],
+    [503,'server_unavailable','云端服务暂时不可用，请稍后重试。'],
+    ['network','network','无法连接云端，请检查网络与服务地址后重试。'],
+    ['invalid_json','invalid_response','云端返回了无效的设备信息，请检查服务版本后重试。'],
+  ];
+  for(const [failure,key,message]of diagnostics){
+    enrollmentFailure=failure;
+    await ui.page.evaluate(command=>window.pero.sessionCommand(command),enrollment);
+    await expect.poll(async()=>(await ui.state()).localExecution.setup.error_key).toBe(`worker.local.error.${key}`);
+    const snapshot=await ui.state();
+    expect(snapshot.localExecution.setup.error_status).toBe(typeof failure==='number'?failure:null);
+    expect(snapshot.localExecution.error_message).toBe(message);
+    const publicState=JSON.stringify(snapshot);
+    expect(publicState).not.toContain(sensitiveBody);expect(publicState).not.toContain(clientToken);
+    expect(publicState).not.toContain(enrollmentAttempts[0].enrollment_secret);
+    expect(snapshot.localExecution.setup.enabled).toBe(false);
+    expect(snapshot.localExecution.status.status).toBe('stopped');
+    if(failure===405){await ui.frame();await ui.page.screenshot({path:resolve(output,'enrollment-405-zh-CN.png')});}
+  }
+  expect(new Set(enrollmentAttempts.map(attempt=>attempt.device_id)).size).toBe(1);
+  expect(new Set(enrollmentAttempts.map(attempt=>attempt.request_id)).size).toBe(1);
+  expect(new Set(enrollmentAttempts.map(attempt=>attempt.enrollment_secret)).size).toBe(1);
+  enrollmentFailure=null;
+  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('locale-en').click());
+  await expect.poll(async()=>(await ui.state()).locale).toBe('en');
+  await ui.page.evaluate(command=>window.pero.sessionCommand(command),enrollment);
   await expect.poll(async()=>(await ui.state()).localExecution.status.status,{timeout:30000}).toBe('idle');
   await expect.poll(()=>enrollments.length).toBe(1);
   expect(enrollments[0]).toMatchObject({projects:['project-fixture'],capabilities:[{project_id:'project-fixture',workspace_key:'research',agent_id:'fixture'}]});
@@ -173,7 +221,7 @@ try{
   const claimsBeforeOther=requests.filter(request=>request.path==='/api/worker/v1/claims').length;
   await ui.page.evaluate(({url,token})=>window.pero.remoteCommand({action:'remote_configure',url,mode:'client',token}),{url:base,token:otherClientToken});
   await expect.poll(async()=>(await ui.state()).remote.state.identity?.id).toBe('other-client');
-  await expect.poll(async()=>(await ui.state()).localExecution.setup.error).toBe('Configure this device for the signed-in account before resuming local execution.');
+  await expect.poll(async()=>(await ui.state()).localExecution.setup.error_key).toBe('worker.local.error.account_changed');
   expect((await ui.state()).localExecution.status.status).toBe('stopped');
   expect(requests.filter(request=>request.path==='/api/worker/v1/claims')).toHaveLength(claimsBeforeOther);
   await ui.page.screenshot({path:resolve(output,'other-account-blocked.png')});
@@ -184,7 +232,7 @@ try{
   await expect.poll(async()=>(await ui.state()).localExecution.status.status,{timeout:15000}).toBe('stopped');
   expect(enrollments).toHaveLength(1);expect(completed).toBe(1);
   expect(errors).toEqual([]);
-  await writeFile(resolve(output,'result.json'),JSON.stringify({checks:['first-run-no-auto-login','skip-persisted','enable-later-from-workers','explicit-enable','granted-project-scope','real-worker-acp-turn','encrypted-credentials','restart-restoration','stop-preserves-configuration','resume-without-reenroll','logout-stops-worker','different-account-blocked','original-account-restores','dark-narrow-setup'],enrollments:enrollments.length,completed,events:events.length,state:await ui.state(),errors},null,2));
+  await writeFile(resolve(output,'result.json'),JSON.stringify({checks:['localized-enrollment-errors-404-405-401-403-409-400-503-network-invalid-json','pending-enrollment-recovered-once','first-run-no-auto-login','skip-persisted','enable-later-from-workers','explicit-enable','granted-project-scope','real-worker-acp-turn','encrypted-credentials','restart-restoration','stop-preserves-configuration','resume-without-reenroll','logout-stops-worker','different-account-blocked','original-account-restores','dark-narrow-setup'],enrollments:enrollments.length,completed,events:events.length,state:await ui.state(),errors},null,2));
   console.log(JSON.stringify({checks:'local execution',enrollments:enrollments.length,completed,events:events.length,errors}));
 }catch(error){
   if(app){const page=await app.firstWindow();console.error(await page.evaluate(()=>window.peroDiagnostics?.snapshot()).catch(()=>null));await page.screenshot({path:resolve(output,'failure.png')});}

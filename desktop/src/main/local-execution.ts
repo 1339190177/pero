@@ -5,7 +5,7 @@ import { mkdir, open, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { dirname, isAbsolute } from 'node:path';
 import type { LocalWorkerConfig, LocalWorkerState, LocalWorkerSummary } from '../../../protocol/generated/host';
 import type { EnrollWorker } from '../../../protocol/generated/remote';
-import type { RemoteAdapter } from './remote';
+import { RemoteRequestError, type RemoteAdapter } from './remote';
 
 type Form = { name: string; project_id: string; workspace_key: string; path: string; agent_id: string };
 type Connection = { url: string; mode: 'client' | 'operator'; owner_id: string };
@@ -15,14 +15,18 @@ type RecordState = {
   connection?: Connection; pending?: Pending; worker?: LocalWorkerConfig;
 };
 const actions = new Set(['local_worker_init','local_worker_enroll','local_worker_resume','local_worker_disable','local_worker_skip']);
+type SetupErrorKey = 'invalid_configuration' | 'storage_unavailable' | 'storage_failed' | 'reauthenticate' | 'account_changed' | 'permission_denied' | 'stop_required' | 'server_unsupported' | 'enrollment_conflict' | 'server_unavailable' | 'network' | 'invalid_response' | 'setup_failed';
+class SetupFailure extends Error {
+  constructor(readonly key: SetupErrorKey) { super(key); }
+}
 
 function field(value: unknown, max = 128): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > max || /[\u0000-\u001f\u007f]/.test(value)) throw new Error('Check the local execution configuration and retry.');
+  if (typeof value !== 'string' || !value.trim() || value.length > max || /[\u0000-\u001f\u007f]/.test(value)) throw new SetupFailure('invalid_configuration');
   return value.trim();
 }
 function form(input: Record<string, unknown>): Form {
   const result = { name: field(input.name), project_id: field(input.project_id), workspace_key: field(input.workspace_key), path: field(input.path,4096), agent_id: field(input.agent_id) };
-  if (!isAbsolute(result.path)) throw new Error('Choose an absolute local workspace directory.');
+  if (!isAbsolute(result.path)) throw new SetupFailure('invalid_configuration');
   return result;
 }
 function sameConnection(a: Connection | undefined, b: Connection | undefined): boolean {
@@ -34,10 +38,29 @@ export class LocalExecutionController {
   private initialization?: Promise<void>;
   private queue: Promise<void> = Promise.resolve();
   private error: string | null = null;
+  private errorKey: string | null = null;
+  private errorStatus: number | null = null;
   private startedFor: string | null = null;
   private hostState?: LocalWorkerState;
   private closed = false;
   constructor(private path: string, private remote: RemoteAdapter, private host: (request: object) => void, private emit: (event: object) => void) {}
+
+  private clearError() { this.error=null; this.errorKey=null; this.errorStatus=null; }
+  private setError(key: SetupErrorKey, status: number | null = null) {
+    this.error='Local execution setup could not complete.';
+    this.errorKey=`worker.local.error.${key}`; this.errorStatus=status;
+  }
+  private capture(error: unknown) {
+    if (error instanceof SetupFailure) { this.setError(error.key); return; }
+    if (!(error instanceof RemoteRequestError)) { this.setError('setup_failed'); return; }
+    if (error.kind !== 'http') { this.setError(error.kind); return; }
+    const status=error.status ?? 0;
+    const key: SetupErrorKey = status===404 || status===405 ? 'server_unsupported'
+      : status===401 ? 'reauthenticate' : status===403 ? 'permission_denied'
+      : status===409 ? 'enrollment_conflict' : status===400 || status===422 ? 'invalid_configuration'
+      : status===408 || status===429 || status>=500 ? 'server_unavailable' : 'setup_failed';
+    this.setError(key,error.status ?? null);
+  }
 
   private connection(): Connection | undefined {
     const connection = this.remote.localWorkerConnection();
@@ -60,13 +83,13 @@ export class LocalExecutionController {
     if (this.closed) return;
     this.emit({version:1,kind:'local_worker_setup',request_id:null,text:'',data:{
       onboarding_complete:this.record?.onboarding_complete ?? false,enabled:this.record?.enabled ?? false,
-      has_connection:!!this.connection(),error:this.error,configuration:this.summary(),
+      has_connection:!!this.connection(),error:this.error,error_key:this.errorKey,error_status:this.errorStatus,configuration:this.summary(),
     }});
   }
   private async encryptionAvailable() {
     const available = await safeStorage.isAsyncEncryptionAvailable();
     const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : '';
-    if (!available || backend === 'basic_text' || backend === 'unknown') throw new Error('System credential storage is unavailable. Unlock it and retry local execution setup.');
+    if (!available || backend === 'basic_text' || backend === 'unknown') throw new SetupFailure('storage_unavailable');
   }
   private async save(record: RecordState) {
     await this.encryptionAvailable();
@@ -80,7 +103,7 @@ export class LocalExecutionController {
       await rename(temporary,this.path);
     } catch {
       await unlink(temporary).catch(()=>{});
-      throw new Error('Local execution settings could not be saved. Check the profile folder and retry.');
+      throw new SetupFailure('storage_failed');
     }
     this.record = record;
   }
@@ -105,7 +128,7 @@ export class LocalExecutionController {
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
           this.record = undefined;
-          this.error = 'Saved local execution settings could not be opened. Unlock credential storage and retry.';
+          this.setError('storage_failed');
           return;
         }
         await this.save({version:1,device_id:randomUUID(),onboarding_complete:!!this.remote.localWorkerConnection(),enabled:false});
@@ -125,15 +148,15 @@ export class LocalExecutionController {
     if (!record || !record.enabled || !record.worker || !sameConnection(record.connection,connection)) {
       this.stop();
       if (record?.enabled && record.worker && connection && !sameConnection(record.connection,connection)) {
-        this.error='Configure this device for the signed-in account before resuming local execution.';
+        this.setError('account_changed');
       }
       this.publish(); return;
     }
     const account = this.remote.localWorkerConnection()!.identity!;
     if (account.role !== 'operator' && record.worker.bindings.some(binding=>!account.projects.includes(binding.project_id))) {
-      this.stop(); this.error='This account no longer has access to the configured project.'; this.publish(); return;
+      this.stop(); this.setError('permission_denied'); this.publish(); return;
     }
-    this.error=null;
+    this.clearError();
     const key = `${connection!.url}/${connection!.mode}/${connection!.owner_id}/${record.pending?.request_id ?? record.worker.id}`;
     if (this.startedFor !== key) {
       this.host({action:'local_worker_start',request_id:randomUUID(),worker:record.worker});
@@ -142,8 +165,8 @@ export class LocalExecutionController {
     this.publish();
   }
   sync() {
-    this.queue = this.queue.then(()=>this.syncAccount()).catch(()=>{
-      this.error='Local execution could not be restored. Check credential storage and the local runtime, then retry.'; this.publish();
+    this.queue = this.queue.then(()=>this.syncAccount()).catch((error)=>{
+      this.capture(error); this.publish();
     });
   }
   accept(message: {kind?: string; data?: unknown}) {
@@ -158,7 +181,7 @@ export class LocalExecutionController {
           await this.save({...this.record,enabled:false});
           this.publish();
         }
-      }).catch(()=>{this.error='Local execution settings could not be saved. Stop local execution before closing Desktop.';this.publish();});
+      }).catch((error)=>{this.capture(error);this.publish();});
     }
     // The supervisor owns temporary-network retries. Terminal attention needs
     // explicit user resume, including after restarting Desktop.
@@ -175,7 +198,7 @@ export class LocalExecutionController {
     try {
       await this.initialize();
       if (!this.record) {this.publish();return;}
-      this.error=null;
+      this.clearError();
       if (action==='local_worker_init') {
         await this.syncAccount();
         this.host({action:'local_worker_get',request_id:randomUUID()});
@@ -188,11 +211,11 @@ export class LocalExecutionController {
         await this.save({...this.record,enabled:false});this.stop();return;
       }
       const connection=this.connection();
-      if (!connection) throw new Error('Sign in and verify your Cloud account before enabling local execution.');
+      if (!connection) throw new SetupFailure('reauthenticate');
       if (action==='local_worker_resume') {
-        if (!sameConnection(this.record.connection,connection)) throw new Error('Configure this device for the signed-in account first.');
+        if (!sameConnection(this.record.connection,connection)) throw new SetupFailure('account_changed');
         if (!this.record.pending) {
-          if (!this.record.worker) throw new Error('Configure this device for the signed-in account first.');
+          if (!this.record.worker) throw new SetupFailure('invalid_configuration');
           await this.save({...this.record,enabled:true,onboarding_complete:true});
           this.startedFor=null;await this.syncAccount();return;
         }
@@ -200,8 +223,8 @@ export class LocalExecutionController {
       }
       const selected=action==='local_worker_resume' && this.record.pending ? this.record.pending.form : form(command);
       const identity=this.remote.localWorkerConnection()!.identity!;
-      if (identity.role!=='operator' && !identity.projects.includes(selected.project_id)) throw new Error('This account has no access to the selected project.');
-      if (this.hostState && ['starting','idle','running','offline','stopping'].includes(this.hostState.status)) throw new Error('Stop local execution before changing its configuration.');
+      if (identity.role!=='operator' && !identity.projects.includes(selected.project_id)) throw new SetupFailure('permission_denied');
+      if (this.hostState && ['starting','idle','running','offline','stopping'].includes(this.hostState.status)) throw new SetupFailure('stop_required');
       const previous=this.record.pending;
       const samePending=sameConnection(this.record.connection,connection) && previous && JSON.stringify(previous.form)===JSON.stringify(selected);
       const enrollment: Pending=samePending ? previous : {request_id:randomUUID(),enrollment_secret:randomBytes(32).toString('hex'),form:selected};
@@ -214,12 +237,11 @@ export class LocalExecutionController {
         bindings:[{project_id:selected.project_id,workspace_key:selected.workspace_key,path:selected.path,agent_ids:[selected.agent_id]}]};
       await this.save({...this.record,connection,pending:undefined,worker,enabled:true,onboarding_complete:true});
       if (sameConnection(connection,this.connection())) await this.syncAccount();
-      else {this.stop();this.error='The Cloud account changed during setup. Sign in to the original account to resume this device.';}
+      else {this.stop();this.setError('account_changed');}
     } catch (error) {
       // Network/server messages are not copied: a credential-bearing response
       // must never be reflected in public diagnostics or renderer events.
-      const safe = error instanceof Error && /^(Check the local|Choose an absolute|System credential|Local execution settings|Sign in and verify|Configure this device|This account|Stop local execution)/.test(error.message);
-      this.error=safe ? (error as Error).message : 'Local execution setup could not complete. Retry to recover the same device registration.';
+      this.capture(error);
     } finally {this.publish();}
   }
   close() {this.closed=true;this.startedFor=null;}
