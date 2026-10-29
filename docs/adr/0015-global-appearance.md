@@ -83,9 +83,30 @@ Record actual evidence and limits in `docs/fitness/appearance.md`.
 
 ### Settings presentation
 
-Settings use an IDE-style split view: searchable category navigation on the
-left and labeled setting rows on the right. Theme and accent use compact
-selection menus. Each font scope has a bounded stepper, explicit inheritance
-where applicable and a live preview. Current values are presented once; the
-screen does not render a matrix of preset size buttons. Category/search state
-is transient UI state and does not introduce another preference store.
+`SettingsPanel` owns search, category selection, scrolling and input drafts.
+It emits typed save, locale, navigation and close intents. Workbench handles
+the intents and projects Host acknowledgements back into the panel. The panel
+does not save preferences or install appearance.
+
+Native opens or activates a normal Settings window in the existing GPUI
+Application. It shares the application's appearance; it does not create a
+second global context. Closing Settings leaves Workbench open; closing the main
+window ends the application. Web/Electron use a bounded dialog containing the
+same panel, preserving the underlying Workbench route and content.
+
+The left side is a keyboard-accessible tree. Appearance children select a
+section anchor in one continuous page, rather than separate routes. Search
+filters both navigation and sections. Theme and accent use compact dropdown
+menus. Font sizes use editable inputs and domain-owned step actions, with
+inheritance beside the value. Large repeated previews and read-only font-family
+rows are omitted. Inputting an unchanged inherited value does not create an
+override; invalid input does not change active preferences, including on blur.
+Category/search state is transient UI state and does not introduce another
+preference store.
+
+All categories, including links to existing account, resource and Agent pages,
+belong to the same navigation tree. There is no second set of shortcuts pinned
+to the bottom. Section headers use small muted text; selectors and numeric
+fields share heights, muted surfaces and subtle borders. Web confirmation does
+not dismiss Settings when a field submits with Enter; Escape and Close dismiss
+the dialog normally.

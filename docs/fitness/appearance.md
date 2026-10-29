@@ -11,8 +11,8 @@ or publication is part of this verification.
   independent interface/Chat/code sizes, Teal/Blue/Neutral accents.
 - Native initial system appearance and subsequent observation; acknowledged
   Host settings install appearance, locale changes do not reinstall it.
-- Settings categories, search, compact value menus, bounded steppers,
-  inheritance and previews. Each search-result section has a stable parent ID;
+- Settings categories, search, compact value menus, editable bounded sizes and
+  inheritance. Each search-result section has a stable parent ID;
   duplicate stepper accessibility IDs were reproduced and corrected.
 - Web/App SDK receive the resolved palette/typography snapshot. App-owned
   fixed CSS sizes and scientific figures are not all migrated by this change.
@@ -53,6 +53,30 @@ behavior. Inspection of `~/test/zed/crates/settings_ui` establishes:
 - Only field selectors are popovers: enum menus and searchable font/theme
   pickers. Numbers use an editable `NumberField`.
 
-The current Pero settings view provides rows/search/steppers but is still a
-Workbench view. Native dedicated-window ownership and hierarchical section
-navigation must be corrected before claiming Zed-style Settings parity.
+Native now opens a normal Settings window in the existing application;
+Web/Electron open the same SettingsPanel in a bounded dialog. The Workbench
+keeps ownership of preferences, Host commands and acknowledgement handling.
+
+The corrected presentation removes the second full-width titlebar, large bold
+section titles, read-only font-family rows and repeated preview blocks. All
+navigation entries belong to one tree; account, resource and Agent entries are
+links to the existing Workbench pages. They are not a second set of buttons
+pinned to the bottom, nor newly implemented account/Agent forms in Settings.
+Selectors and numeric fields share height, muted surfaces and subtle borders.
+
+The internal tree list is explicitly sized. Numeric editing composes Kit Input
+and domain-owned step actions, avoiding duplicate native accessibility focus
+registration in Kit NumberInput. The dialog ignores its default confirmation
+action so Enter saves the field without closing Settings.
+
+The updated `appearance.mjs` exercises actual category clicks, tree arrow keys,
+collapse/expand, direct font input, range rejection including blur, recovery,
+and preservation of the underlying route, in addition to the earlier Host and
+appearance scenarios. It passed with the updated Wasm/Web/Desktop builds.
+Native checks separately exercised direct input, steps, inheritance, light/dark,
+closing/reopening Settings and navigation to an existing page. No focus panic
+occurred with the corrected Input composition. Current screenshots include
+`test-results/appearance/native/settings-final-dark.png` and the Electron
+light/dark, search, invalid-input and narrow-window captures in that directory's
+parent. Native Windows/Linux and full assistive-technology acceptance remain
+outside these macOS checks.
