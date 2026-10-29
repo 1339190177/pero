@@ -113,8 +113,11 @@ try{
   await page.keyboard.insertText('pero');
   await page.mouse.click(320,290);
   await expect.poll(async()=>(await state()).preferences.projects.find(project=>project.workspace===root)?.project_id).toBe('pero');
-  await page.mouse.click(303,116);
+  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('remote-tasks').click());
   await expect.poll(async()=>(await state()).projectTab).toBe('tasks');
+  await expect.poll(async()=>(await state()).selectedProject).toBe(null);
+  await page.mouse.click(100,158);
+  await expect.poll(async()=>(await state()).selectedProject).toBe(`workspace:${root}`);
   await page.mouse.click(100,await page.evaluate(()=>innerHeight-116));
   await expect.poll(async()=>(await state()).navigation).toBe(8);
   await capture('05-insights');
@@ -151,6 +154,7 @@ try{
   await capture('10-final-light');
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1586,1024));
   await page.waitForFunction(()=>innerWidth===1586&&innerHeight===992);
+  await frames();
   await setAppearance(page,'system');await page.emulateMedia({colorScheme:'light'});
   await expect.poll(async()=>(await state()).dark).toBe(false);
   await openSettings(page);for(let i=0;i<3;i++)await page.keyboard.press('ArrowUp');await page.keyboard.press('ArrowRight');

@@ -2,6 +2,11 @@
 import { expect } from '@playwright/test';
 const state = page => page.evaluate(() => JSON.parse(window.peroDiagnostics.snapshot()));
 export async function openSettings(page) {
+  await page.waitForFunction(() => {
+    const canvas=document.querySelector('canvas');
+    return canvas?.width===Math.round(innerWidth*devicePixelRatio) && canvas.height===Math.round(innerHeight*devicePixelRatio);
+  });
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await page.mouse.click(100, await page.evaluate(() => innerHeight - 26));
 }
 export async function setAppearance(page, appearance) {

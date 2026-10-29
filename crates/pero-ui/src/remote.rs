@@ -212,12 +212,16 @@ pub(crate) fn remote_event_summary(event: &Value) -> String {
 impl Workbench {
     pub fn receive_remote(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
         if event.kind == "remote_open" {
-            if event.text == "desktop_login" {
-                self.navigation = 3;
-                self.sync_follow(cx);
-            } else {
-                self.open_remote(cx);
+            self.navigation = 3;
+            self.selected_project = None;
+            self.project_tab = crate::projects::ProjectTab::Tasks;
+            self.remote.connection.editing = false;
+            self.remote.public_contributions = false;
+            self.sync_follow(cx);
+            if event.text != "desktop_login" {
+                self.command(json!({"action":"remote_refresh"}),cx);
             }
+            cx.notify();
             return true;
         }
         if event.kind != "remote_state" {
@@ -280,11 +284,6 @@ impl Workbench {
         }
         cx.notify();
         true
-    }
-    pub fn open_remote(&mut self, cx: &mut Context<Self>) {
-        self.navigation = 3;
-        self.sync_follow(cx);
-        self.command(json!({"action":"remote_refresh"}), cx);
     }
     pub(crate) fn remote_agent(&self) -> String {
         self.remote

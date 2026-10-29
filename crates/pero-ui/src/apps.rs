@@ -41,7 +41,8 @@ impl AppWorkspace {
         self.catalog = catalog;
         if let Some(active) = &self.active {
             if !self.catalog.iter().any(|app| {
-                app.name == active.name && app.enabled
+                app.name == active.name
+                    && app.enabled
                     && app.panels.iter().any(|panel| panel.id == active.panel)
             }) {
                 self.active = None;
@@ -53,12 +54,18 @@ impl AppWorkspace {
     }
 
     pub fn select(&mut self, name: &str, panel: &str) -> bool {
-        if self.catalog.iter().any(|app| app.name == name && app.enabled
-            && app.panels.iter().any(|entry| entry.id == panel)) {
-            self.active = Some(AppSelection { name: name.into(), panel: panel.into() });
+        if self.catalog.iter().any(|app| {
+            app.name == name && app.enabled && app.panels.iter().any(|entry| entry.id == panel)
+        }) {
+            self.active = Some(AppSelection {
+                name: name.into(),
+                panel: panel.into(),
+            });
             self.error = None;
             true
-        } else { false }
+        } else {
+            false
+        }
     }
 }
 
@@ -66,7 +73,11 @@ impl AppWorkspace {
 mod surface {
     use super::*;
     use crate::app::Workbench;
-    use gpui_kit::{component::{button::*, *}, prelude::*, *};
+    use gpui_kit::{
+        component::{button::*, *},
+        prelude::*,
+        *,
+    };
     use pero_contracts::HostEvent;
     use serde_json::json;
 
@@ -83,7 +94,9 @@ mod surface {
             self.apps.loading = cfg!(target_family = "wasm");
             if cfg!(target_family = "wasm") {
                 self.command(json!({"action":"apps_list"}), cx);
-            } else { cx.notify(); }
+            } else {
+                cx.notify();
+            }
         }
 
         pub(crate) fn receive_apps(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
@@ -100,11 +113,16 @@ mod surface {
                     self.apps.error = Some(event.text.clone());
                 }
                 "apps_opened" => {
-                    if let Ok(selection) = serde_json::from_value::<AppSelection>(event.data.clone()) {
+                    if let Ok(selection) =
+                        serde_json::from_value::<AppSelection>(event.data.clone())
+                    {
                         // Completion acknowledges this surface only. A slow backend
                         // must not reopen an App after the user left it.
-                        if self.navigation == 7 && self.apps.active.as_ref().is_some_and(|active|
-                            active.name == selection.name && active.panel == selection.panel) {
+                        if self.navigation == 7
+                            && self.apps.active.as_ref().is_some_and(|active| {
+                                active.name == selection.name && active.panel == selection.panel
+                            })
+                        {
                             self.apps.error = None;
                         }
                     }
@@ -119,6 +137,8 @@ mod surface {
         pub(crate) fn sync_app_surface(&mut self, left: f32, width: f32, height: f32) {
             #[cfg(target_family = "wasm")]
             {
+                // An HTML iframe paints above the GPUI canvas. Keep its document
+                // alive but uncover the canvas while its settings menu is open.
                 let payload = if let Some(active) = self.apps.active.as_ref().filter(|_| self.navigation == 7 && !self.settings_menu_open) {
                     json!({"visible":true,"name":active.name,"panel":active.panel,
                         "left":left,"top":48,"width":(width-left).max(0.),"height":(height-48.).max(0.),
@@ -139,16 +159,53 @@ mod surface {
             let p = self.palettes.get(self.dark);
             let busy = self.apps.loading;
             if let Some(active) = &self.apps.active {
-                let title = self.apps.catalog.iter().find(|app| app.name == active.name)
-                    .map(|app| app.display_name.clone()).unwrap_or_else(|| active.name.clone());
-                return div().flex_1().min_w_0().h_full().flex().flex_col()
-                    .child(div().h(px(48.)).flex_shrink_0().px(px(12.)).flex().items_center().gap(px(10.))
-                        .border_b_1().border_color(p.color("border"))
-                        .child(Button::new("apps-back").ghost().small().label(self.t("apps.back"))
-                            .on_click(cx.listener(|this, _, _, cx| { this.apps.active = None; cx.notify(); })))
-                        .child(div().font_weight(FontWeight::SEMIBOLD).child(title)))
-                    .child(div().flex_1().p(px(20.)).text_color(p.color("text-muted"))
-                        .child(self.t(if cfg!(target_family = "wasm") { "apps.loading_panel" } else { "apps.native_unavailable" }))).into_any_element();
+                let title = self
+                    .apps
+                    .catalog
+                    .iter()
+                    .find(|app| app.name == active.name)
+                    .map(|app| app.display_name.clone())
+                    .unwrap_or_else(|| active.name.clone());
+                return div()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .h(px(48.))
+                            .flex_shrink_0()
+                            .px(px(12.))
+                            .flex()
+                            .items_center()
+                            .gap(px(10.))
+                            .border_b_1()
+                            .border_color(p.color("border"))
+                            .child(
+                                Button::new("apps-back")
+                                    .ghost()
+                                    .small()
+                                    .label(self.t("apps.back"))
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.apps.active = None;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(div().font_weight(FontWeight::SEMIBOLD).child(title)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .p(px(20.))
+                            .text_color(p.color("text-muted"))
+                            .child(if self.settings_menu_open { "" } else { self.t(if cfg!(target_family = "wasm") {
+                                "apps.loading_panel"
+                            } else {
+                                "apps.native_unavailable"
+                            }) }),
+                    )
+                    .into_any_element();
             }
             div().id("apps-library").flex_1().min_w_0().h_full().overflow_y_scroll().p(px(20.))
                 .child(div().flex().items_center().gap(px(10.)).mb(px(16.))
@@ -231,11 +288,26 @@ mod tests {
 
     #[test]
     fn selected_panel_follows_installation_availability() {
-        for (enabled, panel_exists, expected) in [(true, true, true), (false, true, false), (true, false, false)] {
+        for (enabled, panel_exists, expected) in [
+            (true, true, true),
+            (false, true, false),
+            (true, false, false),
+        ] {
             let app = |enabled, exists| InstalledApp {
-                name: "cell".into(), version: "1".into(), display_name: "Cell".into(),
-                description: String::new(), enabled,
-                panels: if exists { vec![AppPanel { id: "main".into(), title: "Cell".into(), entry: "dist/index.html".into() }] } else { vec![] },
+                name: "cell".into(),
+                version: "1".into(),
+                display_name: "Cell".into(),
+                description: String::new(),
+                enabled,
+                panels: if exists {
+                    vec![AppPanel {
+                        id: "main".into(),
+                        title: "Cell".into(),
+                        entry: "dist/index.html".into(),
+                    }]
+                } else {
+                    vec![]
+                },
             };
             let mut workspace = AppWorkspace::default();
             workspace.replace_catalog(vec![app(true, true)]);

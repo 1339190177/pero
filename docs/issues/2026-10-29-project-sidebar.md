@@ -1,6 +1,6 @@
 ---
 kind: feature
-status: in_progress
+status: implemented
 github_issue: 14
 github_state: open
 github_url: https://github.com/phodal/pero/issues/14
@@ -51,7 +51,37 @@ connections belong in a footer settings popover.
 
 ## Verification
 
-Pending implementation.
+Implemented and verified locally on 2026-10-29, on the working tree based at
+`bd15dd7`. Parallel work subsequently recorded local commits through `9549cfb`;
+additional UI fixes remain in the working tree. This chat did not push or publish
+an application/service release. GitHub issue #14 remains open for integration/review.
+
+- `npm run check`: TypeScript, theme, 455 bilingual messages and protocol
+  generation checks passed.
+- Rust contracts/runtime/UI: 52 tests passed, including project identity,
+  task status selection, preference persistence and existing ACP lifecycles.
+- `node tests/contracts/host.mjs`: Host JSONL conformance and invalid preference,
+  save/get/restart checks passed.
+- `npm run test:sidebar`: actual Electron project scope/detail/back, configuration
+  save without overwriting the task draft, cross-project pagination, Insights,
+  footer menus, system/light/dark themes, restart, save-error recovery, history
+  and narrow windows passed.
+- Conversation and tool-call fixture suites passed after moving gestures to the
+  single sidebar. Stream cancellation, approval, long-stream following, replay,
+  structured tool results and attached context remain available.
+- `npm run test:apps`: actual Virtual Cell Python computation, imported data,
+  theme/locale, narrow layout, navigation retention, disable/re-enable and restart
+  passed. Settings submenus no longer sit underneath the App iframe; the iframe
+  document is retained while temporarily hidden during the menu.
+- `npm run test:i18n`: Desktop preference restart and bridge-free browser
+  language/appearance checks passed.
+- `npm run test:remote-settings`: encrypted connection persistence, failure and
+  disconnect recovery passed.
+
+Screenshots and fixture snapshots are in `test-results/sidebar/` and
+`test-results/apps/`. Visual comparison and boundaries are in
+[design-qa.md](../../design-qa.md). These are L0/L1 development checks, not
+packaged Desktop, production or real remote-compute acceptance.
 
 
 ## Duplicate local/shared Project groups (2026-10-29)
