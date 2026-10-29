@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, sep, delimiter } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DesktopApps } from './apps';
+import { DesktopAppUse } from './app-use-mcp';
 import { Product } from '../../../packages/product/product';
 import { testWindowOptions } from './test-display';
 
@@ -17,12 +18,13 @@ protocol.registerSchemesAsPrivileged(['pero', 'pero-app'].map(scheme => ({ schem
 let window: BrowserWindow;
 let host: ReturnType<typeof spawn>;
 let ready = false;
+let appUse: DesktopAppUse | undefined;
 let resolveReady: () => void;
 const hostReady = new Promise<void>(resolve => { resolveReady = resolve; });
 const apps = new DesktopApps(request => {
   if (!ready || !host.stdin?.writable) throw new Error('The local runtime is unavailable. Restart the application.');
   host.stdin.write(JSON.stringify(request) + '\n');
-}, event => { if (!window.isDestroyed()) window.webContents.send('product:event', event); }, async () => undefined);
+}, event => { if (!window.isDestroyed()) window.webContents.send('product:event', event); }, async () => undefined,async(name,token)=>{if(!appUse)throw new Error('App input unavailable');return appUse.input(name,token);});
 let locale: 'en' | 'zh-CN' = 'en';
 function context() { return { product, locale, dark: nativeTheme.shouldUseDarkColors, connected: ready }; }
 function menus() {
@@ -56,11 +58,14 @@ app.whenReady().then(async () => {
     }
     if (url.host !== 'workbench' || url.pathname !== '/') return new Response('Not found', { status: 404 });
     return new Response(readFileSync(resolve(root, 'desktop/dist/product.html')), {
-      headers: { 'Content-Type': 'text/html', 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src pero-app: pero://chat" },
+      headers: { 'Content-Type': 'text/html', 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; frame-src pero-app: pero://chat" },
     });
   });
+  appUse = product.chat ? new DesktopAppUse(() => window, event => window.webContents.send('product:event', event), resolve(profile, 'app-use-evidence'),{describe:()=>apps.describeWrites(),apply:(write,signal)=>apps.applyWrite(write,signal)}) : undefined;
+  const appUseEnvironment = await appUse?.start();
   host = spawn(resolve(root, 'bin', process.platform === 'win32' ? 'pero-host.exe' : 'pero-host'), ['--stdio'], { cwd: app.getPath('home'), env: {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PERO_'))),
+    ...appUseEnvironment,
     PERO_SETTINGS_PATH: resolve(profile, 'runtime-settings.json'), PERO_HISTORY_PATH: resolve(profile, 'sessions.jsonl'),
     PERO_APPS_ROOT: resolve(profile, 'apps'), PERO_BUILTIN_APPS_ROOT: resolve(root, 'apps'),
     PERO_APP_NODE: product.node === 'bundled' ? resolve(root, 'runtime/node/bin/node') : product.node === 'system' ? 'node' : resolve(root, 'runtime/unavailable-node'),
@@ -73,6 +78,7 @@ app.whenReady().then(async () => {
   }, stdio: 'pipe' });
   createInterface({ input: host.stdout! }).on('line', line => {
     const message = JSON.parse(line);
+    appUse?.accept(message);
     if (apps.accept(message)) return;
     if (message.kind === 'ready') { ready = true; resolveReady(); }
     if (message.kind === 'settings') {
@@ -84,12 +90,19 @@ app.whenReady().then(async () => {
     }
   });
   host.stderr?.on('data', data => console.error(String(data)));
-  const stopped = () => { ready = false; apps.close(); if (!window.isDestroyed()) window.webContents.send('product:event', { version: 1, kind: 'disconnected', request_id: null, text: '' }); };
+  const stopped = () => { ready = false; appUse?.reset(); apps.close(); if (!window.isDestroyed()) window.webContents.send('product:event', { version: 1, kind: 'disconnected', request_id: null, text: '' }); };
   host.on('error', stopped); host.on('exit', stopped);
   const trusted = (event: Electron.IpcMainInvokeEvent) => {
     if (event.sender !== window.webContents || event.senderFrame?.url !== 'pero://workbench/') throw new Error('Untrusted sender');
   };
   ipcMain.handle('product:connect', event => { trusted(event); return context(); });
+  ipcMain.handle('product:app-use', async (event, command: {action?:string;thread_id?:string;scope?:{app:string;panel:string};options?:unknown}) => {
+    trusted(event);
+    if(command?.action==='context'&&command.scope&&typeof command.thread_id==='string'){if(!appUse)throw new Error('App context is unavailable');return appUse.draftContext.freeze(command.scope,command.thread_id,command.options);}
+    if(command?.action==='select'){appUse?.authority.select(command.thread_id||undefined);return;}
+    if(command?.action!=='revoke'||typeof command.thread_id!=='string')throw new Error('Invalid App Use command');
+    appUse?.authority.revoke(command.thread_id,command.scope);
+  });
   ipcMain.handle('product:session', async (event, command: unknown) => {
     trusted(event);
     if (!product.chat || !ready || !command || typeof command !== 'object' || Array.isArray(command)) throw new Error('Chat runtime is unavailable');
@@ -112,6 +125,7 @@ app.whenReady().then(async () => {
       return;
     }
     if ((!['list_agents', 'workspace', 'new_session', 'prompt', 'cancel', 'permission', 'model', 'configure', 'authenticate', 'close', 'delete', 'search_context', 'resolve_context', 'attach_files'].includes(value.action || '') && !['settings.workbench', 'settings.workbench.get'].includes(value.method || '')) || JSON.stringify(value).length > 16_000_000) throw new Error('Invalid session command');
+    appUse?.authority.command(value as {action?:string;thread_id?:string});
     host.stdin!.write(JSON.stringify(value) + '\n');
   });
   ipcMain.handle('product:open', async (event, name: unknown) => {
@@ -125,10 +139,12 @@ app.whenReady().then(async () => {
     } finally { clearTimeout(timer); }
   });
   nativeTheme.on('updated', () => { if (!window.isDestroyed()) window.webContents.send('product:context', context()); });
+  window.webContents.on('did-start-navigation', (_event, _url, _inPlace, main) => { if (main) appUse?.reset(); });
+  window.webContents.on('render-process-gone', () => appUse?.reset());
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
   menus();
   await window.loadURL('pero://workbench/');
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { apps.close(); host?.stdin?.end(); });
+app.on('before-quit', () => { appUse?.close(); apps.close(); host?.stdin?.end(); });
