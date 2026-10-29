@@ -10,7 +10,7 @@ native = ["dep:gpui-kit"]
 [dependencies]
 pero-contracts.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 base64 = "0.22"
 anyhow = "1"
 
