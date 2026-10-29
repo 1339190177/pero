@@ -32,3 +32,17 @@ test('Product selects only its included Apps', () => {
   assert.throws(() => product.selectApp('other'));
   assert.throws(() => product.selectApp({ app: 'virtual-cell' }));
 });
+
+
+test('Product artifact names survive release host normalization', () => {
+  for (const [name, expected] of [
+    ['Pero', 'Pero'],
+    ['Virtual Cell', 'Virtual-Cell'],
+    ['Research  Lab', 'Research-Lab'],
+    ['Lab.v2', 'Lab.v2'],
+    ['Cell...', 'Cell'],
+    ['细胞研究', base.id],
+  ]) {
+    assert.equal(Product.parse({ ...base, name }).artifactStem(), expected);
+  }
+});

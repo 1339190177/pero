@@ -57,7 +57,7 @@ writeFileSync(plist, content);
 execFileSync('/usr/bin/plutil', ['-lint', plist], { stdio: 'inherit' });
 execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', output], { stdio: 'pipe' });
 execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', output], { stdio: 'pipe' });
-const image = join(destination, `${product.name}-macos-${process.arch}.dmg`);
+const image = join(destination, `${product.artifactStem()}-macos-${process.arch}.dmg`);
 rmSync(image, { force: true });
 execFileSync('/usr/bin/hdiutil', ['create', '-volname', product.name, '-srcfolder', output, '-format', 'ULMO', image], { stdio: 'inherit' });
 function bytes(path) {
