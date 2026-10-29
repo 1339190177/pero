@@ -37,6 +37,11 @@ model SetLocaleRequest {
   ...Closed;
 }
 
+model ProjectBinding { @minLength(1) @maxLength(4096) workspace: string; @maxLength(128) project_id: string; ...Closed }
+model WorkbenchPreferences { appearance: "light" | "dark" | "system"; @maxItems(128) projects: ProjectBinding[]; ...Closed }
+model GetWorkbenchSettingsRequest { method: "settings.workbench.get"; ...Closed }
+model SetWorkbenchSettingsRequest { method: "settings.workbench"; preferences: WorkbenchPreferences; ...Closed }
+
 /** Internal main-process/runtime preferences; never exposed in renderer snapshots. */
 model RemoteConnectionSettings {
   @minLength(1) @maxLength(2048) url: string;
@@ -54,9 +59,17 @@ model SetRemoteSettingsRequest {
 model ListAgentsCommand { action: "list_agents"; ...Closed }
 model WorkspaceCommand { action: "workspace"; path: string; ...Closed }
 model AttachFilesCommand { action: "attach_files"; paths: string[]; ...Closed }
+enum ContextKind { file, directory, symbol, thread, skill, image, selection, branch_diff, fetch }
+model TextContextContent { type: "text"; text: string; ...Closed }
+model ImageContextContent { type: "image"; data: string; mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp"; ...Closed }
+@oneOf union ContextContent {TextContextContent, ImageContextContent}
+model ContextCandidate { kind: ContextKind; label: string; source: string; detail: string; ...Closed }
+model ContextReference { id: string; kind: ContextKind; label: string; source: string; content: ContextContent; ...Closed }
+model SearchContextCommand {action: "search_context"; request_id: string; kind: ContextKind; query: string; ...Closed}
+model ResolveContextCommand {action: "resolve_context"; request_id: string; kind: ContextKind; source: string; start_line?: uint32 | null; end_line?: uint32 | null; ...Closed}
 model AuthenticateCommand { action: "authenticate"; thread_id: string; method_id: string; ...Closed }
 model NewSessionCommand { action: "new_session"; thread_id: ThreadId; agent_id: string; ...Closed }
-model PromptCommand { action: "prompt"; thread_id: string; @maxLength(64000) text: string; ...Closed }
+model PromptCommand { action: "prompt"; thread_id: string; @maxLength(64000) text: string; contexts?: ContextReference[]; ...Closed }
 model CancelCommand { action: "cancel"; thread_id: string; ...Closed }
 model PermissionCommand {
   action: "permission";
@@ -74,6 +87,8 @@ union HostCommand {
   ListAgentsCommand,
   WorkspaceCommand,
   AttachFilesCommand,
+  SearchContextCommand,
+  ResolveContextCommand,
   AuthenticateCommand,
   NewSessionCommand,
   PromptCommand,
@@ -89,6 +104,8 @@ union HostInput {
   EchoRequest,
   SetLocaleRequest,
   SetRemoteSettingsRequest,
+  GetWorkbenchSettingsRequest,
+  SetWorkbenchSettingsRequest,
   HostCommand,
   Pero.Apps.AppRequest,
   Pero.Contributions.ContributionRequest,
@@ -115,6 +132,7 @@ model ThreadEventBase {
 
 /** `text` is the active locale tag. */
 model SettingsEvent { kind: "settings"; ...EventBase }
+model WorkbenchSettingsEvent { kind: "workbench_settings"; ...EventBase; data: WorkbenchPreferences }
 /** Main-process acknowledgements contain no persisted connection payload. */
 model RemoteSettingsSavedEvent { kind: "remote_settings_saved"; ...EventBase }
 model RemoteSettingsErrorEvent { kind: "remote_settings_error"; ...EventBase }
@@ -139,8 +157,13 @@ model AgentsEvent { kind: "agents"; ...EventBase; data: AgentSummary[] }
 model ReplayData { events: ThreadEvent[]; active: string[]; ...Closed }
 model ReplayEvent { kind: "replay"; ...EventBase; data: ReplayData }
 /** `text` is the selected workspace path. */
-model WorkspaceEvent { kind: "workspace"; ...EventBase }
+model RepositoryIdentity { host: string; owner: string; name: string; ...Closed }
+model WorkspaceIdentity { repository: RepositoryIdentity | null; ...Closed }
+model WorkspaceEvent { kind: "workspace"; ...EventBase; data?: WorkspaceIdentity }
 model ContextFile { path: string; name: string; text: string; ...Closed }
+model ContextCandidatesEvent {kind: "context_candidates"; ...EventBase; data: ContextCandidate[]}
+model ContextResolvedEvent {kind: "context_resolved"; ...EventBase; data: ContextReference}
+model ContextErrorEvent {kind: "context_error"; ...EventBase}
 model ContextFilesEvent { kind: "context_files"; ...EventBase; data: ContextFile[] }
 /** Main-process HTTP adapter snapshot; validated by protocol/remote.tsp. */
 model RemoteSnapshotPayload is Record<unknown>;
@@ -156,7 +179,8 @@ model AppsOpenedEvent { kind: "apps_opened"; ...EventBase; data: AppOpenedData }
 
 model SessionCreatedData { agent: string; workspace: string; ...Closed }
 model SessionCreatedEvent { kind: "session_created"; ...ThreadEventBase; data: SessionCreatedData }
-model UserMessageEvent { kind: "user_message"; ...ThreadEventBase }
+model UserMessageContext {contexts: ContextReference[]; ...Closed}
+model UserMessageEvent { kind: "user_message"; ...ThreadEventBase; data?: UserMessageContext }
 model SessionConnectingEvent { kind: "session_connecting"; ...ThreadEventBase }
 /** `data` is the ACP InitializeResponse. */
 model AgentInfoEvent { kind: "agent_info"; ...ThreadEventBase; data: AcpPayload }
@@ -214,6 +238,7 @@ union HostEvent {
   Pero.Contributions.ContributionResultEvent,
   Pero.Contributions.ContributionErrorEvent,
   SettingsEvent,
+  WorkbenchSettingsEvent,
   RemoteSettingsSavedEvent,
   RemoteSettingsErrorEvent,
   ReadyEvent,
@@ -225,6 +250,9 @@ union HostEvent {
   ReplayEvent,
   WorkspaceEvent,
   ContextFilesEvent,
+  ContextCandidatesEvent,
+  ContextResolvedEvent,
+  ContextErrorEvent,
   RemoteStateEvent,
   RemoteOpenEvent,
   AppsResultEvent,

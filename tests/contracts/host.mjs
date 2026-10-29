@@ -88,6 +88,14 @@ try {
   await host.next('error');
   host.send({ method: 'settings.locale', locale: 'zh-CN' });
   await host.next('settings', (e) => e.text === 'zh-CN');
+  const workbench = {appearance:'dark',projects:[{workspace:temp,project_id:'pero'}]};
+  host.send({method:'settings.workbench',preferences:workbench});
+  const applied = await host.next('workbench_settings');
+  if (!isDeepStrictEqual(applied.data,workbench)) failures.push('Workbench preferences were not acknowledged');
+  host.send({method:'settings.workbench',preferences:{...workbench,appearance:'invalid'}},{invalid:true});
+  await host.next('error',event=>event.message_key==='error.preferences');
+  host.send({method:'settings.workbench.get'});
+  if (!isDeepStrictEqual((await host.next('workbench_settings')).data,workbench)) failures.push('Invalid preferences replaced saved workbench settings');
 
   host.send({ method: 'contribution', id: 'contribution-invalid', operation: 'prepare',
     task_id: 'task_contract', repository: '../invalid', parent: temp, title: 'Contract test',
@@ -115,6 +123,14 @@ try {
   await host.next('workspace');
   host.send({ action: 'attach_files', paths: [resolve(temp, 'notes.txt')] });
   await host.next('context_files');
+  host.send({action:'search_context',request_id:'context-search',kind:'file',query:'notes.txt'});
+  const candidates = await host.next('context_candidates',e=>e.request_id==='context-search');
+  const selected = candidates.data.find(item=>item.label==='notes.txt');
+  if (!selected) throw new Error('Host did not find context file');
+  host.send({action:'resolve_context',request_id:'context-select',kind:selected.kind,source:selected.source});
+  const context = await host.next('context_resolved',e=>e.request_id==='context-select');
+  host.send({action:'resolve_context',request_id:'context-missing',kind:'file',source:resolve(temp,'missing.txt')});
+  await host.next('context_error',e=>e.request_id==='context-missing');
 
   const thread = 'contract-thread';
   const inThread = (e) => e.thread_id === thread;
@@ -122,7 +138,7 @@ try {
   await host.next('session_created', inThread);
   await host.next('session_ready', inThread, 10000);
 
-  host.send({ action: 'prompt', thread_id: thread, text: 'hello' });
+  host.send({ action: 'prompt', thread_id: thread, text: 'hello', contexts:[context.data] });
   await host.next('user_message', inThread);
   await host.next('turn_finished', inThread);
 
@@ -158,6 +174,8 @@ try {
   // A fresh Host replays the journal written above.
   host = startHost();
   await host.next('ready');
+  host.send({method:'settings.workbench.get'});
+  if (!isDeepStrictEqual((await host.next('workbench_settings')).data,workbench)) failures.push('Workbench preferences were lost after Host restart');
   if (!isDeepStrictEqual(preferences().remote_connection, storedConnection)) failures.push('Remote preference was lost after Host restart');
   host.send({ method: 'settings.remote', id: 'remote-disconnect', connection: null });
   await host.next('remote_settings_saved', e => e.request_id === 'remote-disconnect');

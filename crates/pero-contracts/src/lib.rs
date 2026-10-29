@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-pub mod i18n;
-pub mod workbench;
 pub mod context;
-pub mod composer_capabilities;
+pub mod i18n;
 pub mod session_settings;
+pub mod composer_capabilities;
+pub mod workbench;
 
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_TEXT_CHARS: usize = 4096;
@@ -58,6 +58,20 @@ pub enum HostCommand {
     AttachFiles {
         paths: Vec<String>,
     },
+    SearchContext {
+        request_id: String,
+        kind: context::ContextKind,
+        query: String,
+    },
+    ResolveContext {
+        request_id: String,
+        kind: context::ContextKind,
+        source: String,
+        #[serde(default)]
+        start_line: Option<u32>,
+        #[serde(default)]
+        end_line: Option<u32>,
+    },
     Authenticate {
         thread_id: String,
         method_id: String,
@@ -69,6 +83,8 @@ pub enum HostCommand {
     Prompt {
         thread_id: String,
         text: String,
+        #[serde(default)]
+        contexts: Vec<context::ContextReference>,
     },
     Cancel {
         thread_id: String,

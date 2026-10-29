@@ -741,6 +741,117 @@
       ],
       "additionalProperties": false
     },
+    "ContextCandidate": {
+      "title": "ContextCandidate",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ContextKind"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "label",
+        "source",
+        "detail"
+      ],
+      "additionalProperties": false
+    },
+    "ContextCandidatesEvent": {
+      "title": "ContextCandidatesEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "context_candidates"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContextCandidate"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ContextContent": {
+      "title": "ContextContent",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/TextContextContent"
+        },
+        {
+          "$ref": "#/$defs/ImageContextContent"
+        }
+      ]
+    },
+    "ContextErrorEvent": {
+      "title": "ContextErrorEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "context_error"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
     "ContextFile": {
       "title": "ContextFile",
       "type": "object",
@@ -792,6 +903,88 @@
           "items": {
             "$ref": "#/$defs/ContextFile"
           }
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "ContextKind": {
+      "title": "ContextKind",
+      "type": "string",
+      "enum": [
+        "file",
+        "directory",
+        "symbol",
+        "thread",
+        "skill",
+        "image",
+        "selection",
+        "branch_diff",
+        "fetch"
+      ]
+    },
+    "ContextReference": {
+      "title": "ContextReference",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ContextKind"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "content": {
+          "$ref": "#/$defs/ContextContent"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "source",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ContextResolvedEvent": {
+      "title": "ContextResolvedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "context_resolved"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/ContextReference"
         }
       },
       "required": [
@@ -1479,6 +1672,20 @@
       ],
       "additionalProperties": false
     },
+    "GetWorkbenchSettingsRequest": {
+      "title": "GetWorkbenchSettingsRequest",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "settings.workbench.get"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "additionalProperties": false
+    },
     "HostCommand": {
       "title": "HostCommand",
       "oneOf": [
@@ -1490,6 +1697,12 @@
         },
         {
           "$ref": "#/$defs/AttachFilesCommand"
+        },
+        {
+          "$ref": "#/$defs/SearchContextCommand"
+        },
+        {
+          "$ref": "#/$defs/ResolveContextCommand"
         },
         {
           "$ref": "#/$defs/AuthenticateCommand"
@@ -1536,6 +1749,9 @@
           "$ref": "#/$defs/SettingsEvent"
         },
         {
+          "$ref": "#/$defs/WorkbenchSettingsEvent"
+        },
+        {
           "$ref": "#/$defs/RemoteSettingsSavedEvent"
         },
         {
@@ -1567,6 +1783,15 @@
         },
         {
           "$ref": "#/$defs/ContextFilesEvent"
+        },
+        {
+          "$ref": "#/$defs/ContextCandidatesEvent"
+        },
+        {
+          "$ref": "#/$defs/ContextResolvedEvent"
+        },
+        {
+          "$ref": "#/$defs/ContextErrorEvent"
         },
         {
           "$ref": "#/$defs/RemoteStateEvent"
@@ -1631,6 +1856,12 @@
           "$ref": "#/$defs/SetRemoteSettingsRequest"
         },
         {
+          "$ref": "#/$defs/GetWorkbenchSettingsRequest"
+        },
+        {
+          "$ref": "#/$defs/SetWorkbenchSettingsRequest"
+        },
+        {
           "$ref": "#/$defs/HostCommand"
         },
         {
@@ -1640,6 +1871,45 @@
           "$ref": "#/$defs/ContributionRequest"
         }
       ]
+    },
+    "ImageContextContent": {
+      "title": "ImageContextContent",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "image"
+        },
+        "data": {
+          "type": "string"
+        },
+        "mime_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "image/png"
+            },
+            {
+              "type": "string",
+              "const": "image/jpeg"
+            },
+            {
+              "type": "string",
+              "const": "image/gif"
+            },
+            {
+              "type": "string",
+              "const": "image/webp"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "data",
+        "mime_type"
+      ],
+      "additionalProperties": false
     },
     "InstallApp": {
       "title": "InstallApp",
@@ -1923,6 +2193,26 @@
       ],
       "additionalProperties": false
     },
+    "ProjectBinding": {
+      "title": "ProjectBinding",
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "project_id": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "workspace",
+        "project_id"
+      ],
+      "additionalProperties": false
+    },
     "PromptCommand": {
       "title": "PromptCommand",
       "type": "object",
@@ -1937,6 +2227,12 @@
         "text": {
           "type": "string",
           "maxLength": 64000
+        },
+        "contexts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContextReference"
+          }
         }
       },
       "required": [
@@ -2285,6 +2581,28 @@
       ],
       "additionalProperties": false
     },
+    "RepositoryIdentity": {
+      "title": "RepositoryIdentity",
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "host",
+        "owner",
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "`text` is the selected workspace path."
+    },
     "RequestBase": {
       "title": "RequestBase",
       "type": "object",
@@ -2333,6 +2651,82 @@
         "name",
         "method",
         "id"
+      ],
+      "additionalProperties": false
+    },
+    "ResolveContextCommand": {
+      "title": "ResolveContextCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "resolve_context"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ContextKind"
+        },
+        "source": {
+          "type": "string"
+        },
+        "start_line": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end_line": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "action",
+        "request_id",
+        "kind",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "SearchContextCommand": {
+      "title": "SearchContextCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "search_context"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ContextKind"
+        },
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "request_id",
+        "kind",
+        "query"
       ],
       "additionalProperties": false
     },
@@ -2895,6 +3289,24 @@
       "additionalProperties": false,
       "description": "`text` is the active locale tag."
     },
+    "SetWorkbenchSettingsRequest": {
+      "title": "SetWorkbenchSettingsRequest",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "settings.workbench"
+        },
+        "preferences": {
+          "$ref": "#/$defs/WorkbenchPreferences"
+        }
+      },
+      "required": [
+        "method",
+        "preferences"
+      ],
+      "additionalProperties": false
+    },
     "SystemEventBase": {
       "title": "SystemEventBase",
       "type": "object",
@@ -2923,6 +3335,24 @@
       "required": [
         "version",
         "request_id",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "TextContextContent": {
+      "title": "TextContextContent",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "text"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
         "text"
       ],
       "additionalProperties": false
@@ -3107,6 +3537,22 @@
       ],
       "additionalProperties": false
     },
+    "UserMessageContext": {
+      "title": "UserMessageContext",
+      "type": "object",
+      "properties": {
+        "contexts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContextReference"
+          }
+        }
+      },
+      "required": [
+        "contexts"
+      ],
+      "additionalProperties": false
+    },
     "UserMessageEvent": {
       "title": "UserMessageEvent",
       "type": "object",
@@ -3134,6 +3580,9 @@
         },
         "thread_id": {
           "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/UserMessageContext"
         }
       },
       "required": [
@@ -3142,6 +3591,78 @@
         "request_id",
         "text",
         "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "WorkbenchPreferences": {
+      "title": "WorkbenchPreferences",
+      "type": "object",
+      "properties": {
+        "appearance": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "light"
+            },
+            {
+              "type": "string",
+              "const": "dark"
+            },
+            {
+              "type": "string",
+              "const": "system"
+            }
+          ]
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProjectBinding"
+          },
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "appearance",
+        "projects"
+      ],
+      "additionalProperties": false
+    },
+    "WorkbenchSettingsEvent": {
+      "title": "WorkbenchSettingsEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "workbench_settings"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/WorkbenchPreferences"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
       ],
       "additionalProperties": false
     },
@@ -3187,6 +3708,9 @@
         },
         "text": {
           "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/WorkspaceIdentity"
         }
       },
       "required": [
@@ -3195,8 +3719,27 @@
         "request_id",
         "text"
       ],
-      "additionalProperties": false,
-      "description": "`text` is the selected workspace path."
+      "additionalProperties": false
+    },
+    "WorkspaceIdentity": {
+      "title": "WorkspaceIdentity",
+      "type": "object",
+      "properties": {
+        "repository": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "repository"
+      ],
+      "additionalProperties": false
     }
   }
 }

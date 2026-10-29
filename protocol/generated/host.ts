@@ -5,11 +5,20 @@
  */
 export type HostProtocol = HostInput | HostEvent;
 export type HostInput =
-  EchoRequest | SetLocaleRequest | SetRemoteSettingsRequest | HostCommand | AppRequest | ContributionRequest;
+  | EchoRequest
+  | SetLocaleRequest
+  | SetRemoteSettingsRequest
+  | GetWorkbenchSettingsRequest
+  | SetWorkbenchSettingsRequest
+  | HostCommand
+  | AppRequest
+  | ContributionRequest;
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
   | AttachFilesCommand
+  | SearchContextCommand
+  | ResolveContextCommand
   | AuthenticateCommand
   | NewSessionCommand
   | PromptCommand
@@ -18,7 +27,10 @@ export type HostCommand =
   | ModelCommand
   | ConfigureCommand
   | CloseCommand;
+export type ContextKind =
+  "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch";
 export type ThreadId = string;
+export type ContextContent = TextContextContent | ImageContextContent;
 export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp;
 export type RequestId = string;
 export type AppName = string;
@@ -29,6 +41,7 @@ export type HostEvent =
   | ContributionResultEvent
   | ContributionErrorEvent
   | SettingsEvent
+  | WorkbenchSettingsEvent
   | RemoteSettingsSavedEvent
   | RemoteSettingsErrorEvent
   | ReadyEvent
@@ -40,6 +53,9 @@ export type HostEvent =
   | ReplayEvent
   | WorkspaceEvent
   | ContextFilesEvent
+  | ContextCandidatesEvent
+  | ContextResolvedEvent
+  | ContextErrorEvent
   | RemoteStateEvent
   | RemoteOpenEvent
   | AppsResultEvent
@@ -99,6 +115,24 @@ export interface RemoteConnectionSettings {
   mode: "client" | "operator";
   encrypted_token: string;
 }
+export interface GetWorkbenchSettingsRequest {
+  method: "settings.workbench.get";
+}
+export interface SetWorkbenchSettingsRequest {
+  method: "settings.workbench";
+  preferences: WorkbenchPreferences;
+}
+export interface WorkbenchPreferences {
+  appearance: "light" | "dark" | "system";
+  /**
+   * @maxItems 128
+   */
+  projects: ProjectBinding[];
+}
+export interface ProjectBinding {
+  workspace: string;
+  project_id: string;
+}
 export interface ListAgentsCommand {
   action: "list_agents";
 }
@@ -109,6 +143,20 @@ export interface WorkspaceCommand {
 export interface AttachFilesCommand {
   action: "attach_files";
   paths: string[];
+}
+export interface SearchContextCommand {
+  action: "search_context";
+  request_id: string;
+  kind: ContextKind;
+  query: string;
+}
+export interface ResolveContextCommand {
+  action: "resolve_context";
+  request_id: string;
+  kind: ContextKind;
+  source: string;
+  start_line?: number | null;
+  end_line?: number | null;
 }
 export interface AuthenticateCommand {
   action: "authenticate";
@@ -124,6 +172,23 @@ export interface PromptCommand {
   action: "prompt";
   thread_id: string;
   text: string;
+  contexts?: ContextReference[];
+}
+export interface ContextReference {
+  id: string;
+  kind: ContextKind;
+  label: string;
+  source: string;
+  content: ContextContent;
+}
+export interface TextContextContent {
+  type: "text";
+  text: string;
+}
+export interface ImageContextContent {
+  type: "image";
+  data: string;
+  mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
 }
 export interface CancelCommand {
   action: "cancel";
@@ -284,6 +349,13 @@ export interface SettingsEvent {
   request_id: string | null;
   text: string;
 }
+export interface WorkbenchSettingsEvent {
+  kind: "workbench_settings";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: WorkbenchPreferences;
+}
 /**
  * Main-process acknowledgements contain no persisted connection payload.
  */
@@ -385,6 +457,10 @@ export interface UserMessageEvent {
   request_id: string | null;
   text: string;
   thread_id: string;
+  data?: UserMessageContext;
+}
+export interface UserMessageContext {
+  contexts: ContextReference[];
 }
 /**
  * `data` is the ACP SessionUpdate.
@@ -473,14 +549,23 @@ export interface SessionClosedEvent {
   text: string;
   thread_id: string;
 }
-/**
- * `text` is the selected workspace path.
- */
 export interface WorkspaceEvent {
   kind: "workspace";
   version: 1;
   request_id: string | null;
   text: string;
+  data?: WorkspaceIdentity;
+}
+export interface WorkspaceIdentity {
+  repository: RepositoryIdentity | null;
+}
+/**
+ * `text` is the selected workspace path.
+ */
+export interface RepositoryIdentity {
+  host: string;
+  owner: string;
+  name: string;
 }
 export interface ContextFilesEvent {
   kind: "context_files";
@@ -492,6 +577,32 @@ export interface ContextFilesEvent {
 export interface ContextFile {
   path: string;
   name: string;
+  text: string;
+}
+export interface ContextCandidatesEvent {
+  kind: "context_candidates";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: ContextCandidate[];
+}
+export interface ContextCandidate {
+  kind: ContextKind;
+  label: string;
+  source: string;
+  detail: string;
+}
+export interface ContextResolvedEvent {
+  kind: "context_resolved";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: ContextReference;
+}
+export interface ContextErrorEvent {
+  kind: "context_error";
+  version: 1;
+  request_id: string | null;
   text: string;
 }
 export interface RemoteStateEvent {
