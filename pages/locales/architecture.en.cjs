@@ -79,6 +79,7 @@ module.exports = {
   "适用于 Apple Silicon。贡献代码需本机 Git、已安装并登录的编码 CLI，以及已登录的 GitHub CLI（gh auth login）。开发版尚未公证。": "For Apple Silicon. Coding contributions require local Git, an installed and signed-in coding CLI, and authenticated GitHub CLI (gh auth login). This development build is not notarized.",
   "安装与贡献说明 ↗": "Installation & contribution guide ↗",
   "本页计算与协作示例仅在浏览器本地运行，刷新后重置，不会启动真实 Agent、分派任务或提交 PR。实际贡献请使用 Desktop 开发版或线上任务中心。": "These computation and collaboration examples run locally in your browser and reset on refresh. They do not start real agents, dispatch tasks or submit PRs. Use the Desktop development build or online Task Center for actual contributions.",
+  "工作台预览": "Workbench preview",
   "线上任务中心": "Online Task Center",
   "这里提供可编辑的 Issue 模板，下载不会向 GitHub 发布。": "These are editable Issue templates. Downloading does not publish anything to GitHub.",
   "把科研脚本和模型做成可以单独使用的 App，再把任务交给合作者、AI 和合适的计算环境。输入、方法和结果保持可追溯。": "Turn a research script or model into an App that can stand on its own, then hand tasks to collaborators, AI, and the right compute. Inputs, methods, and results stay traceable.",

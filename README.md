@@ -44,7 +44,7 @@ The longer-term goal is to connect these Apps with agents, collaborators and com
 | Playbooks, plugins & connectors | Method orchestration, multi-agent teams and MCP integrations planned | [Methods](ROADMAP.md#自动化与方法) |
 | Trusted delivery | Artifact versions, independent verification and acceptance decisions planned | [Verification](ROADMAP.md#验证与发布) |
 | Execution environments | Environment templates, Use lifecycle, isolation and resource matching planned | [Environments](ROADMAP.md#环境与部署) |
-| Web & mobile workbench | Shared workbench clients planned; current Web pages are demos or task browsing | [Clients](ROADMAP.md#web-与移动端) |
+| Web & mobile workbench | Shared workbench clients planned; a static WASM preview is published at `/workbench/`. Other Web pages are demos or task browsing | [Clients](ROADMAP.md#web-与移动端) |
 
 ## How it works
 
