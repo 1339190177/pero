@@ -52,7 +52,9 @@ Review generated BUILD changes before committing them.
 `package-lock.json` remains the npm source lock. Bazel uses pinned pnpm 10.28.2 to
 translate it into `pnpm-lock.yaml`. Changes to npm manifests or its lock update the
 derived lock and `.aspect/rules/external_repository_action_cache/` hash record on
-the next normal Bazel invocation. Review and commit both with dependency changes.
+the next normal Bazel invocation. A script-only edit to a watched `package.json`
+still changes that record. `.gitignore` ignores other `.aspect` output and leaves
+this record visible. Review and commit both with dependency changes.
 `pnpm-workspace.yaml` describes the same workspaces and disables install hooks for
 this JavaScript-only pilot; it does not replace the npm developer workflow.
 

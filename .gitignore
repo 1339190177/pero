@@ -160,4 +160,9 @@ design-qa.md
 # Additional master ignore rules
 fonts/*.ttf
 .idea
-.aspect
+# rules_js stores the npm input hashes under .aspect. That record is source.
+# Ignore other Aspect output, and keep the action cache visible to git.
+.aspect/**
+!.aspect/rules/
+!.aspect/rules/external_repository_action_cache/
+!.aspect/rules/external_repository_action_cache/**
