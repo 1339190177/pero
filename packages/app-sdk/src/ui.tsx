@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useId } from 'react';
+import React, { createContext, useContext, useId, useState } from 'react';
+import {openDocument,type AppDocumentInput} from './document';
 import { iconArtwork } from './icons.generated';
 export type { IconName } from './icons.generated';
 
@@ -73,4 +74,15 @@ export function TabsContent({ value, forceMount, children }: { value: string; fo
 }
 export function ResultView({ result, labels, className = '' }: { result: { title: string; columns: string[]; rows: (string | number | null)[][]; provenance: { label: string } }; labels: { source: string; empty?: string; provenance?: Record<string, string> }; className?: string }) {
   return <section className={`pero-ui-result ${className}`} aria-label={result.title}><h3>{result.title}</h3><div className="pero-ui-table-scroll" tabIndex={0}><table><thead><tr>{result.columns.map((column, i) => <th key={i} scope="col">{column}</th>)}</tr></thead><tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{typeof cell === 'number' ? cell.toLocaleString(undefined, { maximumFractionDigits: 5 }) : cell ?? '—'}</td>)}</tr>)}</tbody></table></div>{!result.rows.length && <p>{labels.empty}</p>}<p className="pero-ui-result-source">{labels.source}: {result.provenance.label}</p></section>;
+}
+
+/** Full source access. Hosted Apps use the shared workspace reader; standalone Apps retain exact text. */
+export function ContentView({document,labels}:{document:AppDocumentInput;labels:{open:string;source:string;opening:string}}) {
+  const [opening,setOpening]=useState(false),[error,setError]=useState('');
+  const hosted=window.parent!==window;
+  return <div className="pero-content-view">
+    {hosted ? <Button disabled={opening} onClick={()=>{setOpening(true);setError('');void openDocument(document).catch(error=>setError(error instanceof Error?error.message:String(error))).finally(()=>setOpening(false));}}>{opening?labels.opening:labels.open}</Button>
+      : <textarea aria-label={labels.source} readOnly value={document.text} spellCheck={false} className="pero-content-source"/>}
+    {error && <p role="alert">{error}</p>}
+  </div>;
 }
