@@ -5,6 +5,7 @@ import { appChatLauncher } from './app-chat';
 import { previewContext } from './context-preview';
 import themes from './theme.generated.json';
 import './shell.css';
+import { applyAppearance } from '../../packages/app-sdk/src/appearance';
 import { normalizeLocale, translate } from '../../locales';
 import { mountAppSurfaces, type AppSurface } from './apps';
 
@@ -53,7 +54,7 @@ try {
   const onEvent = (event: HostEvent) => {
     if (event.kind === 'settings') { locale = normalizeLocale(event.text); updateDocument(); }
     receive_host_event(JSON.stringify(event));
-    if (event.kind === 'workbench_settings') applyPalette(JSON.parse(snapshot()).dark);
+    if (event.kind === 'workbench_settings') applyAppearance(JSON.parse(snapshot()).appearance);
     apps.event(event);
   };
   window.peroSetLocale = (value) => {
@@ -75,12 +76,9 @@ try {
     pending.catch(() => onEvent({version:1,kind:command.action === 'search_context' || command.action === 'resolve_context' || command.action === 'choose_context' && command.kind ? 'context_error' : command.thread_id?'session_error':'error',thread_id:command.thread_id,request_id:command.request_id ?? null,text:t('error.connection')}));
   };
   run(JSON.stringify(themes), dark, locale);
-  function applyPalette(isDark: boolean) {
-    for (const [key, value] of Object.entries(isDark ? themes.dark : themes.light)) document.documentElement.style.setProperty(`--pero-${key}`, value);
-  }
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
     set_system_theme(event.matches);
-    applyPalette(JSON.parse(snapshot()).dark);
+    applyAppearance(JSON.parse(snapshot()).appearance);
   });
   window.peroDiagnostics = { snapshot };
   document.addEventListener('paste', (event: ClipboardEvent) => {

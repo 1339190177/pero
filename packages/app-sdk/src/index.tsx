@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import themes from '../../../web/src/theme.generated.json';
 import './ui.css';
+import { applyAppearance, readAppearance, type AppearanceSnapshot } from './appearance';
 import type { AppChatAttachment,AppChatLaunch } from './app-chat';
 export type { AppChatAttachment,AppChatLaunch } from './app-chat';
 import { AppSurface, appSurface, installAppUseBridge, type AppObject } from './app-use';
@@ -9,7 +10,7 @@ export type { AppObject, AppObjectAction, AppObjectSnapshot } from './app-use';
 export { appObjectProps } from './app-use';
 export { useAppAgent } from './agent';
 
-export type AppContext = { locale: 'en' | 'zh-CN'; dark: boolean; active: boolean };
+export type AppContext = { locale: 'en' | 'zh-CN'; dark: boolean; active: boolean; appearance?: AppearanceSnapshot };
 const Context = createContext<AppContext>({ locale: 'en', dark: false, active: true });
 
 /** The parent owns context; the App frame never receives Desktop credentials. */
@@ -22,7 +23,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if(event.data?.type!=='pero:app:context')return;
       const value = event.data.context;
       if (!value || !['en', 'zh-CN'].includes(value.locale) || typeof value.dark !== 'boolean' || typeof value.active !== 'boolean') return;
-      setContext({ locale: value.locale, dark: value.dark, active: value.active });
+      const appearance = readAppearance(value.appearance);
+      if (value.appearance !== undefined && !appearance) return;
+      setContext({ locale: value.locale, dark: value.dark, active: value.active, appearance });
     };
     const stopAppUse = installAppUseBridge();
     window.addEventListener('message', receive);
@@ -35,7 +38,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     for (const [key, value] of Object.entries(context.dark ? themes.dark : themes.light)) document.documentElement.style.setProperty(`--pero-${key}`, value);
     document.documentElement.style.setProperty('--pero-text-secondary', (context.dark ? themes.dark : themes.light)['text-muted']);
     document.documentElement.style.setProperty('--pero-border-subtle', (context.dark ? themes.dark : themes.light).border);
-  }, [context.locale, context.dark]);
+    if (context.appearance) applyAppearance(context.appearance);
+  }, [context.locale, context.dark, context.appearance]);
   return <Context.Provider value={context}>{children}</Context.Provider>;
 }
 

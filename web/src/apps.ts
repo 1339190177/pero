@@ -1,9 +1,10 @@
 import { translate, normalizeLocale } from '../../locales';
 import type { HostEvent } from './bootstrap';
 import themes from './theme.generated.json';
+import { applyAppearance, type AppearanceSnapshot } from '../../packages/app-sdk/src/appearance';
 import { mountAppUseFrames } from './app-use';
 
-export type AppSurface = { visible: boolean; name?: string; panel?: string; left?: number; top?: number; width?: number; height?: number; dark: boolean; locale: string };
+export type AppSurface = { visible: boolean; name?: string; panel?: string; left?: number; top?: number; width?: number; height?: number; dark: boolean; locale: string; appearance?: AppearanceSnapshot };
 type Frame = { element: HTMLIFrameElement; name: string; panel: string; ready: boolean; failed: boolean; timer: ReturnType<typeof setTimeout>; dispose(): void };
 type AppUsePresence = { scope: { app: string; panel: string }; title?: string; standing: string[]; tasks: { id: string; actions: string[]; expiresAt: number }[] };
 
@@ -32,7 +33,7 @@ export function mountAppSurfaces(command: (value: object) => Promise<void>, onCh
   const key = (name?: string, panel?: string) => `${name}:${panel}`;
   const active = () => frames.get(key(surface.name, surface.panel));
   const context = (frame: Frame) => frame.element.contentWindow?.postMessage({ type: 'pero:app:context', context: {
-    dark: surface.dark, locale: normalizeLocale(surface.locale), active: surface.visible && frame === active(),
+    appearance: surface.appearance, dark: surface.dark, locale: normalizeLocale(surface.locale), active: surface.visible && frame === active(),
   } }, '*');
   const renderPresence = () => {
     clearTimeout(presenceExpiry);
@@ -102,6 +103,7 @@ export function mountAppSurfaces(command: (value: object) => Promise<void>, onCh
     region.hidden = !surface.visible;
     region.style.cssText = `left:${surface.left || 0}px;top:${surface.top || 0}px;width:${surface.width || 0}px;height:${surface.height || 0}px;color-scheme:${surface.dark ? 'dark' : 'light'}`;
     for (const [name, value] of Object.entries(surface.dark ? themes.dark : themes.light)) region.style.setProperty(`--pero-${name}`, value);
+    if (surface.appearance) applyAppearance(surface.appearance, region);
     for (const frame of frames.values()) {
       frame.element.hidden = !surface.visible || frame !== active();
       context(frame);

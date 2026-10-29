@@ -35,7 +35,10 @@ await writeFile(join(other, 'app.json'), JSON.stringify({ schemaVersion: 1, name
   contributes: { panels: [{ id: 'main', title: 'Other', entry: 'dist/index.html' }] } }));
 const agents = join(temp, 'agents.json');
 await writeFile(agents, JSON.stringify(['codex', 'claude', 'copilot', 'grok'].map(id => ({ id, name: `ACP Chat fixture (${id})`, command: process.execPath, args: [resolve(root, 'tests/fixtures/acp-agent.mjs')] }))));
-const env = { ...process.env, PERO_DESKTOP_DATA_DIR: join(temp, 'profile'), PERO_AGENTS_FILE: agents, PERO_LOCALE: 'en' };
+await mkdir(join(temp, 'profile'), { recursive: true });
+const appearanceSettings = join(temp, 'profile', 'runtime-settings.json');
+await writeFile(appearanceSettings, JSON.stringify({ chat_agent: 'codex' }));
+const env = { ...process.env, PERO_DESKTOP_DATA_DIR: join(temp, 'profile'), PERO_SETTINGS_PATH: appearanceSettings, PERO_AGENTS_FILE: agents, PERO_LOCALE: 'en' };
 delete env.ELECTRON_RUN_AS_NODE;
 let app;
 const errors = [];

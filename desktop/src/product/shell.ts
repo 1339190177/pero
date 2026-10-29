@@ -7,6 +7,8 @@ import type { ProductFields } from '../../../packages/product/product';
 import themes from '../../../web/src/theme.generated.json';
 import { mountChatSurface, type ChatSurface } from '../../../web/src/chat-surface';
 import { translate } from '../../../locales';
+import { applyAppearance, type AppearanceSnapshot } from '../../../packages/app-sdk/src/appearance';
+let appearance: AppearanceSnapshot | undefined;
 type Context = { product: ProductFields; locale: string; dark: boolean; connected: boolean };
 const bridge = (window as unknown as { product: {
   readContent(request:ConversationReadParameters):Promise<ContentChunk>;
@@ -67,14 +69,15 @@ function update() {
   toggle.setAttribute('aria-expanded', String(chatOpen));
   toggle.setAttribute('aria-controls', chatPanel.id);
   for (const [name, value] of Object.entries(context.dark ? themes.dark : themes.light)) document.documentElement.style.setProperty(`--pero-${name}`, value);
+  if (appearance) applyAppearance(appearance);
   const top = navigation.hidden ? 0 : navigation.getBoundingClientRect().height;
   const narrow = innerWidth < 1000;
   const chatWidth = context.product.chat && chatOpen ? narrow ? innerWidth : Math.round(Math.max(360, innerWidth * .36)) : 0;
   surface.surface({ visible: !(narrow && chatWidth), name: selected.app, panel: selected.panel, top,
-    dark: context.dark, locale: context.locale, width: innerWidth - chatWidth, height: innerHeight - top });
+    dark: appearance?.dark ?? context.dark, appearance, locale: context.locale, width: innerWidth - chatWidth, height: innerHeight - top });
   chatPanel.hidden = !context.product.chat || !chatOpen;
   chatPanel.style.cssText = `left:${innerWidth - chatWidth}px;top:${top}px;width:${chatWidth}px;height:${innerHeight - top}px`;
-  chat?.context({ dark: context.dark, locale: context.locale, active: chatOpen, scope: { app: selected.app, panel: selected.panel || 'main' } });
+  chat?.context({ dark: context.dark, appearance, locale: context.locale, active: chatOpen, scope: { app: selected.app, panel: selected.panel || 'main' } });
 }
 toggle.onclick = () => { chatOpen = !chatOpen; update(); };
 selector.onchange = () => {
@@ -97,7 +100,7 @@ bridge.onEvent(event => {
   }
   surface.event(event);
 });
-bridge.onContext(value => { context = value; update(); });
+bridge.onContext(value => { context = value; appearance = undefined; update(); });
 window.addEventListener('resize', update);
 bridge.connect().then(value => {
   context = value; selected = value.product.entry!;
@@ -115,6 +118,7 @@ bridge.connect().then(value => {
       }
       return bridge.sessionCommand(command);
     },
+    appearance: value => { appearance = value; update(); },
     ready: () => { chatReady = true; initializeChat(); },
   });
   for (const name of value.product.apps) selector.add(new Option(name, name));
