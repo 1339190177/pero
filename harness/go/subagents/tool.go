@@ -130,24 +130,31 @@ func delegationTool(registry *harness.SubagentRegistry, options ToolOptions) har
 			if err != nil {
 				return harness.ToolResult{}, err
 			}
-			select {
-			case result, ok := <-run.Result:
-				if !ok {
-					return harness.ToolResult{}, errors.Join(errors.New("subagents: child closed without a result"), run.Dispose(ctx))
-				}
-				cleanupErr := run.Dispose(ctx)
-				content := []harness.ContentBlock{{Type: harness.BlockText, Text: fmt.Sprintf("Subagent %s finished with status %s.", run.ChildID, result.Status)}}
-				content = append(content, result.Output...)
-				if result.Diagnostic != "" {
-					content = append(content, harness.ContentBlock{Type: harness.BlockText, Text: result.Diagnostic})
-				}
-				return harness.ToolResult{Content: content, IsError: result.Status != harness.SubagentCompleted}, cleanupErr
-			case <-ctx.Done():
-				// RequestDispose synchronously revokes authority; registry retains final
-				// teardown receipts even when this canceled callback cannot join cleanup.
-				_ = run.RequestDispose()
-				return harness.ToolResult{}, ctx.Err()
-			}
+			return awaitSubagentResult(ctx, run)
 		},
+	}
+}
+
+// awaitSubagentResult owns the one-shot caller result and teardown receipt.
+func awaitSubagentResult(ctx context.Context, run harness.SubagentActivation) (harness.ToolResult, error) {
+	select {
+	case result, ok := <-run.Result:
+		if !ok {
+			return harness.ToolResult{}, errors.Join(errors.New("subagents: child closed without a result"), run.Dispose(ctx))
+		}
+		// Result is published after callbacks and teardown but before Done closes.
+		// Join that receipt; another Dispose may only report disposal pending.
+		cleanupErr := run.Wait(ctx)
+		content := []harness.ContentBlock{{Type: harness.BlockText, Text: fmt.Sprintf("Subagent %s finished with status %s.", run.ChildID, result.Status)}}
+		content = append(content, result.Output...)
+		if result.Diagnostic != "" {
+			content = append(content, harness.ContentBlock{Type: harness.BlockText, Text: result.Diagnostic})
+		}
+		return harness.ToolResult{Content: content, IsError: result.Status != harness.SubagentCompleted}, cleanupErr
+	case <-ctx.Done():
+		// RequestDispose synchronously revokes authority; registry retains final
+		// teardown receipts even when this canceled callback cannot join cleanup.
+		_ = run.RequestDispose()
+		return harness.ToolResult{}, ctx.Err()
 	}
 }

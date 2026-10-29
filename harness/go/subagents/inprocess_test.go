@@ -3,6 +3,7 @@ package subagents
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -353,5 +354,91 @@ func TestCompactionOptionIsDetached(t *testing.T) {
 	}
 	if *second.Compaction.RetainTokens != 100 || second.Compaction.ModelPolicies[0].Model != "fixture" {
 		t.Fatal("children share mutable policy")
+	}
+}
+
+func TestCallerResultReceipt(t *testing.T) {
+	cleanupFailure := errors.New("provider cleanup failed")
+	for _, mode := range []string{"completed", "cleanup_error", "cancelled_wait", "cancelled_before_result", "closed_without_result"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			results := make(chan harness.SubagentResult, 1)
+			if mode == "cancelled_before_result" || mode == "closed_without_result" {
+				revoked := false
+				run := harness.SubagentActivation{Result: results, RequestDispose: func() error { revoked = true; return nil }, Dispose: func(context.Context) error { return cleanupFailure }}
+				if mode == "cancelled_before_result" {
+					cancel()
+				} else {
+					close(results)
+				}
+				result, err := awaitSubagentResult(ctx, run)
+				if len(result.Content) != 0 {
+					t.Fatal("fabricated child result")
+				}
+				if mode == "cancelled_before_result" {
+					if !revoked || !errors.Is(err, context.Canceled) {
+						t.Fatalf("cancel did not revoke: %v %v", revoked, err)
+					}
+				} else if !errors.Is(err, cleanupFailure) || !strings.Contains(err.Error(), "child closed without a result") {
+					t.Fatalf("closed result lost cleanup error: %v", err)
+				}
+				return
+			}
+			results <- harness.SubagentResult{Status: harness.SubagentCompleted, Output: []harness.ContentBlock{{Type: harness.BlockText, Text: "child-result"}}}
+			entered, release := make(chan struct{}), make(chan struct{})
+			run := harness.SubagentActivation{ChildID: "receipt-child", Result: results,
+				Dispose: func(context.Context) error { return harness.ErrSubagentActivationDisposalPending },
+				Wait: func(waitCtx context.Context) error {
+					close(entered)
+					select {
+					case <-release:
+						if mode == "cleanup_error" {
+							return cleanupFailure
+						}
+						return nil
+					case <-waitCtx.Done():
+						return waitCtx.Err()
+					}
+				},
+			}
+			type receipt struct {
+				result harness.ToolResult
+				err    error
+			}
+			done := make(chan receipt, 1)
+			go func() { result, err := awaitSubagentResult(ctx, run); done <- receipt{result, err} }()
+			select {
+			case <-entered:
+			case early := <-done:
+				t.Fatalf("returned without joining receipt: %v", early.err)
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			}
+			if mode == "cancelled_wait" {
+				cancel()
+			} else {
+				close(release)
+			}
+			got := <-done
+			raw, _ := json.Marshal(got.result)
+			if !strings.Contains(string(raw), "child-result") {
+				t.Fatalf("child output lost: %s", raw)
+			}
+			switch mode {
+			case "completed":
+				if got.err != nil {
+					t.Fatal(got.err)
+				}
+			case "cleanup_error":
+				if !errors.Is(got.err, cleanupFailure) {
+					t.Fatalf("cleanup failure lost: %v", got.err)
+				}
+			case "cancelled_wait":
+				if !errors.Is(got.err, context.Canceled) {
+					t.Fatalf("cancel lost: %v", got.err)
+				}
+			}
+		})
 	}
 }
