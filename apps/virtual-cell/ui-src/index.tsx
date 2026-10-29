@@ -55,7 +55,7 @@ export default function VirtualCell() {
         <TabsList aria-label={t('scienceViews')}>
           <TabsTrigger value="cells"><Icon name="app"/>{t('cellsView')}</TabsTrigger>
           <TabsTrigger value="mechanism"><Icon name="nodes"/>{t('mechanismView')}</TabsTrigger>
-          <TabsTrigger value="volume"><Icon family="shell" name="models"/>{t('volumeView')}</TabsTrigger>
+          <TabsTrigger value="volume"><Icon name="models"/>{t('volumeView')}</TabsTrigger>
         </TabsList>
       </Toolbar>
       <TabsContent value="cells" forceMount><div className="vc-data-toolbar"><Select label={t('dataMode')} value={mode} onChange={setMode} options={[{ value: 'atlas', label: t('atlasMode') }, { value: 'perturbation', label: t('perturbationMode') }]}/>{mode === 'atlas' ? <Button onClick={() => downloadFile('virtual-cell-atlas.json', JSON.stringify(atlas), 'application/json')}>{t('exportView')}</Button> : <>{!!lab.items.length && <Select label={t('inputs')} disabled={lab.busy} value={lab.selected} options={lab.items.map(i => ({ value: i.id, label: `${i.source.id} · ${i.id.slice(0, 8)}` }))} onChange={lab.choose}/>}<Button disabled={lab.busy || !lab.input} onClick={lab.exportInputs}>{t('template')}</Button></>}</div>

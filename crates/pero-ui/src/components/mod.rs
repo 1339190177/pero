@@ -23,8 +23,8 @@ impl Ui<'_> {
         pero_contracts::i18n::text(self.locale, key)
     }
     pub fn icon(&self, name: &str) -> Svg {
-        svg()
-            .path(format!("icons/{name}.svg"))
+        pero_chat_ui::assets::UiIcon::named(name)
+            .element()
             .size(px(19.))
             .flex_shrink_0()
             .text_color(self.palette.color("text-muted"))

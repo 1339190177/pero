@@ -140,7 +140,7 @@ impl ChatPanel {
         pero_contracts::i18n::text(&self.locale, key)
     }
     pub(crate) fn icon(&self, name: &str) -> Svg {
-        svg().path(format!("icons/{name}.svg"))
+        crate::assets::UiIcon::named(name).element()
     }
 
     pub fn set_context(&mut self, dark: bool, locale: &str, cx: &mut Context<Self>) {
