@@ -113,14 +113,17 @@ impl TypographyPreferences {
     pub fn effective(self, scope: FontScope) -> FontSize {
         self.selected(scope).unwrap_or(self.ui_size)
     }
-    pub fn adjust(&mut self, scope: FontScope, delta: i8) {
-        let current = self.effective(scope).0 as i16;
-        let size = FontSize((current + delta as i16).clamp(12, 24) as u8);
+    pub fn set_size(&mut self, scope: FontScope, size: FontSize) {
         match scope {
             FontScope::Interface => self.ui_size = size,
             FontScope::Chat => self.chat_size = Some(size),
             FontScope::Code => self.code_size = Some(size),
         }
+    }
+    pub fn adjust(&mut self, scope: FontScope, delta: i8) {
+        let current = self.effective(scope).0 as i16;
+        let size = FontSize((current + delta as i16).clamp(12, 24) as u8);
+        self.set_size(scope, size);
     }
     pub fn inherit(&mut self, scope: FontScope, inherit: bool) {
         let next = if inherit {

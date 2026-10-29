@@ -577,6 +577,7 @@
   "settings.search": "Search settings…",
   "settings.no_results": "No matching settings",
   "settings.font_family": "Font family",
+  "settings.font_size_range": "Enter a font size from 12 to 24.",
   "settings.font_size": "Font size",
   "settings.system_font": "System font",
   "settings.preview": "Preview",

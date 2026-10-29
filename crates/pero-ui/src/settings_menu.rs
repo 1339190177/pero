@@ -22,6 +22,32 @@ pub(crate) enum PreferenceSaveState {
     Saved,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct SettingsDestination {
+    pub label_key: &'static str,
+    pub icon: &'static str,
+    pub page: WorkbenchPage,
+}
+impl SettingsDestination {
+    pub const ALL: [Self; 3] = [
+        Self {
+            label_key: "settings.connections",
+            icon: "external-link",
+            page: WorkbenchPage::Connections,
+        },
+        Self {
+            label_key: "settings.resources",
+            icon: "server",
+            page: WorkbenchPage::Workers,
+        },
+        Self {
+            label_key: "settings.agents",
+            icon: "sparkles",
+            page: WorkbenchPage::Agents,
+        },
+    ];
+}
+
 impl Workbench {
     pub(crate) fn save_preferences(
         &mut self,

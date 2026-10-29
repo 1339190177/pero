@@ -577,6 +577,7 @@
   "settings.search": "搜索设置…",
   "settings.no_results": "没有匹配的设置",
   "settings.font_family": "字体",
+  "settings.font_size_range": "请输入 12 到 24 之间的字号。",
   "settings.font_size": "字号",
   "settings.system_font": "系统字体",
   "settings.preview": "预览",
