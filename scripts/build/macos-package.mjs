@@ -64,7 +64,7 @@ function bytes(path) {
   const stat = statSync(path);
   return stat.isDirectory() ? readdirSync(path, { withFileTypes: true }).reduce((total, entry) => total + (entry.isSymbolicLink() ? 0 : bytes(join(path, entry.name))), 0) : stat.size;
 }
-const report = { app: output, appBytes: bytes(output), dmg: image, dmgBytes: statSync(image).size, limitBytes: staged ? null : 100_000_000, bundledAgentCLIs: false };
+const report = { app: output, appBytes: bytes(output), dmg: image, dmgBytes: statSync(image).size, limitBytes: staged ? null : 110_000_000, bundledAgentCLIs: false };
 writeFileSync(join(destination, 'size.json'), JSON.stringify(report, null, 2) + '\n');
 console.log(report);
-if (!staged && report.dmgBytes >= report.limitBytes) throw new Error('DMG exceeds the 100 MB download budget. See target/package/size.json.');
+if (!staged && report.dmgBytes >= report.limitBytes) throw new Error('DMG exceeds the 110 MB download budget. See target/package/size.json.');

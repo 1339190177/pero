@@ -30,3 +30,15 @@ App startup retains OS credential protection. Real packaged keychain persistence
 and real packaged OAuth return remain separate acceptance gates.
 
 Verification and artifact sizes: [macOS package verification](../fitness/macos-package.md).
+
+## Supervised Worker packaging regression — 2026-10-29
+
+The `.4` native release run (40841125534) produced a 105,044,781-byte Pero DMG,
+which correctly failed the unchanged 100,000,000-byte limit. The new payload
+includes both Host and Worker executables, but the macOS staging path strips
+only the Host. Applying the existing stripping operation to both Host and Worker produced
+a local 103,820,922-byte DMG. Symbol removal alone does not recover the old
+budget. The user explicitly approved a 110,000,000-byte limit for this release.
+Both packaging and publication verification now enforce that same approved
+limit; Host and Worker remain bundled. The replacement release must still
+pass native package launch and checksum verification.

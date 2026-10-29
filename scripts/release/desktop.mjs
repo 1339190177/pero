@@ -68,7 +68,7 @@ if (operation === 'prepare') {
   if (!existsSync(archive)) throw new Error('Missing native release archive.');
   if (process.platform === 'darwin' && !standalone) {
     const size = JSON.parse(readFileSync(join(packageDir, 'size.json'), 'utf8'));
-    if (size.dmgBytes >= 100_000_000) throw new Error('Pero DMG exceeds its 100 MB budget.');
+    if (size.dmgBytes >= 110_000_000) throw new Error('Pero DMG exceeds its 110 MB budget.');
   }
   const sha256 = path => createHash('sha256').update(readFileSync(path)).digest('hex');
   const releaseMetadata = { ...metadata, archive: basename(archive), archiveSha256: sha256(archive) };

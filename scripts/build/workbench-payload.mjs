@@ -23,7 +23,9 @@ export async function stageWorkbench(payload, product) {
   cpSync(resolve(root, 'target/release', host), join(payload, 'bin', host));
   const worker = process.platform === 'win32' ? 'pero-worker.exe' : 'pero-worker';
   cpSync(resolve(root, 'target/release', worker), join(payload, 'bin', worker));
-  if (process.platform === 'darwin') execFileSync('/usr/bin/strip', ['-x', join(payload, 'bin', host)]);
+  if (process.platform === 'darwin') {
+    for (const binary of [host, worker]) execFileSync('/usr/bin/strip', ['-x', join(payload, 'bin', binary)]);
+  }
   writeFileSync(join(payload, 'package.json'), JSON.stringify({ name: 'openpero', version: product.version, main: 'desktop/dist/main.cjs' }));
   cpSync(resolve(root, 'node_modules/electron/LICENSE'), join(payload, 'Electron.LICENSE'));
   cpSync(resolve(root, 'node_modules/electron/dist/LICENSES.chromium.html'), join(payload, 'LICENSES.chromium.html'));
