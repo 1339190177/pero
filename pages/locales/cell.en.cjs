@@ -118,5 +118,7 @@ module.exports = {
   "选一个熟悉的分子，拖动看看它的结构。从一个小问题，开始一次探索。": "Choose a familiar molecule and drag to explore its structure. A small question is enough to begin.",
   "进一步了解：研究任务如何协作": "Explore further: how research tasks connect",
   "查看扰动评估示例": "View the perturbation benchmark",
-  "三维分子交互示例": "Interactive 3D molecule example"
+  "三维分子交互示例": "Interactive 3D molecule example",
+  "入口、计算与部署": "Entry, compute and deployment",
+  "03 / 协调服务部署": "03 / Coordinator deployment"
 };
