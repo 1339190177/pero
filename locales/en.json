@@ -1,4 +1,6 @@
 {
+  "content.load_failed": "Could not read the complete result. Try again.",
+  "content.retry_load": "Retry opening result",
   "content.find": "Find",
   "content.close_find": "Close find",
   "content.case_sensitive": "Match case",

@@ -250,9 +250,10 @@ mod rendering {
                                         use crate::artifact_read::{ArtifactStatus,ContentReadIntent};
                                         let loading=matches!(artifact.status,ArtifactStatus::Loading {..});
                                         let loaded=matches!(artifact.status,ArtifactStatus::Loaded);
+                                        let load_failed=matches!(artifact.status,ArtifactStatus::Failed {..});
                                         let chat_id=conversation_id.to_owned(); let tool_id=tool.id.clone();
                                         el.when(!loaded, |el|el.child(Button::new(("full-result",index)).relative().child(tool.artifact_bounds.probe()).ghost().small()
-                                            .label(self.t(if loading {"content.cancel_load"} else {"content.open_full"}))
+                                            .label(if loading {self.t("content.cancel_load").to_string()} else {format!("{} · {} B",self.t(if load_failed {"content.retry_load"} else {"content.open_full"}),artifact.reference.bytes)})
                                             .on_click(cx.listener(move |this,_,_,cx| {
                                                 this.next_request+=1;
                                                 let request_id=format!("content-{}",this.next_request);
@@ -265,7 +266,7 @@ mod rendering {
                                                 }
                                                 cx.notify();
                                             }))))
-                                            .when_some(match &artifact.status {ArtifactStatus::Failed {error}=>Some(error),_=>None}, |el,error|el.child(div().text_color(p.error).child(error.clone())))
+                                            .when(load_failed, |el|el.child(div().text_color(p.error).child(self.t("content.load_failed"))))
                                     })
                                     .when_some(tool.document.as_ref().filter(|_| tool.reader.is_none()), |el, document| {
                                         let document = document.clone();
@@ -280,7 +281,7 @@ mod rendering {
                                                 cx.notify();
                                             })))
                                     })
-                                    .when_some(tool.reader.as_ref(), |el, reader| el.child(reader.clone()))
+                                    .when_some(tool.reader.as_ref().filter(|_|tool.artifact.as_ref().is_none_or(|artifact|matches!(artifact.status,crate::artifact_read::ArtifactStatus::Loaded))), |el, reader| el.child(reader.clone()))
                                     .when_some(tool.view.as_ref(), |el, view| {
                                         el.child(view.clone())
                                     })
