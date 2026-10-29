@@ -112,17 +112,18 @@ impl ContentReader {
     /// Updates run at the event boundary, outside rendering. Multiple pending
     /// source updates coalesce; an unchanged revision never resets selection.
     pub fn replace(&mut self, document: ContentDocument, cx: &mut Context<Self>) {
-        if document.revision == self.document.revision {
+        if document.id == self.document.id && document.revision == self.document.revision {
             return;
         }
         self.document = document;
         let revision = self.document.revision;
+        let id = self.document.id.clone();
         let window = self.window;
         let weak = cx.entity().downgrade();
         cx.defer(move |cx| {
             let _ = window.update(cx, |_, window, cx| {
                 weak.update(cx, |this, cx| {
-                    if this.document.revision != revision {
+                    if this.document.id != id || this.document.revision != revision {
                         return;
                     }
                     this.preview = this.document.preview();
@@ -130,6 +131,7 @@ impl ContentReader {
                     this.copied = false;
                     if let Some(editor) = &this.editor {
                         editor.update(cx, |editor, cx| {
+                            editor.set_highlighter(this.document.language(), cx);
                             editor.set_value(this.document.source().to_owned(), window, cx)
                         });
                     }

@@ -1,4 +1,6 @@
 {
+  "content.open_full": "打开完整结果",
+  "content.cancel_load": "取消加载",
   "content.open": "查看结果",
   "content.preview": "预览",
   "content.source": "源码",

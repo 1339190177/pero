@@ -187,6 +187,7 @@ mod rendering {
                                 if let Some(chat) = this.chats.iter_mut().find(|chat| chat.id == reader_chat) {
                                     for tool in chat.tools.iter_mut().filter(|tool| reader_tools.contains(&tool.id)) {
                                         if let Some(document) = &tool.document {
+                                            if tool.reader.is_some() { continue; }
                                             tool.reader = Some(cx.new(|cx| crate::content_reader::ContentReader::new(document.clone(), locale.clone(), window, cx)));
                                         }
                                     }
@@ -245,6 +246,27 @@ mod rendering {
                                             .text_color(p.text_muted)
                                             .child(path.clone())
                                     }))
+                                    .when_some(tool.artifact.as_ref(), |el, artifact| {
+                                        use crate::artifact_read::{ArtifactStatus,ContentReadIntent};
+                                        let loading=matches!(artifact.status,ArtifactStatus::Loading {..});
+                                        let loaded=matches!(artifact.status,ArtifactStatus::Loaded);
+                                        let chat_id=conversation_id.to_owned(); let tool_id=tool.id.clone();
+                                        el.when(!loaded, |el|el.child(Button::new(("full-result",index)).relative().child(tool.artifact_bounds.probe()).ghost().small()
+                                            .label(self.t(if loading {"content.cancel_load"} else {"content.open_full"}))
+                                            .on_click(cx.listener(move |this,_,_,cx| {
+                                                this.next_request+=1;
+                                                let request_id=format!("content-{}",this.next_request);
+                                                if let Some(artifact)=this.chats.iter_mut().find(|chat|chat.id==chat_id)
+                                                    .and_then(|chat|chat.tools.iter_mut().find(|tool|tool.id==tool_id)).and_then(|tool|tool.artifact.as_mut()) {
+                                                    let intent=if let Some(request_id)=artifact.cancel() {
+                                                        Some(ContentReadIntent::CancelReadResult {request_id})
+                                                    } else {artifact.request(request_id.clone()).map(|reference|ContentReadIntent::ReadResult {thread_id:chat_id.clone(),tool_call_id:tool_id.clone(),artifact_id:reference.id,request_id})};
+                                                    if let Some(intent)=intent {cx.emit(crate::panel::ChatAction::Content(intent));}
+                                                }
+                                                cx.notify();
+                                            }))))
+                                            .when_some(match &artifact.status {ArtifactStatus::Failed {error}=>Some(error),_=>None}, |el,error|el.child(div().text_color(p.error).child(error.clone())))
+                                    })
                                     .when_some(tool.document.as_ref().filter(|_| tool.reader.is_none()), |el, document| {
                                         let document = document.clone();
                                         let chat_id = conversation_id.to_string();

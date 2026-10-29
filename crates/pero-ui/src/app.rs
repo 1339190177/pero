@@ -117,6 +117,7 @@ impl Workbench {
                     serde_json::to_value(command).expect("serializable command"),
                     cx,
                 ),
+                ChatAction::Content(intent) => this.command(serde_json::to_value(intent).expect("content intent"), cx),
                 ChatAction::ChooseWorkspace => {
                     this.command(json!({"action":"choose_workspace"}), cx)
                 }

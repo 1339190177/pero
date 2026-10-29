@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Clone, Debug)]
 pub enum ChatAction {
     Command(HostCommand),
+    Content(crate::artifact_read::ContentReadIntent),
     ChooseWorkspace,
     ChooseContext {
         kind: Option<ContextKind>,
@@ -281,6 +282,28 @@ impl ChatPanel {
                     Err(error)=>self.error=Some(error.to_string()),
                 }
             }
+            "content_document" => {
+                #[derive(serde::Deserialize)]
+                struct Completion {tool_call_id:String, artifact_id:String, status:CompletionStatus}
+                #[derive(serde::Deserialize)]
+                #[serde(rename_all="snake_case")]
+                enum CompletionStatus {Ready, Error}
+                if let Ok(data)=serde_json::from_value::<Completion>(event.data.clone()) {
+                    if let Some(tool)=self.chats.iter_mut().find(|chat|Some(&chat.id)==event.thread_id.as_ref())
+                        .and_then(|chat|chat.tools.iter_mut().find(|tool|tool.id==data.tool_call_id)) {
+                        if let Some(artifact)=&mut tool.artifact {
+                            let result=match data.status {
+                                CompletionStatus::Ready=>Ok(crate::content_document::ContentDocument::new(format!("artifact:{}",data.artifact_id),1,event.text.clone(),crate::content_document::ContentFormat::Json)),
+                                CompletionStatus::Error=>Err(event.text.clone()),
+                            };
+                            if let Some(document)=artifact.finish(&data.artifact_id,event.request_id.as_deref().unwrap_or_default(),result) {
+                                if let Some(reader)=&tool.reader {reader.update(cx,|reader,cx|reader.replace(document.clone(),cx));}
+                                tool.document=Some(document);
+                            }
+                        }
+                    }
+                }
+            }
             "compose_intent" => {
                 self.compose(event.text.clone(), cx);
             }
@@ -306,7 +329,7 @@ impl ChatPanel {
             "permissionBounds":self.chats.iter().flat_map(|chat|chat.permission_bounds.iter().enumerate().map(move |(index,bounds)|json!({"chat":chat.id,"index":index,"bounds":bounds.snapshot()}))).collect::<Vec<_>>(),
             "reasoningBounds":self.chats.iter().flat_map(|chat|chat.messages.iter().enumerate().filter(|(_,m)|m.role=="thought").map(move |(index,message)|json!({"chat":chat.id,"index":index,"open":chat.thinking.open(index),"bounds":message.toggle_bounds.snapshot()}))).collect::<Vec<_>>(),
             "inputBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.input_bounds.snapshot()}))).collect::<Vec<_>>(),
-            "toolBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.toggle_bounds.snapshot()}))).collect::<Vec<_>>(),
+            "toolBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.toggle_bounds.snapshot(),"artifact":tool.artifact_bounds.snapshot()}))).collect::<Vec<_>>(),
             "contentReaders":self.chats.iter().flat_map(|chat|chat.tools.iter()).filter_map(|tool|tool.reader.as_ref().map(|reader|reader.read(cx).snapshot(cx))).collect::<Vec<_>>(),
             "toolViews":self.chats.iter().map(|c|c.tools.iter().filter(|t|t.view.is_some()).count()).collect::<Vec<_>>(),
             "scroll":{"y":f32::from(self.chat_scroll.offset().y),"max":f32::from(self.chat_scroll.max_offset().y)},

@@ -1,3 +1,4 @@
+use crate::artifact_read::ArtifactView;
 use crate::session_state::SessionState;
 use crate::{content_document::ContentDocument, content_reader::ContentReader, stream::StreamText};
 use gpui_kit::{App, AppContext as _, Entity};
@@ -91,6 +92,9 @@ pub struct Tool {
     pub(crate) input_bounds: crate::view_bounds::ViewBounds,
     pub cancelled: bool,
     pub document: Option<ContentDocument>,
+    pub artifact: Option<ArtifactView>,
+    #[serde(skip)]
+    pub(crate) artifact_bounds: crate::view_bounds::ViewBounds,
     #[serde(skip)]
     pub reader: Option<Entity<ContentReader>>,
     #[serde(skip)]
@@ -302,6 +306,8 @@ impl Conversation {
                             input_bounds: Default::default(),
                             cancelled: false,
                             document: None,
+                            artifact: None,
+                            artifact_bounds: Default::default(),
                             reader: None,
                             toggle_bounds: Default::default(),
                             view: None,
@@ -357,6 +363,7 @@ impl Conversation {
                     .join("\n");
                 if next != tool.content {
                     let revision = tool.document.as_ref().map_or(1, |document| document.revision + 1);
+                    tool.artifact = ArtifactView::from_content(&next);
                     tool.document = ContentDocument::from_tool(
                         format!("{}/{}", self.id, tool.id), revision, &next,
                     );
