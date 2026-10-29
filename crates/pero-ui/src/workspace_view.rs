@@ -11,6 +11,7 @@ use gpui_kit::{
 };
 use serde_json::json;
 use pero_chat_ui::theme::WorkbenchStyle as W;
+gpui_kit::actions!(workspace, [NextContent, PreviousContent]);
 
 impl Workbench {
     pub(crate) fn record_task_selection(&mut self, task: Option<String>) {
@@ -211,7 +212,8 @@ impl Workbench {
                     .flex()
                     .items_center()
                     .overflow_x_scroll()
-                    .children(self.navigation.items().iter().enumerate().map(|(i, item)| {
+                    .track_scroll(&self.tab_scroll)
+                    .children(self.navigation.items().iter().map(|item| {
                         let (title, icon) = self.content_label(item, cx);
                         let select = item.clone();
                         let close = item.clone();
@@ -236,7 +238,7 @@ impl Workbench {
                                 "bg"
                             }))
                             .child(
-                                Button::new(("workspace-tab", i))
+                                Button::new(SharedString::from(format!("workspace-tab:{item:?}")))
                                     .ghost()
                                     .small()
                                     .flex_1()
@@ -258,20 +260,24 @@ impl Workbench {
                                     })),
                             )
                             .child(
-                                Button::new(("workspace-tab-close", i))
-                                    .ghost()
-                                    .small()
-                                    .w(px(26.))
-                                    .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
-                                    .icon(Icon::default().path("icons/x.svg"))
-                                    .tooltip(self.t("workspace.close_tab"))
-                                    .accessibility_label(format!(
-                                        "{}: {title}",
-                                        self.t("workspace.close_tab")
-                                    ))
-                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                Button::new(SharedString::from(format!(
+                                    "workspace-tab-close:{item:?}"
+                                )))
+                                .ghost()
+                                .small()
+                                .w(px(26.))
+                                .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
+                                .icon(Icon::default().path("icons/x.svg"))
+                                .tooltip(self.t("workspace.close_tab"))
+                                .accessibility_label(format!(
+                                    "{}: {title}",
+                                    self.t("workspace.close_tab")
+                                ))
+                                .on_click(cx.listener(
+                                    move |this, _, window, cx| {
                                         this.close_content(&close, window, cx)
-                                    })),
+                                    },
+                                )),
                             )
                     })),
             )
@@ -383,22 +389,19 @@ impl Workbench {
             })
     }
 
-    pub(crate) fn workspace_keys(
+    pub(crate) fn cycle_content(
         &mut self,
-        event: &KeyDownEvent,
+        previous: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if event.keystroke.modifiers.control && event.keystroke.key == "tab" {
-            let route = if event.keystroke.modifiers.shift {
-                self.navigation.select_previous()
-            } else {
-                self.navigation.select_next()
-            };
-            if let Some(route) = route {
-                self.activate_route(route, window, cx);
-            }
-            cx.stop_propagation();
+        let route = if previous {
+            self.navigation.select_previous()
+        } else {
+            self.navigation.select_next()
+        };
+        if let Some(route) = route {
+            self.activate_route(route, window, cx);
         }
     }
 }

@@ -1,6 +1,6 @@
 ---
 kind: incident
-status: open
+status: resolved
 ---
 
 # Active workspace tabs can remain outside the visible strip
@@ -31,10 +31,24 @@ IDs, so a follow-up should keep their identity stable as earlier tabs close.
 Zed's `Pane::update_active_tab` explicitly reveals the activated tab using its
 scroll handle. That behavior is useful independently of a full Pane/Dock system.
 
-## Bounded follow-up
+## Resolution and verification
 
-Reveal the active tab after opening, cycling and selecting a retained source.
-Keep element IDs based on WorkspaceItem identity. Verify overflow in wide and
-narrow windows, then close an earlier tab and confirm both selection and keyboard
-focus remain attached to the same source. Preserve the current open order and
-Host execution/lifecycle boundaries. This record does not implement the fix.
+The tab strip now retains a ScrollHandle. The reveal identity includes the
+current WorkspaceItem, its index and viewport width. Changes schedule reveal
+on the next frame, after new layout bounds exist; GPUI's tracked Div consumes
+the previous bounds before its prepaint update. Controls use WorkspaceItem
+identity rather than list indices. Typed Ctrl-Tab actions work while a child
+input owns focus, and New chat focuses its composer.
+
+The original eight-tab reproduction used 200px tabs. The current compact
+controls are at least 120px, so acceptance opens fourteen populated fixture
+conversations. Actual background Electron verifies cycling in both directions,
+closing an earlier tab without changing the selected source, and resizing
+from 1488px to the Desktop minimum width. Diagnostic bounds confirm that the
+active tab is completely inside the visible strip after resize.
+
+Evidence: `node scripts/verify-content-reader.mjs --functional` and ignored
+`test-results/content-reader/{fourteen-tabs,close-earlier-tab,narrow-tabs}.png`.
+The test uses actual ACP fixtures and pointer/keyboard input; it does not mutate
+the navigation model to force the result. Content-tab visibility does not prove
+full Zed Pane/Dock equivalence.

@@ -77,6 +77,8 @@ pub(crate) struct Workbench {
     pub workspace: String,
     pub workspace_repositories: Vec<pero_contracts::workbench::WorkspaceRepository>,
     pub task_scroll: ScrollHandle,
+    pub tab_scroll: ScrollHandle,
+    pub revealed_tab: Option<(WorkspaceItem, usize, Pixels)>,
     /// A further task page was requested and its result has not arrived yet.
     pub task_more_pending: bool,
     pub(crate) _subscriptions: Vec<Subscription>,
@@ -90,6 +92,10 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        cx.bind_keys([
+            KeyBinding::new("ctrl-tab", crate::workspace_view::NextContent, None),
+            KeyBinding::new("ctrl-shift-tab", crate::workspace_view::PreviousContent, None),
+        ]);
         let input = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder(pero_contracts::i18n::text(&locale, "input.placeholder"))
@@ -215,6 +221,8 @@ impl Workbench {
             workspace: String::new(),
             workspace_repositories: vec![],
             task_scroll: ScrollHandle::new(),
+            tab_scroll: ScrollHandle::new(),
+            revealed_tab: None,
             task_more_pending: false,
             _subscriptions: subscriptions,
         }
@@ -633,6 +641,12 @@ pub fn snapshot() -> String {
         value["chatVisible"] = serde_json::json!(ui.chat_visible());
         value["contentTabs"] = serde_json::json!(ui.navigation.items());
         value["activeContent"] = serde_json::json!(ui.navigation.current());
+        if let Some(index)=ui.navigation.current().and_then(|item|ui.navigation.items().iter().position(|candidate|candidate==item)) {
+            if let Some(bounds)=ui.tab_scroll.bounds_for_item(index) {
+                let strip=ui.tab_scroll.bounds();let offset=ui.tab_scroll.offset().x;
+                value["activeTabBounds"]=json!({"left":f32::from(bounds.left()+offset),"right":f32::from(bounds.right()+offset),"stripLeft":f32::from(strip.left()),"stripRight":f32::from(strip.right())});
+            }
+        }
         value["chatPanelWidth"] = serde_json::json!(ui.preferences.layout.chat_width());
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
         value["settingsSearch"] = serde_json::json!(ui.settings_search.read(cx).value().to_string());

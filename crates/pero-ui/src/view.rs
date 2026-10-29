@@ -52,6 +52,8 @@ impl Workbench {
                     SidebarAction::NewChat => {
                         this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.new_chat(cx);
+                        let composer = this.chat.read(cx).composer.clone();
+                        composer.update(cx, |input, cx| input.focus(window, cx));
                     }
                     SidebarAction::Navigate(index) => {
                         this.chat.update(cx, |panel, _| panel.deleting_chat = None);
@@ -266,7 +268,20 @@ impl Render for Workbench {
                 input.set_placeholder(placeholder, window, cx)
             });
         }
-        let width: f32 = window.viewport_size().width.into();
+        let viewport_width = window.viewport_size().width;
+        let tab = self.navigation.current().and_then(|item| {
+            self.navigation.items().iter().position(|candidate| candidate == item)
+                .map(|index| (item.clone(), index, viewport_width))
+        });
+        if tab != self.revealed_tab {
+            if let Some((_, index, _)) = &tab {
+                let index=*index; let scroll=self.tab_scroll.clone();
+                // ScrollHandle consumes the previous layout's bounds in prepaint.
+                window.on_next_frame(move |window,_| {scroll.scroll_to_item(index);window.refresh();});
+            }
+            self.revealed_tab = tab;
+        }
+        let width: f32 = viewport_width.into();
         let layout = WorkspaceLayout::resolve(
             width,
             self.navigation.route(),
@@ -287,9 +302,8 @@ impl Render for Workbench {
         let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("workbench")
-            .on_key_down(
-                cx.listener(|this, event, window, cx| this.workspace_keys(event, window, cx)),
-            )
+            .capture_action(cx.listener(|this, _: &crate::workspace_view::NextContent, window, cx| this.cycle_content(false, window, cx)))
+            .capture_action(cx.listener(|this, _: &crate::workspace_view::PreviousContent, window, cx| this.cycle_content(true, window, cx)))
             .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
                 if this.resizing_chat {
                     let width: f32 = window.viewport_size().width.into();
