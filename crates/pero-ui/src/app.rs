@@ -48,6 +48,7 @@ pub(crate) struct Workbench {
     pub pending_project_workspace: bool,
     pub navigation: usize,
     pub remote: crate::remote::RemoteState,
+    pub local_execution: crate::local_execution::LocalExecution,
     pub contribution: crate::contributions::ContributionState,
     pub apps: crate::apps::AppWorkspace,
     pub app_surface: String,
@@ -132,8 +133,10 @@ impl Workbench {
             cx.notify();
         }));
         let remote = crate::remote::RemoteState::new(window, cx);
+        let local_execution = crate::local_execution::LocalExecution::new(&locale, window, cx);
         Self {
             remote,
+            local_execution,
             contribution: Default::default(),
             apps: crate::apps::AppWorkspace::default(),
             app_surface: String::new(),
@@ -211,6 +214,7 @@ impl Workbench {
     }
 
     pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
+        if self.receive_local_execution(&event, cx) { return; }
         if self.receive_composer(&event, cx) { return; }
         if self.receive_contribution(&event, cx) {
             return;
@@ -424,6 +428,7 @@ pub fn snapshot() -> String {
         value["preferencesStatus"]=serde_json::json!(ui.preferences_status);
         value["projectBinding"]=serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"]=serde_json::json!(ui.search.read(cx).value().as_ref());
+        value["localExecution"] = ui.local_execution.snapshot(cx);
     });
     value.to_string()
 }

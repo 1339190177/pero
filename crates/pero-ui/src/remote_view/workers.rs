@@ -141,6 +141,7 @@ impl Workbench {
                                     })),
                             ),
                     )
+                    .child(self.local_execution_setup_view(false, cx))
                     .child(
                         div()
                             .whitespace_normal()
@@ -150,24 +151,9 @@ impl Workbench {
                     .when(workers.is_empty(), |el| {
                         el.child(
                             div()
-                                .p(px(16.))
-                                .rounded(px(8.))
-                                .border_1()
-                                .border_color(p.color("warning"))
-                                .bg(p.color("warning-bg"))
-                                .flex()
-                                .flex_col()
-                                .gap(px(6.))
-                                .child(
-                                    div()
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child(self.t("cloud.no_workers")),
-                                )
-                                .child(
-                                    div()
-                                        .whitespace_normal()
-                                        .child(self.t("cloud.no_workers_hint")),
-                                ),
+                                .py(px(12.))
+                                .text_color(p.color("text-muted"))
+                                .child(self.t("cloud.no_workers")),
                         )
                     })
                     .when(!workers.is_empty(), |el| {

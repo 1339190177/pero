@@ -51,3 +51,6 @@ mod composer_picker;
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod session_controls;
+
+#[cfg(any(target_family = "wasm", feature = "native"))]
+mod local_execution;

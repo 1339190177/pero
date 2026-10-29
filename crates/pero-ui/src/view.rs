@@ -263,6 +263,7 @@ impl Render for Workbench {
                 input.set_placeholder(placeholder, window, cx)
             });
         }
+        self.apply_local_execution(window, cx);
         let width: f32 = window.viewport_size().width.into();
         let height: f32 = window.viewport_size().height.into();
         let compact = width < 1150.;
@@ -313,7 +314,10 @@ impl Render for Workbench {
                     })
                     .when(self.navigation == 0, |el| el.child(self.detail(window, cx)))
                     .when(self.navigation == 5, |el| el.child(self.workers_view(cx)))
-                    .when(self.navigation == 1, |el| el.child(self.projects_view(cx)))
+                    .when(self.show_local_execution_onboarding(), |el| {
+                        el.child(div().id("first-run-setup").flex_1().min_h_0().overflow_y_scroll().child(self.local_execution_setup_view(true, cx)))
+                    })
+                    .when(self.navigation == 1 && !self.show_local_execution_onboarding(), |el| el.child(self.projects_view(cx)))
                     .when(self.navigation == 2, |el| el.child(self.environments(cx)))
                     .when(self.navigation == 7, |el| el.child(self.apps_view(cx)))
                     .when(self.navigation == 8, |el| el.child(self.insights_view(cx)))
