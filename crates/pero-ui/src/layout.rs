@@ -29,7 +29,7 @@ impl WorkspaceLayout {
     ) -> ChatPlacement {
         match route.page() {
             WorkbenchPage::Conversation if tab == ConversationTab::Chat => ChatPlacement::Main,
-            WorkbenchPage::Tasks if preferences.chat_open => ChatPlacement::Dock,
+            WorkbenchPage::Tasks | WorkbenchPage::Document if preferences.chat_open => ChatPlacement::Dock,
             WorkbenchPage::Apps
                 if preferences.chat_open
                     && matches!(route, WorkspaceRoute::Content(WorkspaceItem::App { .. })) =>
@@ -94,6 +94,16 @@ mod tests {
         // Expected columns: sidebar, narrow, chat placement, dock width,
         // center content visible, App surface visible.
         for (name, viewport, route, tab, open, preferred_width, covered, expected) in [
+            (
+                "documents share the content dock without an App surface",
+                1488.,Content(WorkspaceItem::Document {owner:"conversation".into(),source:"code".into()}),Chat,true,420.,false,
+                (260.,false,Dock,420.,true,false),
+            ),
+            (
+                "narrow document content gives the shared dock the available width",
+                1000.,Content(WorkspaceItem::Document {owner:"conversation".into(),source:"code".into()}),Chat,true,420.,false,
+                (240.,true,Dock,760.,false,false),
+            ),
             (
                 "conversation chat stays in the main content area",
                 1488.,

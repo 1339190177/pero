@@ -4,6 +4,7 @@
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum WorkspaceItem {
     Conversation(String),
+    Document { owner: String, source: String },
     Project(String),
     Task(String),
     App { name: String, panel: String },
@@ -13,6 +14,7 @@ pub(crate) enum WorkspaceItem {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum WorkbenchPage {
     Conversation,
+    Document,
     #[default]
     Projects,
     Agents,
@@ -29,6 +31,7 @@ impl WorkbenchPage {
     pub(crate) fn legacy_index(self) -> usize {
         match self {
             Self::Conversation => 0,
+            Self::Document => 10,
             Self::Projects => 1,
             Self::Agents => 2,
             Self::Tasks => 3,
@@ -70,6 +73,7 @@ impl WorkspaceRoute {
         match self {
             Self::Page(page) => *page,
             Self::Content(WorkspaceItem::Conversation(_)) => WorkbenchPage::Conversation,
+            Self::Content(WorkspaceItem::Document {..}) => WorkbenchPage::Document,
             Self::Content(WorkspaceItem::Project(_) | WorkspaceItem::Task(_)) => {
                 WorkbenchPage::Tasks
             }
@@ -252,6 +256,8 @@ mod tests {
     fn workspace_tab_transitions() {
         use Action::*;
         let conversation = WorkspaceItem::Conversation("conversation".into());
+        let document=WorkspaceItem::Document {owner:"conversation".into(),source:"output".into()};
+        let other_document=WorkspaceItem::Document {owner:"other".into(),source:"output".into()};
         let project = WorkspaceItem::Project("project".into());
         let task = WorkspaceItem::Task("project".into());
         let shared_project = WorkspaceItem::Project("shared:pero".into());
@@ -273,6 +279,18 @@ mod tests {
         }
 
         let cases = [
+            Case {
+                name: "document identity includes its source owner and deduplicates reopen",
+                actions: vec![Open(document.clone()),Open(other_document.clone()),Open(document.clone())],
+                items: vec![document.clone(),other_document.clone()],
+                route: WorkspaceRoute::Content(document.clone()),
+            },
+            Case {
+                name: "closing a document selects its retained conversation",
+                actions: vec![Open(conversation.clone()),Open(document.clone()),Close(document.clone())],
+                items: vec![conversation.clone()],
+                route: WorkspaceRoute::Content(conversation.clone()),
+            },
             Case {
                 name: "missing selection and empty navigation do not open tabs",
                 actions: vec![

@@ -38,6 +38,7 @@ extern "C" {
 
 pub(crate) struct Workbench {
     pub input: Entity<InputState>,
+    pub documents:Vec<crate::documents::WorkspaceDocument>,
     pub locale: String,
     pub input_locale: String,
     pub palettes: Palettes,
@@ -189,6 +190,7 @@ impl Workbench {
             resizing_chat: false,
             chat_resize_focus: cx.focus_handle().tab_stop(true),
             input,
+            documents:vec![],
             input_locale: String::new(),
             locale,
             palettes,
@@ -235,7 +237,7 @@ impl Workbench {
                 app: name.clone(),
                 panel: panel.clone(),
             }),
-            Some(WorkspaceItem::Conversation(id)) => self
+            Some(WorkspaceItem::Conversation(id) | WorkspaceItem::Document {owner:id,..}) => self
                 .chat
                 .read(cx)
                 .chats
@@ -421,6 +423,7 @@ impl Workbench {
                     }
                     "settings" => {
                         self.locale = pero_contracts::i18n::normalize(&event.text).into();
+                        for open in &self.documents {open.view.update(cx,|view,cx|{view.locale=self.locale.clone();cx.notify();});}
                         gpui_kit::component::set_locale(&self.locale);
                         self.chat
                             .update(cx, |chat, cx| chat.set_locale(&self.locale, cx));
@@ -643,6 +646,7 @@ pub fn snapshot() -> String {
             "tab": ui.tab.legacy_index(), "events": ui.events, "workspace": ui.workspace,
         });
         value["chatVisible"] = serde_json::json!(ui.chat_visible());
+        value["documents"]=json!(ui.documents.iter().map(|open|json!({"item":open.item,"title":open.title,"reader":open.view.read(cx).snapshot(cx)})).collect::<Vec<_>>());
         value["contentTabs"] = serde_json::json!(ui.navigation.items());
         value["activeContent"] = serde_json::json!(ui.navigation.current());
         if let Some(index)=ui.navigation.current().and_then(|item|ui.navigation.items().iter().position(|candidate|candidate==item)) {

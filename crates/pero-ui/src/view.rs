@@ -372,6 +372,7 @@ impl Render for Workbench {
                                         .h_full()
                                         .flex()
                                         .flex_col()
+                                        .when(self.navigation.page()==WorkbenchPage::Document,|el|el.child(self.document_content(cx)))
                                         .when(
                                             self.navigation.page() == WorkbenchPage::Tasks,
                                             |el| {

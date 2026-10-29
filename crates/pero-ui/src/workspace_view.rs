@@ -30,6 +30,7 @@ impl Workbench {
     }
 
     pub(crate) fn reconcile_content(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.reconcile_documents(cx);
         let projects = self.project_catalog(cx);
         let project_identities = self
             .navigation
@@ -60,6 +61,7 @@ impl Workbench {
                 WorkspaceItem::Conversation(id) => {
                     self.chat.read(cx).chats.iter().any(|chat| &chat.id == id)
                 }
+                WorkspaceItem::Document {..} => self.documents.iter().any(|open|&open.item==*item),
                 WorkspaceItem::Project(key) => {
                     projects.iter().any(|project| project.matches_key(key))
                 }
@@ -103,6 +105,9 @@ impl Workbench {
                     .position(|chat| chat.id == id);
                 self.focus_chat(index, ConversationTab::Chat, cx);
             }
+            WorkspaceRoute::Content(item @ WorkspaceItem::Document {..}) => {
+                if let Some(open)=self.documents.iter().find(|open|open.item==item) {open.view.update(cx,|view,cx|view.focus(window,cx));}
+            }
             WorkspaceRoute::Content(WorkspaceItem::Project(key)) => {
                 self.open_project(key, window, cx)
             }
@@ -127,6 +132,7 @@ impl Workbench {
     }
 
     fn close_content(&mut self, item: &WorkspaceItem, window: &mut Window, cx: &mut Context<Self>) {
+        self.documents.retain(|open|&open.item!=item);
         if let Some(route) = self.navigation.close(item) {
             self.activate_route(route, window, cx);
         }
@@ -161,6 +167,7 @@ impl Workbench {
                     .unwrap_or_else(|| self.t("chat.session").into()),
                 "message-circle",
             ),
+            item @ WorkspaceItem::Document {..} => self.document_label(item,cx),
             WorkspaceItem::Project(key) => (
                 self.project_catalog(cx)
                     .into_iter()
