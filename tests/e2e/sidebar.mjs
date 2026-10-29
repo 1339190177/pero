@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile, appendFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { openSettings, setAppearance, setSidebarLocale } from './sidebar-controls.mjs';
 
@@ -61,12 +61,13 @@ async function launch(){
   page=await app.firstWindow();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
   await page.waitForFunction(()=>window.peroDiagnostics && JSON.parse(window.peroDiagnostics.snapshot()).connected,undefined,{timeout:60000});
   await expect.poll(async()=>(await state()).projects?.some(project=>project.shared_id==='pero'&&project.workspace===root)).toBe(true);
-  await expect.poll(async()=>(await state()).remote.state.tasks.length).toBe(tasks.length);
+  await expect.poll(async()=>(await state()).remote.state.tasks.length).toBeGreaterThanOrEqual(2);
   await frames();
 }
 const state=()=>page.evaluate(()=>JSON.parse(window.peroDiagnostics.snapshot()));
 const frames=()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
 const capture=async(name)=>{await frames();await page.screenshot({path:resolve(out,name+'.png')});};
+const clickContent=async(x,y)=>page.mouse.click(x,y+((await state()).contentTabs.length?48:0));
 try{
   await launch();
   const inferred = (await state()).projects.filter(project=>project.shared_id==='pero');
@@ -77,12 +78,14 @@ try{
   await capture('01-project-tasks');
   await page.mouse.click(100,158);
   await expect.poll(async()=>(await state()).selectedProject).toBe(`workspace:${root}`);
+  await expect.poll(async()=>(await state()).remote.state.tasks.length).toBe(tasks.length);
   await capture('02-pero-tasks');
-  await page.mouse.click(425,165);
+  expect((await state()).activeContent).toEqual({kind:'project',value:`workspace:${root}`});
+  await clickContent(425,165);
   await expect.poll(async()=>(await state()).localRoadmap.show_cloud).toBe(true);
   await frames();
   holdDetail=new Promise(resolve=>{releaseDetail=resolve;});
-  await page.mouse.click(500,366);
+  await clickContent(500,366);
   await expect.poll(()=>detailWaiting).toBe(true);
   // The selected page must remain stable while its HTTP response is pending.
   await frames();
@@ -91,8 +94,14 @@ try{
   releaseDetail();holdDetail=undefined;
   await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
   await capture('03-task-detail');
+  expect((await state()).activeContent).toEqual({kind:'task',value:'task_1'});
+  await page.mouse.click(await page.evaluate(()=>innerWidth-80),24);
+  await expect.poll(async()=>(await state()).chatVisible).toBe(true);
+  await capture('03-task-chat');
+  await page.mouse.click(await page.evaluate(()=>innerWidth-80),24);
+  await expect.poll(async()=>(await state()).chatVisible).toBe(false);
   holdList=new Promise(resolve=>{releaseList=resolve;});
-  await page.mouse.click(335,196);
+  await clickContent(335,196);
   await expect.poll(()=>listWaiting).toBe(true);
   await frames();
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
@@ -102,11 +111,11 @@ try{
   // A queued task leads to the existing explicit device setup, with its own
   // project/workspace/Agent; browsing setup must not enroll or dispatch.
   tasks[0].state='queued';
-  await page.mouse.click(500,366);
+  await clickContent(500,366);
   await expect.poll(async()=>(await state()).remote.state.detail?.task?.state).toBe('queued');
   await frames();
   await capture('03-queued-local-execution');
-  await page.mouse.click(350,472);
+  await clickContent(350,472);
   await expect.poll(async()=>(await state()).navigation).toBe(5);
   expect((await state()).localExecution).toMatchObject({editing:true,project_id:'pero',workspace_key:'default',path:root,agent_id:'fixture',setup:{enabled:false}});
   await capture('03-task-device-setup');
@@ -114,7 +123,7 @@ try{
   await page.mouse.click(100,218);
   await expect.poll(async()=>(await state()).navigation).toBe(3);
   await frames();
-  await page.mouse.click(335,196);
+  await clickContent(335,196);
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
   await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
   await frames();
@@ -128,31 +137,31 @@ try{
   await page.mouse.click(100,111);
   await page.keyboard.press(process.platform==='darwin'?'Meta+A':'Control+A');await page.keyboard.press('Backspace');
   await expect.poll(async()=>(await state()).selectedProject).toBe('shared:point');
-  await page.mouse.click(500,310);
+  await clickContent(500,310);
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe('task_5');
   await capture('04-point-task');
   await page.mouse.click(100,158);
   await expect.poll(async()=>(await state()).selectedProject).toBe(`workspace:${root}`);
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
   await frames();
-  await page.mouse.click(530,116);
+  await clickContent(530,116);
   await expect.poll(async()=>(await state()).projectTab).toBe('settings');
   await capture('05-project-settings');
-  await page.mouse.click(450,254);
+  await clickContent(450,254);
   await page.keyboard.press(process.platform==='darwin'?'Meta+A':'Control+A');await page.keyboard.press('Backspace');
   await expect.poll(async()=>(await state()).projectBinding).toBe('');
   await frames();
   await page.keyboard.insertText('point');
   await expect.poll(async()=>(await state()).projectBinding).toBe('point');
   expect((await state()).remote.project).toBe('pero');
-  await page.mouse.click(320,290);
+  await clickContent(320,290);
   await expect.poll(async()=>(await state()).preferences.projects.find(project=>project.workspace===root)?.project_id).toBe('point');
   await expect.poll(async()=>(await state()).preferencesStatus).toBe('saved');
-  await page.mouse.click(450,254);
+  await clickContent(450,254);
   await page.keyboard.press(process.platform==='darwin'?'Meta+A':'Control+A');await page.keyboard.press('Backspace');
   await expect.poll(async()=>(await state()).projectBinding).toBe('');await frames();
   await page.keyboard.insertText('pero');
-  await page.mouse.click(320,290);
+  await clickContent(320,290);
   await expect.poll(async()=>(await state()).preferences.projects.find(project=>project.workspace===root)?.project_id).toBe('pero');
   await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('remote-tasks').click());
   await expect.poll(async()=>(await state()).projectTab).toBe('tasks');
@@ -225,7 +234,7 @@ try{
   expect(requests.some(path=>path.endsWith('/tasks/task_5'))).toBe(true);
   // A same-named checkout with a different repository remains a separate Project.
   await app.close();app=undefined;
-  const homonym=resolve(temp,'other','pero');
+  const homonym=resolve(temp,'other',basename(root));
   await mkdir(homonym,{recursive:true});
   execFileSync('git',['init','--quiet'],{cwd:homonym});
   execFileSync('git',['config','remote.origin.url','git@github.com:another-owner/pero.git'],{cwd:homonym});
@@ -235,7 +244,7 @@ try{
     {version:1,kind:'turn_finished',request_id:null,text:'',thread_id:'other-pero',data:{stopReason:'end_turn'}},
   ].map(value=>JSON.stringify(value)).join('\n')+'\n');
   await launch();
-  expect((await state()).projects.filter(project=>project.name==='pero')).toHaveLength(2);
+  expect((await state()).projects.filter(project=>project.name===basename(root))).toHaveLength(2);
   expect((await state()).projects.find(project=>project.workspace===homonym).shared_id).toBe(null);
   await page.evaluate(path=>window.pero.sessionCommand({action:'workspace',path}),homonym);
   await expect.poll(async()=>(await state()).workspaceRepositories?.some(entry=>entry.workspace===homonym&&entry.repository.owner==='another-owner')).toBe(true);
