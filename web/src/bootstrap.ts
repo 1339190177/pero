@@ -1,3 +1,5 @@
+import { loadContentResult, cancelContentResult } from './content-results';
+import type { ContentChunk, ConversationReadParameters } from '../../packages/content-source/index';
 import init, { run, receive_host_event, snapshot, paste_image, set_system_theme } from './wasm/pero_ui';
 import { appChatLauncher } from './app-chat';
 import { previewContext } from './context-preview';
@@ -9,7 +11,7 @@ import { mountAppSurfaces, type AppSurface } from './apps';
 export interface HostEvent { version: number; kind: string; request_id: string | null; text: string; message_key?: string; thread_id?: string; data?: unknown }
 declare global {
   interface Window {
-    pero?: { connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; appUseCommand(command: object): Promise<unknown>; chooseWorkspace(): Promise<void>; chooseContext(command?: object): Promise<void> };
+    pero?: { readContent(request:ConversationReadParameters):Promise<ContentChunk>; connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; appUseCommand(command: object): Promise<unknown>; chooseWorkspace(): Promise<void>; chooseContext(command?: object): Promise<void> };
     peroSendProbe(json: string): void;
     peroSetLocale(locale: string): void;
     peroSessionCommand(json: string): void;
@@ -60,6 +62,8 @@ try {
   };
   window.peroSessionCommand = (json) => {
     const command = JSON.parse(json);
+    if(command.action==='cancel_read_result'){cancelContentResult(command.request_id);return;}
+    if(command.action==='read_result'){void loadContentResult(command,request=>window.pero?window.pero.readContent(request):Promise.reject(new Error(t('error.browser'))),onEvent);return;}
     if(command.action==='app_context_preview'){previewContext(command.reference,context=>receive_host_event(JSON.stringify({version:1,kind:'compose_context',request_id:null,text:'',data:{thread_id:command.thread_id,contexts:[context]}})));return;}
     if (!window.pero && command.method === 'settings.workbench') {
       // Browser preview keeps appearance in memory; Desktop persists via Host.

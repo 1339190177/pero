@@ -1,3 +1,4 @@
+import type { ContentChunk, ConversationReadParameters } from '../../../packages/content-source/index';
 import { appChatLauncher } from '../../../web/src/app-chat';
 import { previewContext } from '../../../web/src/context-preview';
 import { mountAppSurfaces } from '../../../web/src/apps';
@@ -8,6 +9,7 @@ import { mountChatSurface, type ChatSurface } from '../../../web/src/chat-surfac
 import { translate } from '../../../locales';
 type Context = { product: ProductFields; locale: string; dark: boolean; connected: boolean };
 const bridge = (window as unknown as { product: {
+  readContent(request:ConversationReadParameters):Promise<ContentChunk>;
   connect(): Promise<Context>; open(name?: string): Promise<void>;
   sessionCommand(command: object): Promise<void>;
   appUseCommand(command: object): Promise<unknown>;
@@ -101,6 +103,7 @@ bridge.connect().then(value => {
   context = value; selected = value.product.entry!;
   context.connected ||= runtimeConnected;
   if (value.product.chat) chat = mountChatSurface(chatPanel, {
+    readContent: request=>bridge.readContent(request),
     context: { dark: value.dark, locale: value.locale, active: chatOpen, scope: { app: selected.app, panel: selected.panel || 'main' } },
     command:command=>{
       const intent=command as {action?:string;thread_id?:string};
