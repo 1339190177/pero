@@ -54,6 +54,12 @@ pub(crate) fn native_application()->Application {
 pub fn run() -> anyhow::Result<()> {
     #[cfg(target_os="windows")]
     unsafe {std::env::set_var("GPUI_DISABLE_DIRECT_COMPOSITION","true");}
+    if std::env::args().nth(1).as_deref()==Some("--verify-webview") {
+        #[cfg(feature="native-probe")]
+        {return crate::native_web_probe::run();}
+        #[cfg(not(feature="native-probe"))]
+        {anyhow::bail!("Build with native-probe to run Web view acceptance");}
+    }
     #[cfg(target_os = "macos")]
     relaunch_in_bundle();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

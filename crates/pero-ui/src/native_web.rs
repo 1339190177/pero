@@ -197,6 +197,33 @@ impl NativeWebPage {
         }
         self.changed(cx);
     }
+    #[cfg(feature = "native-probe")]
+    pub fn inspect(
+        &self,
+        script: &str,
+        cx: &App,
+        callback: impl Fn(String) + Send + 'static,
+    ) -> anyhow::Result<()> {
+        self.view
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Native view is unavailable"))?
+            .read(cx)
+            .raw()
+            .evaluate_script_with_callback(script, callback)?;
+        Ok(())
+    }
+    #[cfg(feature = "native-probe")]
+    pub fn show_for_probe(&self, cx: &mut App) {
+        if let Some(view) = &self.view {
+            view.update(cx, |view, _| view.show());
+        }
+    }
+    #[cfg(feature = "native-probe")]
+    pub fn visible(&self, cx: &App) -> bool {
+        self.view
+            .as_ref()
+            .is_some_and(|view| view.read(cx).visible())
+    }
     pub fn hide(&self, cx: &mut App) {
         if let Some(view) = &self.view {
             if view.read(cx).visible() {

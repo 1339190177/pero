@@ -21,6 +21,10 @@ await mkdir(out, { recursive: true });
 const sources = [
   'patches/gpui-pre-web-0.3.10-ime.patch',
   'scripts/lib/gpui-web.mjs',
+  'crates/pero-contracts/src/web_document.rs',
+  'crates/pero-ui/src/web_documents.rs',
+  'desktop/src/main/web-pages.ts',
+  'packages/content-source/web-address.ts',
   'crates/pero-contracts/src/file_document.rs',
   'crates/pero-runtime/src/file_documents.rs',
   'crates/pero-host/src/documents.rs',
@@ -188,7 +192,7 @@ await run(
   [
     resolve(
       root,
-      process.argv.includes('--app-documents') ? 'tests/e2e/app-documents.mjs' : process.argv.includes('--file-documents') ? 'tests/e2e/file-documents.mjs' : process.argv.includes('--workspace-documents')
+      process.argv.includes('--web-documents') ? 'tests/e2e/web-documents.mjs' : process.argv.includes('--app-documents') ? 'tests/e2e/app-documents.mjs' : process.argv.includes('--file-documents') ? 'tests/e2e/file-documents.mjs' : process.argv.includes('--workspace-documents')
         ? 'tests/e2e/workspace-documents.mjs'
         : 'tests/e2e/content-reader.mjs',
     ),

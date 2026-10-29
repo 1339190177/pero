@@ -48,6 +48,8 @@ mod desktop_login;
 pub mod native;
 #[cfg(all(feature="native",not(target_family="wasm")))]
 mod native_web;
+#[cfg(all(feature="native-probe",not(target_family="wasm")))]
+mod native_web_probe;
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
 mod native_cloud;
 
