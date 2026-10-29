@@ -4,6 +4,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler
 import json
 import re
+import sqlite3
 from urllib.parse import parse_qs, urlsplit
 
 from .literature import LiteratureClient
@@ -12,6 +13,7 @@ from .reports import EvidenceReference
 from .discovery import DiscoveryQuery, DiscoveryBatch
 from .pdf import PdfAnnotation
 from .pdf_files import PdfFiles
+from .retrieval import SearchQuery
 
 MAX_BODY = 1024 * 1024
 
@@ -132,6 +134,8 @@ def handler(store, secret, literature=None, now=utc_now, pdf_files=None):
                         return self.reply(201, store.save_paper(paper).to_dict())
                     if path == "/api/search":
                         return self.reply(200, literature.search(data))
+                    if path == '/api/library/search':
+                        return self.reply(200, store.search(SearchQuery.parse(data)).to_dict())
                     if path == "/api/papers":
                         paper = PaperSnapshot.from_reading(literature.read(data), now())
                         return self.reply(201, store.save_paper(paper).to_dict())
@@ -146,8 +150,14 @@ def handler(store, secret, literature=None, now=utc_now, pdf_files=None):
                     if path == "/api/evidence":
                         intent = store.intent(data.get("intentId"))
                         cited = tuple(paper.id for paper in intent.papers)
-                        evidence = EvidenceReference.parse_many([{"paperId": data.get("paperId"), "quote": data.get("quote")}], cited, intent.papers)[0]
-                        location = evidence.locate(intent.papers)
+                        evidence = EvidenceReference.parse_many([{"paperId": data.get("paperId"), "quote": data.get("quote"), "passageId": data.get("passageId")}], cited, intent.papers, intent.passages)[0]
+                        location = evidence.locate(intent.papers, intent.passages)
+                        if 'pdf' in location:
+                            locator = location['pdf']
+                            document = store.pdf(locator['documentId'])
+                            rects = pdf_files.locate_quote(store.pdf_bytes(document), document, locator['pages'][0], locator['sourceStart'], evidence.quote)
+                            locator['rects'] = [r.to_dict() for r in rects]
+                            return self.reply(200, location)
                         document = store.paper_pdf(evidence.paper_id)
                         pages = document.matching_pages(evidence.quote) if document else ()
                         if pages:
@@ -160,6 +170,8 @@ def handler(store, secret, literature=None, now=utc_now, pdf_files=None):
                 self.reply(400, {"code": "request_invalid", "detail": str(error) or "Invalid request"})
             except OSError:
                 self.reply(500, {"code": "backend_io_error", "detail": "Cannot read or write the research data directory"})
+            except sqlite3.Error:
+                self.reply(503, {"code": "search_index_error", "detail": "Cannot read or update the local search index. Check the App data directory and retry."})
 
         do_GET = do_POST = dispatch
 

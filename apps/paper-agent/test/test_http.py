@@ -54,6 +54,14 @@ class ResearchHTTP(unittest.TestCase):
                 self.assertEqual(call("GET", "/api/library")[1]["papers"], [])
                 paper = call("POST", "/api/papers/import", reading())[1]
                 self.assertEqual(paper["source"], "import")
+                status, local = call('POST', '/api/library/search', dict(query='Exact original'))
+                self.assertEqual(status, 200)
+                self.assertEqual(local['items'][0]['source']['paperId'], paper['id'])
+                self.assertEqual(local['items'][0]['source']['contentDigest'], paper['contentDigest'])
+                self.assertEqual(call('POST', '/api/library/search', dict(query='Exact'), token='wrong')[0], 401)
+                for invalid in (dict(query='???'), dict(query='Exact', limit=True), dict(query='Exact', paperIds=['missing'])):
+                    self.assertEqual(call('POST', '/api/library/search', invalid)[0], 400)
+
                 self.assertEqual(call("GET", "/api/papers/" + paper["id"])[1]["content"], reading()["content"])
                 self.assertEqual(call("POST", "/api/search", dict(query="attention"))[1]["items"][0]["source"], "alphaxiv")
                 frozen = call("POST", "/api/intents", dict(question="Evidence?", paperIds=[paper["id"]], requestId="http-request", verifyCode=False))[1]
@@ -93,6 +101,12 @@ class ResearchHTTP(unittest.TestCase):
                 pdf_input = call('POST', '/api/intents', dict(question='PDF evidence?', paperIds=[pdf_paper['id']], requestId='pdf-input', verifyCode=False))[1]
                 located = call('POST', '/api/evidence', dict(intentId=pdf_input['id'], paperId=pdf_paper['id'], quote='Exact original evidence.'))[1]
                 self.assertEqual(located['pdf']['pages'], [1, 2])
+                full_input = call('POST', '/api/intents', dict(question='Second page', paperIds=[pdf_paper['id']], requestId='pdf-full-input', fullText=True))[1]
+                passage = full_input['passages'][0]
+                located = call('POST', '/api/evidence', dict(intentId=full_input['id'], paperId=pdf_paper['id'], passageId=passage['id'], quote='Second page. Exact original evidence.'))[1]
+                self.assertEqual(located['pdf']['pages'], [2])
+                self.assertTrue(located['pdf']['rects'])
+
 
             finally:
                 server.shutdown()

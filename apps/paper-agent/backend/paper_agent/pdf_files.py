@@ -8,7 +8,7 @@ from urllib.request import Request, build_opener
 
 from .literature import ARXIV, _NoRedirect
 from .model import Invalid, digest
-from .pdf import PdfDocument, PdfPage
+from .pdf import PdfDocument, PdfPage, PdfRect
 
 MAX_PDF_BYTES = 16 * 1024 * 1024
 # PDFium prohibits simultaneous calls even for different documents.
@@ -78,6 +78,30 @@ class PdfFiles:
                 image.close()
                 cropped.close()
                 return output.getvalue()
+
+    def locate_quote(self, data, document, page_number, start, quote):
+        pdfium = self._engine()
+        page_info = document.page(page_number)
+        ordinal = page_info.text[:start].count(quote)
+        with PDFIUM_LOCK, closing(pdfium.PdfDocument(data)) as pdf, closing(pdf[page_number - 1]) as page:
+            page.set_rotation(0)
+            with closing(page.get_textpage()) as textpage, closing(textpage.search(quote, match_case=True)) as search:
+                match = None
+                for _ in range(ordinal + 1):
+                    match = search.get_next()
+                    if match is None:
+                        raise Invalid('The quotation cannot be located in this PDF', 422)
+                rects = []
+                for i in range(textpage.count_rects(*match)):
+                    left, bottom, right, top = textpage.get_rect(i)
+                    x, y = max(0, left / page_info.width), max(0, 1 - top / page_info.height)
+                    width = min(1, right / page_info.width) - x
+                    height = min(1, 1 - bottom / page_info.height) - y
+                    if width > 0 and height > 0:
+                        rects.append(PdfRect(x, y, width, height))
+                if not rects:
+                    raise Invalid('The quotation has no selectable PDF text region', 422)
+                return tuple(rects)
 
     @staticmethod
     def _engine():

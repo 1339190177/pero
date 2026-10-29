@@ -10,25 +10,36 @@ from .model import REPORT_SCHEMA, Invalid, ResearchInput, canonical, mapping, se
 class EvidenceReference:
     paper_id: str
     quote: str
+    passage_id: str | None = None
 
     @classmethod
-    def parse_many(cls, value, cited_ids, papers):
+    def parse_many(cls, value, cited_ids, papers, passages=()):
         references = []
         for item in sequence(value, 8, "evidence"):
             item = mapping(item, "evidence reference")
             quote = item.get("quote")
             text(quote, 4000, "evidence quotation")
-            ref = cls(text(item.get("paperId"), 64, "evidence source"), quote)
+            ref = cls(text(item.get("paperId"), 64, "evidence source"), quote, item.get("passageId"))
             if ref.paper_id not in cited_ids:
                 raise Invalid("Evidence is outside the cited sources")
-            ref.locate(papers)
+            ref.locate(papers, passages)
             references.append(ref)
         return tuple(references)
 
-    def locate(self, papers):
+    def locate(self, papers, passages=()):
         paper = next((paper for paper in papers if paper.id == self.paper_id), None)
         if paper is None:
             raise Invalid("Evidence source is outside the frozen input")
+        if passages or self.passage_id:
+            passage = next((p for p in passages if p.id == self.passage_id and p.paper_id == self.paper_id), None)
+            if passage is None or self.quote not in passage.content:
+                raise Invalid('Evidence is outside the frozen PDF passages')
+            offset = passage.content.index(self.quote)
+            return dict(paperId=paper.id, start=offset, end=offset + len(self.quote), heading=f'Page {passage.page}',
+                        before=passage.content[max(0, offset - 500):offset], quote=self.quote,
+                        after=passage.content[offset + len(self.quote):offset + len(self.quote) + 500],
+                        pdf=dict(documentId=passage.document_id, fileDigest=passage.file_digest,
+                                 pages=[passage.page], sourceStart=passage.start + offset))
         start = paper.content.find(self.quote)
         if start < 0:
             raise Invalid("Evidence quotation is absent from the frozen source")
@@ -37,8 +48,13 @@ class EvidenceReference:
         return dict(paperId=paper.id, start=start, end=end, heading=headings[-1] if headings else "",
                     before=paper.content[max(0, start - 500):start], quote=self.quote, after=paper.content[end:end + 500])
 
+    def source_url(self, papers, passages):
+        passage = next((p for p in passages if p.id == self.passage_id), None)
+        paper = next(p for p in papers if p.id == self.paper_id)
+        return (paper.pdf_url or paper.url).split('#')[0] + f'#page={passage.page}' if passage else paper.url
+
     def to_dict(self):
-        return dict(paperId=self.paper_id, quote=self.quote)
+        return dict(paperId=self.paper_id, quote=self.quote, **(dict(passageId=self.passage_id) if self.passage_id else {}))
 
 
 def paper_refs(value, allowed):
@@ -93,13 +109,13 @@ class Experiment:
     limitations: str
 
     @classmethod
-    def parse(cls, value, allowed, papers):
+    def parse(cls, value, allowed, papers, passages=()):
         value = mapping(value, "experiment")
         status = value.get("status")
         if status not in ("passed", "failed", "blocked", "not-run"):
             raise Invalid("Invalid reported experiment status")
         refs = paper_refs(value.get("paperIds"), allowed)
-        evidence = EvidenceReference.parse_many(value.get("evidence", []), refs, papers)
+        evidence = EvidenceReference.parse_many(value.get("evidence", []), refs, papers, passages)
         files = tuple(CodeFile.parse(file) for file in sequence(value.get("files"), 12, "code files"))
         commands = tuple(text(command, 2000, "command") for command in sequence(value.get("commands"), 12, "commands"))
         observed = text(value.get("observed"), 12000, "observed result")
@@ -136,7 +152,7 @@ class EvidenceMatrix:
     cells: tuple[MatrixCell, ...]
 
     @classmethod
-    def parse(cls, value, papers):
+    def parse(cls, value, papers, passages=()):
         value = mapping(value, 'evidence matrix')
         columns = tuple(MatrixColumn(text(c.get('id'), 40, 'column ID'), text(c.get('label'), 100, 'column label'))
                         for item in sequence(value.get('columns'), 8, 'matrix columns')
@@ -157,7 +173,7 @@ class EvidenceMatrix:
             seen.add(key)
             if status not in ('supported', 'missing', 'conflict'):
                 raise Invalid('Invalid matrix evidence status')
-            refs = EvidenceReference.parse_many(item.get('evidence', []), (paper_id,), papers)
+            refs = EvidenceReference.parse_many(item.get('evidence', []), (paper_id,), papers, passages)
             content = item.get('value', '')
             if status == 'missing':
                 if content != '' or refs:
@@ -194,18 +210,20 @@ class ResearchReport:
         for section in sequence(value.get("sections"), 12, "sections"):
             section = mapping(section, "report section")
             refs = paper_refs(section.get("paperIds"), allowed)
-            evidence = EvidenceReference.parse_many(section.get("evidence", []), refs, intent.papers)
+            evidence = EvidenceReference.parse_many(section.get("evidence", []), refs, intent.papers, intent.passages)
+            if intent.passages and not evidence:
+                raise Invalid('PDF answer sections require source evidence')
             sections.append(ReportSection(text(section.get("heading"), 200, "heading"),
                                           text(section.get("content"), 24000, "content"), refs, evidence))
         if not sections:
             raise Invalid("A report needs at least one cited section")
-        experiments = tuple(Experiment.parse(item, allowed, intent.papers) for item in sequence(value.get("experiments"), 6, "experiments"))
+        experiments = tuple(Experiment.parse(item, allowed, intent.papers, intent.passages) for item in sequence(value.get("experiments"), 6, "experiments"))
         if intent.verify_code and not experiments:
             raise Invalid("A code-verification request needs an experiment or an explicit blocked/not-run entry")
         title = text(value.get("title"), 200, "title")
         if len(title.encode("utf-8")) > 200:
             raise Invalid("Report title exceeds 200 UTF-8 bytes")
-        matrix = EvidenceMatrix.parse(value["matrix"], intent.papers) if value.get("matrix") is not None else None
+        matrix = EvidenceMatrix.parse(value["matrix"], intent.papers, intent.passages) if value.get("matrix") is not None else None
         result = cls(intent.id, title, tuple(sections), experiments, text(value.get("limitations"), 8000, "limitations"), matrix)
         if len(canonical(result.to_dict())) > 450000:
             raise Invalid("Report exceeds 450,000 bytes")
@@ -239,13 +257,13 @@ class ResearchReport:
             return " · ".join(f'[{prose(papers[item].title).replace("[", "(").replace("]", ")")}]({papers[item].url.replace(")", "%29")})' for item in ids)
 
         def quotations(refs):
-            return "\n\n".join("> " + prose(ref.quote).replace("\n", "\n> ") + "\n>\n> " + sources([ref.paper_id]) for ref in refs)
+            return "\n\n".join("> " + prose(ref.quote).replace("\n", "\n> ") + "\n>\n> " + (f"[Page {next(p.page for p in intent.passages if p.id == ref.passage_id)}]({ref.source_url(intent.papers, intent.passages)})" if ref.passage_id else sources([ref.paper_id])) for ref in refs)
 
         lines = [f"# {prose(self.title)}", "", "Acceptance: unverified · experiment results: agent-reported", "",
                  f"Frozen research input: `{self.intent_id}`", ""]
         for section in self.sections:
             lines.extend([f"## {prose(section.heading)}", "", prose(re.sub(r"\[([^\]]*)\]\(evidence:([1-9]\d*)\)",
-                lambda m: f"[{m[1]}]({next(p.url for p in intent.papers if p.id == section.evidence[int(m[2])-1].paper_id)})"
+                lambda m: f"[{m[1]}]({section.evidence[int(m[2])-1].source_url(intent.papers, intent.passages)})"
                 if int(m[2]) <= len(section.evidence) else m[1] + " [unresolved citation]", section.content)), "", sources(section.paper_ids), "", quotations(section.evidence), ""])
         if self.matrix:
             lines.extend(["## Evidence matrix", ""])
@@ -269,4 +287,13 @@ class ResearchReport:
         lines.extend(["## Limitations", "", prose(self.limitations), "", "## Sources", ""])
         for paper in intent.papers:
             lines.append(f"- {sources([paper.id])} — {paper.content_kind}; {paper.content_digest}; {paper.fetched_at}")
+        for doc_id in dict.fromkeys(p.document_id for p in intent.passages):
+            passage = next(p for p in intent.passages if p.document_id == doc_id)
+            lines.append(f"- PDF {doc_id}; SHA-256 {passage.file_digest}")
+        if intent.retrieval:
+            lines.extend(['', '## Retrieval scope', '', f'Method: {intent.retrieval.method}',
+                          f'Returned passages: {len(intent.passages)} / {intent.retrieval.total_matches} lexical matches.',
+                          'Excerpts only; keyword relevance does not establish scientific support.'])
+            if intent.retrieval.unmatched_paper_ids:
+                lines.append('No returned passages from: ' + sources(intent.retrieval.unmatched_paper_ids))
         return "\n".join(lines)

@@ -14,6 +14,8 @@ from .reports import ResearchReport
 from .discovery import DiscoveryBatch, SavedDiscovery
 from .pdf import PdfDocument, PdfAnnotation
 from .reading_matrix import ReadingCell
+from .retrieval import SearchQuery, SourceVersion, chunks
+from .search_index import SearchIndex
 
 
 @dataclass(frozen=True)
@@ -89,7 +91,7 @@ class ResearchStore:
     def paper_pdf(self, paper_id):
         self.paper(paper_id)
         documents = [self.pdf(i) for i in self._list('pdfs')]
-        return max((doc for doc in documents if doc.paper_id == paper_id), key=lambda doc: doc.created_at, default=None)
+        return max((doc for doc in documents if doc.paper_id == paper_id), key=lambda doc: (doc.created_at, doc.id), default=None)
 
     def pdf_bytes(self, document):
         return (self.root / 'pdf-files' / (document.file_digest + '.pdf')).read_bytes()
@@ -228,6 +230,26 @@ class ResearchStore:
             self._write("papers", paper.id, paper.to_dict())
             return paper
 
+    def search(self, query: SearchQuery):
+        with self.lock, SearchIndex(self.root / 'search-v1.sqlite3') as index:
+            paper_ids, pdf_ids = self._list('papers'), self._list('pdfs')
+            # JSON is authoritative. Index only new immutable versions; removing
+            # a source also removes its derived search rows on the next query.
+            current = set(paper_ids) | set(pdf_ids)
+            index.retain({s.id for s in index.sources() if s.id in current and s.paper_id in paper_ids})
+            indexed = {source.id for source in index.sources()}
+            for identity in paper_ids:
+                if identity not in indexed:
+                    paper = self.paper(identity)
+                    index.replace(SourceVersion.of(paper), chunks(paper))
+            for identity in pdf_ids:
+                if identity not in indexed:
+                    document = self.pdf(identity)
+                    if document.paper_id in paper_ids:
+                        paper = self.paper(document.paper_id)
+                        index.replace(SourceVersion.of(paper, document), chunks(paper, document))
+            return index.search(query)
+
     def prepare(self, request, now):
         with self.lock:
             identity = digest(request.request_id.encode("utf-8"))
@@ -238,7 +260,19 @@ class ResearchStore:
                     raise
                 existing = None
             papers = tuple(self.paper(identity) for identity in request.paper_ids)
-            result = ResearchInput.prepare(request, papers, existing.created_at if existing else now)
+            passages = existing.passages if existing else ()
+            retrieval = existing.retrieval if existing else None
+            if request.full_text and existing is None:
+                documents = tuple(self.paper_pdf(paper.id) for paper in papers)
+                if any(doc is None for doc in documents):
+                    raise Invalid('Open and save a PDF for each selected paper first')
+                found = self.search(SearchQuery(request.question, request.paper_ids, pdf_only=True))
+                passages = tuple(hit.chunk.pdf_passage() for hit in found.hits)
+                if not passages:
+                    raise Invalid('No matching PDF passages. Try keywords in the source language, or read the saved PDF directly.')
+                retrieval = found.freeze()
+            result = ResearchInput.prepare(request, papers, existing.created_at if existing else now, passages,
+                                           existing.frozen_prompt if existing else None, retrieval)
             self._write("intents", result.id, result.to_dict(False))
             return result
 
@@ -260,7 +294,12 @@ class ResearchStore:
     def export(self, identity, format):
         saved = self.report(identity)
         if format == "json":
-            return dict(filename=f"research-{identity[:12]}.json", content=json.dumps(saved.to_dict(), ensure_ascii=False, indent=2), mime="application/json")
+            value = saved.to_dict()
+            intent = self.intent(saved.report.intent_id)
+            if intent.retrieval:
+                value.update(retrieval=intent.retrieval.to_dict(), sources=[p.to_dict(False) for p in intent.papers],
+                             passages=[p.to_dict() for p in intent.passages])
+            return dict(filename=f"research-{identity[:12]}.json", content=json.dumps(value, ensure_ascii=False, indent=2), mime="application/json")
         if format == "markdown":
             return dict(filename=f"research-{identity[:12]}.md", content=saved.report.markdown(self.intent(saved.report.intent_id)), mime="text/markdown")
         raise Invalid("Choose markdown or json export")
