@@ -258,11 +258,17 @@ saving, restart, cancellation and wrong/repeated callbacks.
 
 ### Native GPUI preview
 
-Run `npm run build:macos-native`, then open `target/native/Pero Native.app`.
-This optional preview reuses the GPUI workbench and Rust Host without Electron,
-Chromium, WebView or Wasm. Local ACP sessions use the existing installed adapters
-and model authentication. Preview history and preferences are isolated under
-`~/.pero/native-preview`; they do not overwrite the Electron profile.
+Run `npm run dev:native` while editing the workbench. It builds a debug Host and
+`pero-native`, opens that binary, and rebuilds when a Rust source or `Cargo.toml`
+under `crates/pero-ui` changes. Close the window to stop. A failed rebuild leaves
+the current window open.
+
+`npm run build:macos-native` still writes the release bundle at
+`target/native/Pero Native.app`. This preview reuses the GPUI workbench and Rust
+Host without Electron, Chromium, WebView or Wasm. Local ACP sessions use the
+existing installed adapters and model authentication. Preview history and
+preferences are isolated under `~/.pero/native-preview`; they do not overwrite
+the Electron profile.
 
 This is a development preview: it references the checkout's Host and adapters.
 It is not yet a portable release. Cloud HTTP coordination, GitHub OAuth/deep-link

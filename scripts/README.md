@@ -9,6 +9,7 @@ Repository toolchain. Run these through the npm scripts in the root `package.jso
 | `lib/` | Helpers imported by other scripts. Not a command. |
 | `cargo.mjs` | Cargo entry with the gpui-kit path patch. |
 | `build/` | Build outputs such as wasm and the desktop bundle. |
+| `dev/` | Long-running developer previews. |
 | `codegen/` | Committed generated files. Each script accepts `--check`. |
 | `check/` | Read-only gates. They do not write files. |
 
