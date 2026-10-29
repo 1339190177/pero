@@ -1,4 +1,5 @@
 use crate::panel::ChatPanel;
+use crate::theme::WorkbenchStyle as W;
 use gpui_kit::{
     component::{
         button::*,
@@ -13,8 +14,9 @@ use pero_contracts::context::ContextKind;
 use serde_json::json;
 
 impl ChatPanel {
-    pub fn composer_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub fn composer_view(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
+        let focused = self.composer.read(cx).focus_handle(cx).is_focused(window);
         let chat = self.active_chat.and_then(|i| self.chats.get(i));
         let busy = chat.is_some_and(|c| c.busy());
         let id = chat.map(|c| c.id.clone()).unwrap_or_default();
@@ -71,12 +73,12 @@ impl ChatPanel {
             let thread = id.clone();
             let workbench = cx.entity().downgrade();
             let open_workbench = workbench.clone();
-            Button::new("model-picker").ghost().small()
-                .label(label).max_w(px(240.)).dropdown_caret(true)
+            Button::new("model-picker").ghost().small().h(px(W::CONTROL))
+                .label(label).max_w(px(220.)).dropdown_caret(true)
                 .loading(model_pending).loading_icon(Icon::default().path("icons/clock.svg"))
                 .disabled(busy || model_pending || chat.state != "idle")
                 .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
-                    models.iter().fold(menu.min_w(px(240.)).max_w(px(340.)).max_h(px(280.))
+                    models.iter().fold(menu.min_w(px(W::MENU_WIDTH)).max_w(px(340.)).max_h(px(280.))
                         .scrollable(true).check_side(Side::Right), |menu, (model, label)| {
                         let model = model.clone();
                         let selected = selected.clone();
@@ -110,9 +112,9 @@ impl ChatPanel {
             .border_t_1()
             .border_color(p.color("border"))
             .bg(p.color("surface"))
-            .px(px(16.))
-            .pt(px(10.))
-            .pb(px(10.))
+            .px(px(12.))
+            .pt(px(W::INSET))
+            .pb(px(W::INSET))
             .capture_action(cx.listener(|this, action: &Enter, window, cx| {
                 if action.shift || !this.composer_action("enter", window, cx) {
                     cx.propagate();
@@ -177,7 +179,7 @@ impl ChatPanel {
                         div().flex().items_center().child(
                         Button::new(("attached-file", i))
                             .ghost()
-                            .small()
+                            .small().h(px(W::CONTROL))
                             .icon(IconName::File)
                             .label(format!("{} ×", file.label))
                             .tooltip(format!("{}: {}", self.t("composer.remove"), file.source))
@@ -185,13 +187,23 @@ impl ChatPanel {
                                 this.remove_composer_context(i, window, cx);
                             }))
                         ).when(cfg!(target_family="wasm"), |row| row.child(
-                            Button::new(("preview-context",i)).ghost().small().label(self.t("composer.preview"))
+                            Button::new(("preview-context",i)).ghost().small().h(px(W::CONTROL)).label(self.t("composer.preview"))
                                 .on_click(cx.listener(move|_,_,_,cx|cx.emit(crate::ChatAction::PreviewContext{reference:preview.clone(),thread_id:thread_id.clone()})))
                         ))
                     }),
                 ))
             })
             .child(
+                div()
+                    .id("composer-field")
+                    .border_1()
+                    .border_color(p.color(if focused { "focus" } else { "input-border" }))
+                    .rounded(px(W::INSET))
+                    .bg(p.color("surface"))
+                    .px(px(W::INSET))
+                    .pt(px(W::GAP))
+                    .pb(px(W::GAP))
+                    .child(
                 Textarea::new(&self.composer)
                     .bordered(false)
                     .appearance(false)
@@ -212,17 +224,17 @@ impl ChatPanel {
                     .flex()
                     .flex_wrap()
                     .items_center()
-                    .gap(px(4.))
+                    .gap(px(W::GAP))
                     .child(
                         Button::new("attach-context")
                             .ghost()
-                            .small()
+                            .small().h(px(W::CONTROL))
                             .icon(IconName::Plus)
                             .accessibility_label(self.t("composer.context"))
                             .tooltip(self.t("composer.context"))
                             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                                 let menu = context_sources.iter().fold(
-                                    menu.min_w(px(220.)),
+                                    menu.min_w(px(W::MENU_WIDTH)),
                                     |menu, (kind, label)| {
                                         let kind = *kind;
                                         let workbench = context_workbench.clone();
@@ -274,7 +286,7 @@ impl ChatPanel {
                     .child(
                         Button::new("agent-picker")
                             .ghost()
-                            .small()
+                            .small().h(px(W::CONTROL))
                             .icon(Icon::default().path("icons/terminal.svg"))
                             .label(agent.clone())
                             .tooltip(self.t("composer.acp"))
@@ -282,7 +294,7 @@ impl ChatPanel {
                             .disabled(chat.is_some_and(|chat| chat.state != "draft"))
                             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                                 agent_choices.iter().enumerate().fold(
-                                    menu.min_w(px(220.)).check_side(Side::Right),
+                                    menu.min_w(px(W::MENU_WIDTH)).check_side(Side::Right),
                                     |menu, (i, choice)| {
                                         let agent = choice.id.clone();
                                         let workbench = agent_workbench.clone();
@@ -315,7 +327,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("workspace-picker")
                                 .ghost()
-                                .small()
+                                .small().h(px(W::CONTROL))
                                 .icon(IconName::Folder)
                                 .label(workspace)
                                 .disabled(chat.is_some_and(|c| c.state != "draft"))
@@ -328,7 +340,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("connect-chat")
                                 .outline()
-                                .small()
+                                .small().h(px(W::CONTROL))
                                 .label(self.t("chat.connect"))
                                 .on_click(cx.listener(|this, _, _, cx| this.connect_chat(cx))),
                         )
@@ -337,7 +349,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("stop-agent")
                                 .outline()
-                                .small()
+                                .small().h(px(W::CONTROL))
                                 .icon(IconName::Square)
                                 .label(self.t("chat.stop"))
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -353,7 +365,7 @@ impl ChatPanel {
                         el.child(
                             Button::new("send-chat")
                                 .primary()
-                                .small()
+                                .small().h(px(W::CONTROL))
                                 .icon(IconName::ArrowRight)
                                 .label(self.t("probe.send"))
                                 .disabled(
@@ -372,6 +384,6 @@ impl ChatPanel {
                                 ),
                         )
                     }),
-            )
+            ))
     }
 }

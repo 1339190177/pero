@@ -547,6 +547,6 @@ impl ChatPanel {
                     })))
             }))
             .children(chat.and_then(|c| c.usage.as_ref()).map(|usage| crate::usage::render_usage(usage, &self.locale, p)))
-            .child(self.composer_view(cx))
+            .child(self.composer_view(window, cx))
     }
 }

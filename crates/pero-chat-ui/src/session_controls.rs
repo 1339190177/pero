@@ -1,5 +1,6 @@
 //! Capability-driven session controls share one choice menu and one selection action.
 use crate::panel::ChatPanel;
+use crate::theme::WorkbenchStyle as W;
 use gpui_kit::{
     component::{
         button::*,
@@ -18,7 +19,7 @@ fn setting_menu(
     workbench: &WeakEntity<ChatPanel>,
 ) -> PopupMenu {
     menu = menu
-        .min_w(px(220.))
+        .min_w(px(W::MENU_WIDTH))
         .max_w(px(420.))
         .max_h(px(320.))
         .scrollable(true)
@@ -72,7 +73,7 @@ impl ChatPanel {
                 let workbench = cx.entity().downgrade();
                 Button::new(("session-setting", index))
                     .ghost()
-                    .small()
+                    .small().h(px(W::CONTROL))
                     .label(label)
                     .when(category == "thought_level", |button| {
                         button.icon(Icon::default().path("icons/lightbulb.svg"))
@@ -134,7 +135,7 @@ impl ChatPanel {
         Some(
             Button::new("session-permissions")
                 .ghost()
-                .small()
+                .small().h(px(W::CONTROL))
                 .icon(Icon::default().path("icons/shield.svg"))
                 .when_some(mode_label, |button, label| button.label(label))
                 .accessibility_label(tooltip.clone())
@@ -149,7 +150,7 @@ impl ChatPanel {
                         || chat.state != "idle",
                 )
                 .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, window, cx| {
-                    options.iter().fold(menu.min_w(px(220.)), |menu, option| {
+                    options.iter().fold(menu.min_w(px(W::MENU_WIDTH)), |menu, option| {
                         let label = option
                             .choices
                             .iter()

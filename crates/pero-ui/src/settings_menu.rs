@@ -11,6 +11,7 @@ use gpui_kit::{
 };
 use pero_contracts::workbench::{Appearance, WorkbenchPreferences};
 use serde_json::json;
+use pero_chat_ui::theme::WorkbenchStyle as W;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -74,8 +75,9 @@ impl Workbench {
             .map(|mode| (mode, t(mode.label_key())));
         Button::new("sidebar-settings")
             .ghost()
+            .small()
             .w_full()
-            .h(px(36.))
+            .h(px(W::ROW))
             .justify_start()
             .icon(Icon::default().path("icons/settings.svg"))
             .label(if identity.is_empty() {
@@ -87,7 +89,7 @@ impl Workbench {
             .accessibility_label(t("settings.title"))
             .dropdown_caret(true)
             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, window, cx| {
-                let mut menu = menu.min_w(px(240.)).check_side(Side::Right);
+                let mut menu = menu.min_w(px(W::MENU_WIDTH)).check_side(Side::Right);
                 if !identity.is_empty() {
                     menu = menu.item(PopupMenuItem::label(identity.clone()));
                 }
@@ -97,7 +99,7 @@ impl Workbench {
                 let target = workbench.clone();
                 menu = menu
                     .separator()
-                    .item(PopupMenuItem::new(connections.clone()).on_click(
+                    .item(PopupMenuItem::new(connections.clone()).icon(Icon::default().path("icons/external-link.svg")).on_click(
                         move |_, window, cx| {
                             let _ = target.update(cx, |this, cx| {
                                 this.navigate(WorkbenchPage::Connections, cx);
@@ -170,7 +172,7 @@ impl Workbench {
                 });
                 let target = workbench.clone();
                 menu.separator()
-                    .item(PopupMenuItem::new(all.clone()).on_click(move |_, _, cx| {
+                    .item(PopupMenuItem::new(all.clone()).icon(Icon::default().path("icons/settings.svg")).on_click(move |_, _, cx| {
                         let _ = target.update(cx, |this, cx| {
                             this.navigate(WorkbenchPage::Settings, cx);
                             this.sync_follow(cx);

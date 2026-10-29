@@ -47,7 +47,7 @@ pub(crate) fn short_label(action: &str, title: &str, path: Option<&str>) -> Stri
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod rendering {
     use super::*;
-    use crate::{conversation::Tool, panel::ChatPanel};
+    use crate::{conversation::Tool, panel::ChatPanel, theme::WorkbenchStyle as W};
     use gpui_kit::{
         component::{Sizable, button::*},
         prelude::*,
@@ -150,24 +150,30 @@ mod rendering {
                         .ghost()
                         .small()
                         .w_full()
-                        .h(px(26.))
+                        .h(px(W::ROW))
                         .px(px(4.))
                         .justify_start()
                         .accessibility_label(format!("{summary}. {disclosure}"))
-                        .child(self.icon(icon).size(px(14.)))
+                        .toggled(open)
+                        .tooltip(summary.clone())
+                        .child(self.icon(if open { "chevron-down" } else { "chevron-right" })
+                            .size(px(12.)).flex_shrink_0().text_color(p.color("text-muted")))
+                        .child(self.icon(if failed { "alert-circle" } else if running { "clock" } else { icon })
+                            .size(px(W::ICON))
+                            .text_color(p.color(if failed { "error" } else { "text-muted" })))
                         .child(
                             div()
                                 .flex_1()
                                 .min_w_0()
                                 .truncate()
-                                .text_size(px(12.))
+                                .text_size(px(W::TEXT))
                                 .text_color(p.color("text-muted"))
                                 .child(summary.clone()),
                         )
                         .when_some(status, |el, status| {
                             el.child(
                                 div()
-                                    .text_size(px(11.))
+                                    .text_size(px(W::TEXT_SMALL))
                                     .text_color(p.color(if failed {
                                         "error"
                                     } else {
@@ -176,14 +182,7 @@ mod rendering {
                                     .child(self.t(status)),
                             )
                         })
-                        .child(
-                            self.icon(if open {
-                                "chevron-down"
-                            } else {
-                                "chevron-right"
-                            })
-                            .size(px(12.)),
-                        )
+
                         .on_click(cx.listener(move |this, _, window, cx| {
                             if !this.expanded_tools.remove(&key) {
                                 this.expanded_tools.insert(key.clone());
@@ -204,7 +203,7 @@ mod rendering {
                     el.child(
                         div()
                             .ml(px(10.))
-                            .pl(px(14.))
+                            .pl(px(22.))
                             .border_l_1()
                             .border_color(p.color("border"))
                             .children(tools.iter().enumerate().map(|(index, tool)| {
@@ -216,11 +215,11 @@ mod rendering {
                                     .flex_col()
                                     .gap(px(6.))
                                     .when(tools.len() > 1 || tool.title != summary, |el| {
-                                        el.child(div().text_size(px(12.)).child(tool.title.clone()))
+                                        el.child(div().text_size(px(W::TEXT)).child(tool.title.clone()))
                                     })
                                     .children(tool.locations.iter().map(|path| {
                                         div()
-                                            .text_size(px(11.))
+                                            .text_size(px(W::TEXT_SMALL))
                                             .text_color(p.color("text-muted"))
                                             .child(path.clone())
                                     }))
@@ -254,7 +253,7 @@ mod rendering {
                         div()
                             .ml(px(24.))
                             .mb(px(2.))
-                            .text_size(px(12.))
+                            .text_size(px(W::TEXT))
                             .text_color(p.color("error"))
                             .child(failure),
                     )
@@ -276,7 +275,7 @@ mod rendering {
                     if let Some(path) = item["path"].as_str() {
                         element = element.child(
                             div()
-                                .text_size(px(12.))
+                                .text_size(px(W::TEXT))
                                 .font_weight(FontWeight::BOLD)
                                 .child(path.to_string()),
                         );
@@ -289,7 +288,7 @@ mod rendering {
                             element = element
                                 .child(
                                     div()
-                                        .text_size(px(11.))
+                                        .text_size(px(W::TEXT_SMALL))
                                         .text_color(p.color("text-muted"))
                                         .child(self.t(label)),
                                 )
@@ -303,7 +302,7 @@ mod rendering {
                                         .p(px(8.))
                                         .bg(p.color("surface-muted"))
                                         .font_family("JetBrains Mono")
-                                        .text_size(px(12.))
+                                        .text_size(px(W::TEXT))
                                         .child(text.to_string()),
                                 );
                         }
@@ -315,7 +314,7 @@ mod rendering {
                         .flex()
                         .items_center()
                         .gap(px(6.))
-                        .text_size(px(11.))
+                        .text_size(px(W::TEXT_SMALL))
                         .text_color(p.color("text-muted"))
                         .child(self.icon("terminal").size(px(13.)))
                         .child(format!(
@@ -330,7 +329,7 @@ mod rendering {
                 "content" if item["content"]["type"] == "text" => None,
                 kind => Some(
                     div()
-                        .text_size(px(11.))
+                        .text_size(px(W::TEXT_SMALL))
                         .text_color(p.color("text-muted"))
                         .child(format!("{} · {kind}", self.t("chat.tool_other")))
                         .into_any_element(),

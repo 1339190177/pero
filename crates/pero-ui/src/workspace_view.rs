@@ -10,6 +10,7 @@ use gpui_kit::{
     *,
 };
 use serde_json::json;
+use pero_chat_ui::theme::WorkbenchStyle as W;
 
 impl Workbench {
     pub(crate) fn record_task_selection(&mut self, task: Option<String>) {
@@ -190,7 +191,7 @@ impl Workbench {
         let current = self.navigation.current();
         div()
             .id("workspace-tabs")
-            .h(px(48.))
+            .h(px(W::TAB))
             .flex_shrink_0()
             .flex()
             .items_center()
@@ -211,7 +212,8 @@ impl Workbench {
                         let select = item.clone();
                         let close = item.clone();
                         div()
-                            .w(px(200.))
+                            .min_w(px(120.))
+                            .max_w(px(220.))
                             .h_full()
                             .bg(p.color(if current == Some(item) {
                                 "surface"
@@ -222,12 +224,12 @@ impl Workbench {
                             .flex()
                             .items_center()
                             .gap(px(1.))
-                            .px(px(3.))
+                            .px(px(W::GAP))
                             .border_b_2()
                             .border_color(p.color(if current == Some(item) {
                                 "action"
                             } else {
-                                "border"
+                                "bg"
                             }))
                             .child(
                                 Button::new(("workspace-tab", i))
@@ -235,9 +237,12 @@ impl Workbench {
                                     .small()
                                     .flex_1()
                                     .min_w_0()
-                                    .h(px(36.))
+                                    .h(px(W::CONTROL))
+                                    .justify_start()
+                                    .text_size(px(W::TEXT))
                                     .icon(
                                         Icon::default()
+                                            .size(px(W::ICON))
                                             .path(pero_chat_ui::assets::UiIcon::named(icon).path()),
                                     )
                                     .label(title.clone())
@@ -253,7 +258,7 @@ impl Workbench {
                                     .ghost()
                                     .small()
                                     .w(px(26.))
-                                    .h(px(28.))
+                                    .h(px(W::CONTROL))
                                     .icon(Icon::default().path("icons/x.svg"))
                                     .tooltip(self.t("workspace.close_tab"))
                                     .accessibility_label(format!(
@@ -274,7 +279,7 @@ impl Workbench {
                             .ghost()
                             .small()
                             .w(px(32.))
-                            .h(px(36.))
+                            .h(px(W::CONTROL))
                             .icon(Icon::default().path("icons/layout-grid.svg"))
                             .tooltip(self.t("apps.back"))
                             .accessibility_label(self.t("apps.back"))
@@ -293,7 +298,7 @@ impl Workbench {
                         Button::new("workspace-chat-toggle")
                             .ghost()
                             .small()
-                            .h(px(36.))
+                            .h(px(W::CONTROL))
                             .mr(px(8.))
                             .icon(Icon::default().path(if self.chat_dock_visible() {
                                 "icons/panel-right-close.svg"

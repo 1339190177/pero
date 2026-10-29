@@ -1,5 +1,6 @@
 //! One completion surface for context sources, references, commands and skills.
 use crate::panel::ChatPanel;
+use crate::theme::WorkbenchStyle as W;
 use gpui_kit::{
     component::{button::*, *},
     prelude::*,
@@ -23,16 +24,16 @@ impl ChatPanel {
             .id("composer-completions")
             .absolute()
             .bottom_full()
-            .left(px(16.))
-            .right(px(16.))
+            .left(px(12.))
+            .right(px(12.))
             .max_w(px(560.))
             .mb(px(4.))
             .border_1()
             .border_color(p.color("border"))
-            .rounded(px(8.))
+            .rounded(px(W::RADIUS))
             .bg(p.color("surface"))
             .text_color(p.color("text"))
-            .text_size(px(13.))
+            .text_size(px(W::TEXT))
             .occlude()
             .on_mouse_down_out(cx.listener(|this, _, _, cx| {
                 this.close_composer_picker(cx);
@@ -113,7 +114,7 @@ impl ChatPanel {
                                         .px(px(8.))
                                         .pt(px(7.))
                                         .pb(px(3.))
-                                        .text_size(px(11.))
+                                        .text_size(px(W::TEXT_SMALL))
                                         .text_color(p.color("text-muted"))
                                         .child(item.group.clone()),
                                 )
@@ -128,8 +129,8 @@ impl ChatPanel {
                                     .items_center()
                                     .gap(px(8.))
                                     .px(px(8.))
-                                    .py(px(6.))
-                                    .rounded(px(4.))
+                                    .py(px(W::GAP))
+                                    .rounded(px(W::RADIUS))
                                     .cursor_pointer()
                                     .when(index == selected, |el| el.bg(p.color("accent-soft")))
                                     .hover(|el| el.bg(p.color("surface-muted")))
@@ -157,7 +158,7 @@ impl ChatPanel {
                                             div()
                                                 .max_w(relative(0.5))
                                                 .truncate()
-                                                .text_size(px(11.))
+                                                .text_size(px(W::TEXT_SMALL))
                                                 .text_color(p.color("text-muted"))
                                                 .child(item.detail.clone()),
                                         )
@@ -171,7 +172,7 @@ impl ChatPanel {
                     .py(px(5.))
                     .border_t_1()
                     .border_color(p.color("border"))
-                    .text_size(px(11.))
+                    .text_size(px(W::TEXT_SMALL))
                     .text_color(p.color("text-muted"))
                     .child(self.t("composer.keyboard_hint")),
             )
