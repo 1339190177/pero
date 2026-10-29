@@ -422,9 +422,15 @@ fn launch_mcp(scenario: &str, servers: Value) -> (SessionHandle, mpsc::Receiver<
     (start(config, root, "mcp-fixture".into(), tx), rx)
 }
 
+fn mcp_stdio_command() -> PathBuf {
+    // A rooted Unix spelling is not absolute on Windows (it lacks a drive).
+    // This path is forwarded to the fixture, never executed.
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixture-not-executed")
+}
+
 fn mcp_servers() -> Value {
     json!([
-        {"name":"stdio", "command":"/fixture/not-executed", "args":["fixture-arg-secret"], "env":[{"name":"TOKEN","value":"fixture-env-secret"}]},
+        {"name":"stdio", "command":mcp_stdio_command(), "args":["fixture-arg-secret"], "env":[{"name":"TOKEN","value":"fixture-env-secret"}]},
         {"type":"http", "name":"http", "url":"https://fixture.invalid/mcp", "headers":[{"name":"Authorization","value":"fixture-header-secret"}]},
         {"type":"sse", "name":"sse", "url":"http://127.0.0.1:9/sse", "headers":[]}
     ])
@@ -462,20 +468,21 @@ fn mcp_defaults_forward_empty_list() {
 #[test]
 fn mcp_invalid_config_fails_before_connecting_or_child_spawn() {
     let invalid = [
-        json!([{"name":"bad","command":"relative","args":[],"env":[]}]),
-        json!([{"type":"http","name":"bad","url":"file:///fixture-header-secret","headers":[]}]),
-        json!([{"type":"http","name":"bad","url":"http://[broken","headers":[]}]),
-        json!([{"type":"http","name":"bad","url":"https://fixture.invalid","headers":[{"name":"Authorization","value":"fixture-header-secret\r\nInjected: yes"}]}]),
-        json!([{"name":"bad","command":"/fixture","args":[],"env":[{"name":"BAD=KEY","value":"fixture-env-secret"}]}]),
-        json!([{"name":"same","command":"/fixture","args":[],"env":[]},{"name":"same","command":"/fixture","args":[],"env":[]}]),
+        (json!([{"name":"bad","command":"relative","args":[],"env":[]}]), "Invalid MCP stdio command or arguments"),
+        (json!([{"type":"http","name":"bad","url":"file:///fixture-header-secret","headers":[]}]), "Invalid MCP HTTP/SSE URL"),
+        (json!([{"type":"http","name":"bad","url":"http://[broken","headers":[]}]), "Invalid MCP HTTP/SSE URL"),
+        (json!([{"type":"http","name":"bad","url":"https://fixture.invalid","headers":[{"name":"Authorization","value":"fixture-header-secret\r\nInjected: yes"}]}]), "Invalid MCP header"),
+        (json!([{"name":"bad","command":mcp_stdio_command(),"args":[],"env":[{"name":"BAD=KEY","value":"fixture-env-secret"}]}]), "Invalid MCP environment"),
+        (json!([{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]},{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]}]), "Invalid or duplicate MCP server name"),
     ];
-    for servers in invalid {
+    for (servers, expected_error) in invalid {
         let (_handle, rx) = launch_mcp("mcp", servers);
         let error = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(
             error.kind, "session_error",
             "validation must precede connecting/spawn"
         );
+        assert_eq!(error.text, expected_error);
         assert!(!error.text.contains("secret"));
         assert_eq!(
             rx.recv_timeout(Duration::from_secs(5)).unwrap().kind,
