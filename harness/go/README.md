@@ -31,6 +31,23 @@ graph is separate from the root server pilot; the server Go version and
 dependencies are unchanged. Native Go commands above remain supported.
 
 
+## Explicit session tail recovery
+
+By default an unterminated JSONL record fails closed without changing the file.
+`--recover-complete-session-tail` opts into recovering only a fully valid final
+record missing its newline. Read-only load validates but never repairs. Writer
+attachment revalidates identity, sequence and stale state under its existing
+lease, preserves the exact original bytes in an exclusive private
+`SESSION.jsonl.tail-backup`, then appends and syncs the delimiter. An existing
+backup or failed backup prevents repair; backups are never overwritten or cleaned
+up automatically. Preserve/review them as session-sensitive data.
+
+Incomplete JSON, interior corruption and invalid session state still fail closed.
+No records are dropped, and this is not the official complete torn-fragment
+recovery policy or an exactly-once crash transaction. Directory syncing uses the
+existing platform helper; Windows does not claim POSIX directory-entry power-loss
+durability. This option is disabled unless the operator explicitly selects it.
+
 ## Explicit budgets and compatible-provider options
 
 Provider calls are unbounded by default. For a small authorized smoke test, use

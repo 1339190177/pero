@@ -30,6 +30,7 @@ func main() {
 func run() (resultErr error) {
 	endpoint := flag.String("endpoint", "", "explicit OpenAI-compatible HTTPS endpoint (loopback HTTP allowed)")
 	model := flag.String("model", "", "explicit provider model ID")
+	recoverTail := flag.Bool("recover-complete-session-tail", false, "opt in to lossless final JSONL delimiter recovery with a private backup")
 	sessions := flag.String("session-dir", "", "private directory for durable JSONL sessions (required)")
 	keyEnv := flag.String("api-key-env", "AGENT_PROVIDER_API_KEY", "environment variable containing the provider credential")
 	workspace := flag.String("workspace", "", "explicit native file tool authority root; absent disables native tools")
@@ -82,7 +83,7 @@ func run() (resultErr error) {
 	if err != nil {
 		return err
 	}
-	persistence, err := harness.NewJSONLSessionPersistence(*sessions)
+	persistence, err := harness.NewJSONLSessionPersistence(*sessions, harness.JSONLPersistenceOptions{RecoverCompleteTail: *recoverTail})
 	if err != nil {
 		return err
 	}

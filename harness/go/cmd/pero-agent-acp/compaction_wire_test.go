@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -24,6 +25,9 @@ func TestCompactionAgentProcess(t *testing.T) {
 	}
 	flag.CommandLine = flag.NewFlagSet("agent-fixture", flag.ContinueOnError)
 	os.Args = []string{"agent-fixture", "--endpoint", os.Getenv("PERO_COMPACTION_TEST_ENDPOINT"), "--model", "fixture", "--session-dir", os.Getenv("PERO_COMPACTION_TEST_SESSIONS"), "--context-window", os.Getenv("PERO_COMPACTION_TEST_WINDOW"), "--max-tokens", "128", "--max-retries", "0"}
+	if os.Getenv("PERO_RECOVER_TAIL") == "1" {
+		os.Args = append(os.Args, "--recover-complete-session-tail")
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -73,7 +77,8 @@ func TestCompactionCLIActualLoopAndWire(t *testing.T) {
 			if scenario == "http-context-overflow" {
 				window = "32768"
 			}
-			child.Env = append(os.Environ(), "PERO_COMPACTION_TEST_WINDOW="+window, "PERO_COMPACTION_TEST_CHILD=1", "PERO_COMPACTION_TEST_ENDPOINT="+server.URL+"/v1", "PERO_COMPACTION_TEST_SESSIONS="+t.TempDir(), "AGENT_PROVIDER_API_KEY=fixture-not-secret")
+			sessionDir := t.TempDir()
+			child.Env = append(os.Environ(), "PERO_COMPACTION_TEST_WINDOW="+window, "PERO_COMPACTION_TEST_CHILD=1", "PERO_COMPACTION_TEST_ENDPOINT="+server.URL+"/v1", "PERO_COMPACTION_TEST_SESSIONS="+sessionDir, "PERO_RECOVER_TAIL=1", "AGENT_PROVIDER_API_KEY=fixture-not-secret")
 			input, err := child.StdinPipe()
 			if err != nil {
 				t.Fatal(err)
@@ -132,9 +137,24 @@ func TestCompactionCLIActualLoopAndWire(t *testing.T) {
 				t.Fatal("CLI did not activate compaction")
 			}
 			rpc("session/close", map[string]any{"sessionId": session})
+			// A stopped writer leaves a complete final JSON record without its
+			// delimiter. The explicit CLI policy must preserve it before resume.
+			logPath := filepath.Join(sessionDir, session.(string)+".jsonl")
+			raw, err := os.ReadFile(logPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			torn := raw[:len(raw)-1]
+			if err = os.WriteFile(logPath, torn, 0600); err != nil {
+				t.Fatal(err)
+			}
 			reply := rpc("session/resume", map[string]any{"sessionId": session, "cwd": cwd, "mcpServers": []any{}})
 			if reply["error"] != nil {
 				t.Fatal(reply)
+			}
+			backup, err := os.ReadFile(logPath + ".tail-backup")
+			if err != nil || !bytes.Equal(backup, torn) {
+				t.Fatalf("recovery backup: %v", err)
 			}
 			before := summaries.Load()
 			for i := 0; i < 4; i++ {

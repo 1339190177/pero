@@ -28,6 +28,7 @@ type SessionPersistenceLocator = harnesssession.SessionPersistenceLocator
 type SessionPersistenceCandidate = harnesssession.SessionPersistenceCandidate
 type SessionCatalogPersistence = harnesssession.SessionCatalogPersistence
 type JSONLSessionPersistence = harnesssession.JSONLSessionPersistence
+type JSONLPersistenceOptions = harnesssession.JSONLPersistenceOptions
 type RequestHeaderEvent = harnesssession.RequestHeaderEvent
 type RequestContext = harnesssession.RequestContext
 type InboxTarget = harnesssession.InboxTarget
@@ -60,8 +61,8 @@ func RestoreSession(header SessionHeader, events []Event) (*Session, error) {
 	return harnesssession.RestoreSession(header, events)
 }
 func NewSessionStore() *SessionStore { return harnesssession.NewSessionStore() }
-func NewJSONLSessionPersistence(dir string) (*JSONLSessionPersistence, error) {
-	return harnesssession.NewJSONLSessionPersistence(dir)
+func NewJSONLSessionPersistence(dir string, options ...JSONLPersistenceOptions) (*JSONLSessionPersistence, error) {
+	return harnesssession.NewJSONLSessionPersistence(dir, options...)
 }
 func NewSessionProjectionRegistry(store *SessionStore, logger *slog.Logger) (*SessionProjectionRegistry, error) {
 	return harnesssession.NewSessionProjectionRegistry(store, logger)

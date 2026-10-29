@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -60,18 +61,29 @@ type SessionCatalogPersistence interface {
 // file per session. Appends are synchronous so a published event is durable
 // before downstream protocol updates observe it.
 type JSONLSessionPersistence struct {
-	dir string
-	mu  sync.Mutex
+	dir                 string
+	mu                  sync.Mutex
+	recoverCompleteTail bool
 }
 
-func NewJSONLSessionPersistence(dir string) (*JSONLSessionPersistence, error) {
+// JSONLPersistenceOptions permits explicit, lossless delimiter recovery only.
+type JSONLPersistenceOptions struct{ RecoverCompleteTail bool }
+
+func NewJSONLSessionPersistence(dir string, options ...JSONLPersistenceOptions) (*JSONLSessionPersistence, error) {
 	if dir == "" {
 		return nil, errors.New("harness: persistence directory is empty")
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	return &JSONLSessionPersistence{dir: dir}, nil
+	if len(options) > 1 {
+		return nil, errors.New("harness: at most one persistence options value is supported")
+	}
+	p := &JSONLSessionPersistence{dir: dir}
+	if len(options) == 1 {
+		p.recoverCompleteTail = options[0].RecoverCompleteTail
+	}
+	return p, nil
 }
 
 type persistedLine struct {
@@ -135,6 +147,9 @@ func (p *JSONLSessionPersistence) Attach(ctx context.Context, session *Session) 
 		if err == nil {
 			persistedCount = len(stored.events)
 			err = comparePersistedSession(stored, session)
+		}
+		if err == nil && p.recoverCompleteTail {
+			err = restoreCompleteTailDelimiter(path)
 		}
 		if err != nil {
 			session.mu.Unlock()
@@ -326,7 +341,9 @@ func (p *JSONLSessionPersistence) Load(ctx context.Context, id SessionID) (*Sess
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-	scanner.Split(scanPersistedLine)
+	if !p.recoverCompleteTail {
+		scanner.Split(scanPersistedLine)
+	}
 	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var header *SessionHeader
 	var events []Event
@@ -421,6 +438,50 @@ func (p *JSONLSessionPersistence) ListCandidates(ctx context.Context) ([]Session
 		return result[i].ID < result[j].ID
 	})
 	return result, nil
+}
+
+// restoreCompleteTailDelimiter runs only after full logical validation and stale
+// state comparison under the writer lease. It never discards a byte. A private,
+// exclusive backup must be durable before the original log can be changed.
+func restoreCompleteTailDelimiter(path string) (resultErr error) {
+	file, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer func() { resultErr = errors.Join(resultErr, file.Close()) }()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() == 0 {
+		return errors.New("harness: cannot recover empty session")
+	}
+	var last [1]byte
+	if _, err = file.ReadAt(last[:], info.Size()-1); err != nil {
+		return err
+	}
+	if last[0] == '\n' {
+		return nil
+	}
+	backup, err := os.OpenFile(path+".tail-backup", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("harness: preserve session tail: %w", err)
+	}
+	copied, copyErr := io.Copy(backup, file)
+	if copyErr == nil && copied != info.Size() {
+		copyErr = errors.New("harness: session size changed during backup")
+	}
+	backupErr := errors.Join(copyErr, backup.Sync(), backup.Close())
+	if backupErr != nil {
+		return fmt.Errorf("harness: preserve session tail: %w", backupErr)
+	}
+	if err = syncDirectory(filepath.Dir(path)); err != nil {
+		return err
+	}
+	if _, err = file.WriteAt([]byte("\n"), info.Size()); err != nil {
+		return err
+	}
+	return file.Sync()
 }
 
 // JSONL records are committed only with their newline delimiter. Accepting a
