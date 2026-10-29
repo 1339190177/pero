@@ -58,6 +58,9 @@ pub(crate) struct Workbench {
     pub workspace: String,
     pub show_details: bool,
     pub chat_scroll: ScrollHandle,
+    pub task_scroll: ScrollHandle,
+    /// A further task page was requested and its result has not arrived yet.
+    pub task_more_pending: bool,
     pub attachments: Vec<serde_json::Value>,
     pub expanded_tools: std::collections::HashSet<String>,
     _subscriptions: Vec<Subscription>,
@@ -131,6 +134,8 @@ impl Workbench {
             workspace: String::new(),
             show_details: false,
             chat_scroll: ScrollHandle::new(),
+            task_scroll: ScrollHandle::new(),
+            task_more_pending: false,
             attachments: vec![],
             expanded_tools: Default::default(),
             _subscriptions: subscriptions,

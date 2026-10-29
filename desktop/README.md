@@ -164,8 +164,8 @@ back to an operator token. Credentials are excluded from renderer diagnostics an
 the local Host environment.
 
 Open **Remote tasks**. Clients see **Available / Mine / All**, claim an idle Task,
-and choose **Execute**. These ownership filters cover loaded pages; **Load more**
-extends them. **Issues / ROADMAP** and tag filters run on the service before
+and choose **Execute**. These ownership filters cover loaded pages; scrolling
+the list loads further pages. **Issues / ROADMAP** and tag filters run on the service before
 pagination. Issue labels and ROADMAP inline tags appear as selectable tag chips;
 nested ROADMAP items retain their parent link and heading path.
 Only the claim's owner can execute/cancel it or release an idle claim to another

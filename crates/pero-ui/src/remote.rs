@@ -223,6 +223,9 @@ impl Workbench {
             .as_bool()
             .unwrap_or(false);
         self.remote.data = event.data.clone();
+        if !self.remote.loading() {
+            self.task_more_pending = false;
+        }
         if !self.remote.configured() {
             self.contribution.requested = false;
             self.contribution.data = Default::default();

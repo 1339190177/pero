@@ -236,6 +236,7 @@ impl Render for Workbench {
         let width: f32 = window.viewport_size().width.into();
         let height: f32 = window.viewport_size().height.into();
         let compact = width < 1150.;
+        self.follow_task_pages(window, cx);
         self.sync_app_surface(if compact { 168. } else { 192. }, width, height);
         let p = self.palettes.get(self.dark);
         div()

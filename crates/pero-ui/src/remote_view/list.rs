@@ -227,6 +227,8 @@ impl Workbench {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
+                    .track_scroll(&self.task_scroll)
+                    .on_scroll(cx.listener(|this, _, _, cx| this.request_more_tasks(cx)))
                     .pb(px(8.))
                     .when(visible.is_empty(), |el| {
                         el.child(
@@ -248,34 +250,24 @@ impl Workbench {
                                 })),
                         )
                     })
-                    .children(rows),
-            )
-            .when(self.remote.data["has_more"].as_bool().unwrap_or(false), |el| {
-                el.child(
-                    div()
-                        .p(px(8.))
-                        .border_t_1()
-                        .border_color(p.color("border"))
-                        .when(self.remote.client(), |el| {
+                    .children(rows)
+                    .when(
+                        !visible.is_empty()
+                            && self.remote.data["has_more"].as_bool().unwrap_or(false)
+                            && (loading || self.task_more_pending),
+                        |el| {
                             el.child(
                                 div()
-                                    .pb(px(6.))
+                                    .id("remote-task-more")
+                                    .px(px(16.))
+                                    .py(px(12.))
                                     .text_size(px(12.))
                                     .text_color(p.color("text-muted"))
-                                    .child(self.t("remote.loaded_only")),
+                                    .child(self.t("remote.loading")),
                             )
-                        })
-                        .child(
-                            Button::new("remote-more")
-                                .outline()
-                                .small()
-                                .w_full()
-                                .label(self.t("remote.more"))
-                                .disabled(loading)
-                                .on_click(cx.listener(|this, _, _, cx| this.command(json!({"action":"remote_more"}), cx))),
-                        ),
-                )
-            })
+                        },
+                    ),
+            )
     }
 
     pub(crate) fn task_row(
@@ -308,29 +300,46 @@ impl Workbench {
             .map(|tag| format!("#{tag}"))
             .collect::<Vec<_>>()
             .join(" ");
-        let (note, note_color) = match phase {
+        let (status, status_color) = match phase {
             Phase::Running if !worker.is_empty() => (
-                self.t("cloud.note.running_on")
-                    .replace("{worker}", &self.worker_name(worker)),
+                Some(
+                    self.t("cloud.note.running_on")
+                        .replace("{worker}", &self.worker_name(worker)),
+                ),
                 "text-muted",
             ),
-            Phase::Running => (self.t("cloud.body.running").to_string(), "text-muted"),
-            Phase::Queued => (self.t("cloud.note.queued").to_string(), "warning"),
-            Phase::Failed | Phase::Reconcile => (self.t("cloud.note.failed").to_string(), "error"),
-            Phase::Succeeded => (self.t("cloud.note.succeeded").to_string(), "success"),
-            _ if source_changed(task) => {
-                (self.t("cloud.note.source_changed").to_string(), "warning")
+            Phase::Running => (Some(self.t("cloud.body.running").to_string()), "text-muted"),
+            Phase::Queued => (Some(self.t("cloud.note.queued").to_string()), "warning"),
+            Phase::Failed | Phase::Reconcile => {
+                (Some(self.t("cloud.note.failed").to_string()), "error")
             }
-            _ => (
-                [source_context(task), tags]
-                    .into_iter()
-                    .filter(|t| !t.is_empty())
-                    .collect::<Vec<_>>()
-                    .join(" · "),
-                "text-muted",
+            Phase::Succeeded => (Some(self.t("cloud.note.succeeded").to_string()), "success"),
+            _ if source_changed(task) => (
+                Some(self.t("cloud.note.source_changed").to_string()),
+                "warning",
             ),
+            _ => (None, "text-muted"),
         };
-        let label = format!("{title}\n{} · {meta}", self.t(phase.label_key()));
+        // Heading paths stay in the detail and the accessible name. A row is the
+        // title plus one status line; tags only appear when there is no status.
+        let mut parts = Vec::new();
+        if let Some(status) = status.clone() {
+            parts.push(status);
+        }
+        if !meta.is_empty() {
+            parts.push(meta.clone());
+        }
+        if status.is_none() && !tags.is_empty() {
+            parts.push(tags.clone());
+        }
+        let secondary = parts.join(" · ");
+        let context = source_context(task);
+        let label = format!("{title}\n{} · {secondary}", self.t(phase.label_key()));
+        let label = if context.is_empty() {
+            label
+        } else {
+            format!("{label}\n{context}")
+        };
         let depth = observed_source(task)["depth"].as_u64().unwrap_or(0).min(3) as f32;
         div()
             .id(("remote-task", i))
@@ -369,25 +378,66 @@ impl Workbench {
                             .min_w_0()
                             .truncate()
                             .text_size(px(12.))
-                            .text_color(p.color("text-muted"))
-                            .child(meta),
+                            .text_color(p.color(status_color))
+                            .child(secondary),
                     ),
             )
-            .when(!note.is_empty(), |el| {
-                el.child(
-                    div()
-                        .w_full()
-                        .truncate()
-                        .text_size(px(12.))
-                        .text_color(p.color(note_color))
-                        .child(note),
-                )
-            })
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.remote.creating = false;
                 this.remote.confirm_cancel = None;
                 this.remote.data["selected_task_id"] = json!(id);
                 this.command(json!({"action":"remote_select","task_id":id}), cx);
             }))
+    }
+
+    pub(crate) fn follow_task_pages(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.task_list_mounted(window)
+            || self.task_more_pending
+            || self.remote.loading()
+            || self.remote.data["error"].is_string()
+            || !self.remote.data["has_more"].as_bool().unwrap_or(false)
+        {
+            return;
+        }
+        // Bounds are from the previous layout. An unmeasured list needs one
+        // frame before deciding it does not fill the viewport.
+        let unmeasured = self.task_scroll.bounds().size.height <= px(1.);
+        if !unmeasured && !self.task_scroll_wants_more() {
+            return;
+        }
+        cx.on_next_frame(window, |this, _, cx| this.request_more_tasks(cx));
+    }
+
+    fn task_list_mounted(&self, window: &Window) -> bool {
+        if self.navigation != 3 || !self.remote.configured() || self.remote.connection.editing {
+            return false;
+        }
+        if self.remote.client() && self.remote.public_contributions {
+            return false;
+        }
+        let width: f32 = window.viewport_size().width.into();
+        let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
+        !(width < 1050. && (self.remote.creating || !selected.is_empty()))
+    }
+
+    fn task_scroll_wants_more(&self) -> bool {
+        if self.task_more_pending
+            || self.remote.loading()
+            || self.remote.data["error"].is_string()
+            || !self.remote.data["has_more"].as_bool().unwrap_or(false)
+            || self.task_scroll.bounds().size.height <= px(1.)
+        {
+            return false;
+        }
+        // Offset is negative toward the bottom. A short list has no overflow.
+        self.task_scroll.max_offset().y + self.task_scroll.offset().y <= px(240.)
+    }
+
+    fn request_more_tasks(&mut self, cx: &mut Context<Self>) {
+        if !self.task_scroll_wants_more() {
+            return;
+        }
+        self.task_more_pending = true;
+        self.command(json!({"action": "remote_more"}), cx);
     }
 }
