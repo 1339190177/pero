@@ -95,6 +95,10 @@ reinstall. Environment directories are externally prepared and retained. This
 separates dependencies for Apps with overrides and keeps one process per App;
 filesystem/network access still uses the current user's permissions.
 
-Version 1 provides no App-to-Agent tools, Task/Run dispatch, remote installation,
+Paper Agent is available with `npm run dev:paper`; its
+[workflow and Python backend](paper-agent/README.md) use the Host's existing ACP
+sessions through the declared `agent` permission. Other Host grants are refused.
+
+Version 1 provides no domain Agent tools, Task/Run dispatch, remote installation,
 marketplace, update service or scientific acceptance. See [ADR 0007](../docs/adr/0007-local-app-platform.md)
 and [verification](../docs/fitness/apps.md).

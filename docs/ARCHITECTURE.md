@@ -10,9 +10,10 @@ Pero 面向研究者、Agent 与计算环境，围绕 Project 组织上下文、
 
 本地 App 机制以 [ADR 0007](adr/0007-local-app-platform.md) 为准：Rust Host
 管理安装、启停与 Python 后端，GPUI 管理导航和面板区域，Web 层承载独立来源的
-HTML iframe。`apps/virtual-cell` 是首个接入实例，`packages/app-sdk` 提供 App
-的主题、语言、活动状态和本 App 后端接口。Task/Run、Agent 工具和远程 App 部署
-尚未与此机制连接。
+HTML iframe。`apps/virtual-cell` 是首个接入实例，`apps/paper-agent` 提供 Python
+论文快照、引用校验和报告工作流。`packages/app-sdk` 提供主题、语言、活动状态、
+本 App 后端接口，以及声明 `agent` 权限后的有界 Host 会话接入。会话和审批仍由
+Host 管理；Task/Run、领域 Agent 工具和远程 App 部署尚未与此机制连接。
 
 ## 可组合应用与产品
 

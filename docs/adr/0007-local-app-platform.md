@@ -71,10 +71,30 @@ illustrative examples and recorded evaluations retain their original labels.
 Rendering the App or completing a calculation does not establish scientific
 validity or research acceptance.
 
-This slice does not connect Apps to Task/Run creation, Agent tools, ACP/MCP
-injection, Project artifact registration, remote Worker environments or automatic
-dependency provisioning. It does not claim binary compatibility with Point App
-bundles, portable packaged-Desktop acceptance or production hosting.
+Task/Run creation, domain Agent tools, MCP injection, Project artifact registration,
+remote Worker environments and automatic dependency provisioning remain outside
+this slice. It does not claim binary compatibility with Point App bundles,
+portable packaged-Desktop acceptance or production hosting.
+
+## Paper Agent integration
+
+Paper Agent ports Point's source snapshot, exact quotation and report behavior
+to a standard-library Python backend and a fresh Pero SDK UI. Its `agent` grant
+allows a narrow `/host/agent` endpoint for info/start/events/cancel. The Desktop
+derives App identity from its origin; the Host checks installed enable state and
+the declared grant for every operation. Session creation, write leases, provider
+authentication, tool approvals and cancellation use the existing Host manager.
+
+A frozen App request is associated with one Host session and persisted in its
+existing `session_created` journal entry. Repeating the same request returns the
+original session; changed input under the same request ID is refused. Event
+projection only exposes that App's sessions. Disabling or removing the App closes
+its sessions. Source text travels as frozen context within the existing 128 KB
+limit, rather than bypassing the normal prompt budget. App documents retain no
+model credentials and create no second execution or retry system.
+
+See [Paper Agent](../../apps/paper-agent/README.md) and its
+[verification](../fitness/paper-agent.md).
 
 ## Verification
 
