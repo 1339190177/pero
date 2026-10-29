@@ -2,13 +2,14 @@ use crate::app::Workbench;
 use gpui_kit::{
     component::{
         button::*,
-        input::Editor,
+        input::{Enter, Escape, Indent, IndentInline, MoveDown, MoveUp, Textarea},
         menu::{DropdownMenu, PopupMenuItem},
         *,
     },
     prelude::*,
     *,
 };
+use pero_contracts::context::ContextKind;
 use serde_json::json;
 
 impl Workbench {
@@ -33,44 +34,32 @@ impl Workbench {
         let selected_agent = agent.clone();
         let agent_choices = self.agents.clone();
         let agent_workbench = cx.entity().downgrade();
-        let setting_pickers = chat.map(|chat| chat.settings.options.iter().enumerate().map(|(index, option)| {
-            let thread = id.clone();
-            let setting = option.clone();
-            let workbench = cx.entity().downgrade();
-            let label = option.choices.iter().find(|choice| choice.value == option.current)
-                .map(|choice| choice.label.clone()).unwrap_or_else(|| option.name.clone());
-            let loading = chat.pending_setting.as_ref().is_some_and(|pending| pending.id == option.id);
-            Button::new(("session-setting",index)).ghost().small().label(label)
-                .dropdown_caret(true).max_w(px(160.)).loading(loading)
-                .disabled(busy || model_pending || chat.state != "idle")
-                .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu,_,_| {
-                    setting.choices.iter().fold(menu.min_w(px(200.)).max_h(px(280.)).scrollable(true).check_side(Side::Right)
-                        .item(PopupMenuItem::label(setting.name.clone())), |menu,choice| {
-                        let selection = choice.value.clone();
-                        let setting_id = setting.id.clone();
-                        let thread = thread.clone();
-                        let workbench = workbench.clone();
-                        let label = choice.label.clone();
-                        let description = choice.description.clone();
-                        let menu = menu.item(PopupMenuItem::new(label).checked(choice.value == setting.current)
-                            .on_click(move |_,_,cx| {
-                                let _ = workbench.update(cx, |this,cx| {
-                                    let Some(index) = this.chats.iter().position(|chat| chat.id == thread) else { return; };
-                                    let chat = &mut this.chats[index];
-                                    if chat.busy() || chat.pending_setting.is_some() || chat.pending_model.is_some() { return; }
-                                    let Ok(pending) = chat.settings.select(&setting_id,&selection) else { return; };
-                                    chat.pending_setting = Some(pending);
-                                    chat.error = None;
-                                    this.command(json!({"action":"configure","thread_id":thread,"config_id":setting_id,"value":selection}),cx);
-                                });
-                            }));
-                        if setting.category == "mode" && !description.is_empty() {
-                            menu.item(PopupMenuItem::label(description))
-                        } else { menu }
-
-                    })
-                }).into_any_element()
-        }).collect::<Vec<_>>()).unwrap_or_default();
+        let context_workbench = cx.entity().downgrade();
+        let paste_workbench = cx.entity().downgrade();
+        let context_sources = [
+            ContextKind::File,
+            ContextKind::Directory,
+            ContextKind::Symbol,
+            ContextKind::Thread,
+            ContextKind::Skill,
+            ContextKind::Image,
+            ContextKind::Selection,
+            ContextKind::BranchDiff,
+            ContextKind::Fetch,
+        ]
+        .map(|kind| (kind, self.context_kind_label(kind).to_string()));
+        let browse_sources = [
+            (ContextKind::File, self.t("composer.browse").to_string()),
+            (
+                ContextKind::Image,
+                self.t("composer.browse_image").to_string(),
+            ),
+            (
+                ContextKind::Directory,
+                self.t("composer.browse_directory").to_string(),
+            ),
+        ];
+        let supports_images = chat.is_some_and(|chat| chat.capabilities.images);
         let model_picker = chat.filter(|chat| !chat.models.is_empty()).map(|chat| {
             let models = chat.models.clone();
             let selected = chat.model.clone();
@@ -115,6 +104,7 @@ impl Workbench {
                 })
         });
         div()
+            .id("chat-composer")
             .relative()
             .flex_shrink_0()
             .border_t_1()
@@ -123,6 +113,42 @@ impl Workbench {
             .px(px(16.))
             .pt(px(10.))
             .pb(px(10.))
+            .capture_action(cx.listener(|this, action: &Enter, window, cx| {
+                if action.shift || !this.composer_action("enter", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_action(cx.listener(|this, _: &MoveUp, window, cx| {
+                if !this.composer_action("up", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_action(cx.listener(|this, _: &MoveDown, window, cx| {
+                if !this.composer_action("down", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_action(cx.listener(|this, _: &Escape, window, cx| {
+                if !this.composer_action("escape", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_action(cx.listener(|this, _: &Indent, window, cx| {
+                if !this.composer_action("tab", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_action(cx.listener(|this, _: &IndentInline, window, cx| {
+                if !this.composer_action("tab", window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .capture_key_down(cx.listener(|this, event, window, cx| {
+                this.composer_key_down(event, window, cx);
+            }))
+            .when(self.composer_state.open, |el| {
+                el.child(self.composer_picker_view(cx))
+            })
             .when(self.error.is_some(), |el| {
                 el.child(
                     div()
@@ -150,21 +176,27 @@ impl Workbench {
                             .ghost()
                             .small()
                             .icon(IconName::File)
-                            .label(file["name"].as_str().unwrap_or("File").to_string())
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.attachments.remove(i);
-                                cx.notify();
+                            .label(format!("{} ×", file.label))
+                            .tooltip(format!("{}: {}", self.t("composer.remove"), file.source))
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.remove_composer_context(i, window, cx);
                             }))
                     }),
                 ))
             })
             .child(
-                Editor::new(&self.composer)
+                Textarea::new(&self.composer)
                     .bordered(false)
                     .appearance(false)
                     .font_family("Noto Sans CJK SC")
                     .text_size(px(14.))
                     .aria_label(self.t("chat.placeholder"))
+                    .accessibility_id("chat-input")
+                    .on_paste(move |clipboard, window, cx| {
+                        paste_workbench
+                            .update(cx, |this, cx| this.composer_paste(clipboard, window, cx))
+                            .unwrap_or(false)
+                    })
                     .h(px(rows as f32 * 21. + 8.)),
             )
             .child(
@@ -179,28 +211,78 @@ impl Workbench {
                             .ghost()
                             .small()
                             .icon(IconName::Plus)
-                            .label(self.t("chat.attach"))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.command(json!({"action":"choose_context"}), cx)
-                            })),
+                            .accessibility_label(self.t("composer.context"))
+                            .tooltip(self.t("composer.context"))
+                            .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
+                                let menu = context_sources.iter().fold(
+                                    menu.min_w(px(220.)),
+                                    |menu, (kind, label)| {
+                                        let kind = *kind;
+                                        let workbench = context_workbench.clone();
+                                        menu.item(
+                                            PopupMenuItem::new(label.clone())
+                                                .icon(
+                                                    Icon::default()
+                                                        .path(Self::context_kind_icon(kind)),
+                                                )
+                                                .disabled(
+                                                    kind == ContextKind::Selection
+                                                        || kind == ContextKind::Image
+                                                            && !supports_images,
+                                                )
+                                                .on_click(move |_, window, cx| {
+                                                    let _ = workbench.update(cx, |this, cx| {
+                                                        this.open_context_source(kind, window, cx)
+                                                    });
+                                                }),
+                                        )
+                                    },
+                                );
+                                browse_sources.iter().fold(
+                                    menu.separator(),
+                                    |menu, (kind, label)| {
+                                        let kind = *kind;
+                                        let workbench = context_workbench.clone();
+                                        menu.item(
+                                            PopupMenuItem::new(label.clone())
+                                                .icon(
+                                                    Icon::default()
+                                                        .path(Self::context_kind_icon(kind)),
+                                                )
+                                                .disabled(
+                                                    kind == ContextKind::Image && !supports_images,
+                                                )
+                                                .on_click(move |_, _, cx| {
+                                                    let _ = workbench.update(cx, |this, cx| {
+                                                        this.browse_composer_context(kind, cx)
+                                                    });
+                                                }),
+                                        )
+                                    },
+                                )
+                            }),
                     )
+                    .children(self.session_extra_controls(cx))
+                    .child(div().flex_1())
                     .child(
                         Button::new("agent-picker")
                             .ghost()
                             .small()
+                            .icon(Icon::default().path("icons/terminal.svg"))
                             .label(agent.clone())
-                            .dropdown_caret(true)
-                            .disabled(chat.is_some_and(|c| c.state != "draft"))
+                            .tooltip(self.t("composer.acp"))
+                            .dropdown_caret(chat.is_none_or(|chat| chat.state == "draft"))
+                            .disabled(chat.is_some_and(|chat| chat.state != "draft"))
                             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                                 agent_choices.iter().enumerate().fold(
                                     menu.min_w(px(220.)).check_side(Side::Right),
-                                    |menu, (i, a)| {
-                                        let agent = a.id.clone();
+                                    |menu, (i, choice)| {
+                                        let agent = choice.id.clone();
                                         let workbench = agent_workbench.clone();
                                         menu.item(
-                                            PopupMenuItem::new(a.name.clone())
-                                                .checked(a.id == selected_agent)
-                                                .disabled(!a.available)
+                                            PopupMenuItem::new(choice.name.clone())
+                                                .checked(choice.id == selected_agent)
+                                                .disabled(!choice.available)
                                                 .on_click(move |_, _, cx| {
                                                     let _ = workbench.update(cx, |this, cx| {
                                                         this.agent_index = i;
@@ -221,19 +303,20 @@ impl Workbench {
                             }),
                     )
                     .children(model_picker)
-                    .children(setting_pickers)
-                    .child(div().flex_1())
-                    .child(
-                        Button::new("workspace-picker")
-                            .ghost()
-                            .small()
-                            .icon(IconName::Folder)
-                            .label(workspace)
-                            .disabled(chat.is_some_and(|c| c.state != "draft"))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.command(json!({"action":"choose_workspace"}), cx)
-                            })),
-                    )
+                    .children(self.session_setting_controls("thought_level", cx))
+                    .when(chat.is_none_or(|chat| chat.state == "draft"), |el| {
+                        el.child(
+                            Button::new("workspace-picker")
+                                .ghost()
+                                .small()
+                                .icon(IconName::Folder)
+                                .label(workspace)
+                                .disabled(chat.is_some_and(|c| c.state != "draft"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.command(json!({"action":"choose_workspace"}), cx)
+                                })),
+                        )
+                    })
                     .when(chat.is_some_and(|c| c.state == "draft"), |el| {
                         el.child(
                             Button::new("connect-chat")
@@ -269,7 +352,10 @@ impl Workbench {
                                 .disabled(
                                     !self.connected
                                         || model_pending
+                                        || self.composer_state.loading
+                                            && self.composer_state.resolve_range.is_some()
                                         || self.composer.read(cx).value().trim().is_empty()
+                                            && self.attachments.is_empty()
                                         || chat.is_some_and(|c| {
                                             !matches!(c.state.as_str(), "idle" | "draft")
                                         }),

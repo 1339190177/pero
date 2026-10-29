@@ -108,6 +108,7 @@ pub(crate) enum StreamItem {
 
 #[derive(Clone, Serialize)]
 pub(crate) struct Conversation {
+    pub workspace: String,
     pub id: String,
     pub title: String,
     pub agent: String,
@@ -117,6 +118,13 @@ pub(crate) struct Conversation {
     pub tools: Vec<Tool>,
     pub timeline: Vec<StreamItem>,
     pub queued: Option<String>,
+    pub queued_contexts: Vec<pero_contracts::context::ContextReference>,
+    pub capabilities: pero_contracts::composer_capabilities::AgentCapabilities,
+    pub commands: Vec<pero_contracts::composer_capabilities::AgentCommand>,
+    #[serde(skip)]
+    pub draft: gpui_kit::component::input::InputContent,
+    #[serde(skip)]
+    pub draft_references: std::collections::HashMap<String, pero_contracts::context::ContextReference>,
     pub permission: Option<Value>,
     pub auth_methods: Vec<Value>,
     pub models: Vec<(String, String)>,
@@ -139,6 +147,7 @@ impl Conversation {
     }
     pub fn new(id: String, agent: String, title: String) -> Self {
         Self {
+            workspace: String::new(),
             id,
             agent,
             title,
@@ -148,6 +157,11 @@ impl Conversation {
             tools: vec![],
             timeline: vec![],
             queued: None,
+            queued_contexts: vec![],
+            capabilities: Default::default(),
+            commands: vec![],
+            draft: gpui_kit::component::input::InputContent::new(""),
+            draft_references: Default::default(),
             permission: None,
             auth_methods: vec![],
             models: vec![],
@@ -272,6 +286,13 @@ impl Conversation {
                 }
                 true
             }
+            "available_commands_update" => {
+                match pero_contracts::composer_capabilities::AgentCommand::from_update(data) {
+                    Ok(commands) => self.commands = commands,
+                    Err(error) => self.error = Some(error),
+                }
+                true
+            }
             "config_option_update" => {
                 self.config(data);
                 true
@@ -305,8 +326,13 @@ impl Conversation {
     }
 
     pub fn config(&mut self, data: &Value) {
+        if let Some(capabilities) = data.get("peroCapabilities") {
+            if let Ok(capabilities) = serde_json::from_value(capabilities.clone()) { self.capabilities = capabilities; }
+        }
         if let Some(settings) = data.get("peroSettings") {
-            if let Ok(settings) = serde_json::from_value(settings.clone()) { self.settings = settings; }
+            if let Ok(settings) = serde_json::from_value(settings.clone()) {
+                self.settings = settings;
+            }
         }
         if let Some(configs) = data["configOptions"].as_array() {
             if let Some(model) = configs
