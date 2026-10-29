@@ -3,7 +3,7 @@
 /**
  * Generated from protocol/host.tsp. Do not edit.
  */
-export type HostProtocol = HostInput | HostEvent;
+export type HostProtocol = HostInput | HostEvent | WebCommand;
 export type HostInput =
   | FileDocumentRequest
   | LocalWorkerRequest
@@ -43,6 +43,11 @@ export type AppName = string;
 export type AgentRequest = AgentInfoRequest | AgentStartRequest | AgentEventsRequest | AgentCancelRequest;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | WebOpenedEvent
+  | WebStateEvent
+  | WebClosedEvent
+  | WebErrorEvent
+  | WebChooseEvent
   | DocumentOpenEvent
   | DocumentChooseEvent
   | FileDocumentEvent
@@ -85,6 +90,7 @@ export type HostEvent =
   | PermissionEvent
   | PromptQueuedEvent
   | CommandRejectedEvent;
+export type WebLoad = WebLoading | WebReady | WebFailed;
 export type ContentOrigin = ConversationOrigin | FileOrigin | AppOrigin | McpOrigin;
 export type ContentFormat = PlainContentFormat | CodeContentFormat;
 /**
@@ -109,6 +115,10 @@ export type ThreadEvent =
   | SessionDeletedEvent;
 export type AppResult = AppSuccess | AppFailure;
 export type AppAgentStatus = "running" | "text" | "needs_input" | "completed" | "cancelled" | "failed";
+/**
+ * Private Desktop/native browser-engine commands, not Host stdin.
+ */
+export type WebCommand = WebOpenCommand | WebNavigateCommand | WebControlCommand | WebSurfaceCommand;
 
 export interface OpenFileDocument {
   method: "documents";
@@ -395,6 +405,62 @@ export interface ContributionPublish {
   operation: "publish";
   workspace: string;
   review_token: string;
+}
+export interface WebOpenedEvent {
+  kind: "web_opened";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: WebDocument;
+}
+export interface WebDocument {
+  id: string;
+  observation: WebObservation;
+}
+export interface WebObservation {
+  url: string;
+  title: string;
+  load: WebLoad;
+  can_back: boolean;
+  can_forward: boolean;
+}
+export interface WebLoading {
+  kind: "loading";
+}
+export interface WebReady {
+  kind: "ready";
+}
+export interface WebFailed {
+  kind: "failed";
+  message: string;
+}
+export interface WebStateEvent {
+  kind: "web_state";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: WebDocument;
+}
+export interface WebClosedEvent {
+  kind: "web_closed";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: {
+    id: string;
+  };
+}
+export interface WebErrorEvent {
+  kind: "web_error";
+  version: 1;
+  request_id: string | null;
+  text: string;
+}
+export interface WebChooseEvent {
+  kind: "web_choose";
+  version: 1;
+  request_id: string | null;
+  text: string;
 }
 export interface DocumentOpenEvent {
   kind: "document_open";
@@ -1104,4 +1170,28 @@ export interface CommandRejectedEvent {
 }
 export interface CommandRejectedData {
   count: number;
+}
+export interface WebOpenCommand {
+  action: "web_open";
+  url: string;
+}
+export interface WebNavigateCommand {
+  action: "web_navigate";
+  id: string;
+  url: string;
+}
+export interface WebControlCommand {
+  action: "web_back" | "web_forward" | "web_reload" | "web_close";
+  id: string;
+}
+export interface WebSurfaceCommand {
+  action: "web_surface";
+  id: string | null;
+  bounds?: SurfaceBounds;
+}
+export interface SurfaceBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }

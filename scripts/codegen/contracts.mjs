@@ -77,5 +77,5 @@ for (const [path, output] of Object.entries(outputs)) {
   } else writeFileSync(path, output);
 }
 }
-await generate('host', 'HostProtocol', ['HostInput', 'HostEvent']);
+await generate('host', 'HostProtocol', ['HostInput', 'HostEvent', 'WebCommand']);
 await generate('remote', 'RemoteProtocol', ['RemoteProtocol']);

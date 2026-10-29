@@ -51,6 +51,26 @@ model DocumentOpenEvent {kind:"document_open";...EventBase;data:DocumentHeader}
 model FileDocumentEvent {kind:"document_file";...EventBase;data:DocumentHeader}
 model FileDocumentErrorEvent {kind:"document_error";...EventBase;data:{source:string;reason:"conflict"|"unsupported"|"unavailable"|"read_write";...Closed}}
 
+// Browser engines supply navigation observations; workspace IDs remain stable.
+model WebLoading {kind:"loading";...Closed}
+model WebReady {kind:"ready";...Closed}
+model WebFailed {kind:"failed";message:string;...Closed}
+@oneOf union WebLoad {WebLoading,WebReady,WebFailed}
+model WebObservation {url:string;title:string;load:WebLoad;can_back:boolean;can_forward:boolean;...Closed}
+model WebDocument {id:string;observation:WebObservation;...Closed}
+model WebOpenedEvent {kind:"web_opened";...EventBase;data:WebDocument}
+model WebStateEvent {kind:"web_state";...EventBase;data:WebDocument}
+model WebClosedEvent {kind:"web_closed";...EventBase;data:{id:string;...Closed}}
+model WebErrorEvent {kind:"web_error";...EventBase}
+model WebChooseEvent {kind:"web_choose";...EventBase}
+model WebOpenCommand {action:"web_open";url:string;...Closed}
+model WebNavigateCommand {action:"web_navigate";id:string;url:string;...Closed}
+model WebControlCommand {action:"web_back"|"web_forward"|"web_reload"|"web_close";id:string;...Closed}
+model SurfaceBounds {x:float64;y:float64;width:float64;height:float64;...Closed}
+model WebSurfaceCommand {action:"web_surface";id:string|null;bounds?:SurfaceBounds;...Closed}
+/** Private Desktop/native browser-engine commands, not Host stdin. */
+@oneOf union WebCommand {WebOpenCommand,WebNavigateCommand,WebControlCommand,WebSurfaceCommand}
+
 // ---------- Host input: one JSON object per stdin line ----------
 
 /** Bootstrap transport probe. */
@@ -307,6 +327,7 @@ model ContributorSessionEvent { kind: "contributor_session"; ...ThreadEventBase;
 
 @oneOf
 union HostEvent {
+  WebOpenedEvent,WebStateEvent,WebClosedEvent,WebErrorEvent,WebChooseEvent,
   DocumentOpenEvent,
   DocumentChooseEvent,
   FileDocumentEvent,

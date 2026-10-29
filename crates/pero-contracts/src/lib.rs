@@ -13,6 +13,7 @@ pub mod roadmap;
 pub mod session_settings;
 pub mod usage;
 pub mod workbench;
+pub mod web_document;
 
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MAX_TEXT_CHARS: usize = 4096;

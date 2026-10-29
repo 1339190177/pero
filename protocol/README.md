@@ -1,6 +1,7 @@
 # Protocol boundaries
 
-`host.tsp` describes the Electron ↔ Rust Host JSONL contract. Regenerate its JSON
+`host.tsp` describes the Electron ↔ Rust Host JSONL contract and the private
+renderer-to-browser-engine contract. Regenerate its JSON
 Schema and TypeScript types with `npm run gen:contracts`; `npm run check` detects
 generated-file drift. Rust types live in `pero-contracts`.
 
@@ -39,3 +40,9 @@ Desktop main-process adapter validates responses before forwarding credential-fr
 `remote_state` snapshots. Go owns authorization and Run transitions; ACP remains
 the Worker-to-Agent protocol. Progress polls persisted state and an explicitly
 marked event tail; resumable SSE remains a later slice. See [ADR 0002](../docs/adr/0002-remote-task-dispatch.md).
+
+`WebCommand` is a separate generation root for private browser-engine commands.
+It is handled by Electron's `WebContentsView` registry or native GPUI/Wry;
+it is never written to Host stdin and is not part of `HostInput`. Browser pages
+receive no preload or Host bridge. Typed `web_*` observations return through the
+workspace event stream; their source identity stays stable during navigation.
