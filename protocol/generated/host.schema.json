@@ -160,6 +160,23 @@
       ],
       "additionalProperties": false
     },
+    "AppChatScope": {
+      "title": "AppChatScope",
+      "type": "object",
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "panel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app",
+        "panel"
+      ],
+      "additionalProperties": false
+    },
     "AppClosed": {
       "title": "AppClosed",
       "type": "object",
@@ -1867,9 +1884,6 @@
         },
         {
           "$ref": "#/$defs/CommandRejectedEvent"
-        },
-        {
-          "$ref": "#/$defs/TurnStartedEvent"
         }
       ]
     },
@@ -2479,6 +2493,9 @@
         },
         "agent_id": {
           "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/AppChatScope"
         }
       },
       "required": [
@@ -3421,6 +3438,9 @@
         },
         "workspace": {
           "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/AppChatScope"
         }
       },
       "required": [
@@ -3681,6 +3701,74 @@
       "additionalProperties": false,
       "description": "`data` is the ACP SessionUpdate."
     },
+    "SessionUsage": {
+      "title": "SessionUsage",
+      "type": "object",
+      "properties": {
+        "context_used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "context_capacity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost": {
+          "$ref": "#/$defs/UsageCost"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SessionUsageEvent": {
+      "title": "SessionUsageEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_usage"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/SessionUsage"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false
+    },
     "SetLocaleRequest": {
       "title": "SetLocaleRequest",
       "type": "object",
@@ -3867,6 +3955,9 @@
       "title": "ThreadEvent",
       "oneOf": [
         {
+          "$ref": "#/$defs/TurnStartedEvent"
+        },
+        {
           "$ref": "#/$defs/SessionCreatedEvent"
         },
         {
@@ -3874,6 +3965,9 @@
         },
         {
           "$ref": "#/$defs/SessionUpdateEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionUsageEvent"
         },
         {
           "$ref": "#/$defs/SessionReadyEvent"
@@ -4045,6 +4139,26 @@
         "id"
       ],
       "additionalProperties": false
+    },
+    "UsageCost": {
+      "title": "UsageCost",
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "additionalProperties": false,
+      "description": "Provider measurements: context occupancy and cumulative session cost."
     },
     "UserMessageContext": {
       "title": "UserMessageContext",

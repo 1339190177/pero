@@ -52,9 +52,11 @@ impl Manager {
                         "session_created"
                             | "user_message"
                             | "session_update"
+                            | "session_usage"
                             | "session_ready"
                             | "model_changed"
                             | "configuration_changed"
+                            | "turn_started"
                             | "turn_finished"
                             | "session_error"
                             | "session_closed"
@@ -242,7 +244,18 @@ impl Manager {
             HostCommand::NewSession {
                 thread_id,
                 agent_id,
+                scope,
             } => {
+                if scope.as_ref().is_some_and(|scope| !scope.valid()) {
+                    let mut event = HostEvent::new(
+                        "session_error",
+                        None,
+                        "Invalid App conversation scope".into(),
+                    );
+                    event.thread_id = Some(thread_id);
+                    let _ = self.tx.send(event);
+                    return;
+                }
                 self.sessions.retain(|_, session| !session.tx.is_closed());
                 if thread_id.is_empty()
                     || thread_id.len() > 128
@@ -266,6 +279,9 @@ impl Manager {
                     let mut event = HostEvent::new("session_created", None, String::new());
                     event.thread_id = Some(thread_id.clone());
                     event.data = serde_json::json!({"agent":agent.id,"workspace":self.workspace});
+                    if let Some(scope) = scope {
+                        event.data["scope"] = serde_json::json!(scope);
+                    }
                     let _ = self.tx.send(event);
                     self.sessions.insert(
                         thread_id.clone(),

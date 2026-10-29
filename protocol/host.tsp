@@ -77,7 +77,8 @@ model ContextReference { id: string; kind: ContextKind; label: string; source: s
 model SearchContextCommand {action: "search_context"; request_id: string; kind: ContextKind; query: string; ...Closed}
 model ResolveContextCommand {action: "resolve_context"; request_id: string; kind: ContextKind; source: string; start_line?: uint32 | null; end_line?: uint32 | null; ...Closed}
 model AuthenticateCommand { action: "authenticate"; thread_id: string; method_id: string; ...Closed }
-model NewSessionCommand { action: "new_session"; thread_id: ThreadId; agent_id: string; ...Closed }
+model AppChatScope { app: string; panel: string; ...Closed }
+model NewSessionCommand { action: "new_session"; thread_id: ThreadId; agent_id: string; scope?: AppChatScope; ...Closed }
 model PromptCommand { action: "prompt"; thread_id: string; @maxLength(64000) text: string; contexts?: ContextReference[]; ...Closed }
 model CancelCommand { action: "cancel"; thread_id: string; ...Closed }
 model PermissionCommand {
@@ -199,7 +200,7 @@ model AppsErrorEvent { kind: "apps_error"; ...EventBase }
 model AppOpenedData { name: string; panel: string; url: string; ...Closed; }
 model AppsOpenedEvent { kind: "apps_opened"; ...EventBase; data: AppOpenedData }
 
-model SessionCreatedData { agent: string; workspace: string; ...Closed }
+model SessionCreatedData { agent: string; workspace: string; scope?: AppChatScope; ...Closed }
 model SessionCreatedEvent { kind: "session_created"; ...ThreadEventBase; data: SessionCreatedData }
 model UserMessageContext {contexts: ContextReference[]; ...Closed}
 model UserMessageEvent { kind: "user_message"; ...ThreadEventBase; data?: UserMessageContext }
@@ -216,6 +217,17 @@ model SessionAuthenticatedEvent { kind: "session_authenticated"; ...ThreadEventB
 model SessionReadyEvent { kind: "session_ready"; ...ThreadEventBase; data: AcpPayload }
 /** `data` is the ACP SessionUpdate. */
 model SessionUpdateEvent { kind: "session_update"; ...ThreadEventBase; data: AcpPayload }
+/** Provider measurements: context occupancy and cumulative session cost. */
+model UsageCost { @minValue(0) amount: float64; @pattern("^[A-Z]{3}$") currency: string; ...Closed }
+model SessionUsage {
+  @minValue(0) context_used?: integer;
+  @minValue(1) context_capacity?: integer;
+  @minValue(0) input_tokens?: integer;
+  @minValue(0) output_tokens?: integer;
+  cost?: UsageCost;
+  ...Closed;
+}
+model SessionUsageEvent { kind: "session_usage"; ...ThreadEventBase; data: SessionUsage }
 /** The ACP RequestPermissionRequest plus the Host-issued `permission_id`. */
 model PermissionData { ...Record<unknown>; permission_id: string }
 model PermissionEvent { kind: "permission"; ...ThreadEventBase; data: PermissionData }
@@ -239,9 +251,11 @@ model SessionDeletedEvent { kind: "session_deleted"; ...ThreadEventBase }
 /** Events persisted to the session journal and replayed to the UI. */
 @oneOf
 union ThreadEvent {
+  TurnStartedEvent,
   SessionCreatedEvent,
   UserMessageEvent,
   SessionUpdateEvent,
+  SessionUsageEvent,
   SessionReadyEvent,
   ModelChangedEvent,
   ConfigurationChangedEvent,
@@ -294,5 +308,4 @@ union HostEvent {
   PermissionEvent,
   PromptQueuedEvent,
   CommandRejectedEvent,
-  TurnStartedEvent,
 }

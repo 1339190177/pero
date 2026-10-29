@@ -76,8 +76,7 @@ export type HostEvent =
   | SessionAuthenticatedEvent
   | PermissionEvent
   | PromptQueuedEvent
-  | CommandRejectedEvent
-  | TurnStartedEvent;
+  | CommandRejectedEvent;
 /**
  * Catalog key resolved by the UI from locales/*.json.
  */
@@ -86,9 +85,11 @@ export type MessageKey = string;
  * Events persisted to the session journal and replayed to the UI.
  */
 export type ThreadEvent =
+  | TurnStartedEvent
   | SessionCreatedEvent
   | UserMessageEvent
   | SessionUpdateEvent
+  | SessionUsageEvent
   | SessionReadyEvent
   | ModelChangedEvent
   | ConfigurationChangedEvent
@@ -203,6 +204,11 @@ export interface NewSessionCommand {
   action: "new_session";
   thread_id: ThreadId;
   agent_id: string;
+  scope?: AppChatScope;
+}
+export interface AppChatScope {
+  app: string;
+  panel: string;
 }
 export interface PromptCommand {
   action: "prompt";
@@ -503,6 +509,13 @@ export interface ReplayData {
   events: ThreadEvent[];
   active: string[];
 }
+export interface TurnStartedEvent {
+  kind: "turn_started";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+}
 export interface SessionCreatedEvent {
   kind: "session_created";
   version: 1;
@@ -514,6 +527,7 @@ export interface SessionCreatedEvent {
 export interface SessionCreatedData {
   agent: string;
   workspace: string;
+  scope?: AppChatScope;
 }
 export interface UserMessageEvent {
   kind: "user_message";
@@ -542,6 +556,28 @@ export interface SessionUpdateEvent {
  */
 export interface AcpPayload {
   [k: string]: unknown | undefined;
+}
+export interface SessionUsageEvent {
+  kind: "session_usage";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+  data: SessionUsage;
+}
+export interface SessionUsage {
+  context_used?: number;
+  context_capacity?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cost?: UsageCost;
+}
+/**
+ * Provider measurements: context occupancy and cumulative session cost.
+ */
+export interface UsageCost {
+  amount: number;
+  currency: string;
 }
 /**
  * `data` is the ACP NewSessionResponse, with configOptions refreshed after model selection.
@@ -871,11 +907,4 @@ export interface CommandRejectedEvent {
 }
 export interface CommandRejectedData {
   count: number;
-}
-export interface TurnStartedEvent {
-  kind: "turn_started";
-  version: 1;
-  request_id: string | null;
-  text: string;
-  thread_id: string;
 }

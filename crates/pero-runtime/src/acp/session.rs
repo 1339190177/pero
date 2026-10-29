@@ -6,7 +6,7 @@ use agent_client_protocol::schema::{ProtocolVersion, v1::*};
 use agent_client_protocol::{
     AcpAgent, AcpAgentConfig, Agent, Client, ConnectionTo, UntypedMessage,
 };
-use pero_contracts::{HostEvent, composer_capabilities::AgentCapabilities};
+use pero_contracts::{HostEvent, composer_capabilities::AgentCapabilities, usage::{SessionUsage, UsageCost}};
 use serde_json::{Value, json};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
@@ -187,6 +187,11 @@ async fn run(
                     notification.params["update"].clone()
                 } else {
                     let parsed: SessionNotification = serde_json::from_value(notification.params).map_err(agent_client_protocol::Error::into_internal_error)?;
+                    if let SessionUpdate::UsageUpdate(usage) = &parsed.update {
+                        let cost = usage.cost.as_ref().and_then(|cost| UsageCost::reported(cost.amount, cost.currency.clone()));
+                        let usage = SessionUsage::reported_context(usage.used, usage.size, cost);
+                        event(&notify_tx, &notify_thread, "session_usage", "", serde_json::to_value(usage).unwrap_or_default());
+                    }
                     serde_json::to_value(parsed.update).unwrap_or_default()
                 };
                 if update["sessionUpdate"] == "config_option_update" {
