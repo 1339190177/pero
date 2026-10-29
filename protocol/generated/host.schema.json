@@ -1458,6 +1458,24 @@
       ],
       "additionalProperties": false
     },
+    "DeleteCommand": {
+      "title": "DeleteCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "delete"
+        },
+        "thread_id": {
+          "$ref": "#/$defs/ThreadId"
+        }
+      },
+      "required": [
+        "action",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
     "DisableApp": {
       "title": "DisableApp",
       "type": "object",
@@ -1730,6 +1748,9 @@
         },
         {
           "$ref": "#/$defs/CloseCommand"
+        },
+        {
+          "$ref": "#/$defs/DeleteCommand"
         }
       ]
     },
@@ -3450,6 +3471,44 @@
       ],
       "additionalProperties": false
     },
+    "SessionDeletedEvent": {
+      "title": "SessionDeletedEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "session_deleted"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
     "SessionErrorEvent": {
       "title": "SessionErrorEvent",
       "type": "object",
@@ -3833,6 +3892,9 @@
         },
         {
           "$ref": "#/$defs/SessionClosedEvent"
+        },
+        {
+          "$ref": "#/$defs/SessionDeletedEvent"
         }
       ],
       "description": "Events persisted to the session journal and replayed to the UI."

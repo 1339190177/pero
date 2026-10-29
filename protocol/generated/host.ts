@@ -29,7 +29,8 @@ export type HostCommand =
   | PermissionCommand
   | ModelCommand
   | ConfigureCommand
-  | CloseCommand;
+  | CloseCommand
+  | DeleteCommand;
 export type ContextKind =
   "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch";
 export type ThreadId = string;
@@ -93,7 +94,8 @@ export type ThreadEvent =
   | ConfigurationChangedEvent
   | TurnFinishedEvent
   | SessionErrorEvent
-  | SessionClosedEvent;
+  | SessionClosedEvent
+  | SessionDeletedEvent;
 export type AppResult = AppSuccess | AppFailure;
 
 export interface LocalWorkerStartCommand {
@@ -248,6 +250,10 @@ export interface ConfigureCommand {
 export interface CloseCommand {
   action: "close";
   thread_id: string;
+}
+export interface DeleteCommand {
+  action: "delete";
+  thread_id: ThreadId;
 }
 export interface ListApps {
   action: "list";
@@ -602,6 +608,13 @@ export interface SessionErrorEvent {
 }
 export interface SessionClosedEvent {
   kind: "session_closed";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+}
+export interface SessionDeletedEvent {
+  kind: "session_deleted";
   version: 1;
   request_id: string | null;
   text: string;

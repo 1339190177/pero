@@ -90,6 +90,7 @@ model PermissionCommand {
 model ModelCommand { action: "model"; thread_id: string; model_id: string; ...Closed }
 model ConfigureCommand { action: "configure"; thread_id: ThreadId; config_id: string; value: string; ...Closed }
 model CloseCommand { action: "close"; thread_id: string; ...Closed }
+model DeleteCommand { action: "delete"; thread_id: ThreadId; ...Closed }
 
 @oneOf
 union HostCommand {
@@ -107,6 +108,7 @@ union HostCommand {
   ModelCommand,
   ConfigureCommand,
   CloseCommand,
+  DeleteCommand,
 }
 
 @oneOf
@@ -232,6 +234,7 @@ model SessionSettings { options: SessionSetting[]; ...Closed }
 model ConfigurationChangedEvent { kind: "configuration_changed"; ...ThreadEventBase; data: SessionSettings }
 model SessionErrorEvent { kind: "session_error"; ...ThreadEventBase }
 model SessionClosedEvent { kind: "session_closed"; ...ThreadEventBase }
+model SessionDeletedEvent { kind: "session_deleted"; ...ThreadEventBase }
 
 /** Events persisted to the session journal and replayed to the UI. */
 @oneOf
@@ -245,6 +248,7 @@ union ThreadEvent {
   TurnFinishedEvent,
   SessionErrorEvent,
   SessionClosedEvent,
+  SessionDeletedEvent,
 }
 
 model ContributorStateEvent { kind: "contributor_state"; ...EventBase; data: RemoteSnapshotPayload }

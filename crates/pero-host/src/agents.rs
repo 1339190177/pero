@@ -58,6 +58,7 @@ impl Manager {
                             | "turn_finished"
                             | "session_error"
                             | "session_closed"
+                            | "session_deleted"
                             | "permission"
                             | "session_auth_required"
                             | "session_auth_error"
@@ -94,6 +95,9 @@ impl Manager {
             tx,
             history,
         }
+    }
+    fn visible_history(&self) -> Vec<HostEvent> {
+        HostEvent::without_deleted_threads(&self.history.lock().unwrap())
     }
     fn send(&self, kind: &str, text: impl Into<String>, data: serde_json::Value) {
         let mut event = HostEvent::new(kind, None, text.into());
@@ -132,7 +136,18 @@ impl Manager {
                     serde_json::json!(self.agents.iter().map(|a| a.public()).collect::<Vec<_>>()),
                 );
                 self.publish_workspace();
-                self.send("replay","",serde_json::json!({"events":*self.history.lock().unwrap(),"active":self.sessions.iter().filter(|(_,s)|!s.tx.is_closed()).map(|(id,_)|id).collect::<Vec<_>>() }));
+                let events = self.visible_history();
+                let active: Vec<_> = self
+                    .sessions
+                    .iter()
+                    .filter(|(_, session)| !session.tx.is_closed())
+                    .map(|(id, _)| id.clone())
+                    .collect();
+                self.send(
+                    "replay",
+                    "",
+                    serde_json::json!({"events":events,"active":active}),
+                );
             }
             HostCommand::Workspace { path } => match std::fs::canonicalize(path) {
                 Ok(path) if path.is_dir() => {
@@ -175,7 +190,7 @@ impl Manager {
                 query,
             } => {
                 let history = if kind == ContextKind::Thread {
-                    self.history.lock().unwrap().clone()
+                    self.visible_history()
                 } else {
                     vec![]
                 };
@@ -204,7 +219,7 @@ impl Manager {
                 end_line,
             } => {
                 let history = if kind == ContextKind::Thread {
-                    self.history.lock().unwrap().clone()
+                    self.visible_history()
                 } else {
                     vec![]
                 };
@@ -278,6 +293,19 @@ impl Manager {
                         let _ = reply.send(option_id);
                     }
                 }
+            }
+            HostCommand::Delete { thread_id } => {
+                if thread_id.is_empty() || thread_id.len() > 128 {
+                    self.send("error", "Invalid session request", serde_json::Value::Null);
+                    return;
+                }
+                if let Some(session) = self.sessions.remove(&thread_id) {
+                    session.permissions.lock().unwrap().clear();
+                    let _ = session.tx.send(SessionCommand::Close);
+                }
+                let mut event = HostEvent::new("session_deleted", None, String::new());
+                event.thread_id = Some(thread_id);
+                let _ = self.tx.send(event);
             }
             command => {
                 let (thread_id, command) = match command {
@@ -381,13 +409,14 @@ impl Drop for Manager {
     }
 }
 
-
 fn workspace_identity(workspace: &std::path::Path) -> pero_contracts::workbench::WorkspaceIdentity {
     use pero_contracts::workbench::{RepositoryIdentity, WorkspaceIdentity};
     let repository = std::process::Command::new("git")
         .current_dir(workspace)
         .args(["config", "--local", "--get", "remote.origin.url"])
-        .output().ok().filter(|output| output.status.success())
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .and_then(|remote| RepositoryIdentity::from_git_remote(&remote));
     WorkspaceIdentity { repository }
@@ -398,15 +427,38 @@ mod workspace_tests {
     use super::*;
     #[test]
     fn workspace_metadata_observes_the_actual_checkout_origin() {
-        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let workspace = std::env::temp_dir().join(format!("pero-project-origin-{}-{nonce}",std::process::id()));
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let workspace = std::env::temp_dir().join(format!(
+            "pero-project-origin-{}-{nonce}",
+            std::process::id()
+        ));
         std::fs::create_dir(&workspace).unwrap();
         assert!(workspace_identity(&workspace).repository.is_none());
-        for args in [vec!["init","--quiet"],vec!["config","remote.origin.url","git@github.com:Phodal/Pero.git"]] {
-            assert!(std::process::Command::new("git").current_dir(&workspace).args(args).status().unwrap().success());
+        for args in [
+            vec!["init", "--quiet"],
+            vec![
+                "config",
+                "remote.origin.url",
+                "git@github.com:Phodal/Pero.git",
+            ],
+        ] {
+            assert!(
+                std::process::Command::new("git")
+                    .current_dir(&workspace)
+                    .args(args)
+                    .status()
+                    .unwrap()
+                    .success()
+            );
         }
         let identity = workspace_identity(&workspace).repository.unwrap();
-        assert_eq!((&*identity.host,&*identity.owner,&*identity.name),("github.com","phodal","pero"));
+        assert_eq!(
+            (&*identity.host, &*identity.owner, &*identity.name),
+            ("github.com", "phodal", "pero")
+        );
         std::fs::remove_dir_all(workspace).unwrap();
     }
 }

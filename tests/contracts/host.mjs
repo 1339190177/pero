@@ -169,6 +169,21 @@ try {
   await host.next('configuration_changed',e=>e.thread_id==='settings-contract');
   host.send({action:'close',thread_id:'settings-contract'});
   await host.next('session_closed',e=>e.thread_id==='settings-contract');
+  host.send({action:'search_context',request_id:'thread-before-delete',kind:'thread',query:'hello'});
+  const beforeDelete = await host.next('context_candidates', e => e.request_id === 'thread-before-delete');
+  if (!beforeDelete.data.some(item => item.source === thread)) failures.push('saved thread was not searchable before delete');
+  host.send({action:'new_session',thread_id:'delete-live',agent_id:'fixture'});
+  await host.next('session_ready', e => e.thread_id === 'delete-live', 10000);
+  host.send({action:'delete',thread_id:'delete-live'});
+  await host.next('session_deleted', e => e.thread_id === 'delete-live');
+  await host.next('session_closed', e => e.thread_id === 'delete-live');
+  host.send({action:'prompt',thread_id:'delete-live',text:'after delete'});
+  await host.next('session_error', e => e.thread_id === 'delete-live');
+  host.send({action:'delete',thread_id:thread});
+  await host.next('session_deleted', inThread);
+  host.send({action:'search_context',request_id:'thread-after-delete',kind:'thread',query:'hello'});
+  const afterDelete = await host.next('context_candidates', e => e.request_id === 'thread-after-delete');
+  if (afterDelete.data.some(item => item.source === thread || item.source === 'delete-live')) failures.push('deleted thread remained searchable');
   await host.stop();
 
   // A fresh Host replays the journal written above.
@@ -183,6 +198,8 @@ try {
   host.send({ action: 'list_agents' });
   const replay = await host.next('replay');
   if (!replay.data.events.length) failures.push('replay after restart contained no events');
+  if (replay.data.events.some(event => event.thread_id === thread || event.thread_id === 'delete-live')) failures.push('deleted thread was replayed');
+  if (!replay.data.events.some(event => event.thread_id === 'settings-contract')) failures.push('deleting a thread removed unrelated history');
   await host.stop();
 } catch (error) {
   failures.push(String(error));
