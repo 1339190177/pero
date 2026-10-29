@@ -1,5 +1,5 @@
 //! User-visible artifact loading, independent of Agent turns and UI transport.
-use crate::content_document::ContentDocument;
+use pero_contracts::content_document::ContentDocument;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize)]
@@ -125,7 +125,7 @@ pub enum ContentReadIntent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::content_document::ContentFormat;
+    use pero_contracts::content_document::ContentFormat;
     #[test]
     fn artifact_reading_correlates_cancel_retry_and_completion() {
         let id = "a".repeat(64);

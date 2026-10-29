@@ -3,6 +3,7 @@ pub mod app_chat;
 pub use app_chat::AppChatScope;
 pub mod composer_capabilities;
 pub mod context;
+pub mod content_document;
 pub mod i18n;
 pub mod local_worker;
 pub mod roadmap;

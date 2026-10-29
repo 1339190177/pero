@@ -1,6 +1,7 @@
 use crate::artifact_read::ArtifactView;
 use crate::session_state::SessionState;
-use crate::{content_document::ContentDocument, content_reader::ContentReader, stream::StreamText};
+use crate::{content_reader::ContentReader, stream::StreamText};
+use pero_contracts::content_document::ContentDocument;
 use gpui_kit::{App, AppContext as _, Entity};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

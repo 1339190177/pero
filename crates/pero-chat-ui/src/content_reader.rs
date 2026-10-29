@@ -1,5 +1,5 @@
 //! Retained reading state; an editor is mounted only when source is requested.
-use crate::content_document::{ContentDocument, ContentFormat, PreviewShape, StructuredPreview};
+use pero_contracts::content_document::{ContentDocument, ContentFormat, PreviewShape, StructuredPreview};
 use gpui_kit::component::Disableable;
 use gpui_kit::{
     component::{
