@@ -479,7 +479,7 @@ func TestWindowsACLAdmissionBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read junction target %q: %v; %s", alias, err, junctionOutput)
 	}
-	resolved, err := filepath.EvalSymlinks(alias)
+	resolved, err := canonicalWindowsDirectory(alias)
 	if err != nil || resolved != workspace {
 		t.Fatalf("junction fixture does not canonically overlap: alias=%q target=%q resolved=%q workspace=%q err=%v; %s", alias, target, resolved, workspace, err, junctionOutput)
 	}
@@ -491,8 +491,26 @@ func TestWindowsACLAdmissionBoundaries(t *testing.T) {
 	if err != nil || !os.SameFile(aliasInfo, workspaceInfo) {
 		t.Fatalf("junction target is not the owned workspace: alias=%q workspace=%q err=%v", alias, workspace, err)
 	}
-	t.Logf("verified junction overlap: %q -> %q (resolved %q)", alias, target, resolved)
-	for _, tc := range []struct{ name, temp string }{{"direct-overlap", workspace}, {"junction-overlap", alias}} {
+	t.Logf("verified native junction overlap: %q -> %q (resolved %q)", alias, target, resolved)
+	nested := filepath.Join(workspace, "nested-temp")
+	if err := os.Mkdir(nested, 0700); err != nil {
+		t.Fatal(err)
+	}
+	aliasedNested := filepath.Join(alias, filepath.Base(nested))
+	if resolved, err := canonicalWindowsDirectory(aliasedNested); err != nil || resolved != nested {
+		t.Fatalf("junction-descendant fixture: resolved=%q want=%q err=%v", resolved, nested, err)
+	}
+	t.Run("workspace-ancestor-junction", func(t *testing.T) {
+		rootBefore, nestedBefore := aclFixtureSecurity(t, workspace), aclFixtureSecurity(t, nested)
+		executor, err := New(Config{Mode: WorkspaceWrite, Backend: BackendWindowsACL}, aliasedNested)
+		if err == nil || executor != nil || !strings.Contains(err.Error(), "canonical") {
+			t.Fatalf("workspace with junction ancestor did not fail canonical admission: %v %v", executor, err)
+		}
+		if aclFixtureSecurity(t, workspace) != rootBefore || aclFixtureSecurity(t, nested) != nestedBefore {
+			t.Fatal("junction-ancestor rejection modified workspace security")
+		}
+	})
+	for _, tc := range []struct{ name, temp string }{{"direct-overlap", workspace}, {"junction-overlap", alias}, {"junction-descendant-overlap", aliasedNested}} {
 		t.Run(tc.name, func(t *testing.T) {
 			before := aclFixtureSecurity(t, workspace)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

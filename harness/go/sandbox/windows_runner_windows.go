@@ -121,7 +121,7 @@ func runWindowsACLRunner(args []string) (code uint32, resultErr error) {
 	if err != nil {
 		return 0, fmt.Errorf("read runner working directory: %w", err)
 	}
-	cwd, err = filepath.EvalSymlinks(cwd)
+	cwd, err = canonicalWindowsDirectory(cwd)
 	if err != nil || !withinWindowsPath(request.workspace, cwd) {
 		return 0, errors.New("runner cwd is outside workspace")
 	}
@@ -130,12 +130,9 @@ func runWindowsACLRunner(args []string) (code uint32, resultErr error) {
 	cancelled := make(chan struct{})
 	go func() { _, _ = io.Copy(io.Discard, os.Stdin); close(cancelled) }()
 
-	tempRoot, err := filepath.EvalSymlinks(request.tempRoot)
+	tempRoot, err := canonicalWindowsDirectory(request.tempRoot)
 	if err != nil {
 		return 0, fmt.Errorf("resolve temp root: %w", err)
-	}
-	if !filepath.IsAbs(tempRoot) {
-		return 0, errors.New("temp root must be absolute")
 	}
 	// A private temp below the workspace shares its standing SID and is not
 	// private from sibling invocations. Reject before creating or granting it.
@@ -153,7 +150,7 @@ func runWindowsACLRunner(args []string) (code uint32, resultErr error) {
 			return 0, fmt.Errorf("create private temp: %w", err)
 		}
 		defer func() { resultErr = errors.Join(resultErr, os.RemoveAll(privateTemp)) }()
-		canonicalTemp, err := filepath.EvalSymlinks(privateTemp)
+		canonicalTemp, err := canonicalWindowsDirectory(privateTemp)
 		if err != nil {
 			return 0, fmt.Errorf("resolve private temp %q: %w", privateTemp, err)
 		}

@@ -30,6 +30,24 @@ Two failures prevented acceptance:
   path. The original cause needs the corrected native rerun; it is not presumed
   resolved by the fixture change.
 
+## Junction root cause established by the second run
+
+[Run 40821870359](https://github.com/phodal/pero/actions/runs/40821870359)
+against `a098c0a3a288695c4f723831ba4c0263fb7ffcd0` passed seven of eight required
+tests, including shell cancellation. The junction is real and its target is
+correct, but `filepath.EvalSymlinks` returns the junction path unchanged.
+[Go 1.23 changed this behavior](https://go.dev/doc/go1.23): mount points are no
+longer evaluated. Consequently lexical temp containment could miss an alias and did not guarantee
+rejection before private directory creation.
+
+Windows-only directory canonicalization now follows a directory handle with
+[`GetFinalPathNameByHandleW`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew)
+(normalized local DOS path). It is used for workspace admission, cwd and temp
+separation before grants; UNC/device targets fail closed. Workspace scanning
+still opens each entry without following reparses and rejects them. The native
+fixture checks direct and descendant junction overlap plus an ancestor-junction
+workspace, retaining unchanged-security-descriptor and absent-sentinel checks.
+The shared strict policy and permission-test scope are unchanged.
+
 The correction requires a new exact-commit Windows gate. Cross-compilation and
 Linux tests cannot establish Windows ACL, cancellation or junction behavior.
-No strict-policy downgrade or permission-test scope expansion is involved.

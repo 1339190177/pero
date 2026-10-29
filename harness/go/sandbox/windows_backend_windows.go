@@ -71,7 +71,7 @@ func windowsEnvironment() []string {
 // before any grant, and require caller-owned ancestors/no external mutation
 // during admission and launch, as the strict mount backend already does.
 func validateWindowsWorkspace(root string) error {
-	canonical, err := filepath.EvalSymlinks(root)
+	canonical, err := canonicalWindowsDirectory(root)
 	if err != nil || canonical != root || !filepath.IsAbs(root) || filepath.Dir(root) == root || strings.HasPrefix(root, `\\`) {
 		return errors.New("Windows ACL requires a canonical local non-root workspace")
 	}
@@ -106,4 +106,45 @@ func validateWindowsWorkspace(root string) error {
 		}
 		return nil
 	})
+}
+
+// Go's EvalSymlinks does not follow Windows junctions under the current
+// winsymlink semantics. Resolve the actual directory handle instead, so an
+// ancestor junction cannot disguise an overlapping temp root or workspace.
+func canonicalWindowsDirectory(path string) (canonical string, resultErr error) {
+	if !filepath.IsAbs(path) {
+		return "", errors.New("Windows ACL directory must be absolute")
+	}
+	name, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		return "", err
+	}
+	// Deliberately omit OPEN_REPARSE_POINT: the final target owns the identity.
+	handle, err := windows.CreateFile(name, 0, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	if err != nil {
+		return "", fmt.Errorf("open directory %q: %w", path, err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, windows.CloseHandle(handle)) }()
+	var info windows.ByHandleFileInformation
+	if err := windows.GetFileInformationByHandle(handle, &info); err != nil {
+		return "", err
+	}
+	if info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY == 0 {
+		return "", fmt.Errorf("not a directory: %q", path)
+	}
+	buffer := make([]uint16, windows.MAX_LONG_PATH)
+	// FILE_NAME_NORMALIZED | VOLUME_NAME_DOS are both zero.
+	length, err := windows.GetFinalPathNameByHandle(handle, &buffer[0], uint32(len(buffer)), 0)
+	if err != nil {
+		return "", fmt.Errorf("resolve directory %q: %w", path, err)
+	}
+	if length == 0 || length >= uint32(len(buffer)) {
+		return "", errors.New("resolved Windows directory path exceeds limit")
+	}
+	canonical = strings.TrimPrefix(windows.UTF16ToString(buffer[:length]), `\\?\`)
+	// This backend admits local drive paths only, not UNC/device namespaces.
+	if len(canonical) < 3 || canonical[1:3] != `:\` || !filepath.IsAbs(canonical) {
+		return "", fmt.Errorf("Windows ACL requires a local drive directory: %q", path)
+	}
+	return canonical, nil
 }
