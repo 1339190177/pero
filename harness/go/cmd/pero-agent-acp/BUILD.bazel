@@ -43,6 +43,7 @@ go_test(
         "models_test.go",
         "sandbox_options_test.go",
         "subagents_test.go",
+        "windows_runtime_test.go",
     ],
     embed = [":pero-agent-acp_lib"],
     deps = [
@@ -50,5 +51,10 @@ go_test(
         "//providers/openai",
         "//sandbox",
         "@com_github_modelcontextprotocol_go_sdk//mcp",
-    ],
+    ] + select({
+        "@rules_go//go/platform:windows": [
+            "//shell",
+        ],
+        "//conditions:default": [],
+    }),
 )

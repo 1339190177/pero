@@ -148,6 +148,46 @@ jobs:
         working-directory: harness/go
         run: go test -count=1 -v ./sandbox -run '^TestNativeRuntime$'
 
+  windows-acl-sandbox:
+    name: Positive Windows partial ACL sandbox contract
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      GOWORK: "off"
+      PERO_REQUIRE_WINDOWS_ACL: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      # Explicitly authorized security tests: ACL/Low integrity edits apply only
+      # to test-created temporary directories, never this checkout/user projects.
+      - name: Require positive partial-boundary and lifecycle contracts
+        working-directory: harness/go
+        run: |
+          go test -race -count=1 -json ./sandbox ./shell ./nativetools ./cmd/pero-agent-acp -run Windows | tee "$RUNNER_TEMP/windows-acl-results.jsonl"
+          python - "$RUNNER_TEMP/windows-acl-results.jsonl" <<'PYTEST'
+          import json, sys
+          expected = {
+              "TestWindowsACLRuntime",
+              "TestWindowsACLJobLifecycle",
+              "TestWindowsACLAmbientAndForeignRoots",
+              "TestWindowsACLAdmissionBoundaries",
+              "TestWindowsACLGrantRepairAndRevoke",
+              "TestWindowsACLShellCancellationCleansJobAndPrivateTemp",
+              "TestWindowsPartialMountIsShellOnlyAndAlwaysAsks",
+              "TestWindowsACLCLIProcessApprovalAndWriteBoundary",
+          }
+          events = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
+          passed = {event.get("Test") for event in events if event.get("Action") == "pass"}
+          skipped = [event.get("Test") for event in events if event.get("Action") == "skip"]
+          missing = expected - passed
+          if missing or skipped:
+              raise SystemExit(f"Windows positive gate missing={sorted(missing)} skipped={skipped}")
+          print(f"Verified all {len(expected)} required native Windows ACL contracts without skips")
+          PYTEST
+
   ast:
     name: Official DSH AST comparison contracts
     runs-on: ubuntu-latest
