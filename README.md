@@ -59,3 +59,7 @@ Solid boxes mark implemented foundations; dashed boxes and links mark planned ca
 ## Contribute
 
 Bring a research use case, contribute a method or App, or review results. Pick a bounded item from the [Roadmap](ROADMAP.md); for substantial changes, open an Issue to agree on scope and acceptance criteria. Include a reproducible check with code changes. AI-assisted contributions follow the same review process.
+
+<p align="center">
+  <img src="docs/assets/wechat-group.jpg" width="240" alt="WeChat group: Pero - 瞎摸 AI4S">
+</p>
