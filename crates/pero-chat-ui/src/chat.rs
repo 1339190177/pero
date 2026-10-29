@@ -130,7 +130,6 @@ impl ChatPanel {
         };
         let id = chat.id.clone();
         let active = self.active_chat == Some(index);
-        self.expanded_reasoning.retain(|(thread, _)| thread != &id);
         self.expanded_tools
             .retain(|key| !key.starts_with(&format!("{id}/")));
         self.chats.remove(index);
@@ -575,12 +574,14 @@ impl ChatPanel {
             }
             "turn_started" => chat.state = SessionState::Running,
             "turn_finished" => {
+                chat.thinking.streaming(None);
                 chat.flush(cx);
                 chat.state = SessionState::Idle;
                 chat.permission = None;
             }
             "permission" => chat.permission = Some(event.data.clone()),
             "session_error" => {
+                chat.thinking.streaming(None);
                 chat.pending_setting = None;
                 chat.pending_model = None;
                 chat.flush(cx);
@@ -589,6 +590,7 @@ impl ChatPanel {
                 chat.permission = None;
             }
             "session_closed" => {
+                chat.thinking.streaming(None);
                 chat.pending_setting = None;
                 chat.pending_model = None;
                 chat.flush(cx);
@@ -641,12 +643,20 @@ impl ChatPanel {
                         RenderItem::Message(index)=>{
                             let message=conversation.messages.get(index)?;
                             if message.role=="thought" {
-                                let key = (conversation.id.clone(), index);
-                                let open = self.expanded_reasoning.contains(&key);
-                                return Some(div().id(("thought",i)).mb(px(10.))
-                                    .child(Button::new(("thought-toggle",i)).ghost().small().icon(if open { IconName::ChevronDown } else { IconName::ChevronRight }).label(self.t("chat.reasoning"))
-                                        .on_click(cx.listener(move |this,_,_,cx|{if !this.expanded_reasoning.remove(&key) { this.expanded_reasoning.insert(key.clone()); } cx.notify();})))
-                                    .when(open,|el|el.child(message.view.clone())).into_any_element());
+                                let thread = conversation.id.clone();
+                                let open = conversation.thinking.open(index);
+                                return Some(div().id(("thought",i)).mb(px(8.)).flex().flex_col()
+                                    .child(Button::new(("thought-toggle",i)).relative().child(message.toggle_bounds.probe())
+                                        .ghost().small().w_full().justify_start().px_0()
+                                        .text_color(p.text_muted)
+                                        .accessibility_label(self.t("chat.reasoning"))
+                                        .child(self.icon(if open { "chevron-down" } else { "chevron-right" }).size(px(14.)).text_color(p.text_muted))
+                                        .child(div().flex_1().text_left().text_color(p.text_muted).child(self.t("chat.reasoning")))
+                                        .on_click(cx.listener(move |this,_,_,cx|{
+                                            if let Some(chat) = this.chats.iter_mut().find(|chat|chat.id==thread) { chat.thinking.toggle(index); }
+                                            cx.notify();
+                                        })))
+                                    .when(open,|el|el.child(div().pl(px(20.)).child(message.view.clone()))).into_any_element());
                             }
                             Some(div().id(("message",i)).mb(px(10.)).flex().flex_col().gap(px(3.))
                                 .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).font_weight(FontWeight::BOLD).text_color(p.text_muted).child(if message.role=="user"{self.t("chat.you").to_string()}else{agent.clone()}))

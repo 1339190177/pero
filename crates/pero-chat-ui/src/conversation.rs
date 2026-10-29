@@ -18,6 +18,8 @@ pub struct Message {
     pub attached_files: Vec<String>,
     #[serde(skip)]
     pub view: Entity<StreamText>,
+    #[serde(skip)]
+    pub(crate) toggle_bounds: crate::view_bounds::ViewBounds,
 }
 
 impl Message {
@@ -51,6 +53,7 @@ impl Message {
             })
             .unwrap_or_default();
         let view = cx.new(|cx| StreamText::new(if streamed { "" } else { display }, cx));
+        view.update(cx, |view, _| view.appearance = if role == "thought" { crate::stream::StreamAppearance::Thought } else { crate::stream::StreamAppearance::Answer });
         if streamed {
             view.update(cx, |view, cx| view.append(&text, cx));
         }
@@ -58,6 +61,7 @@ impl Message {
             role,
             text,
             attached_files,
+            toggle_bounds: Default::default(),
             view,
         }
     }
@@ -145,6 +149,8 @@ pub struct Conversation {
     pub usage: Option<pero_contracts::usage::SessionUsage>,
     pub id: String,
     pub title: crate::conversation_title::ConversationTitle,
+    #[serde(skip)]
+    pub thinking: crate::thinking::ThinkingState,
     pub agent: String,
     pub state: SessionState,
     pub session_id: String,
@@ -181,6 +187,7 @@ impl Conversation {
             id,
             agent,
             title: crate::conversation_title::ConversationTitle::new(title),
+            thinking: Default::default(),
             state: SessionState::Draft,
             session_id: String::new(),
             messages: vec![],
@@ -218,6 +225,7 @@ impl Conversation {
     }
 
     pub fn push_user(&mut self, text: impl Into<String>, cx: &mut App) {
+        self.thinking.streaming(None);
         self.flush(cx);
         let index = self.messages.len();
         self.messages.push(Message::new("user", text, cx));
@@ -258,11 +266,13 @@ impl Conversation {
                 // selection) when a new assistant/thought segment starts.
                 self.flush(cx);
                 let index = self.messages.len();
+                self.thinking.streaming((role == "thought").then_some(index));
                 self.messages.push(Message::new(role, text, cx));
                 self.timeline.push(StreamItem::Message(index));
                 true
             }
             "tool_call" | "tool_call_update" => {
+                self.thinking.streaming(None);
                 let id = data["toolCallId"].as_str().unwrap_or("tool").to_string();
                 let index = self
                     .tools

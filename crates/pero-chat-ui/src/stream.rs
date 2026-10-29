@@ -6,7 +6,8 @@
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 use gpui_kit::{
-    component::text::{TextView, TextViewState, TextViewStyle},
+    component::{ActiveTheme as _, text::TextViewState},
+    base::text::{TextView, TextViewStyle},
     *,
 };
 #[cfg(any(target_family = "wasm", feature = "native"))]
@@ -107,8 +108,12 @@ impl PendingText {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub enum StreamAppearance { #[default] Answer, Thought, Tool }
+
 #[cfg(any(target_family = "wasm", feature = "native"))]
 pub struct StreamText {
+    pub appearance: StreamAppearance,
     document: Entity<TextViewState>,
     pending: PendingText,
     follow_scroll: Option<ScrollHandle>,
@@ -130,6 +135,7 @@ impl StreamText {
             }
         });
         Self {
+            appearance: StreamAppearance::Answer,
             document,
             pending: PendingText::default(),
             follow_scroll: None,
@@ -211,13 +217,21 @@ impl Render for StreamText {
             }
         }
         let typography = pero_theme::UiAppearance::global(cx).typography;
-        pero_theme::TypographyScope::new(px(typography.chat))
+        let (size, color) = match self.appearance {
+            StreamAppearance::Answer => (typography.chat, cx.theme().foreground),
+            StreamAppearance::Thought => (typography.chat, cx.theme().muted_foreground),
+            StreamAppearance::Tool => (pero_theme::TextRole::Caption.pixels(typography.chat), cx.theme().muted_foreground),
+        };
+        let style = TextViewStyle::default().with_foreground(color)
+            .with_muted_foreground(cx.theme().muted_foreground).with_link(cx.theme().link)
+            .with_selection(cx.theme().selection).with_code_background(cx.theme().muted)
+            .with_border(cx.theme().border).with_dark(cx.theme().is_dark())
+            .with_paragraph_gap(rems(0.4))
+            .with_code_block(StyleRefinement::default().font_family("JetBrains Mono").text_size(px(typography.code)));
+        pero_theme::TypographyScope::new(px(size))
             .text_size(rems(1.))
-            .child(TextView::new(&self.document).selectable(true).style(
-            TextViewStyle::default()
-                .paragraph_gap(rems(0.4))
-                .code_block(StyleRefinement::default().font_family("JetBrains Mono").text_size(px(typography.code))),
-        ))
+            .text_color(color)
+            .child(TextView::new(&self.document).selectable(true).style(style))
     }
 }
 
