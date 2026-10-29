@@ -53,6 +53,15 @@ pub fn start(
     thread: String,
     tx: Sender<HostEvent>,
 ) -> SessionHandle {
+    start_with_workspace_access(config, cwd, thread, tx, true)
+}
+
+/// The independent Worker supervisor already owns this checkout's write lease.
+pub fn start_supervised(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>) -> SessionHandle {
+    start_with_workspace_access(config, cwd, thread, tx, false)
+}
+
+fn start_with_workspace_access(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>, acquire_workspace: bool) -> SessionHandle {
     let (commands, rx) = mpsc::unbounded_channel();
     let permissions: Permissions = Arc::default();
     let pending = permissions.clone();
@@ -68,6 +77,7 @@ pub fn start(
             tx.clone(),
             rx,
             pending.clone(),
+            acquire_workspace,
         ));
         pending.lock().unwrap().clear();
         if let Err(error) = result {
@@ -140,6 +150,7 @@ async fn run(
     tx: Sender<HostEvent>,
     mut commands: mpsc::UnboundedReceiver<SessionCommand>,
     permissions: Permissions,
+    acquire_workspace: bool,
 ) -> Result<(), String> {
     event(
         &tx,
@@ -303,6 +314,12 @@ async fn run(
                             event(&tx, &thread, "session_auth_required", "Provider authentication required", json!({ "authMethods": auth_methods }));
                             continue;
                         }
+                        let _workspace_lease = if acquire_workspace {
+                            match crate::workspace_lease::WorkspaceLease::acquire(&cwd) {
+                                Ok(lease) => Some(lease),
+                                Err(error) => { event(&tx,&thread,"session_error",error,Value::Null); continue; },
+                            }
+                        } else { None };
                         let blocks = match prompt_blocks(text, context, &initialized.agent_capabilities.prompt_capabilities) {
                             Ok(blocks) => blocks,
                             Err(error) => { event(&tx, &thread, "session_error", error.to_string(), Value::Null); continue; },
@@ -336,6 +353,8 @@ async fn run(
                             }
                         };
                         permissions.lock().unwrap().clear();
+                        // Completion is observable only after this turn releases write ownership.
+                        drop(_workspace_lease);
                         match result {
                             Ok(response) => event(&tx, &thread, "turn_finished", format!("{:?}", response.stop_reason), serde_json::to_value(response).unwrap_or_default()),
                             Err(error) if error.code == ErrorCode::AuthRequired => {

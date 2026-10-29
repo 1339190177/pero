@@ -1,7 +1,9 @@
 use super::*;
 use std::{collections::BTreeMap, sync::mpsc, time::Instant};
 
-fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver<HostEvent>) {
+struct Workspace(PathBuf);
+impl Drop for Workspace {fn drop(&mut self) {let _=std::fs::remove_dir_all(&self.0);}}
+fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let config = AgentConfig {
         id: "fixture".into(),
@@ -16,7 +18,9 @@ fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver
         model: model.map(str::to_owned),
     };
     let (tx, rx) = mpsc::channel();
-    (start(config, root, "fixture-thread".into(), tx), rx)
+    let workspace=Workspace(std::env::temp_dir().join(format!("pero-acp-test-{}",uuid::Uuid::new_v4())));
+    std::fs::create_dir(&workspace.0).unwrap();
+    (start(config, workspace.0.clone(), "fixture-thread".into(), tx), rx, workspace)
 }
 fn until(rx: &mpsc::Receiver<HostEvent>, kind: &str) -> HostEvent {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -45,7 +49,7 @@ fn close(handle: &SessionHandle, rx: &mpsc::Receiver<HostEvent>) {
 #[test]
 fn session_settings_follow_agent_acknowledgements() {
     for scenario in ["settings", "legacy_modes"] {
-        let (handle,rx) = launch(scenario,None);
+        let (handle, rx, _workspace) = launch(scenario,None);
         let ready = until(&rx,"session_ready");
         assert!(ready.data["peroSettings"]["options"].as_array().unwrap().iter().any(|option|
             option["id"]=="mode" && option["current"]=="agent"));
@@ -71,7 +75,7 @@ fn session_settings_follow_agent_acknowledgements() {
 }
 #[test]
 fn authentication_is_explicit_and_keeps_the_connection_for_retry() {
-    let (handle, rx) = launch("auth", Some("model-b"));
+    let (handle, rx, _workspace) = launch("auth", Some("model-b"));
     let required = until(&rx, "session_auth_required");
     assert_eq!(required.data["authMethods"].as_array().unwrap().len(), 2);
     assert!(
@@ -111,7 +115,7 @@ fn authentication_is_explicit_and_keeps_the_connection_for_retry() {
 }
 #[test]
 fn followup_messages_are_queued_instead_of_discarded_during_generation() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -134,7 +138,7 @@ fn followup_messages_are_queued_instead_of_discarded_during_generation() {
 }
 #[test]
 fn invalid_permission_selection_is_cancelled_and_session_remains_usable() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -160,7 +164,7 @@ fn invalid_permission_selection_is_cancelled_and_session_remains_usable() {
 }
 #[test]
 fn cancellation_clears_pending_permissions_without_requiring_host_cleanup() {
-    let (handle, rx) = launch("", None);
+    let (handle, rx, _workspace) = launch("", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -175,7 +179,7 @@ fn cancellation_clears_pending_permissions_without_requiring_host_cleanup() {
 }
 #[test]
 fn unacknowledged_cancellation_closes_the_session_after_a_bound() {
-    let (handle, rx) = launch("ignore_cancel", None);
+    let (handle, rx, _workspace) = launch("ignore_cancel", None);
     until(&rx, "session_ready");
     handle
         .tx
@@ -194,12 +198,12 @@ fn unacknowledged_cancellation_closes_the_session_after_a_bound() {
 }
 #[test]
 fn close_interrupts_initialization_and_model_failure_never_marks_ready() {
-    let (handle, rx) = launch("initialization_hangs", None);
+    let (handle, rx, _workspace) = launch("initialization_hangs", None);
     until(&rx, "session_connecting");
     let started = Instant::now();
     close(&handle, &rx);
     assert!(started.elapsed() < Duration::from_secs(1));
-    let (_handle, rx) = launch("bad_model", Some("model-b"));
+    let (_handle, rx, _workspace) = launch("bad_model", Some("model-b"));
     loop {
         let event = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_ne!(event.kind, "session_ready");
@@ -211,7 +215,7 @@ fn close_interrupts_initialization_and_model_failure_never_marks_ready() {
 
 #[test]
 fn prompt_time_authentication_requires_explicit_login_and_a_new_user_prompt() {
-    let (handle, rx) = launch("prompt_auth", None);
+    let (handle, rx, _workspace) = launch("prompt_auth", None);
     let ready = until(&rx, "session_ready");
     let session_id = ready.data["sessionId"].clone();
     handle
@@ -253,7 +257,7 @@ fn prompt_time_authentication_requires_explicit_login_and_a_new_user_prompt() {
 
 #[test]
 fn legacy_model_advertisement_and_updates_survive_the_current_sdk() {
-    let (handle, rx) = launch("legacy_models", Some("model-b"));
+    let (handle, rx, _workspace) = launch("legacy_models", Some("model-b"));
     let ready = until(&rx, "session_ready");
     assert_eq!(ready.data["models"]["currentModelId"], "model-b");
     assert_eq!(
@@ -288,7 +292,7 @@ fn legacy_model_advertisement_and_updates_survive_the_current_sdk() {
 
 #[test]
 fn modern_model_config_takes_precedence_over_legacy_models() {
-    let (handle, rx) = launch("both_models", Some("model-b"));
+    let (handle, rx, _workspace) = launch("both_models", Some("model-b"));
     assert_eq!(
         until(&rx, "session_ready").data["configOptions"][0]["currentValue"],
         "model-b"
@@ -307,7 +311,7 @@ fn modern_model_config_takes_precedence_over_legacy_models() {
 #[test]
 fn model_changes_require_an_advertised_id_for_each_supported_api() {
     for scenario in ["", "legacy_models", "no_models"] {
-        let (handle, rx) = launch(scenario, None);
+        let (handle, rx, _workspace) = launch(scenario, None);
         until(&rx, "session_ready");
         handle
             .tx
@@ -330,7 +334,7 @@ fn model_changes_require_an_advertised_id_for_each_supported_api() {
 #[test]
 fn composer_commands_permissions_and_structured_context_cross_the_acp_wire() {
     use pero_contracts::{composer_capabilities::AgentCommand, context::{ContextContent, ContextKind, ContextReference}};
-    let (handle, rx) = launch("composer", None);
+    let (handle, rx, _workspace) = launch("composer", None);
     let info = until(&rx, "agent_info");
     assert_eq!(info.data["agentCapabilities"]["promptCapabilities"]["image"], true);
     let mut ready = false;
@@ -366,4 +370,21 @@ fn composer_commands_permissions_and_structured_context_cross_the_acp_wire() {
     assert_eq!(blocks[2]["mimeType"], "image/png");
     until(&rx, "turn_finished");
     close(&handle, &rx);
+}
+
+#[test]
+fn local_turns_and_worker_execution_share_the_workspace_write_lease() {
+    let (handle,rx,workspace)=launch("",None);
+    until(&rx,"session_ready");
+    let worker_lease=crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).unwrap();
+    handle.tx.send(SessionCommand::Prompt("blocked".into())).unwrap();
+    assert!(until(&rx,"session_error").text.contains("Workspace is busy"));
+    drop(worker_lease);
+    handle.tx.send(SessionCommand::Prompt("wait".into())).unwrap();
+    until(&rx,"turn_started");
+    assert!(crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).is_err());
+    handle.tx.send(SessionCommand::Cancel).unwrap();
+    until(&rx,"turn_finished");
+    assert!(crate::workspace_lease::WorkspaceLease::acquire(&workspace.0).is_ok());
+    close(&handle,&rx);
 }

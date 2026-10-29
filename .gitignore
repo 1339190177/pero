@@ -166,3 +166,6 @@ fonts/*.ttf
 !.aspect/rules/
 !.aspect/rules/external_repository_action_cache/
 !.aspect/rules/external_repository_action_cache/**
+
+# Shared per-workspace execution lease; never remove an active lock file.
+.pero-worker.lock

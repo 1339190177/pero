@@ -4758,6 +4758,7 @@ dependencies = [
  "agent-client-protocol",
  "base64 0.22.1",
  "dunce",
+ "fs2",
  "ignore",
  "libc",
  "pero-contracts",
