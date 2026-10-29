@@ -167,6 +167,14 @@ try{
   await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('remote-tasks').click());
   await expect.poll(async()=>(await state()).projectTab).toBe('tasks');
   await expect.poll(async()=>(await state()).selectedProject).toBe(null);
+  // An adapter snapshot is observed data. Only a Workbench action opens content.
+  const tabsBeforeObservation=(await state()).contentTabs;
+  expect((await state()).activeContent).toBeNull();
+  await page.evaluate(()=>window.pero.remoteCommand({action:'remote_select',task_id:'task_5'}));
+  await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe('task_5');
+  expect((await state()).activeContent).toBeNull();
+  expect((await state()).contentTabs).toEqual(tabsBeforeObservation);
+  await capture('05-observed-task-keeps-list');
   await page.mouse.click(100,158);
   await expect.poll(async()=>(await state()).selectedProject).toBe(`workspace:${root}`);
   await page.mouse.click(100,await page.evaluate(()=>innerHeight-116));

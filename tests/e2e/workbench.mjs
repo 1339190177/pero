@@ -74,12 +74,37 @@ try{
  expect(stats[0]).toBe(1000);expect(stats[1]).toBeLessThan(500);
  await page.screenshot({path:resolve(out,'long-stream.png')});
  const count=streamed.chats[0].messages.length;
+ const restoredThread=streamed.chats[0];
+ // Hold the first actual Host replay after reload so a user can open an empty
+ // draft before history arrives. History must not replace that explicit route.
+ await app.evaluate(({BrowserWindow})=>{
+  const contents=BrowserWindow.getAllWindows()[0].webContents;
+  const send=contents.send.bind(contents);
+  contents.send=(channel,...args)=>{
+   if(channel==='pero:event' && args[0]?.kind==='replay'){
+    globalThis.releaseWorkspaceReplay=()=>{contents.send=send;send(channel,...args);};
+    return;
+   }
+   send(channel,...args);
+  };
+ });
  await page.reload();
- await expect.poll(async()=>(await state()).chats?.[0]?.messages.length,{timeout:30000}).toBe(count);
+ await expect.poll(()=>app.evaluate(()=>typeof globalThis.releaseWorkspaceReplay)).toBe('function');
+ await page.waitForFunction(()=>window.peroDiagnostics && !document.getElementById('loading'));
+ await page.mouse.click(100,28);
+ await expect.poll(async()=>(await state()).activeContent?.kind).toBe('conversation');
+ const draftItem=(await state()).activeContent;
+ await app.evaluate(()=>{globalThis.releaseWorkspaceReplay();delete globalThis.releaseWorkspaceReplay;});
+ await expect.poll(async()=>(await state()).chats?.find(chat=>chat.id===restoredThread.id)?.messages.length,{timeout:30000}).toBe(count);
+ await expect.poll(async()=>{const snapshot=await state();return snapshot.chats[snapshot.activeChat]?.id;}).toBe(draftItem.value);
+ expect((await state()).activeContent).toEqual(draftItem);
+ await page.screenshot({path:resolve(out,'history-retained-draft.png')});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await page.mouse.click(100,185);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- await expect.poll(async()=>(await state()).activeChat).toBe(0);
+ await expect.poll(async()=>(await state()).activeContent).toEqual({kind:'conversation',value:restoredThread.id});
+ await expect.poll(async()=>{const snapshot=await state();return snapshot.chats[snapshot.activeChat]?.id;}).toBe(restoredThread.id);
  await app.evaluate(({Menu})=>Menu.getApplicationMenu().getMenuItemById('locale-en').click());
  await expect.poll(async()=>(await state()).locale).toBe('en');
  await page.screenshot({path:resolve(out,'english.png')});
@@ -89,7 +114,7 @@ try{
  await page.screenshot({path:resolve(out,'dark.png')});
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1000,788));
  await page.screenshot({path:resolve(out,'narrow.png')});
- console.log(JSON.stringify({checks:'stream,followup,cancel,permission,long-stream,scroll-up,reload,locale,dark,narrow',streamStats:stats,errors}));
+ console.log(JSON.stringify({checks:'stream,followup,cancel,permission,long-stream,scroll-up,reload,history-retained-draft,locale,dark,narrow',streamStats:stats,errors}));
  await writeFile(resolve(out,'result.json'),JSON.stringify({state:await state(),errors},null,2));
  expect(errors).toEqual([]);
 }catch(error){const page=await app.firstWindow();console.error({errors,state:await page.evaluate(()=>window.peroDiagnostics?.snapshot()).catch(e=>`snapshot unavailable: ${e.message}`)});await page.screenshot({path:resolve(out,'failure.png')});throw error;}finally{await app.close();}

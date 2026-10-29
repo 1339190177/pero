@@ -103,11 +103,17 @@ try {
   await page.mouse.click(75, 70);
   await expect(page.locator('#pero-app-surface')).toBeHidden();
   await page.mouse.click(80, await page.evaluate(() => innerHeight - 76));
+  await expect.poll(async () => (await state()).navigation).toBe(7);
+  expect((await state()).activeContent).toBeNull();
+  await expect(page.locator('#pero-app-surface')).toBeHidden();
+  await page.screenshot({ path: resolve(out, 'app-library-retained-tab.png') });
+  // The Apps entry opens the library; the retained content tab restores its App.
+  await page.mouse.click(300, 24);
   await expect(page.locator('#pero-app-surface')).toBeVisible();
   expect(await page.locator('iframe').getAttribute('src')).toBe(originalFrame);
   await frame.getByRole('tab', { name: '反应与模拟' }).click();
   await expect(frame.getByLabel('时长 (s)', { exact: true })).toHaveValue('12');
-  checks.push('navigation retains frame and edited state');
+  checks.push('App library and content tab retain frame and edited state');
   await page.evaluate(() => window.pero.appsCommand({ action: 'apps_disable', name: 'virtual-cell' }));
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect.poll(async () => (await state()).apps.find(app => app.name === 'virtual-cell').enabled).toBe(false);
