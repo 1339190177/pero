@@ -74,7 +74,7 @@ try {
   window.peroDiagnostics = { snapshot };
   document.addEventListener('paste', (event: ClipboardEvent) => {
     const before = JSON.parse(snapshot());
-    if (!before.composerFocused || !(before.navigation === 0 && before.tab === 4 || before.navigation === 7 && before.appChatOpen)) return;
+    if (!before.composerFocused || !before.chatVisible) return;
     const images = [...(event.clipboardData?.items ?? [])].filter(item=>item.kind === 'file' && item.type.startsWith('image/'));
     if (!images.length) return;
     event.preventDefault();

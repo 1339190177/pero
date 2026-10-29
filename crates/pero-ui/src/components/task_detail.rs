@@ -54,6 +54,20 @@ pub(crate) fn task_detail(
                     )
                     .child(ui.badge(chat.map(|c| c.agent.clone()).unwrap_or_default(), "muted"))
                     .child(
+                        Button::new("session-logs")
+                            .ghost()
+                            .small()
+                            .label(ui.t(if props.tab == 3 {
+                                "chat.session"
+                            } else {
+                                "tab.logs"
+                            }))
+                            .on_click(click(
+                                &on_action,
+                                TaskDetailAction::SelectTab(if props.tab == 3 { 4 } else { 3 }),
+                            )),
+                    )
+                    .child(
                         Button::new("close-chat")
                             .ghost()
                             .small()
@@ -90,46 +104,5 @@ pub(crate) fn task_detail(
                     ),
             )
         })
-        .child(
-            div()
-                .mx(px(16.))
-                .flex()
-                .gap(px(14.))
-                .border_b_1()
-                .border_color(p.color("border"))
-                .children(
-                    [
-                        "tab.overview",
-                        "tab.changes",
-                        "tab.verification",
-                        "tab.logs",
-                        "chat.session",
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, key)| {
-                        div()
-                            .id(("detail-tab", i))
-                            .h(px(34.))
-                            .flex()
-                            .items_center()
-                            .px(px(6.))
-                            .cursor_pointer()
-                            .border_b_2()
-                            .border_color(p.color(if props.tab == i {
-                                "action"
-                            } else {
-                                "surface"
-                            }))
-                            .text_color(p.color(if props.tab == i {
-                                "accent-text"
-                            } else {
-                                "text-muted"
-                            }))
-                            .child(ui.t(key))
-                            .on_click(click(&on_action, TaskDetailAction::SelectTab(i)))
-                    }),
-                ),
-        )
         .child(content)
 }

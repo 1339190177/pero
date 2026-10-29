@@ -51,3 +51,5 @@ mod native_secrets;
 
 #[cfg_attr(not(any(target_family = "wasm", feature = "native")), allow(dead_code))]
 mod workspace;
+#[cfg(any(target_family = "wasm", feature = "native"))]
+mod workspace_view;

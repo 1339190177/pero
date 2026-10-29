@@ -54,6 +54,9 @@ pub(crate) struct Workbench {
     pub contribution: crate::contributions::ContributionState,
     pub apps: crate::apps::AppWorkspace,
     pub app_surface: String,
+    pub contents: crate::workspace::WorkspaceTabs,
+    pub resizing_chat: bool,
+    pub chat_resize_focus: FocusHandle,
     pub tab: usize,
     pub connected: bool,
     pub pending: Option<String>,
@@ -111,7 +114,7 @@ impl Workbench {
                     cx,
                 ),
                 ChatAction::Activated => {
-                    if this.navigation != 7 || !this.apps.chat_open {
+                    if !this.chat_dock_visible() {
                         this.navigation = 0;
                     }
                     this.tab = 4;
@@ -142,6 +145,9 @@ impl Workbench {
             contribution: Default::default(),
             apps: crate::apps::AppWorkspace::default(),
             app_surface: String::new(),
+            contents: Default::default(),
+            resizing_chat: false,
+            chat_resize_focus: cx.focus_handle().tab_stop(true),
             input,
             input_locale: String::new(),
             locale,
@@ -179,8 +185,7 @@ impl Workbench {
     }
 
     pub fn sync_follow(&mut self, cx: &mut Context<Self>) {
-        let visible = (self.navigation == 0 && self.tab == 4)
-            || (self.navigation == 7 && self.apps.active.is_some() && self.apps.chat_open);
+        let visible = self.chat_visible();
         self.chat
             .update(cx, |chat, cx| chat.set_visible(visible, cx));
     }
@@ -503,10 +508,14 @@ pub fn snapshot() -> String {
             "error": ui.error, "dark": ui.dark, "navigation": ui.navigation,
             "preferences":ui.preferences,"selectedProject":ui.selected_project,"projectTab":ui.project_tab,"taskStatus":ui.task_status,
             "projects":ui.project_catalog(cx),"workspaceRepositories":ui.workspace_repositories,
-            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.apps.chat_open,
+            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.preferences.layout.chat_open,
             "locale": ui.locale, "labels": { "tasks": ui.t("nav.tasks"), "send": ui.t("probe.send") },
             "tab": ui.tab, "events": ui.events, "workspace": ui.workspace,
         });
+        value["chatVisible"] = serde_json::json!(ui.chat_visible());
+        value["contentTabs"] = serde_json::json!(ui.contents.items());
+        value["activeContent"] = serde_json::json!(ui.current_content(cx));
+        value["chatPanelWidth"] = serde_json::json!(ui.preferences.layout.chat_width());
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
         value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());

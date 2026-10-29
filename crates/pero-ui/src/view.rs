@@ -214,14 +214,6 @@ impl Workbench {
                 .min_h_0()
                 .overflow_y_scroll()
                 .p(px(20.))
-                .when(self.tab == 0 && session.is_none(), |el| {
-                    el.child(ui.t("chat.welcome"))
-                })
-                .when(self.tab == 0 && session.is_some(), |el| {
-                    el.child(ui.t("chat.open_tab"))
-                })
-                .when(self.tab == 1, |el| el.child(ui.t("chat.no_changes")))
-                .when(self.tab == 2, |el| el.child(ui.t("chat.no_verification")))
                 .when(self.tab == 3, |el| {
                     el.children(self.events.iter().map(|event| {
                         div()
@@ -329,14 +321,47 @@ impl Render for Workbench {
         }
         self.apply_local_execution(window, cx);
         let width: f32 = window.viewport_size().width.into();
-        let height: f32 = window.viewport_size().height.into();
         let compact = width < 1150.;
         let sidebar_width = if compact { 240. } else { 260. };
-        let app_chat_width = self.apps.chat_width(width, width - sidebar_width);
+        self.sync_content_tabs(window, cx);
+        self.sync_follow(cx);
+        let chat_width = self.chat_dock_width(width, width - sidebar_width);
+        let dock = self.chat_dock_visible();
+        let narrow = width < 1050.;
+        let has_tabs = !self.contents.items().is_empty();
         self.follow_task_pages(window, cx);
-        self.sync_app_surface(sidebar_width, width, height);
+        if self.navigation != 7
+            || self.apps.active.is_none()
+            || self.settings_menu_open
+            || self.resizing_chat
+            || (dock && narrow)
+        {
+            self.sync_app_surface(None);
+        }
         let p = self.palettes.get(self.dark);
         div()
+            .id("workbench")
+            .on_key_down(
+                cx.listener(|this, event, window, cx| this.workspace_keys(event, window, cx)),
+            )
+            .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
+                if this.resizing_chat {
+                    let width: f32 = window.viewport_size().width.into();
+                    let x: f32 = event.position.x.into();
+                    this.preferences.layout.resize_chat(width - x);
+                    cx.notify();
+                }
+            }))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|this, _, _, cx| {
+                    if this.resizing_chat {
+                        this.resizing_chat = false;
+                        this.save_preferences(this.preferences.clone(), cx);
+                        cx.notify();
+                    }
+                }),
+            )
             .size_full()
             .flex()
             .bg(p.color("surface"))
@@ -351,6 +376,7 @@ impl Render for Workbench {
                     .h_full()
                     .flex()
                     .flex_col()
+                    .when(has_tabs, |el| el.child(self.content_tabs(cx)))
                     .when(self.error.is_some(), |el| {
                         el.child(
                             div()
@@ -375,36 +401,67 @@ impl Render for Workbench {
                                 ),
                         )
                     })
-                    .when(self.navigation == 3, |el| {
-                        el.child(self.project_workspace(width < 1050., cx))
-                    })
-                    .when(self.navigation == 0, |el| el.child(self.detail(window, cx)))
-                    .when(self.navigation == 5, |el| el.child(self.workers_view(cx)))
-                    .when(self.show_local_execution_onboarding(), |el| {
-                        el.child(
-                            div()
-                                .id("first-run-setup")
-                                .flex_1()
-                                .min_h_0()
-                                .overflow_y_scroll()
-                                .child(self.local_execution_setup_view(true, cx)),
-                        )
-                    })
-                    .when(
-                        self.navigation == 1 && !self.show_local_execution_onboarding(),
-                        |el| el.child(self.projects_view(cx)),
-                    )
-                    .when(self.navigation == 2, |el| el.child(self.environments(cx)))
-                    .when(self.navigation == 7, |el| {
-                        el.child(self.apps_view(app_chat_width, width < 1050., cx))
-                    })
-                    .when(self.navigation == 8, |el| el.child(self.insights_view(cx)))
-                    .when(self.navigation == 9, |el| {
-                        el.child(self.remote_connection_view(cx))
-                    })
-                    .when(self.navigation == 10, |el| {
-                        el.child(self.general_settings(cx))
-                    }),
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .flex()
+                            .when(!dock || !narrow, |el| {
+                                el.child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .min_h_0()
+                                        .h_full()
+                                        .flex()
+                                        .flex_col()
+                                        .when(self.navigation == 3, |el| {
+                                            el.child(self.project_workspace(width < 1050., cx))
+                                        })
+                                        .when(self.navigation == 0, |el| {
+                                            el.child(self.detail(window, cx))
+                                        })
+                                        .when(self.navigation == 5, |el| {
+                                            el.child(self.workers_view(cx))
+                                        })
+                                        .when(self.show_local_execution_onboarding(), |el| {
+                                            el.child(
+                                                div()
+                                                    .id("first-run-setup")
+                                                    .flex_1()
+                                                    .min_h_0()
+                                                    .overflow_y_scroll()
+                                                    .child(
+                                                        self.local_execution_setup_view(true, cx),
+                                                    ),
+                                            )
+                                        })
+                                        .when(
+                                            self.navigation == 1
+                                                && !self.show_local_execution_onboarding(),
+                                            |el| el.child(self.projects_view(cx)),
+                                        )
+                                        .when(self.navigation == 2, |el| {
+                                            el.child(self.environments(cx))
+                                        })
+                                        .when(self.navigation == 7, |el| {
+                                            el.child(self.apps_view(cx))
+                                        })
+                                        .when(self.navigation == 8, |el| {
+                                            el.child(self.insights_view(cx))
+                                        })
+                                        .when(self.navigation == 9, |el| {
+                                            el.child(self.remote_connection_view(cx))
+                                        })
+                                        .when(self.navigation == 10, |el| {
+                                            el.child(self.general_settings(cx))
+                                        }),
+                                )
+                            })
+                            .when(dock, |el| {
+                                el.child(self.chat_dock(chat_width, narrow, window, cx))
+                            }),
+                    ),
             )
     }
 }
