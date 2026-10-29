@@ -41,7 +41,11 @@ Host 管理；Task/Run、领域 Agent 工具和远程 App 部署尚未与此机�
 实例：工作台在原有 GPUI 应用内复用同一个 `Entity<ChatPanel>`，独立产品则把
 chat-only Wasm 放在 `pero://chat/chat.html` iframe 中，不加载完整工作台导航。
 
-工作台 App 可展开右侧聊天栏；窄窗切换为聊天视图，保留领域 App iframe。
+工作台的项目、任务和 App 可展开同一个右侧聊天栏；会话、项目、任务和 App
+以稳定身份进入内容标签，关闭标签只收起视图。聊天栏宽度与开闭状态通过 Host
+保存，窄窗切换为聊天视图并保留领域 App iframe。布局与标签语义见
+[ADR 0013](adr/0013-workspace-content-tabs.md)，本轮验收见
+[Workspace 验证记录](fitness/workspace.md)。
 `AppChatScope { app, panel }` 将会话与来源面板关联，切换时保留各范围最近会话和
 草稿。scope 不授予工具、文件或跨 App 权限。独立产品继续使用自己的 Host 和
 数据目录，不与另一个产品或工作台共享运行中的 GPUI Entity。

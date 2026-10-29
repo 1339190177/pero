@@ -66,3 +66,6 @@ its results do not extend the existing Virtual Cell release acceptance.
 | L3 | A signed release package installs, upgrades and runs on the target system. |
 
 Record the source version, level, date, target system and remaining gaps in the relevant verification record before marking a feature complete. A checked source item is separate from Run verification and acceptance.
+
+Workspace content tabs, shared Chat layout, semantic icons and current Desktop
+acceptance: [workspace.md](workspace.md).

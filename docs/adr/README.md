@@ -13,3 +13,4 @@
 - [0010: Desktop Worker enrollment](0010-desktop-worker-enrollment.md)
 - [0011: Local workspace ROADMAP execution](0011-local-roadmap.md)
 - [0012: Shared GPUI App Chat](0012-shared-gpui-app-chat.md)
+- [0013: Workspace content tabs and shared Chat](0013-workspace-content-tabs.md)
