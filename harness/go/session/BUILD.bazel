@@ -1,0 +1,172 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "session",
+    srcs = [
+        "admission.go",
+        "checkpoint_policy.go",
+        "context_plan.go",
+        "developer_message.go",
+        "filesystem_sync.go",
+        "fork.go",
+        "fork_public.go",
+        "history_snapshot.go",
+        "image_offload.go",
+        "inbox.go",
+        "inbox_projection.go",
+        "keys.go",
+        "latest.go",
+        "persistence.go",
+        "persistence_lease.go",
+        "persistence_lease_unix.go",
+        "persistence_lease_windows.go",
+        "projection.go",
+        "projection_cell.go",
+        "projection_definition.go",
+        "publication.go",
+        "repair.go",
+        "session.go",
+        "session_dispatch.go",
+        "session_preset.go",
+        "session_store.go",
+        "store_append.go",
+        "store_surface_append.go",
+        "system_prompt.go",
+        "tool_history.go",
+        "types.go",
+        "validation.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/session",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//model",
+        "//runtime",
+    ] + select({
+        "@rules_go//go/platform:aix": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:android": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:darwin": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:dragonfly": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:freebsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:illumos": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:ios": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:js": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:linux": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:netbsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:openbsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:osx": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:plan9": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:qnx": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:solaris": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:windows": [
+            "@org_golang_x_sys//windows",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_test(
+    name = "session_test",
+    srcs = [
+        "admission_test.go",
+        "context_plan_test.go",
+        "fixtures_test.go",
+        "fork_subagent_exact_test.go",
+        "history_snapshot_test.go",
+        "image_offload_test.go",
+        "inbox_projection_test.go",
+        "inbox_recovery_test.go",
+        "opaque_events_test.go",
+        "persistence_identity_test.go",
+        "persistence_lease_unix_test.go",
+        "persistence_ownership_test.go",
+        "publication_test.go",
+        "repair_test.go",
+        "session_events_after_test.go",
+        "session_log_invariants_test.go",
+        "store_append_test.go",
+        "system_prompt_test.go",
+        "tool_history_test.go",
+        "working_directory_test.go",
+    ],
+    embed = [":session"],
+    deps = [
+        "//model",
+    ] + select({
+        "@rules_go//go/platform:aix": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:android": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:darwin": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:dragonfly": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:freebsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:illumos": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:ios": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:js": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:linux": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:netbsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:openbsd": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:osx": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:plan9": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:qnx": [
+            "@org_golang_x_sys//unix",
+        ],
+        "@rules_go//go/platform:solaris": [
+            "@org_golang_x_sys//unix",
+        ],
+        "//conditions:default": [],
+    }),
+)

@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sessionlogroute",
+    srcs = ["route.go"],
+    importpath = "github.com/phodal/pero/harness/go/internal/sessionlogroute",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "sessionlogroute_test",
+    srcs = ["route_test.go"],
+    embed = [":sessionlogroute"],
+)

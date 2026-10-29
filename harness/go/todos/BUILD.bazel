@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "todos",
+    srcs = [
+        "normalization.go",
+        "tool.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/todos",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//harness",
+        "//runtime",
+        "//tool",
+    ],
+)
+
+go_test(
+    name = "todos_test",
+    srcs = [
+        "argument_errors_test.go",
+        "normalization_lifecycle_test.go",
+        "normalization_test.go",
+        "tool_canonical_test.go",
+        "tool_test.go",
+    ],
+    embed = [":todos"],
+    deps = [
+        "//harness",
+        "//runtime",
+    ],
+)

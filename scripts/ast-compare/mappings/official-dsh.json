@@ -1,0 +1,550 @@
+{
+  "left_ref": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+  "right_ref": "bac3bbaf6edd66357d6972eea86e71eb65ad8f86",
+  "purpose": "Official DSH is the primary behavioral reference. Explicit cross-language mappings are reviewer-supplied hypotheses, not AST equivalence assertions.",
+  "pairs": [
+    {
+      "id": "core-max-token-dispatch",
+      "label": "Output limit before tool dispatch",
+      "left": {
+        "path": "packages/core/agent-loop/src/agent.ts",
+        "language": "typescript",
+        "symbol": "ReactLoopAgent.step",
+        "sha256": "ad9ee0778c0a93dec40363f88b53f442add9b033837b9ff049675a1ada3df61f"
+      },
+      "right": {
+        "path": "harness/go/harness/loop.go",
+        "language": "go",
+        "symbol": "Agent.runTurn",
+        "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798"
+      },
+      "notes": "Shared stop contract. Different loop decomposition: an official step maps to part of the Go whole-turn method. Tree structure is evidence for review, never semantic equivalence.",
+      "landmarks": [
+        {
+          "id": "output-limit",
+          "left_terms": [
+            "max-tokens"
+          ],
+          "right_terms": [
+            "FinishMaxTokens"
+          ],
+          "note": "Inspect branch order relative to tool execution."
+        },
+        {
+          "id": "tool-dispatch",
+          "left_terms": [
+            "tools.execute"
+          ],
+          "right_terms": [
+            "executeToolCalls"
+          ],
+          "note": "Call names are language-specific; missing landmark is a review prompt, not a failed behavioral test."
+        }
+      ]
+    },
+    {
+      "id": "core-max-token-sticky",
+      "label": "Sticky output-limit turn outcome",
+      "left": {
+        "path": "packages/core/agent-loop/src/agent.ts",
+        "language": "typescript",
+        "symbol": "ReactLoopAgent.turn",
+        "sha256": "ad9ee0778c0a93dec40363f88b53f442add9b033837b9ff049675a1ada3df61f"
+      },
+      "right": {
+        "path": "harness/go/harness/loop.go",
+        "language": "go",
+        "symbol": "Agent.runTurn",
+        "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798"
+      },
+      "notes": "Once any step reaches output limit, a later normal follow-up cannot downgrade the turn result. Error/cancel precedence must still be checked by tests.",
+      "landmarks": [
+        {
+          "id": "sticky-state",
+          "left_terms": [
+            "turnEnds"
+          ],
+          "right_terms": [
+            "maxTokens"
+          ],
+          "note": "State lifetime spans the turn, not one model response."
+        }
+      ]
+    },
+    {
+      "id": "stream-truncated-tools",
+      "label": "Assemble safe completion at output limit",
+      "left": {
+        "path": "packages/llm/llm/src/assembler.ts",
+        "language": "typescript",
+        "symbol": "BlockAssembler.assembled",
+        "sha256": "a2d065645058a70195a504b101e9eed23df3eaced3def868d602f3a863b03887"
+      },
+      "right": {
+        "path": "harness/go/providers/openai/stream.go",
+        "language": "go",
+        "symbol": "streamAssembly.completion",
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
+      },
+      "notes": "Official neutral assembler and Go Chat Completions assembler have different roles. Both must discard unsafe tool calls at output truncation; replay-envelope support remains a separate capability.",
+      "landmarks": [
+        {
+          "id": "discard-tool",
+          "left_terms": [
+            "tool-call"
+          ],
+          "right_terms": [
+            "BlockToolCall"
+          ],
+          "note": "Review the keep/drop decision and retained text/reasoning."
+        }
+      ]
+    },
+    {
+      "id": "provider-error-classification",
+      "label": "Classify context overflow before generic request size",
+      "left": {
+        "path": "packages/llm/llm-deepseek/src/transport.ts",
+        "language": "typescript",
+        "symbol": "providerError",
+        "sha256": "7d1f6ed8fe861ee71ba2d0c6a2a9e8512ddc1b6dc17d43a8795ab520a38746b6"
+      },
+      "right": {
+        "path": "harness/go/providers/openai/provider_errors.go",
+        "language": "go",
+        "symbol": "httpErrorCode",
+        "sha256": "20ce09a75aa29b167c5e680dd14643ebd60593a5866451f22ba12f3b198ba8ab"
+      },
+      "notes": "Official Messages and Go Chat Completions are different transports. Compare category precedence, not exact field/schema equality.",
+      "landmarks": [
+        {
+          "id": "context-overflow",
+          "left_terms": [
+            "isContextWindowExceededError"
+          ],
+          "right_terms": [
+            "IsContextWindowExceededDetail"
+          ],
+          "note": "Explicit context overflow should remain distinct from generic HTTP 413."
+        },
+        {
+          "id": "auth-precedence",
+          "left_terms": [
+            "AUTH"
+          ],
+          "right_terms": [
+            "AUTH"
+          ],
+          "note": "Authentication failures retain their category."
+        }
+      ]
+    },
+    {
+      "id": "provider-usage-validation",
+      "label": "Validate usage counters at boundary",
+      "left": {
+        "path": "packages/llm/llm-deepseek/src/translate.ts",
+        "language": "typescript",
+        "symbol": "updateUsage",
+        "sha256": "254f4b8fe292dadc5c24df3375b01920f5e5b345be09eae4290e91e9e810c1ba"
+      },
+      "right": {
+        "path": "harness/go/providers/openai/stream.go",
+        "language": "go",
+        "symbol": "mapUsage",
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
+      },
+      "notes": "Official component counts are exclusive Messages values. Cached<=prompt in Go is a separate Chat Completions conversion invariant, not a literal upstream rule.",
+      "landmarks": [
+        {
+          "id": "nonnegative-safe",
+          "left_terms": [
+            "Number.isSafeInteger"
+          ],
+          "right_terms": [
+            "counter.value"
+          ],
+          "note": "Inspect safe-integer and negative-count handling. AST terms alone cannot prove arithmetic safety."
+        }
+      ]
+    },
+    {
+      "id": "read-physical-window",
+      "label": "Bounded physical-line window",
+      "left": {
+        "path": "packages/fs/tool-fs/src/read-render.ts",
+        "language": "typescript",
+        "symbol": "buildWindow",
+        "sha256": "72bcf4a70fd3e0908d4aa3869e0fbd6ee63b05ad790af65951af0c5db9edba84"
+      },
+      "right": {
+        "path": "harness/go/fstools/workspace.go",
+        "language": "go",
+        "symbol": "FormatRead",
+        "sha256": "f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6"
+      },
+      "notes": "Official streaming scanner and Go bounded decoded-text presentation differ in implementation. Go retains 16 KiB total cap; official default is 50 KiB. Verify empty/terminal-newline/CRLF cases by regression.",
+      "landmarks": [
+        {
+          "id": "window-boundary",
+          "left_terms": [
+            "flushLine"
+          ],
+          "right_terms": [
+            "lines"
+          ],
+          "note": "Review physical line counting, especially the terminal newline."
+        }
+      ]
+    },
+    {
+      "id": "read-continuation",
+      "label": "Explicit continuation after truncated output",
+      "left": {
+        "path": "packages/fs/tool-fs/src/read-render.ts",
+        "language": "typescript",
+        "symbol": "formatReadOutput",
+        "sha256": "72bcf4a70fd3e0908d4aa3869e0fbd6ee63b05ad790af65951af0c5db9edba84"
+      },
+      "right": {
+        "path": "harness/go/fstools/workspace.go",
+        "language": "go",
+        "symbol": "FormatRead",
+        "sha256": "f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6"
+      },
+      "notes": "Official returns a line-numbered text envelope; Go returns a JSON ReadWindow. Compare continuation contract, not output syntax.",
+      "landmarks": [
+        {
+          "id": "next-offset",
+          "left_terms": [
+            "endLine + 1"
+          ],
+          "right_terms": [
+            "NextOffset"
+          ],
+          "note": "Next read must start at a complete line boundary."
+        }
+      ]
+    },
+    {
+      "id": "acp-prompt-admission",
+      "label": "Prompt cancellation owns admission",
+      "left": {
+        "path": "packages/acp/acp/src/session.ts",
+        "language": "typescript",
+        "symbol": "AcpSession.prompt",
+        "sha256": "e4d624d1a4d305d924ae0cff23e0f005becf9a797b02c037e45a1e86c3c17d12"
+      },
+      "right": {
+        "path": "harness/go/acp/server.go",
+        "language": "go",
+        "symbol": "Server.prompt",
+        "sha256": "722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74"
+      },
+      "notes": "AbortController/Go context are analogous cancellation mechanisms. Preserve admission ownership and request slot until settlement.",
+      "landmarks": [
+        {
+          "id": "admission-context",
+          "left_terms": [
+            "admissionController"
+          ],
+          "right_terms": [
+            "promptCtx"
+          ],
+          "note": "Cancellation must cover the time before Agent installs its active canceler."
+        },
+        {
+          "id": "inflight-slot",
+          "left_terms": [
+            "this.inflight"
+          ],
+          "right_terms": [
+            "record.inflight"
+          ],
+          "note": "Inspect claim/release order rather than counting assignments."
+        }
+      ]
+    },
+    {
+      "id": "acp-cancel-admission",
+      "label": "Cancel admitted prompt and active work",
+      "left": {
+        "path": "packages/acp/acp/src/session.ts",
+        "language": "typescript",
+        "symbol": "AcpSession.cancelPrompt",
+        "sha256": "e4d624d1a4d305d924ae0cff23e0f005becf9a797b02c037e45a1e86c3c17d12"
+      },
+      "right": {
+        "path": "harness/go/acp/server.go",
+        "language": "go",
+        "symbol": "Server.handleNotification",
+        "sha256": "722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74"
+      },
+      "notes": "Official descendant/output settlement is richer; Go supports current synchronous in-process subset. Compare actual cancellation wiring, not full ACP feature parity.",
+      "landmarks": [
+        {
+          "id": "cancel-admission",
+          "left_terms": [
+            "admissionController.abort"
+          ],
+          "right_terms": [
+            "promptCancel"
+          ],
+          "note": "Cancel the admission controller/context, not only an already-active Agent."
+        }
+      ]
+    },
+    {
+      "id": "acp-settlement",
+      "label": "Keep prompt slot through cancellation cleanup",
+      "left": {
+        "path": "packages/acp/acp/src/session.ts",
+        "language": "typescript",
+        "symbol": "AcpSession.settleAfterQuiescence",
+        "sha256": "e4d624d1a4d305d924ae0cff23e0f005becf9a797b02c037e45a1e86c3c17d12"
+      },
+      "right": {
+        "path": "harness/go/acp/server.go",
+        "language": "go",
+        "symbol": "Server.prompt",
+        "sha256": "722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74"
+      },
+      "notes": "Go waits for the active Agent to become idle before releasing its ACP slot after cancellation; official also drains descendants/output updates.",
+      "landmarks": [
+        {
+          "id": "settlement",
+          "left_terms": [
+            "whenIdle"
+          ],
+          "right_terms": [
+            "WhenIdle"
+          ],
+          "note": "Tests must establish no next-prompt overlap while cleanup remains active."
+        }
+      ]
+    },
+    {
+      "id": "session-torn-tail",
+      "label": "Unterminated JSONL record boundary",
+      "left": {
+        "path": "packages/session/session-persistence-jsonl/src/format.ts",
+        "language": "typescript",
+        "symbol": "SessionLogScanner.finish",
+        "sha256": "87d536ead041fb953f866e0191a79b4dbbbc510aee1461706f9cdc2e4c46a038"
+      },
+      "right": {
+        "path": "harness/go/session/persistence.go",
+        "language": "go",
+        "symbol": "scanPersistedLine",
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
+      },
+      "notes": "Default rejects unterminated records. Explicit complete-tail recovery validates full session under writer lease, preserves exclusive backup, and restores only the delimiter. Unlike official fragment recovery, incomplete JSON is never discarded or truncated.",
+      "landmarks": [
+        {
+          "id": "tail-boundary",
+          "left_terms": [
+            "committedBytes"
+          ],
+          "right_terms": [
+            "atEOF"
+          ],
+          "note": "Review committed-record boundary, then use persistence tests for bytes-on-disk effects."
+        }
+      ]
+    },
+    {
+      "id": "session-tail-recovery",
+      "label": "Writer-lease protection before durable append",
+      "left": {
+        "path": "packages/session/session-persistence-jsonl/src/storage.ts",
+        "language": "typescript",
+        "symbol": "JsonlSessionHandle.persistContiguous",
+        "sha256": "57d5fa1d7efd17789d6a223f6aa5e06b79092665bea13f8a23d3bab644d066c3"
+      },
+      "right": {
+        "path": "harness/go/session/persistence.go",
+        "language": "go",
+        "symbol": "JSONLSessionPersistence.Attach",
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
+      },
+      "notes": "Default rejects unterminated records. Explicit complete-tail recovery validates full session under writer lease, preserves exclusive backup, and restores only the delimiter. Unlike official fragment recovery, incomplete JSON is never discarded or truncated.",
+      "landmarks": [
+        {
+          "id": "writer-lease",
+          "left_terms": [
+            "ensureLease"
+          ],
+          "right_terms": [
+            "acquireSessionWriteLease"
+          ],
+          "note": "A writer lease is required before mutation, but does not itself prove crash recovery."
+        }
+      ]
+    },
+    {
+      "id": "storage-migration-marker",
+      "label": "Empty declared table remains initialized storage",
+      "left": {
+        "path": "packages/storage/storage-json/src/per-record-unit.ts",
+        "language": "typescript",
+        "symbol": "loadPerRecordState",
+        "sha256": "9aa4df293c02c28aaf74515443a7c089c660c33e66c3ece2255ff8c53d47add1"
+      },
+      "right": {
+        "path": "harness/go/storage/json_units.go",
+        "language": "go",
+        "symbol": "perRecordUnit.LoadAll",
+        "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52"
+      },
+      "notes": "Retained generic KV backend, not current CLI JSONL. An empty declared table directory must prevent legacy bootstrap from resurrecting deleted records.",
+      "landmarks": [
+        {
+          "id": "initialized-state",
+          "left_terms": [
+            "hasNewState"
+          ],
+          "right_terms": [
+            "hasNewState"
+          ],
+          "note": "Inspect directory recognition before deciding to bootstrap legacy data."
+        },
+        {
+          "id": "legacy-bootstrap",
+          "left_terms": [
+            "bootstrapLegacyUnit"
+          ],
+          "right_terms": [
+            "bootstrapLegacy"
+          ],
+          "note": "Unknown directories must not suppress valid bootstrap."
+        }
+      ]
+    },
+    {
+      "id": "todos-normalization",
+      "label": "Todo content and duplicate normalization",
+      "left": {
+        "path": "packages/todo/tool-todo/src/index.ts",
+        "language": "typescript",
+        "symbol": "toTodoList",
+        "sha256": "80559ed95b7fc9c1dc083312f187885254bf2c1498d0f7a079dad21427d24def"
+      },
+      "right": {
+        "path": "harness/go/todos/normalization.go",
+        "language": "go",
+        "symbol": "normalizeWithMode",
+        "sha256": "df8da35d86358b0d8e5a9be8226c1b17cef340d3c4a4da34b0337ed84ed26d09"
+      },
+      "notes": "Go retains Legacy library default and explicit DSH mode. CLI composition must select DSH mode separately; AST body match cannot establish which option was mounted.",
+      "landmarks": [
+        {
+          "id": "trim",
+          "left_terms": [
+            "trim"
+          ],
+          "right_terms": [
+            "isECMAScriptWhitespace"
+          ],
+          "note": "BOM and NEL require runtime Unicode regression, not naive TrimSpace correspondence."
+        },
+        {
+          "id": "duplicates",
+          "left_terms": [
+            "seen.has"
+          ],
+          "right_terms": [
+            "duplicate"
+          ],
+          "note": "Normalized duplicates must be rejected."
+        }
+      ]
+    },
+    {
+      "id": "todos-composition",
+      "label": "Mount DSH-compatible todo policy",
+      "left": {
+        "path": "packages/todo/tool-todo/src/index.ts",
+        "language": "typescript",
+        "symbol": "apply",
+        "sha256": "80559ed95b7fc9c1dc083312f187885254bf2c1498d0f7a079dad21427d24def"
+      },
+      "right": {
+        "path": "harness/go/cmd/pero-agent-acp/coding.go",
+        "language": "go",
+        "symbol": "mountCoding",
+        "sha256": "6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583"
+      },
+      "notes": "Official tool registration versus optional Go CLI composition. The mapping highlights policy selection; it does not equate full projection/plugin assembly.",
+      "landmarks": [
+        {
+          "id": "todo-registration",
+          "left_terms": [
+            "todo_write"
+          ],
+          "right_terms": [
+            "todos.Mount"
+          ],
+          "note": "Compare effective options and durable event behavior with CLI fixtures."
+        }
+      ]
+    },
+    {
+      "id": "mcp-tool-capability",
+      "label": "Respect resources-only server capabilities",
+      "left": {
+        "path": "packages/mcp/mcp-client/src/tools.ts",
+        "language": "typescript",
+        "symbol": "syncTools",
+        "sha256": "59203150bda479a990afcdaf60483a35a836887926892e1074e02d0294c01af9"
+      },
+      "right": {
+        "path": "harness/go/mcp/tools.go",
+        "language": "go",
+        "symbol": "ListTools",
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
+      },
+      "notes": "A server without tools capability need not implement tools/list. A capabilities guard should precede discovery.",
+      "landmarks": [
+        {
+          "id": "capability",
+          "left_terms": [
+            "getServerCapabilities"
+          ],
+          "right_terms": [
+            "Capabilities.Tools"
+          ],
+          "note": "Ensure resources-only initialization remains valid."
+        }
+      ]
+    },
+    {
+      "id": "mcp-structured-output-gap",
+      "label": "Canonical MCP structured result integration",
+      "left": {
+        "path": "packages/mcp/mcp-client/src/tools.ts",
+        "language": "typescript",
+        "symbol": "createExecutor",
+        "sha256": "59203150bda479a990afcdaf60483a35a836887926892e1074e02d0294c01af9"
+      },
+      "right": {
+        "path": "harness/go/mcp/tools.go",
+        "language": "go",
+        "symbol": "fromMCPResult",
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
+      },
+      "notes": "Canonical value and supported output schema now flow through the existing tool registry. Existing Go text/image projection is retained; this does not claim complete official rich-attachment/PTC rendering parity.",
+      "landmarks": [
+        {
+          "id": "structured-content",
+          "left_terms": [
+            "structuredContent"
+          ],
+          "right_terms": [
+            "StructuredContent"
+          ],
+          "note": "Presence on both sides does not prove preservation when ordinary content also exists."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "nativetools",
+    srcs = ["tools.go"],
+    importpath = "github.com/phodal/pero/harness/go/nativetools",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//fstools",
+        "//harness",
+        "//sandbox",
+        "//shell",
+    ],
+)
+
+go_test(
+    name = "nativetools_test",
+    srcs = [
+        "sandbox_test.go",
+        "tools_test.go",
+        "windows_runtime_test.go",
+    ],
+    embed = [":nativetools"],
+    deps = [
+        "//fstools",
+        "//harness",
+        "//runtime",
+        "//sandbox",
+        "//shell",
+    ],
+)

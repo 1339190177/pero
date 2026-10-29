@@ -1,9 +1,53 @@
 use super::*;
 use std::{collections::BTreeMap, sync::mpsc, time::Instant};
 
+#[test]
+fn unsupported_protocol_never_creates_a_ready_session() {
+    let (_handle, rx, _workspace) = launch("unsupported_protocol", None);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut failed = false;
+    loop {
+        let event = rx
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap();
+        assert_ne!(event.kind, "session_ready");
+        assert_ne!(event.kind, "turn_started");
+        assert_ne!(
+            event.kind, "session_update",
+            "session/new was sent after an unsupported protocol version"
+        );
+        if event.kind == "session_error" {
+            failed = true;
+        }
+        if event.kind == "session_closed" {
+            break;
+        }
+    }
+    assert!(
+        failed,
+        "protocol mismatch must be reported, not silently closed"
+    );
+}
+
 struct Workspace(PathBuf);
-impl Drop for Workspace {fn drop(&mut self) {let _=std::fs::remove_dir_all(&self.0);}}
-fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
+impl Workspace {
+    fn new() -> Self {
+        let workspace = Self(
+            std::env::temp_dir().join(format!("pero-acp-test-{}", uuid::Uuid::new_v4())),
+        );
+        std::fs::create_dir(&workspace.0).unwrap();
+        workspace
+    }
+}
+impl Drop for Workspace {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+fn launch(
+    scenario: &str,
+    model: Option<&str>,
+) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let config = AgentConfig {
         id: "fixture".into(),
@@ -16,11 +60,57 @@ fn launch(scenario: &str, model: Option<&str>) -> (SessionHandle, mpsc::Receiver
         ],
         env: BTreeMap::from([("PERO_FIXTURE_SCENARIO".into(), scenario.into())]),
         model: model.map(str::to_owned),
+        mcp_servers: vec![],
     };
     let (tx, rx) = mpsc::channel();
-    let workspace=Workspace(std::env::temp_dir().join(format!("pero-acp-test-{}",uuid::Uuid::new_v4())));
-    std::fs::create_dir(&workspace.0).unwrap();
-    (start(config, workspace.0.clone(), "fixture-thread".into(), tx), rx, workspace)
+    let workspace = Workspace::new();
+    (
+        start(config, workspace.0.clone(), "fixture-thread".into(), tx),
+        rx,
+        workspace,
+    )
+}
+
+#[test]
+fn dsh_wire_empty_model_options_and_minimal_permission_are_supported() {
+    let (handle, rx, _workspace) = launch("dsh_wire", None);
+    let ready = until(&rx, "session_ready");
+    assert_eq!(ready.data["configOptions"], json!([]));
+    handle
+        .tx
+        .send(SessionCommand::Prompt("permission".into()))
+        .unwrap();
+    let permission = until(&rx, "permission");
+    let id = permission.data["permission_id"].as_str().unwrap();
+    handle
+        .permissions
+        .lock()
+        .unwrap()
+        .remove(id)
+        .unwrap()
+        .send(None)
+        .unwrap();
+    assert_eq!(
+        until(&rx, "session_update").data["content"]["text"],
+        "permission:cancelled"
+    );
+    until(&rx, "turn_finished");
+    close(&handle, &rx);
+}
+
+#[test]
+fn dsh_wire_text_and_tool_updates_are_supported_without_a_model_setter() {
+    let (handle, rx, _workspace) = launch("dsh_wire", None);
+    until(&rx, "session_ready");
+    handle
+        .tx
+        .send(SessionCommand::Prompt("updates".into()))
+        .unwrap();
+    for kind in ["agent_message_chunk", "tool_call", "tool_call_update"] {
+        assert_eq!(until(&rx, "session_update").data["sessionUpdate"], kind);
+    }
+    assert_eq!(until(&rx, "turn_finished").data["stopReason"], "end_turn");
+    close(&handle, &rx);
 }
 fn until(rx: &mpsc::Receiver<HostEvent>, kind: &str) -> HostEvent {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -329,6 +419,143 @@ fn model_changes_require_an_advertised_id_for_each_supported_api() {
         until(&rx, "turn_finished");
         close(&handle, &rx);
     }
+}
+
+fn launch_mcp(
+    scenario: &str,
+    servers: Value,
+) -> (SessionHandle, mpsc::Receiver<HostEvent>, Workspace) {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    // Exercise the same operator JSON deserialization as the registry, not a hand-built request.
+    let config: AgentConfig = serde_json::from_value(json!({
+        "id": "mcp-fixture", "name": "MCP fixture", "command": "node",
+        "args": [root.join("tests/runtime/lifecycle-agent.mjs")],
+        "env": {"PERO_FIXTURE_SCENARIO": scenario, "PERO_EXPECT_MCP": servers.to_string()},
+        "mcp_servers": servers
+    }))
+    .unwrap();
+    let public = config.public().to_string();
+    for secret in [
+        "fixture-env-secret",
+        "fixture-header-secret",
+        "fixture-arg-secret",
+    ] {
+        assert!(!public.contains(secret));
+        assert!(!format!("{config:?}").contains(secret));
+    }
+    assert!(config.public().get("mcp_servers").is_none());
+    let (tx, rx) = mpsc::channel();
+    let workspace = Workspace::new();
+    (
+        start(config, workspace.0.clone(), "mcp-fixture".into(), tx),
+        rx,
+        workspace,
+    )
+}
+
+fn mcp_stdio_command() -> PathBuf {
+    // A rooted Unix spelling is not absolute on Windows (it lacks a drive).
+    // This path is forwarded to the fixture, never executed.
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixture-not-executed")
+}
+
+fn mcp_servers() -> Value {
+    json!([
+        {"name":"stdio", "command":mcp_stdio_command(), "args":["fixture-arg-secret"], "env":[{"name":"TOKEN","value":"fixture-env-secret"}]},
+        {"type":"http", "name":"http", "url":"https://fixture.invalid/mcp", "headers":[{"name":"Authorization","value":"fixture-header-secret"}]},
+        {"type":"sse", "name":"sse", "url":"http://127.0.0.1:9/sse", "headers":[]}
+    ])
+}
+
+#[test]
+fn mcp_operator_config_reaches_wire_and_survives_auth_retry_and_cancellation() {
+    let (handle, rx, _workspace) = launch_mcp("mcp_auth", mcp_servers());
+    until(&rx, "session_auth_required");
+    handle
+        .tx
+        .send(SessionCommand::Authenticate("login".into()))
+        .unwrap();
+    until(&rx, "session_ready");
+    handle
+        .tx
+        .send(SessionCommand::Prompt("wait".into()))
+        .unwrap();
+    until(&rx, "turn_started");
+    handle.tx.send(SessionCommand::Cancel).unwrap();
+    assert_eq!(until(&rx, "turn_finished").data["stopReason"], "cancelled");
+    close(&handle, &rx);
+}
+
+#[test]
+fn mcp_defaults_forward_empty_list() {
+    let config: AgentConfig =
+        serde_json::from_value(json!({"id":"old", "name":"old", "command":"node"})).unwrap();
+    assert!(config.mcp_servers.is_empty());
+    let (handle, rx, _workspace) = launch_mcp("mcp", json!([]));
+    until(&rx, "session_ready");
+    close(&handle, &rx);
+}
+
+#[test]
+fn mcp_invalid_config_fails_before_connecting_or_child_spawn() {
+    let invalid = [
+        (json!([{"name":"bad","command":"relative","args":[],"env":[]}]), "Invalid MCP stdio command or arguments"),
+        (json!([{"type":"http","name":"bad","url":"file:///fixture-header-secret","headers":[]}]), "Invalid MCP HTTP/SSE URL"),
+        (json!([{"type":"http","name":"bad","url":"http://[broken","headers":[]}]), "Invalid MCP HTTP/SSE URL"),
+        (json!([{"type":"http","name":"bad","url":"https://fixture.invalid","headers":[{"name":"Authorization","value":"fixture-header-secret\r\nInjected: yes"}]}]), "Invalid MCP header"),
+        (json!([{"name":"bad","command":mcp_stdio_command(),"args":[],"env":[{"name":"BAD=KEY","value":"fixture-env-secret"}]}]), "Invalid MCP environment"),
+        (json!([{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]},{"name":"same","command":mcp_stdio_command(),"args":[],"env":[]}]), "Invalid or duplicate MCP server name"),
+    ];
+    for (servers, expected_error) in invalid {
+        let (_handle, rx, _workspace) = launch_mcp("mcp", servers);
+        let error = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(
+            error.kind, "session_error",
+            "validation must precede connecting/spawn"
+        );
+        assert_eq!(error.text, expected_error);
+        assert!(!error.text.contains("secret"));
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap().kind,
+            "session_closed"
+        );
+    }
+}
+
+#[test]
+fn mcp_unadvertised_remote_transport_never_creates_session() {
+    let (_handle, rx, _workspace) = launch_mcp("mcp_unsupported", mcp_servers());
+    let error = until(&rx, "session_error");
+    assert!(error.text.contains("does not support MCP HTTP"));
+    until(&rx, "session_closed");
+}
+
+#[test]
+fn mcp_malformed_operator_json_is_rejected_without_secret_details() {
+    for server in [
+        json!({"type":"http", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"sse", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":null, "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"unknown", "name":"bad", "command":"/fixture", "args":[], "env":[]}),
+        json!({"type":"http", "name":"bad", "url":"https://fixture.invalid", "headers":"fixture-header-secret"}),
+    ] {
+        let error = serde_json::from_value::<AgentConfig>(
+            json!({"id":"fixture", "name":"fixture", "command":"node", "mcp_servers":[server]}),
+        )
+        .unwrap_err();
+        assert!(!error.to_string().contains("fixture-header-secret"));
+    }
+}
+
+#[test]
+fn initialization_timeout_remains_bounded() {
+    let started = Instant::now();
+    let (_handle, rx, _workspace) = launch("initialization_hangs", None);
+    let error = until(&rx, "session_error");
+    assert!(error.text.contains("Agent initialization timed out"));
+    until(&rx, "session_closed");
+    assert!(started.elapsed() >= SETUP_TIMEOUT);
+    assert!(started.elapsed() < Duration::from_secs(5));
 }
 
 #[test]

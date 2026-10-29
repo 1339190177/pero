@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/phodal/point",
+  "ref": "edff76d7dd39b2900cff707af1896fe8ff9fd2dc",
+  "sources": {
+    "go/harness/sandbox/strict.go": "d7049a07d96120987e27b33b54e25865d577b42f",
+    "go/harness/sandbox/local.go": "74f76c610dec837ffb9eb06b03557571d0b22dbe",
+    "go/harness/sandbox/sandbox.go": "1e2c9a783b5d6224d4a030d5cfdd802f77578896",
+    "go/harness/permissionpresets/types.go": "dde38c9f701aaed10a563fa7e1a34f43c156a6de"
+  },
+  "adaptation": "strict.go unchanged; policy.go extracts minimal types/path escaping and supplies strict-only immutable provider. permissionpresets/types.go adapts independent sandbox/approval bundle only; excludes full-access, mutable selector and product services.",
+  "license_notice": "Source files carry no license header; no root LICENSE exists at this exact ref. Original source comments preserved. Reuse explicitly authorized by repository user; no inferred open-source license or third-party license claim. Existing dependency notices untouched.",
+  "windows_partial_adaptation": "Explicit windows-acl-read-only and windows-acl-workspace-write preset names retain approval ask and select BackendWindowsACL; strict defaults remain distinct and never silently fall back."
+}

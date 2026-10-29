@@ -1,0 +1,39 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "files": [
+    {
+      "path": "go/harness/skills/filesystem.go",
+      "blob": "ff65ebd5186b3d1bb442e2cacd8c33133eb36237",
+      "role": "frontmatter parsing adapted; discovery and resource authority rewritten"
+    },
+    {
+      "path": "go/harness/skills/catalog.go",
+      "blob": "3bbcd921ec805cfc2ccba55c8fce7083445c69e4",
+      "role": "inspected boundary reference only; product hooks and runtime mounting not copied"
+    },
+    {
+      "path": "go/harness/skills/tool.go",
+      "blob": "64e4a990b1a0f7d2f4e275787465149dc72a1d51",
+      "role": "inspected boundary reference only; product hooks and runtime mounting not copied"
+    },
+    {
+      "path": "go/harness/skills/app.go",
+      "blob": "f6c5f8255372a8fb7dbbfe15889caad08a36e0ad",
+      "role": "inspected boundary reference only; product hooks and runtime mounting not copied"
+    }
+  ],
+  "additional_reference": {
+    "path": "go/harness/skills.go",
+    "role": "IsSkillName validation adapted with a 64-byte cap; Point SkillRegistry and scoped provider precedence not copied",
+    "blob": "876769a1de42d975f94c7f5e1ea09d3541d1ec43"
+  },
+  "scope": "New opt-in headless read-only composition; this is not a wholesale or behavior-equivalent DSH skills migration.",
+  "adaptations": [
+    "No implicit home/project/environment roots, bundles, resource loading, slash gestures or script execution.",
+    "Fixed descriptor-owned manifest and digest reads use existing fstools.OpenScopedTextFiles; catalog is not a second runtime registry or permission engine.",
+    "Existing Harness.RegisterTool owns tool registration/generation; one exact-key skill tool lists or reads.",
+    "Only direct child SKILL.md files. Duplicate names and invalid files fail closed. Bounded UTF-8 text; model-disabled skills remain unavailable."
+  ],
+  "license": "No new blanket license assigned. Source files have no embedded third-party notice. Existing dependency-specific notices and ownership decisions remain unchanged."
+}

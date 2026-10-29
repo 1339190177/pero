@@ -1,0 +1,157 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "files": [
+    {
+      "source_path": "go/harness/model/clone.go",
+      "source_blob_sha1": "90c7958a4a646474d2cca97c77ff0385d74cf6d4",
+      "destination": "clone.go"
+    },
+    {
+      "source_path": "go/harness/model/content_attachment_extensions.go",
+      "source_blob_sha1": "b4fb4eb03c3bb2e6324e85ffc4281d2e5de13c23",
+      "destination": "content_attachment_extensions.go"
+    },
+    {
+      "source_path": "go/harness/model/content_attachment_extensions_test.go",
+      "source_blob_sha1": "ed60fc074a954389e42d952d8d111a8febc0cd0d",
+      "destination": "content_attachment_extensions_test.go"
+    },
+    {
+      "source_path": "go/harness/model/content_extensions.go",
+      "source_blob_sha1": "d7f7b52b1c56a9a1c867aba61fc0788b76b57b59",
+      "destination": "content_extensions.go"
+    },
+    {
+      "source_path": "go/harness/model/content_extensions_test.go",
+      "source_blob_sha1": "2f88078ec28f5de5138445075f83a135c53fe0c5",
+      "destination": "content_extensions_test.go"
+    },
+    {
+      "source_path": "go/harness/model/content_strings.go",
+      "source_blob_sha1": "4e27033e9e1e132a1162efd49eedd31318e6c9c9",
+      "destination": "content_strings.go"
+    },
+    {
+      "source_path": "go/harness/model/content_strings_test.go",
+      "source_blob_sha1": "4a8282005cc2727c554dcd53e157079cfa660075",
+      "destination": "content_strings_test.go"
+    },
+    {
+      "source_path": "go/harness/model/dependencies_test.go",
+      "source_blob_sha1": "8b7952b13362e32477d05d54cf69262ea8de35ea",
+      "destination": "dependencies_test.go"
+    },
+    {
+      "source_path": "go/harness/model/file_content.go",
+      "source_blob_sha1": "63c989163e8df948a47f1b57b572792223d15efa",
+      "destination": "file_content.go"
+    },
+    {
+      "source_path": "go/harness/model/image_text.go",
+      "source_blob_sha1": "a278cda08f7f3ddb59877c19d238f1c3506b11e7",
+      "destination": "image_text.go"
+    },
+    {
+      "source_path": "go/harness/model/session_event.go",
+      "source_blob_sha1": "b582ea98de330d8b20a419f688ce37cc8371ce9d",
+      "destination": "session_event.go"
+    },
+    {
+      "source_path": "go/harness/model/session_event_test.go",
+      "source_blob_sha1": "e8dfdc06215140f85261f53c1f501925f2f09e42",
+      "destination": "session_event_test.go"
+    },
+    {
+      "source_path": "go/harness/model/system_token_estimate_test.go",
+      "source_blob_sha1": "629ab831ea1b62027be80a35f25d3a61099717ff",
+      "destination": "system_token_estimate_test.go"
+    },
+    {
+      "source_path": "go/harness/model/token_estimate.go",
+      "source_blob_sha1": "d4d611f3c65b1f5f33c284db2ebbfaf34de34ea5",
+      "destination": "token_estimate.go"
+    },
+    {
+      "source_path": "go/harness/model/token_estimate_test.go",
+      "source_blob_sha1": "d6e00398373d9e71b45fb0d8da299dd9e08f2be1",
+      "destination": "token_estimate_test.go"
+    },
+    {
+      "source_path": "go/harness/model/tool_updates.go",
+      "source_blob_sha1": "e76ec25a103d27b63dfb8ba295592f4433c7428e",
+      "destination": "tool_updates.go"
+    },
+    {
+      "source_path": "go/harness/model/tool_updates_test.go",
+      "source_blob_sha1": "3cd1b4881bc37f2b050527280402e8378539d0c1",
+      "destination": "tool_updates_test.go"
+    },
+    {
+      "source_path": "go/harness/model/types.go",
+      "source_blob_sha1": "db415a1c9ea29fda5bdcf03004f30e1fcf992142",
+      "destination": "types.go"
+    },
+    {
+      "source_path": "go/harness/DEEPSEEK_FILES_LICENSE.txt",
+      "source_blob_sha1": "c1f7a78e89e4e4dc7b86664c3b3c76eb5eee1785",
+      "destination": "DEEPSEEK_FILES_LICENSE.txt"
+    }
+  ],
+  "modifications": {
+    "session_event.go": "Remove 32 Point product event names from the native known vocabulary; neutral comment.",
+    "session_event_test.go": "Remove Point product cases from known-event test; product_boundary_test.go tests their opaque extension behavior.",
+    "dependencies_test.go": "Adapt optional Bazel workspace source path to harness/go/model.",
+    "types.go": "Neutral package documentation; remove SessionHeader.ProjectBinding and the Point ProjectBinding type (ProjectID/TaskID/RunID/ContextSnapshotID).",
+    "file_content.go": "Update applicable MIT notice reference to module-local DEEPSEEK_FILES_LICENSE.txt.",
+    "tool_updates.go": "Update applicable MIT notice reference to module-local DEEPSEEK_FILES_LICENSE.txt."
+  },
+  "excluded": "Bazel build files and two dsh_source_oracle tests requiring external pinned JS source.",
+  "license_status": "No general module-level or repository-level license found in inspected source. User authorized publication; no whole-module license is assigned. file_content.go and tool_updates.go identify DeepSeek DSH MIT ports; preserve their exact applicable DEEPSEEK_FILES_LICENSE.txt notice.",
+  "removed_native_product_event_types": [
+    "app-agent/binding",
+    "app-agent/plugin",
+    "app-agent/prompt",
+    "app-agent/result",
+    "app-agent/state",
+    "channels/delivery",
+    "channels/draft-discarded",
+    "channels/draft-result",
+    "channels/draft-source",
+    "channels/memory-command",
+    "channels/reply-guard",
+    "channels/unanswered-request",
+    "point/manager/dispatch",
+    "point/manager/role",
+    "point/manager/task",
+    "point/read-only-review",
+    "execution-environment",
+    "execution-environment-stage",
+    "point/session-log-accepted",
+    "point/session-root-reopen-admitted",
+    "point/session-root-reopen-requested",
+    "project/ai-overview-session",
+    "project/binding",
+    "project/context-snapshot",
+    "project/local-authorization",
+    "project/local-output-fence",
+    "project/local-output-intent",
+    "project/local-output-status",
+    "project/shared-fork",
+    "project/text-publication-intent",
+    "request/project-input",
+    "session/program-controller"
+  ],
+  "layout": "Package model within single module github.com/phodal/pero/harness/go; no inter-package module versions or replace directives.",
+  "layout_migration": {
+    "destination": "harness/go/model",
+    "module": "github.com/phodal/pero/harness/go",
+    "changes": [
+      "Mechanical module/import/documentation layout migration from go/agent.",
+      "Normalize license export to one terminal newline; notice wording unchanged."
+    ]
+  },
+  "build_adaptations": [
+    "Dependency-boundary test inspects declared package-local source fixtures under native Go and Bazel and rejects an empty production inventory."
+  ]
+}

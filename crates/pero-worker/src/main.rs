@@ -1,3 +1,4 @@
+mod approval;
 mod control;
 mod executor;
 mod journal;

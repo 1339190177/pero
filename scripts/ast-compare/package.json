@@ -1,0 +1,8 @@
+{
+  "name": "pero-ast-compare-build",
+  "private": true,
+  "description": "Pinned official generator for the local TS5 grammar extension",
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  }
+}

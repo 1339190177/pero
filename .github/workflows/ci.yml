@@ -83,6 +83,160 @@ jobs:
         working-directory: server
         run: go test -race ./...
 
+  harness:
+    name: Harness Go contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      - name: Harness race tests
+        working-directory: harness/go
+        run: go test -race -count=1 ./...
+      - name: Harness vet and build
+        working-directory: harness/go
+        run: |
+          go vet ./...
+          go build ./cmd/pero-agent-acp
+
+  harness-bazel:
+    name: Standalone harness Bazel contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: harness/go
+    steps:
+      - uses: actions/checkout@v7
+      - uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-version: 1.x
+          bazelisk-cache: true
+          repository-cache: true
+      - name: Verify generated build declarations
+        run: bazel run --lockfile_mode=error //:gazelle -- -mode=diff
+      - name: Build standalone agent
+        run: bazel build --lockfile_mode=error //cmd/pero-agent-acp
+      - name: Test standalone contracts with race detector
+        run: bazel test --lockfile_mode=error --@rules_go//go/config:race=true //...
+
+  strict-sandbox:
+    name: Positive Linux strict sandbox contract
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GOWORK: "off"
+      PERO_REQUIRE_STRICT_SANDBOX: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      - name: Install supported sandbox backend
+        run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - name: Require positive isolation contract
+        working-directory: harness/go
+        run: go test -count=1 -v ./sandbox -run '^TestNativeRuntime$'
+
+  windows-acl-sandbox:
+    name: Positive Windows file and partial ACL contracts
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      GOWORK: "off"
+      PERO_REQUIRE_WINDOWS_ACL: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      # Explicitly authorized security tests: ACL/Low integrity edits apply only
+      # to test-created temporary directories, never this checkout/user projects.
+      - name: Require positive partial-boundary and lifecycle contracts
+        working-directory: harness/go
+        run: |
+          go test -race -count=1 -json ./fstools ./sandbox ./shell ./nativetools ./cmd/pero-agent-acp -run "Windows|TestCodingModelCLICombinedActivationWire" | tee "$RUNNER_TEMP/windows-acl-results.jsonl"
+          python - "$RUNNER_TEMP/windows-acl-results.jsonl" <<'PYTEST'
+          import json, sys
+          expected = {
+              "TestWindowsACLRuntime",
+              "TestWindowsACLJobLifecycle",
+              "TestWindowsACLAmbientAndForeignRoots",
+              "TestWindowsACLAdmissionBoundaries",
+              "TestWindowsACLGrantRepairAndRevoke",
+              "TestWindowsACLShellCancellationCleansJobAndPrivateTemp",
+              "TestWindowsPartialMountKeepsFileBoundaryAndAlwaysAsks",
+              "TestWindowsReadOnlyMountOmitsFileMutations",
+              "TestWindowsACLCLIProcessApprovalAndWriteBoundary",
+              "TestWindowsWorkspaceReadListSearch",
+              "TestWindowsWorkspaceRejectsPathAliases",
+              "TestWindowsWorkspaceJunctionBoundaries",
+              "TestWindowsWorkspaceReadBoundsAndCancellation",
+              "TestWindowsWorkspaceTraversalBounds",
+              "TestWindowsWorkspacePinnedRootIdentity",
+              "TestWindowsWorkspaceSearchRootReplacement",
+              "TestWindowsWorkspaceCreateNew",
+              "TestWindowsWorkspaceCreateNeverReplaces",
+              "TestWindowsWorkspaceCreateCancellationAndReceipts",
+              "TestWindowsWorkspaceCreateRejectsRedirectsAndInvalidText",
+              "TestWindowsFileCLIReadCreateApprovalBoundary",
+              "TestCodingModelCLICombinedActivationWire/native-instructions=true",
+          }
+          events = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
+          passed = {event.get("Test") for event in events if event.get("Action") == "pass"}
+          skipped = [event.get("Test") for event in events if event.get("Action") == "skip"]
+          missing = expected - passed
+          if missing or skipped:
+              raise SystemExit(f"Windows positive gate missing={sorted(missing)} skipped={skipped}")
+          print(f"Verified all {len(expected)} required native Windows file/ACL contracts without skips")
+          PYTEST
+
+  ast:
+    name: Official DSH AST comparison contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pinned AST parsers
+        run: python -m pip install -r scripts/ast-compare/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Build pinned TypeScript grammar
+        run: |
+          npm ci --prefix scripts/ast-compare
+          python scripts/ast-compare/build_typescript.py --cli scripts/ast-compare/node_modules/.bin/tree-sitter
+      - name: Test AST contracts
+        run: python -m unittest discover -s scripts/ast-compare -v
+      - name: Checkout pinned official source for read-only comparison
+        uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: f3803c96974ad4a94195fb97e5c637e9c2a3afe3
+          path: .official-dsh-reference
+          persist-credentials: false
+      - name: Extract all selected official references
+        run: |
+          python scripts/ast-compare/references.py \
+            --mapping scripts/ast-compare/mappings/official-dsh.json \
+            --left-root .official-dsh-reference --right-root . \
+            --json "$RUNNER_TEMP/official-dsh.json" \
+            --markdown "$RUNNER_TEMP/official-dsh.md"
+
   desktop:
     name: Build, check, and Rust tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -157,6 +311,8 @@ jobs:
               ;;
           esac
 
+      - name: Font-tool environment recovery tests
+        run: node --test scripts/build/fonttools.test.mjs
       - name: Resolve pinned local GPUI packages
         run: node scripts/cargo.mjs check -p pero-contracts
 

@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "storage",
+    srcs = [
+        "domain.go",
+        "json_backend.go",
+        "json_units.go",
+        "namespace.go",
+        "ordered.go",
+        "storage.go",
+        "table.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/storage",
+    visibility = ["//visibility:public"],
+    deps = ["//runtime"],
+)
+
+go_test(
+    name = "storage_test",
+    srcs = [
+        "compatibility_test.go",
+        "namespace_test.go",
+        "ordered_test.go",
+        "storage_test.go",
+    ],
+    embed = [":storage"],
+)

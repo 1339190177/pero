@@ -1,0 +1,31 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "source_files": [
+    {
+      "path": "go/harness/shell/local.go",
+      "blob_sha1": "18bcf63ac4c5e5b07d2cbc3b9a1e74ed7bd63e88"
+    },
+    {
+      "path": "go/harness/shell/types.go",
+      "blob_sha1": "1cdd2135860547fb0b1896f18e8e52b725005b00"
+    },
+    {
+      "path": "go/harness/shell/process_unix.go",
+      "blob_sha1": "67f09e669c1d872d63ba30740cff7b459ce3192b"
+    }
+  ],
+  "adaptations": [
+    "local.go foreground Run lifecycle and Resolve shape reused; remove sandbox, background, managed env, persistent/PowerShell/coreutils/spill paths.",
+    "Output collector extracts source tailWriter.Write/Output algorithm without spill/observer state.",
+    "types.go retains foreground request/spec/result/interface shapes only.",
+    "Unix configureProcess/processSignal adapted; cancellation always forces group kill after grace even when leader exits, plus normal-completion descendant cleanup.",
+    "Add explicit executable/workspace validation, environment allowlist with no inheritance, hard limits, WaitDelay and unsupported-platform fail closed.",
+    "Run revalidates direct ExecSpec input, returns timeout/cancellation errors with populated result flags; nonzero exit remains a result.",
+    "All tests are new regressions using temporary workspace and bounded local processes.",
+    "Store workspace os.FileInfo and require Lstat/SameFile identity at Resolve and immediately before process.Start; reject root replacement/symlink and regression-test pre-resolved commands. Pathname race protection is not claimed as sandboxing.",
+    "Optional strict confinement is reintroduced through the standalone sandbox package; CheckConfinement validates root and backend before approval and execution. No fallback when strict mode is requested.",
+    "Windows PowerShell startup is composed explicitly only through the Windows ACL sandbox backend, using fixed noninteractive arguments, cooperative stdin-EOF Job Object cancellation and a bounded forced-cleanup warning. Unsandboxed Windows remains refused; result metadata preserves partial read/network non-isolation."
+  ],
+  "license": "No blanket license inferred or assigned; selected source files have no third-party license notice."
+}

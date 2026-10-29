@@ -1,11 +1,10 @@
 // Offline-first font preparation. Only source/licence text belongs in Git.
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile, rename, rm, open } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { root } from '../lib/paths.mjs';
 import { run } from '../lib/run.mjs';
+import { prepareFontTools } from './fonttools.mjs';
 
 const manifestPath = join(root, 'scripts/build/fonts.manifest.json');
 const manifestBytes = await readFile(manifestPath);
@@ -110,22 +109,6 @@ async function source(spec) {
   await atomic(cached, data);
   return cached;
 }
-function hasTool(python, env = process.env) {
-  return spawnSync(python, ['-c', `import fontTools; assert fontTools.__version__ == '${manifest.fonttools}'`], { env, stdio: 'ignore' }).status === 0;
-}
-async function pythonTool() {
-  const python = process.env.PERO_PYTHON || 'python3';
-  if (hasTool(python)) return { python, env: process.env };
-  const tool = join(root, 'target/tools', `fonttools-${manifest.fonttools}`);
-  const executable = join(tool, process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-  const env = { ...process.env }; delete env.PYTHONPATH;
-  if (!hasTool(executable, env)) {
-    await run(python, ['-m', 'venv', '--clear', tool], { env });
-    await run(executable, ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-deps', '--break-system-packages', `fonttools==${manifest.fonttools}`], { env });
-    if (!hasTool(executable, env)) throw new Error('Pinned fontTools setup failed');
-  }
-  return { python: executable, env };
-}
 async function acquire() {
   await mkdir(cache, { recursive: true });
   const lockPath = join(cache, 'build.lock');
@@ -159,7 +142,7 @@ try {
     if (cached) { await publish(cached, 'generated-cache'); }
     else {
       const inputs = Object.fromEntries(await Promise.all(manifest.sources.map(async spec => [spec.id, await source(spec)])));
-      const tool = await pythonTool();
+      const tool = await prepareFontTools({ directory: join(root, 'target/tools', `fonttools-${manifest.fonttools}`), version: manifest.fonttools });
       stage = join(cache, `stage-${randomUUID()}`); await mkdir(stage, { recursive: true });
       const config = join(stage, 'config.json');
       await atomic(config, JSON.stringify({ output: stage, noto: inputs.noto, characters: repertoire, fonttools: manifest.fonttools }));

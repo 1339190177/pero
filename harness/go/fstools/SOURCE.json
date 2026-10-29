@@ -1,0 +1,86 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "license": "Owner-authorized extraction; no blanket source license assigned.",
+  "scope": "Descriptor-rooted text algorithm only; no Point sandbox/Host/profile or FS observation product services. Windows workspace adapter supports native reads and exclusive create-new; writable scoped replacement remains Unix-only.",
+  "additional_function_sources": [
+    {
+      "source_path": "go/harness/fstools/mutate.go",
+      "source_blob_sha1": "45d1c8745091032ba43f474cbbc55682630b151a",
+      "functions": [
+        "validText",
+        "sameFileInfo"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "destination": "review_race_test.go",
+      "sha256": "f5d20c97c0274da05fc9a2a1407449efd240e1566bd3f34d5d89c171f273ce19",
+      "changes": "new bounded workspace adapter or deterministic regression test"
+    },
+    {
+      "destination": "scoped.go",
+      "sha256": "f360068585c72740449600319f2fb8f9c258c4621aee8b50ecc528b1bfc52b8a",
+      "source_path": "go/harness/fstools/scoped.go",
+      "source_blob_sha1": "7b8d9ee52dd3db09b5efb7c16bef305c95ffe78b",
+      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained; explicit skills adds read-only MatchesRoot identity check / deterministic fixture; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "scoped_open_unix.go",
+      "sha256": "409fbb7eb122b6bda3d17c6366d5e4dbfcaf67b7329088b4cf0220ee75bd8a83",
+      "source_path": "go/harness/fstools/scoped_open_unix.go",
+      "source_blob_sha1": "c1e6287dd4d44ebfbd90a901a2db8732cb3435fe",
+      "changes": "source preserved; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "scoped_open_windows.go",
+      "sha256": "87032bbf3c80873fcffea47a5e5db40cbf7fb0de84c53a489f2609ed65990f08",
+      "source_path": "go/harness/fstools/scoped_open_windows.go",
+      "source_blob_sha1": "7c2b2bcd859fd3d8701d4870a6eaf7a6834fcb45",
+      "changes": "source preserved; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "scoped_test.go",
+      "sha256": "dbee7b5fb773a7d084bc8ab8d4a733a2d0c34077a57434e27d17c86e0e6171ed",
+      "source_path": "go/harness/fstools/scoped_test.go",
+      "source_blob_sha1": "429b18cf2294a43ca410ade3a125b23d9710928a",
+      "changes": "source preserved; explicit skills adds read-only MatchesRoot identity check / deterministic fixture"
+    },
+    {
+      "destination": "workspace.go",
+      "sha256": "f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6",
+      "changes": "new bounded workspace adapter or deterministic regression test; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "workspace_test.go",
+      "sha256": "fe33d776a60085729f0c73a666b9ba83fabd6b5b24c15460dc70eab40894712b",
+      "changes": "new bounded workspace adapter or deterministic regression test; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "workspace_windows_test.go",
+      "sha256": "73e0e6b34a1398b89cfa369d9f96f2f409682b3b02cc291115768a3698750fc8",
+      "changes": "new required native Windows bounded read/path/junction/identity contracts; temp files only"
+    },
+    {
+      "destination": "workspace_create_unix.go",
+      "sha256": "fd85ad5c5e3171f4472c0da20c1b559c8f9c8740870f99935334f74426847dc0",
+      "changes": "split existing Unix creation without behavior change"
+    },
+    {
+      "destination": "workspace_create_windows.go",
+      "sha256": "0a91ac337b36f55af2a2986952829b92decfe602eb581c08390b7729cf6043b3",
+      "changes": "new handle-relative Windows exclusive publication and native contract tests; no existing metadata replacement"
+    },
+    {
+      "destination": "workspace_create_windows_test.go",
+      "sha256": "3c9de5f5798e880ac006ecea449c0f5fc367013c716aa454b7587c214471db62",
+      "changes": "new handle-relative Windows exclusive publication and native contract tests; no existing metadata replacement"
+    }
+  ],
+  "upstream_behavior_review": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-upstream-parity.md"
+  }
+}

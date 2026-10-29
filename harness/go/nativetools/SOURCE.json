@@ -1,0 +1,25 @@
+{
+  "origin": "New Pero composition of existing harness registry plus extracted fstools/shell primitives",
+  "scope": "Six explicit native tools, approved mutations/shell, no default broad grants or product profiles",
+  "files": [
+    {
+      "destination": "tools.go",
+      "sha256": "98e6c60b700ccda11b9680a51f2b752ccbe8bf606f6a5dac2fc88d2e69e1697f"
+    },
+    {
+      "destination": "tools_test.go",
+      "sha256": "d748f7cd03b297f403ae23dd3acaccc9ae65a481ca453ad60fbf1640463505ea"
+    },
+    {
+      "destination": "windows_runtime_test.go",
+      "sha256": "45280c5bb4bc1db5789e8c03371e1d8ab83ae8d345aeb04287f4c0de4d9b982a",
+      "changes": "native Windows file capability and read-only policy composition contracts"
+    }
+  ],
+  "changes": [
+    "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant.",
+    "Opt-in strict shell composition and read-only mutation refusal reuse sandbox policy; shell-only approval descriptor is created by trusted registration, after confinement admission checks.",
+    "Preserve the shell collector trailing-output contract when applying the smaller JSON result budget."
+  ],
+  "windows_partial_adaptation": "Windows workspace tools use native handle-rooted read/list/search and approved exclusive create-new, never replacement/edit. Partial ACL shell remains explicit and always approved, with no strict approval descriptor. Read-only policy omits creation."
+}

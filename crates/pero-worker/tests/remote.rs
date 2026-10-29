@@ -63,6 +63,9 @@ struct Fixture {
 }
 
 fn read_request(stream: &mut TcpStream) -> Option<(String, Value)> {
+    // BSD accept inherits the listener's nonblocking flag. Each connection is
+    // handled on its own thread and must wait for headers/body within the timeout.
+    stream.set_nonblocking(false).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .unwrap();
@@ -99,6 +102,41 @@ fn read_request(stream: &mut TcpStream) -> Option<(String, Value)> {
     ))
 }
 
+#[test]
+fn cloud_request_waits_for_headers_on_an_inherited_nonblocking_socket() {
+    use std::os::fd::AsRawFd;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (mut server, _) = listener.accept().unwrap();
+    // Reproduce BSD's inherited state on every Unix test host.
+    server.set_nonblocking(true).unwrap();
+    let observer = server.try_clone().unwrap();
+    let reader = std::thread::spawn(move || read_request(&mut server));
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let flags = unsafe { libc::fcntl(observer.as_raw_fd(), libc::F_GETFL) };
+        assert_ne!(flags, -1);
+        if flags & libc::O_NONBLOCK == 0 {
+            break;
+        }
+        assert!(
+            !reader.is_finished(),
+            "request reader returned before headers arrived"
+        );
+        assert!(
+            Instant::now() < deadline,
+            "request reader did not enter blocking mode"
+        );
+        std::thread::yield_now();
+    }
+    client.write_all(b"POST /claims HTTP/1.1\r\nAuthorization: Bearer cloud-secret\r\nContent-Length: 2\r\n\r\n{}").unwrap();
+    assert_eq!(reader.join().unwrap(), Some(("/claims".into(), json!({}))));
+    assert_eq!(
+        observer.read_timeout().unwrap(),
+        Some(Duration::from_secs(2))
+    );
+}
+
 fn expiry() -> String {
     (OffsetDateTime::now_utc() + time::Duration::seconds(3))
         .format(&Rfc3339)
@@ -107,7 +145,10 @@ fn expiry() -> String {
 
 impl Fixture {
     fn new(prompt: &str, cancel: bool, lose_lease: bool) -> Self {
-        let root = std::env::temp_dir().join(format!("pero-remote-{}", uuid::Uuid::new_v4()));
+        Self::new_under(prompt, cancel, lose_lease, std::env::temp_dir())
+    }
+    fn new_under(prompt: &str, cancel: bool, lose_lease: bool, parent: PathBuf) -> Self {
+        let root = parent.join(format!("pero-remote-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("workspace")).unwrap();
         std::fs::write(root.join("agent.mjs"), AGENT).unwrap();
         let node = std::env::split_paths(&std::env::var_os("PATH").unwrap())
@@ -357,6 +398,49 @@ fn interrupted_claim_is_reconciled_without_replaying_prompt() {
     );
     assert_eq!(state.completion.as_ref().unwrap()["outcome"], "reconcile");
     assert!(!fixture.root.join("marker").exists());
+}
+
+
+// Native protocol fixture, never executes tools or makes model/network calls.
+#[test]
+fn pinned_operator_policy_admits_only_one_native_shell_permission() {
+    let fixture = Fixture::new_under("hello", false, false, std::env::current_dir().unwrap());
+    let source = fixture.root.join("fixture.c");
+    let binary = fixture.root.join("native-fixture");
+    std::fs::write(&source, r#"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+int main(void) {
+ if(getenv("LD_PRELOAD") || getenv("UNTRUSTED_INHERITED") || getenv("PERO_WORKER_TOKEN")) return 4;
+ char line[65536], prompt[128]="0";
+ while(fgets(line,sizeof(line),stdin)) {
+  char *id=strstr(line,"\"id\":"); char n[128]="0";
+  if(id) { id+=5; size_t count=strcspn(id,",}"); if(count>=sizeof(n)) return 3; memcpy(n,id,count); n[count]=0; }
+  if(strstr(line,"\"initialize\"")) printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"protocolVersion\":1,\"agentCapabilities\":{}}}\n",n);
+  else if(strstr(line,"session/new")) printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"sessionId\":\"fixture\"}}\n",n);
+  else if(strstr(line,"session/prompt")) { strcpy(prompt,n); puts(getenv("FIXTURE_PERMISSION")); }
+  else if(strcmp(n,"900")==0) {
+   if(!strstr(line,"selected")) return 2;
+   printf("{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"stopReason\":\"end_turn\"}}\n",prompt);
+  }
+  fflush(stdout);
+ }
+ return 0;
+}
+"#).unwrap();
+    assert!(Command::new("cc").arg(&source).arg("-o").arg(&binary).status().unwrap().success());
+    let sha256: String = ring::digest::digest(&ring::digest::SHA256, &std::fs::read(&binary).unwrap()).as_ref().iter().map(|b| format!("{b:02x}")).collect();
+    let workspace = fixture.root.join("workspace");
+    let permission = json!({"jsonrpc":"2.0","id":900,"method":"session/request_permission","params":{"sessionId":"fixture","toolCall":{"toolCallId":"native-shell"},"options":[{"optionId":"once","kind":"allow_once","name":"Once"}],"_meta":{"pero.dev/native-approval":{"version":1,"operation":"shell","workspace":workspace,"sandbox_mode":"workspace-write","enforcement":"required","network":"deny"}}}});
+    let env = json!({"FIXTURE_PERMISSION":permission.to_string()});
+    std::fs::write(fixture.root.join("agents.json"), json!([{"id":"fixture","name":"Native fixture","command":binary,"args":[],"env":env}]).to_string()).unwrap();
+    std::fs::write(fixture.root.join("config.json"), json!({"workspaces":{"fixture":workspace},"agents_file":fixture.root.join("agents.json"),"native_approvals":{"fixture":{"agent_id":"fixture","executable":binary,"sha256":sha256,"args":[],"env":env,"operations":["shell"],"sandbox_mode":"workspace-write"}}}).to_string()).unwrap();
+    let output = fixture.command().env("LD_PRELOAD", "").env("UNTRUSTED_INHERITED", "present").output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let state=fixture.state.lock().unwrap();
+    assert_eq!(state.completion.as_ref().unwrap()["outcome"], "succeeded");
+    assert_eq!(state.events.iter().filter(|e| e["kind"] == "permission_approved").count(),1);
 }
 
 #[test]

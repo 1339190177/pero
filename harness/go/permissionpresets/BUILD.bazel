@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "permissionpresets",
+    srcs = ["types.go"],
+    importpath = "github.com/phodal/pero/harness/go/permissionpresets",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//harness",
+        "//sandbox",
+    ],
+)
+
+go_test(
+    name = "permissionpresets_test",
+    srcs = ["types_test.go"],
+    embed = [":permissionpresets"],
+    deps = ["//harness"],
+)

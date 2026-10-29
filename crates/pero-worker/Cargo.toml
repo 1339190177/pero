@@ -14,3 +14,5 @@ fs2 = "0.4"
 libc = "0.2"
 uuid = { version = "1", features = ["v4"] }
 time = { version = "0.3", features = ["parsing", "formatting"] }
+
+ring = "0.17"

@@ -1,0 +1,66 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "files": [
+    {
+      "source_path": "go/harness/llm/image_request_pricing.go",
+      "source_blob_sha1": "e9c33eb2b1cce6149c3f72972dcbd9a725024348",
+      "destination": "image_request_pricing.go"
+    },
+    {
+      "source_path": "go/harness/llm/model_capability_test.go",
+      "source_blob_sha1": "dfed0eac5a30b3971026d366f792157a4b64524e",
+      "destination": "model_capability_test.go"
+    },
+    {
+      "source_path": "go/harness/llm/model_info.go",
+      "source_blob_sha1": "efb26510db339cd8d54c09e23aeb0ff7ec2f373e",
+      "destination": "model_info.go"
+    },
+    {
+      "source_path": "go/harness/llm/model_info_test.go",
+      "source_blob_sha1": "c547aff41b9c3cab2a6f1c524543d783c31f1bf2",
+      "destination": "model_info_test.go"
+    },
+    {
+      "source_path": "go/harness/llm/provider_error.go",
+      "source_blob_sha1": "13214b3d2f2be6ba259b567d8acc99108caa24fb",
+      "destination": "provider_error.go"
+    },
+    {
+      "source_path": "go/harness/llm/retry_execution_policy.go",
+      "source_blob_sha1": "9d795e801ee2d67083c55e09b64a8b7984637991",
+      "destination": "retry_execution_policy.go"
+    },
+    {
+      "source_path": "go/harness/llm/retry_policy.go",
+      "source_blob_sha1": "e40f993955fc6a3638645d042c1ea53706cf9712",
+      "destination": "retry_policy.go"
+    },
+    {
+      "source_path": "go/harness/llm/retry_policy_test.go",
+      "source_blob_sha1": "df543b53bfac2991ab549d64f63be5cd4af33fd9",
+      "destination": "retry_policy_test.go"
+    },
+    {
+      "source_path": "go/harness/llm/types.go",
+      "source_blob_sha1": "c16b45c85fcb212168d56bf961c2a5f8537ced32",
+      "destination": "types.go"
+    }
+  ],
+  "modifications": {
+    "image_request_pricing.go": "Import local model package.",
+    "model_info.go": "Import local model package.",
+    "types.go": "Import local model package; neutral JSON comment.",
+    "retry_execution_policy.go": "Remove Point service key registration and runtime import; Override returns the same underlying func(context.Context) error callback instead of point.Dispose."
+  },
+  "license_status": "No license header or separate notice identified in these files. User authorized publication; do not infer a whole-module license.",
+  "layout_migration": {
+    "destination": "harness/go/llm",
+    "module": "github.com/phodal/pero/harness/go",
+    "changes": [
+      "Mechanical module/import/documentation layout migration from go/agent.",
+      "Normalize license export to one terminal newline; notice wording unchanged."
+    ]
+  }
+}

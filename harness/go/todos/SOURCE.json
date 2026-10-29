@@ -1,0 +1,57 @@
+{
+  "repository": "phodal/point",
+  "commit": "edff76d7dd39b2900cff707af1896fe8ff9fd2dc",
+  "files": [
+    {
+      "path": "go/harness/todos/argument_errors_test.go",
+      "blob": "f97943c94eafa03216b67369b9cda26851e2135a",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/normalization.go",
+      "blob": "374e3c81742f68824889f759ac8b3b88ae412288",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/normalization_lifecycle_test.go",
+      "blob": "4c12763aaac663e9efa2fa41e3933e8d7b84a7d9",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/normalization_test.go",
+      "blob": "68d46aa49ff4245e0c99fd489b42043cba88a384",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/tool.go",
+      "blob": "54077cc150910144a459c6712ae9d362649729d4",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/tool_canonical_test.go",
+      "blob": "f8770dd22a78fe38182d935b078803516b4e799e",
+      "role": "copied; import relocation only"
+    },
+    {
+      "path": "go/harness/todos/tool_test.go",
+      "blob": "33fd90490fe37c9ffdd595043bcd0311677e9c24",
+      "role": "copied; import relocation only"
+    }
+  ],
+  "license": "No blanket license assigned. Preserve upstream notices; remaining owner licensing decision is not inferred.",
+  "changes": [
+    "Reuses session todo/write events and Current replay. No second task database.",
+    "Default legacy normalization retained. Whole-list replacement; next turn/start clears standing plan."
+  ],
+  "destination_sha256": {
+    "BUILD.bazel": "5140d1ce8f5784ddac353f354948fc1904ed4031182b3b21b7064e6bf8e2af56",
+    "README.md": "c37363f11b28e225bc440e5d476d5ff618dc8b033739999624b80374752021ab",
+    "argument_errors_test.go": "dd3bb7173417c5a0a5b4649d083904b522232deb3eeba3a0f2f513c3b67e2a63",
+    "normalization.go": "df8da35d86358b0d8e5a9be8226c1b17cef340d3c4a4da34b0337ed84ed26d09",
+    "normalization_lifecycle_test.go": "5e8a0b510de214dba2cd98ca272b5f47ccddb898e1308c26c0cc6297b1842f9f",
+    "normalization_test.go": "4f9f082d2bcc5af3ce963b7751a79ddc3e2f2a7065a0649eba99437ad1c21569",
+    "tool.go": "2ea90e0c6f8016043641856452be408450ca8d5a40644d61df772137b5bbc4da",
+    "tool_canonical_test.go": "94b210d53f36a6bdfaee42a9754ec45ab6ed11da7979e3453feb7090615c2257",
+    "tool_test.go": "3396d56c9e719bb50210123a667218d6be7db59ff670b81d3454788ea3f4d77f"
+  }
+}

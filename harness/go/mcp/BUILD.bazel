@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "mcp",
+    srcs = [
+        "config.go",
+        "connection.go",
+        "output.go",
+        "resources.go",
+        "tools.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/mcp",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//model",
+        "//runtime",
+        "//tool",
+        "@com_github_modelcontextprotocol_go_sdk//mcp",
+        "@org_golang_x_text//unicode/norm",
+    ],
+)
+
+go_test(
+    name = "mcp_test",
+    srcs = [
+        "resources_test.go",
+        "visibility_test.go",
+    ],
+    embed = [":mcp"],
+    deps = ["@com_github_modelcontextprotocol_go_sdk//mcp"],
+)

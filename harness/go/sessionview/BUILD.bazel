@@ -1,0 +1,30 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sessionview",
+    srcs = [
+        "checkpoint.go",
+        "disk.go",
+        "history.go",
+        "jsonv.go",
+        "project.go",
+        "project_events.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/sessionview",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/jsonwire",
+        "//session",
+    ],
+)
+
+go_test(
+    name = "sessionview_test",
+    srcs = [
+        "disk_test.go",
+        "history_test.go",
+        "project_test.go",
+    ],
+    embed = [":sessionview"],
+    deps = ["//session"],
+)

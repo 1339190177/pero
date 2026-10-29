@@ -4763,6 +4763,7 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
+ "url",
  "uuid",
 ]
 
@@ -4796,6 +4797,7 @@ dependencies = [
  "pero-contracts",
  "pero-runtime",
  "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "time",

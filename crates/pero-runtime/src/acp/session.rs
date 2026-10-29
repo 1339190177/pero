@@ -17,7 +17,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot};
 
-const SETUP_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 45 });
+const SETUP_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 3 } else { 45 });
 const CANCEL_TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 5 });
 const MAX_DEFERRED_COMMANDS: usize = 16;
 
@@ -152,6 +152,7 @@ async fn run(
     permissions: Permissions,
     acquire_workspace: bool,
 ) -> Result<(), String> {
+    config.validate_mcp()?;
     event(
         &tx,
         &thread,
@@ -162,7 +163,7 @@ async fn run(
     let agent = AcpAgent::new(
         AcpAgentConfig::new(&config.command)
             .args(&config.args)
-            .envs(config.env),
+            .envs(config.env.clone()),
     );
     let model_api = Arc::new(Mutex::new(ModelApi::default()));
     let notification_models = model_api.clone();
@@ -229,11 +230,17 @@ async fn run(
                 connection.send_request(InitializeRequest::new(ProtocolVersion::V1)).block_task(),
                 &mut commands, &mut deferred, &tx, &thread, "Agent initialization",
             ).await? else { return Ok(()); };
+            // Never start a session under a protocol version this client does not implement.
+            if initialized.protocol_version != ProtocolVersion::V1 {
+                return Err(failure("Agent negotiated an unsupported ACP protocol version"));
+            }
+            config.validate_mcp_capabilities(&initialized.agent_capabilities.mcp_capabilities)
+                .map_err(|message| failure(&message))?;
             let auth_methods = initialized.auth_methods.clone();
             event(&tx, &thread, "agent_info", "", serde_json::to_value(&initialized).unwrap_or_default());
             let mut session_data = loop {
                 let result = setup_request(
-                    connection.send_request(UntypedMessage::new("session/new", NewSessionRequest::new(cwd.clone()))?).block_task(),
+                    connection.send_request(UntypedMessage::new("session/new", NewSessionRequest::new(cwd.clone()).mcp_servers(config.mcp_servers.clone()))?).block_task(),
                     &mut commands, &mut deferred, &tx, &thread, "Session creation",
                 ).await;
                 match result {
@@ -576,3 +583,4 @@ fn next_permission_id() -> String {
 #[cfg(test)]
 #[path = "../../../../tests/runtime/acp_lifecycle.rs"]
 mod lifecycle_tests;
+

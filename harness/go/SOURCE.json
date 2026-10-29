@@ -1,0 +1,1489 @@
+{
+  "repository": "phodal/point",
+  "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+  "scope": "Core/ACP/supporting packages; optional native subagent registry provenance is additionally tracked by SUBAGENTS_SOURCE.json.",
+  "changes": [
+    "Root Boot omits product/workflow/job/subagent/schedule/skills/file-observation/user-question services.",
+    "Agent manager/loop remove ProjectBinding, prepared project publication and persisted project-input receipt; retain actual execution algorithm.",
+    "Agent disposal removes job/subagent coordinator callbacks; generic callback self-wait gate extracted from subagents_lifecycle.go.",
+    "Nested tool lineage context extracted from jobs.go without job execution; agent activation reservations extracted from agent_reopen.go without child reopening.",
+    "ACP omits schedule host and workspace registry; retains protocol/lifecycle and per-session MCP.",
+    "Harness RetryExecutionPolicy key is local composition rather than dependency on llm/runtime.",
+    "harness_test.go omits duplicate assertion against whole-product contract fixture; explicit identical event order assertion remains.",
+    "New executable composes explicit static provider, JSONL persistence and ACP without product defaults.",
+    "Approval.Decide removes Host browser_start/full-access bypass: never always rejects; regression updated.",
+    "MCP HTTP refuses redirects to avoid reapplying explicit credentials to another destination; regression added.",
+    "CLI removes the actual credential variable from process environment before MCP can inherit it; arbitrary-name subprocess regression added.",
+    "Signal cancellation suppresses only expected closed-reader errors, never final session flush/close or Harness Dispose/Drain errors; regression preserves durability failure.",
+    "Optional native file/shell composition is tracked by fstools/SOURCE.json, shell/SOURCE.json and nativetools/SOURCE.json; existing agent loop is unchanged.",
+    "Optional explicit provider request/output/retry/reasoning budgets for bounded smoke tests; defaults retained.",
+    "Explicit --use-env-proxy opt-in uses existing HTTP(S) proxy configuration; default direct transport and TLS verification unchanged.",
+    "Explicit --disable-thinking emits compatible Chat Completions thinking.type disabled; unspecified providers unchanged.",
+    "Optional trusted ACP working-directory admission callback reuses native workspace CheckCWD before new/load/resume effects; execution-time checks remain.",
+    "ACP resume/load interprets latest supported controller receipt and requires client MCP presence when recorded; malformed/unknown receipts fail explicitly. No configuration-equivalence or secret persistence is introduced.",
+    "Optional explicit read-only Skills catalog is tracked by skills/SOURCE.json; original Point SkillRegistry, provider scopes, implicit home/project roots, product bundles and invocation hooks remain excluded. Existing Harness tool registration/generation and fstools descriptor authority are reused.",
+    "Explicit operator context-window compaction wiring reuses the existing engine for new and resumed ACP sessions.",
+    "ACP projects provisional text/thought stream chunks with committed-output deduplication and callback lifetime fences; load replays committed history only.",
+    "Trusted native approval descriptors preserve registration ownership and validate generation before request_permission; only strict shell composition produces version 1 descriptors.",
+    "MCP terminal HTTP authorization failures stop reconnect and SDK fallback; public errors are sanitized while preserving classifications.",
+    "Explicit operator selectable-model declarations expose local adapter-owned catalog through existing ProviderRegistry and durable Agent.SelectModel; ACP select-option transport glue is new, not copied upstream ACP behavior. Default single-model behavior retained.",
+    "Idle-only ACP model change uses command lifecycle reservation without holding session lock across subscriber/persistence callbacks; close drains it and restoration revalidates explicit uniform context/output capacities.",
+    "Optional coding helpers mount explicit-root untrusted AGENTS.md context and session-backed todo_write only; plan-mode/user-question authorization remains excluded. Package-specific source pins preserved in agentinstructions/SOURCE.json and todos/SOURCE.json.",
+    "Optional complete native subagent registry/lifecycle restored; one-level in-process spawn/fork reuse existing AgentManager/Session ownership. Effective child caps are restricted, request budgets shared, ApprovalNever pinned, and parent MCP grants may be inherited. The duplicate extracted callback helper is removed; original provenance is retained under removed_files.",
+    "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
+    "Official DSH behavioral review restores ACP admission cancellation, bounded physical read windows, max-token tool suppression and explicit context-overflow classification; see upstream_behavior_review record.",
+    "Existing-module behavioral review restores inherited common-loop/storage contracts, fail-closed JSONL tails, precise usage/settings conversion, MCP capability discovery and shell tails; CLI explicitly selects existing DSH todo options. See module_behavior_review; not full cross-language parity."
+  ],
+  "excluded_features": [
+    "Projects",
+    "Hub",
+    "Pages",
+    "web",
+    "desktop",
+    "accountsync",
+    "product prompt",
+    "telemetry",
+    "workflows",
+    "jobs",
+    "schedules",
+    "external subagent providers and product orchestration",
+    "Point scoped skills registry, implicit/product skill discovery and automatic invocation hooks",
+    "Point coding product profile"
+  ],
+  "license": "No blanket license assigned. Preserve package-specific third-party notices; remaining owner licensing decision is not inferred.",
+  "files": [
+    {
+      "destination": "harness/agent.go",
+      "sha256": "1c0b77f964caf07ca556fed937c121b1c1b15a6894c27206176f8a5ea7002484",
+      "source_path": "go/harness/agent.go",
+      "source_blob_sha1": "2e1bfd1ba592cf9a536138226178a72f3b1abd52",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/agent_activation.go",
+      "sha256": "c19c7f202592548a8d7c72bf9e29e616976186cd9586c6da8a94e3cdfae7a52d",
+      "change": "new extraction glue or regression test"
+    },
+    {
+      "destination": "harness/agent_delivery.go",
+      "sha256": "4771590424303fd689c730bd797114337cfe1bb8322fe310227db6a4f72161f1",
+      "source_path": "go/harness/agent_delivery.go",
+      "source_blob_sha1": "7536acaf1bbbfcbff33e1ef684dc8dc7d944a0f7",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_dsh_inbox.go",
+      "sha256": "7c8e55ad5f96b5a40e5ecfc6e5b9f7c06af44668adb1d06a144371af080f6b58",
+      "source_path": "go/harness/agent_dsh_inbox.go",
+      "source_blob_sha1": "72c3ee0819a310639ec4c1b5f7471296c4f33ea8",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_loop_settings.go",
+      "sha256": "6e32f469cc726610b18815ddffd4a9b357c7c24385e94fd36fefe2b4aee08cdd",
+      "source_path": "go/harness/agent_loop_settings.go",
+      "source_blob_sha1": "dcc310709cb4f96b77289239d62aba168d612ec5",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_manager.go",
+      "sha256": "e174454052ffbf47d5a3859afeaadb841dde3f743e437bfe61a055f26c0ecf88",
+      "source_path": "go/harness/agent_manager.go",
+      "source_blob_sha1": "bfcf1b042439c6e645a673bd56446c1880ccb22e",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/agent_model_selection.go",
+      "sha256": "04666e87aacf39a1160e4bf69ad525998c82a649c4a282db3f7953ef9603c63d",
+      "source_path": "go/harness/agent_model_selection.go",
+      "source_blob_sha1": "babadd5f46d24ed1d7e2c2586edd8e704a0def4b",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_operations.go",
+      "sha256": "b922e9e4eb8589702ba8f8ac134c454bbf6fd3885e24f7db11d0da2a77ec8331",
+      "source_path": "go/harness/agent_operations.go",
+      "source_blob_sha1": "70da0ff9ceac06c1494b8462151604b6f2ed98cf",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_preset.go",
+      "sha256": "c6cd0ceb0d66b7ab90abda6086b893b26260212e89686bf4dcbb9fc6fa3b716d",
+      "source_path": "go/harness/agent_preset.go",
+      "source_blob_sha1": "84df4287a9f7f59c98272dabec8b003868c99ce6",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_queue.go",
+      "sha256": "b210b4ad6f4d674ed66b2ced71d88c55ff029041c5d4a36f6dcac761be30ecde",
+      "source_path": "go/harness/agent_queue.go",
+      "source_blob_sha1": "f65cc7fb2315c643f6be9469a2fd9fc79a62e9d1",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_session_log.go",
+      "sha256": "24ac660c649ffdb3aa75fdd0a69bfea08c6905139e3077a328dac52b5cecaf8c",
+      "source_path": "go/harness/agent_session_log.go",
+      "source_blob_sha1": "eecc25a7668c696ef5cf3ba9b858717a896f5ef2",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_session_surface.go",
+      "sha256": "322663709bec8230eed50fd705ee033e2d0c706137e2710b5aa8260eff3bea80",
+      "source_path": "go/harness/agent_session_surface.go",
+      "source_blob_sha1": "7076e3f6de3e11c71b1386965a4044aeb7476efd",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_shutdown.go",
+      "sha256": "6c8c2f9b376d0c31f3175f64aa4f19ea9b4b6cf83b5cbfd575a8c3ac525f87f8",
+      "source_path": "go/harness/agent_shutdown.go",
+      "source_blob_sha1": "ff70c596d6ca5067b281198e6642e4e86ec1c0bd",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/agent_user_inbox.go",
+      "sha256": "d53bbe47c101e88a4f42e004f908051d2ac7bbeb0dc77634593bc1fa844ba44a",
+      "source_path": "go/harness/agent_user_inbox.go",
+      "source_blob_sha1": "a2f4ccc85e91089ddc565ce31de572a21117b3a8",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/agent_worker.go",
+      "sha256": "335002db9f14fdd9eea42cd044ceb081cfa3adc7b66f7c7b7b27dd6561e36ec6",
+      "source_path": "go/harness/agent_worker.go",
+      "source_blob_sha1": "5e54a519b73ea134c931fd5af9ce19f6d5aeceb2",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/approval.go",
+      "sha256": "1cae067ede8e947e6ccc8c1ef358b5892bd70b66ade7a6bce8ed1a85fc2f25a1",
+      "source_path": "go/harness/approval.go",
+      "source_blob_sha1": "4555d89ac5573a97be2c5a8367775655d0860327",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/approval_test.go",
+      "sha256": "23ba77467f9e9b82f52906e32306355c85f26ded577c272c2ee6a987ef5770ac",
+      "source_path": "go/harness/approval_test.go",
+      "source_blob_sha1": "b8d10ee48ec92878d0f0057cb2414a2c41cde6af",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/approval_test.go",
+          "blob_sha1": "ef7a59995c40511f43285b2b865715fd3a260558",
+          "sha256": "94257da38b9929840b1d2dc5e0a4ce65baced51898f887f931496e5fcf4ae2d9",
+          "bytes": 19556
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/boot.go",
+      "sha256": "702d2b872ec0156db6a9c3452c91e58019650961a656e394aec7876b944404a2",
+      "source_path": "go/harness/boot.go",
+      "source_blob_sha1": "1a95fe7ef4676f66b8aa08896656c64d66048a0b",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/boot_registration.go",
+      "sha256": "2e5d055efc0f80eae7cf4219e4a5eb66687899d33ef8d6e43127a733d20b1290",
+      "source_path": "go/harness/boot_registration.go",
+      "source_blob_sha1": "77aa8c3730fff6039e600b5d8340095eacd660e9",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/boot_services.go",
+      "sha256": "2945c12606f1037355f6e4823953acf91143b8d74c53f12cd9d1bed074f77b43",
+      "source_path": "go/harness/boot_services.go",
+      "source_blob_sha1": "37239987b88f7c899257e63cf446c56a31ee0093",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/boot_shutdown.go",
+      "sha256": "c1bdc4eeb26e565f468a4974552eda5f1fdc5e1e7927ce5bf1b99d7ec24f04a2",
+      "source_path": "go/harness/boot_shutdown.go",
+      "source_blob_sha1": "9f349bf46fbd4e5ea02c46fb3996076772767a86",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/checkpoint_policy.go",
+      "sha256": "014562d461f3dc4acf6e64494878bde4a15be49e71c69a87e8aa579b75bd51ac",
+      "source_path": "go/harness/checkpoint_policy.go",
+      "source_blob_sha1": "55f60daef70b4da6269202140ee27dc7fbd4a373",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/command_compact.go",
+      "sha256": "a2bd95f013b75711e857a319ea28a502982a4dd37524a421b2304a4291249d5d",
+      "source_path": "go/harness/command_compact.go",
+      "source_blob_sha1": "e99f28da7bbb7d1f429257c87cb98a95e466f4a3",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/command_owners.go",
+      "sha256": "d43a84930181d10bf5c571f9f0c106effaf9582284909094e6d1dc2eb85af850",
+      "source_path": "go/harness/command_owners.go",
+      "source_blob_sha1": "159dd7e0d8bc02d16349d8496fe7bf3d8d62065d",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/command_remote.go",
+      "sha256": "affb3619a0ac29d0c5d407394f1fa9fc35c0b371ab5403323f30be08b6593216",
+      "source_path": "go/harness/command_remote.go",
+      "source_blob_sha1": "362291796654ae4570fc23b1c5ae3b0fa583ea48",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/commands.go",
+      "sha256": "f216dd9b7b0274cd97093db362861c54b5e8e8536422c94c3f14c8834fecca0f",
+      "source_path": "go/harness/commands.go",
+      "source_blob_sha1": "6f76b5534c32190a7257f98038834b4d38cf1bf3",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/compaction.go",
+      "sha256": "f2da1c3d9e33e5446ddc2e8927295ba19e22ba04a4c0a0da6df968cbc8fc6bf0",
+      "source_path": "go/harness/compaction.go",
+      "source_blob_sha1": "d9abb49027e62052ac0f986f87586386b52e58ea",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/compaction_basic.go",
+      "sha256": "6a0295035e02d07b1061e5d147ddddab5a14f3bf1dc5346d1be2a923cd15e52b",
+      "source_path": "go/harness/compaction_basic.go",
+      "source_blob_sha1": "2381801e8a009146c2288f14c50182c518f24c0d",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/compaction_config_dsh.go",
+      "sha256": "88b9d9dc3194958a84f67b1a76b6c648ab8d83c8d9b49a5ee425b2ab6616fc3f",
+      "source_path": "go/harness/compaction_config_dsh.go",
+      "source_blob_sha1": "ab566b40f4eb0b667cb156b530ccf8b364f947b7",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/compaction_defaults.go",
+      "sha256": "a68bbaab7dcb663084f4ac1b8b55d60809944bdfcfd558f9c7d5bead7556c1f0",
+      "source_path": "go/harness/compaction_defaults.go",
+      "source_blob_sha1": "55e0a24a99faa6cc3c0232881b0c02072bd1380a",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/compaction_managed.go",
+      "sha256": "e0512d2534b9c882a14404171273b1d9dc78acea2abf1a02a1597fb8dd1f947c",
+      "source_path": "go/harness/compaction_managed.go",
+      "source_blob_sha1": "42712ded872e186656af37bc61d20ec4f6a90aed",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/compaction_range.go",
+      "sha256": "19f9a1a37f47e5cfab77f16939594c265264d5e9ffd78739e8380e95ac895638",
+      "source_path": "go/harness/compaction_range.go",
+      "source_blob_sha1": "ab26074a189db061f4907256928c7ffe61216a0f",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/config_compat.go",
+      "sha256": "5b636cef5cd634fffe5a791d9c35b0c548ab8f912ce021a9d136c797bc68cd76",
+      "source_path": "go/harness/config_compat.go",
+      "source_blob_sha1": "44dea8726f0cfecb9021e946cb2d890084247143",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/content_compat.go",
+      "sha256": "b798c4d1581e0edb6bc56bf922f00456a4b5743efb4222cde639f20096a1ae15",
+      "source_path": "go/harness/content_compat.go",
+      "source_blob_sha1": "30dceeec1f2c090607d1f1a1ed55e3ab4765ed34",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/default_model.go",
+      "sha256": "f56c4df7bcb971d52788289afadb933c2290acbfb048632c02112cce8f362eb3",
+      "source_path": "go/harness/default_model.go",
+      "source_blob_sha1": "71c6dcba45e4078de11b1401455b7834fbd490ec",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/external.go",
+      "sha256": "46dab92c9011c8d07da5012bb067a5171e11294f7fa535c0b864c58519af02ff",
+      "source_path": "go/harness/external.go",
+      "source_blob_sha1": "6141f61dc14173ff5411a6c25095302658f45e96",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/extraction_test.go",
+      "sha256": "558fafe067480bad8d3ff6f467d305370226b930ddf012b3df579bca09b3c57d",
+      "change": "new extraction glue or regression test"
+    },
+    {
+      "destination": "harness/followup_admission.go",
+      "sha256": "0b87da171fdc664a08874f31d8cdd6224d9b57fa42098ea555ad8ec06bbb3750",
+      "source_path": "go/harness/followup_admission.go",
+      "source_blob_sha1": "5577bcb855aeab2fb971a18d9c188b37cbf8f302",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/harness_test.go",
+      "sha256": "90ffc5b95b188fd33959a868dbaebbc753f0f2affac4d56ba71643552e80f021",
+      "source_path": "go/harness/harness_test.go",
+      "source_blob_sha1": "7f67ef26b2670e560cf05f31786e22c45afa263a",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/harness_test.go",
+          "blob_sha1": "388d9e2c28362427aecded4a03adf4112dd04513",
+          "sha256": "7f7c4c461802e0d0391bd377c678f6a25ebd5a2a40c1ffdded2c1f99e69acf94",
+          "bytes": 16859
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/image_offload.go",
+      "sha256": "6011e03835ecbba25231bebdb669363ff9d3e457bf98e7a9fea5ffee4ca39e48",
+      "source_path": "go/harness/image_offload.go",
+      "source_blob_sha1": "604c0b8577601ea3c505c8ff951a8c37270b2e35",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/image_request_pricing.go",
+      "sha256": "594d120db9880e6553105d81eba8cfe26d4955f49b66ef6b4dbfc2d1363fcafa",
+      "source_path": "go/harness/image_request_pricing.go",
+      "source_blob_sha1": "1943a6f826be703dc3a5ae2d5f9e22503591d9a4",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/llm.go",
+      "sha256": "38797eae994987bba2201566496028f833a8b5ea1f4ab618ab058617be4372bb",
+      "source_path": "go/harness/llm.go",
+      "source_blob_sha1": "ee7a87ba581a40e7a7756b293e19b072307fc9aa",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/loop.go",
+      "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798",
+      "source_path": "go/harness/loop.go",
+      "source_blob_sha1": "dcdbdf357adbae796246ec0eded51cfa2e092484",
+      "change": "adapted; enforce adapter-independent max-token tool suppression and sticky turn result"
+    },
+    {
+      "destination": "harness/main_request.go",
+      "sha256": "419aef1c982bdc4bedb88ca289d9739dc098b53f1a90a064a5254424dc8cb91a",
+      "source_path": "go/harness/main_request.go",
+      "source_blob_sha1": "a0734e74c0a4e3a0b288af99f4b93ea14e6c96e8",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/mcp.go",
+      "sha256": "9630011cf1fb599669fe563bfac44af63d9f4679ec9ab49adda5a7af514e593f",
+      "source_path": "go/harness/mcp.go",
+      "source_blob_sha1": "9101f80063db36eaa5c89c55e8afdcb98a074bd3",
+      "change": "adapted; retain canonical MCP value/schema and render output through existing registry seam"
+    },
+    {
+      "destination": "harness/mcp_security_test.go",
+      "sha256": "c8ae05ebb7f6f2b01fe860c817caff709c32e3d7b572ec140d94a796b8b1dc5d",
+      "change": "new extraction glue or regression test"
+    },
+    {
+      "destination": "harness/media_compat.go",
+      "sha256": "d1d9d93d1e3cf221f9c938e615ab71940370641ed5cf1fa3f7f2e21561edc05b",
+      "source_path": "go/harness/media_compat.go",
+      "source_blob_sha1": "7f38f373aa59b03b777a39dc94f5e21546aabba3",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/model_info.go",
+      "sha256": "f66bd40a25c6605d936d9715af9f5d879780718b591dce16c0342689bc97149d",
+      "source_path": "go/harness/model_info.go",
+      "source_blob_sha1": "68763d3ac504813ad3783fca4138261718196287",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/owned_followup.go",
+      "sha256": "ea96cad09960528360ec2b9ee148c5a98dc52a42296daf11ab4f57a593661c1c",
+      "source_path": "go/harness/owned_followup.go",
+      "source_blob_sha1": "e853c91e9d41b1a1c6d8978c6d756130edbecf9b",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owner_admission.go",
+      "sha256": "31320b111e619b2abff4dd931e0fe5a5eb03fa76225b64b94f016172e0e560eb",
+      "source_path": "go/harness/profile_owner_admission.go",
+      "source_blob_sha1": "b61b6d75e8c64d077af2196e75c5fb2db9e048ab",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owner_commands.go",
+      "sha256": "4cd0dcccdd18d141908ddb09cf3e79812a96a57827f461af3ff0129f2424ddd9",
+      "source_path": "go/harness/profile_owner_commands.go",
+      "source_blob_sha1": "065f6f36c138f37f81307b4e6c8ac671834bccb0",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owner_tools.go",
+      "sha256": "b4c3912822821daada022e0d698efa2197a3f59786897ffecc363e8461e02ab1",
+      "source_path": "go/harness/profile_owner_tools.go",
+      "source_blob_sha1": "d4bbd41a8a4db90cdac6ad76542c697959f70646",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owner_transaction.go",
+      "sha256": "a9f2549ef2b009c893eede7bc235b221f98b175810a6dcd10ebdd9429734afc4",
+      "source_path": "go/harness/profile_owner_transaction.go",
+      "source_blob_sha1": "63d0baa8885bca59006bde7959472371433eab4a",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owner_visibility.go",
+      "sha256": "68d4c6923283d1159be76d4308db1524c4a3975bb6626d0d4c5d4cd2367a1674",
+      "source_path": "go/harness/profile_owner_visibility.go",
+      "source_blob_sha1": "d9b4a75d585afa53ced4230106586f36d2482caf",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/profile_owners.go",
+      "sha256": "85313834a7cf2103d940e2bc9b962ce77ad85afab30b9bfc4e3861df6a9d2292",
+      "source_path": "go/harness/profile_owners.go",
+      "source_blob_sha1": "6b4c3f2e78ff2abbba7885585586df552807e468",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/prompt.go",
+      "sha256": "fc2562d945d6f9a0ca5419c74654ec74a0623987673aeb4d7c4d6a60a4cfe30d",
+      "source_path": "go/harness/prompt.go",
+      "source_blob_sha1": "4536beabf08c10b172c301a51194e76801316b5b",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/provider_directory.go",
+      "sha256": "9927436e068307c7bf71fd2e8ffa7f52f2ebb0b2a2b8cb7acc6ca6065e0f4664",
+      "source_path": "go/harness/provider_directory.go",
+      "source_blob_sha1": "49f80299b84bb9df541fc6f6130e6c58d07cc1b6",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/provider_error.go",
+      "sha256": "e34879b809953d3b4b80a3ba88c1b6c854b1e8c03dcbceb91a50646c2fae494b",
+      "source_path": "go/harness/provider_error.go",
+      "source_blob_sha1": "9528d3c7f2828e86b2e39acb1b9adc382d5c5b3d",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/provider_metadata.go",
+      "sha256": "1381bc5874bcbb7e7cf144ec3b6048bbbc5efb6b9e04d725b61a7008342c2fdf",
+      "source_path": "go/harness/provider_metadata.go",
+      "source_blob_sha1": "daf907ebdee3e3611ff2354bb8319ca50a68a227",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/provider_registry.go",
+      "sha256": "3277efd555200652e3446a8d3a8e536e13f7b3b7f96faff3e0a655670b76b240",
+      "source_path": "go/harness/provider_registry.go",
+      "source_blob_sha1": "f4a6efae22d3d44eb4852d093d8ae117cb6b493a",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/retry.go",
+      "sha256": "5651c42d626ac3a9850c9f78ea6a48d5616a5fcd8c63e4294398e4d516c6f319",
+      "source_path": "go/harness/retry.go",
+      "source_blob_sha1": "6a2a3fec017ff2c859757efb150c7d92778fab32",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/retry_execution_policy.go",
+      "sha256": "7e82eda156780b670f01332b5e3ad1914ab928fee21855104627e0dad1df5e52",
+      "source_path": "go/harness/retry_execution_policy.go",
+      "source_blob_sha1": "4a2469a3b7687b98f843f94286ddaca5307a0c23",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/retry_policy_compat.go",
+      "sha256": "de50aa69992a6c997b78c3131096917b60570715b0f74ce7faaf2c3b9ba7d161",
+      "source_path": "go/harness/retry_policy_compat.go",
+      "source_blob_sha1": "93354d4b98745433b9d883d4ab07d482d22ee5ff",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/retry_test.go",
+      "sha256": "110b023796ba696cf9141dee4aa08692f10d8fc3ef87f1fac70aa4cae62812be",
+      "source_path": "go/harness/retry_test.go",
+      "source_blob_sha1": "0d7418476d2968f5dfc320cdffebe809efa22693",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/retry_test.go",
+          "blob_sha1": "670bf88c13265eb6c441e7714b15eb281f711a32",
+          "sha256": "110b023796ba696cf9141dee4aa08692f10d8fc3ef87f1fac70aa4cae62812be",
+          "bytes": 16378
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/session_compat.go",
+      "sha256": "5c6a15db1f28c3ffa37cb1da5b7b3ef1c92cf850c518c2abbc846fdc63023545",
+      "source_path": "go/harness/session_compat.go",
+      "source_blob_sha1": "d6666d5499a2385adb502c4f631eb49bf847d0c1",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/spill.go",
+      "sha256": "81517827b93f5c80a3ced4239c5091b05afb6dadb2498d58f9e185dd67be991a",
+      "source_path": "go/harness/spill.go",
+      "source_blob_sha1": "ea367fae9050b584c6cb74e9f6d12a01bbf4a6e4",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/spill_compat.go",
+      "sha256": "b75f8d410701a5a1004b8161690e19bc5d56384a51af590e95e13ba4f0e34738",
+      "source_path": "go/harness/spill_compat.go",
+      "source_blob_sha1": "f345898b7ac4843185cbeca700170fcdf79a4e59",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/token_meter.go",
+      "sha256": "c2794920f3fd6ea7caa7da9e5c5f92b334efd2188db0f9c5e394b690cb1771b9",
+      "source_path": "go/harness/token_meter.go",
+      "source_blob_sha1": "4ae2f15a8f1e8188f6d8039027ca4fd9c266a80b",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tool_call_lineage.go",
+      "sha256": "26c1156b397c23128105bdaf341acb79afb89737e55acb54512ed4d41d7be21f",
+      "change": "new extraction glue or regression test"
+    },
+    {
+      "destination": "harness/tool_catalog_owner.go",
+      "sha256": "fa87d5297cc761a33fae69b60b004975e64eaf6e827558c61eaf057e9f8d896b",
+      "source_path": "go/harness/tool_catalog_owner.go",
+      "source_blob_sha1": "f72490281b4898c59c16c5a54abaae8182b81624",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tool_owners.go",
+      "sha256": "6b63231ff8bed8bb957a71a551c42a52d490f3494226cef8ccd970b81e71d8db",
+      "source_path": "go/harness/tool_owners.go",
+      "source_blob_sha1": "9269712681b738271211dfd27e619052e7a6f3b8",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tool_result_pruner.go",
+      "sha256": "b995586e36b5127c9105e8dbbdf4308fc1fa150f3593a86a858a3b8d80062438",
+      "source_path": "go/harness/tool_result_pruner.go",
+      "source_blob_sha1": "a015a6dfc87b26f8a4b20620023f51f84e4edaae",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/tool_schema_compat.go",
+      "sha256": "f39402f481272b11767f75671849c16b87c81517b328f3a2b889f232a605fee0",
+      "source_path": "go/harness/tool_schema_compat.go",
+      "source_blob_sha1": "38f7f2626e856ae9f380709ee0f2f8c69dd6412c",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tool_types_compat.go",
+      "sha256": "dab0300d68dfe784e5da8791c3b3c3001265a2e3e9f32dab4a78204a5ff1fc35",
+      "source_path": "go/harness/tool_types_compat.go",
+      "source_blob_sha1": "639e849829d32c23b89d9c96840386b16ac17c3b",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools.go",
+      "sha256": "588f0426d43fef15dd4c4767db13919610c09edc5c8a6d411f700cd9c50c5ff3",
+      "source_path": "go/harness/tools.go",
+      "source_blob_sha1": "5c0c3c1831bec1d79cbecbc21205072332e910f0",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_arguments_dsh.go",
+      "sha256": "0d17dcecaf7d5642c9376edfe50cee7d360556c89be260f37f20b6de99c66eab",
+      "source_path": "go/harness/tools_arguments_dsh.go",
+      "source_blob_sha1": "6e1591138ac2e85700dbd389e1bc6f829b94aaed",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_arguments_dsh_test.go",
+      "sha256": "2f1e0ed168f44023b82fb867d0a3cfbe888baac99128019402dbe7d8926d03ec",
+      "source_path": "go/harness/tools_arguments_dsh_test.go",
+      "source_blob_sha1": "1094c4cc15f47e9464cf4db4bf3e90828c1ed373",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_test.go",
+          "blob_sha1": "ee419b7b7820119eee7e14c3f9b21e513a6a4ac0",
+          "sha256": "bc25409e796baf0dce2021d8f6651e4493553d0ae7010707c94f6c0431349bac",
+          "bytes": 14004
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/tools_arguments_dsh_todo.go",
+      "sha256": "d4c347c839cf2876ed7ba402b46e1449a62fe27f76dfbfa390ed5a607923961c",
+      "source_path": "go/harness/tools_arguments_dsh_todo.go",
+      "source_blob_sha1": "3b307d12ce9ec2cb340b009b04ef6f155f22d584",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_arguments_dsh_todo_numbers.go",
+      "sha256": "da3f7d650126856fc0b3deefc71e86996e8c3bfd8ac9179e2eae0760787e0825",
+      "source_path": "go/harness/tools_arguments_dsh_todo_numbers.go",
+      "source_blob_sha1": "38fa41b99621dd5fb8d5f33b4fb0d9f3dad95ebe",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_arguments_dsh_todo_numbers_test.go",
+      "sha256": "c8e2650c0b053af79e0f2c85f86c3e23fa8a9b901e1a67c5945a8a6844dc2cfa",
+      "source_path": "go/harness/tools_arguments_dsh_todo_numbers_test.go",
+      "source_blob_sha1": "522e0b7ff8a48467316b1774abd9817f935bed9b",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_todo_numbers_test.go",
+          "blob_sha1": "c80224b1c49d473e6bd88b3e8669abae0289db00",
+          "sha256": "051a6510062cb5b29b9ded4396b3874e9da1a3cd44895207bfd08069c418cd43",
+          "bytes": 27513
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/tools_arguments_dsh_todo_test.go",
+      "sha256": "582815a2513213493eaff1fb3fd579e66eb005eb67b3df28aaf84c50b40c0b43",
+      "source_path": "go/harness/tools_arguments_dsh_todo_test.go",
+      "source_blob_sha1": "1dda06c7638f942e2b35b25f15f2e69c40b399da",
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_todo_test.go",
+          "blob_sha1": "25b73b1c877874c9e13168c4d4cd08e99bf81135",
+          "sha256": "582815a2513213493eaff1fb3fd579e66eb005eb67b3df28aaf84c50b40c0b43",
+          "bytes": 26582
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
+    },
+    {
+      "destination": "harness/tools_body_admission.go",
+      "sha256": "8b5d489d88b7af94e3aa0fbf6e3abb63eecfb2ad3389f93186b1719cdbff5f5a",
+      "source_path": "go/harness/tools_body_admission.go",
+      "source_blob_sha1": "e1d8e6d7544f7386b8ed03a7240651cc779c0f45",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_catalog_identity.go",
+      "sha256": "c1d1e354b2763252d499bb57b30f2fc9bd0b5a6372f0d626e3a02c19aba30c8a",
+      "source_path": "go/harness/tools_catalog_identity.go",
+      "source_blob_sha1": "cedc7caf36b08d7f166b400a2fa9baac4dfde5bc",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_error_output.go",
+      "sha256": "ff51f0c994661cf58a15882fe5bf063fd8a3923bae4be2a03a1182c901baf9d6",
+      "source_path": "go/harness/tools_error_output.go",
+      "source_blob_sha1": "47ab3566cab48a3cc161d6325796544e52d6f687",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_execute.go",
+      "sha256": "ad51822bbe39828c2f944285d48ea734d9850f2e2439c4f0d3ce552c396dbb16",
+      "source_path": "go/harness/tools_execute.go",
+      "source_blob_sha1": "25e13cd43586496f95def20c5f5365149e8ef48f",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/tools_final_content.go",
+      "sha256": "10c12f2f5a8c2f2c672dac3aa3ab49a3f51058a7099ab3039fdbc9d844ec28e7",
+      "source_path": "go/harness/tools_final_content.go",
+      "source_blob_sha1": "91fe5fd9605d9a65f71a0aaadeecf24ded696d52",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_identity.go",
+      "sha256": "d817bd635e5423025c11e88e8470acfaa962eca982b6585a71eb31c36a1283f9",
+      "source_path": "go/harness/tools_identity.go",
+      "source_blob_sha1": "3a651936d9b86f391d49b12c893daf35deb0a4b6",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_identity_test.go",
+      "sha256": "a0c10780be4c89d132d308629e26646a16dbc8dab4014dc3ec5bdc647de84a31",
+      "source_path": "go/harness/tools_identity_test.go",
+      "source_blob_sha1": "aeb5a162ea4d2e1ca42ddf836c7572e05552c60e",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/tools_output.go",
+      "sha256": "08e0ba9eb617a4d2606f2c71969f05557e4a48aa067bbfed33bd933f0056d22c",
+      "source_path": "go/harness/tools_output.go",
+      "source_blob_sha1": "e091c5b6f71498a10589cdbec0b5a25177c7cb4c",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_presentation.go",
+      "sha256": "bae5e8521b7ee27fdfaf5ae16e5cd5aa53eab0366b75f1604d2d258124124a00",
+      "source_path": "go/harness/tools_presentation.go",
+      "source_blob_sha1": "663f5c3e6016425bad89745f659765e6a368f62a",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_projection_settlement.go",
+      "sha256": "4435e176eaa3f34d6dbdb397ecb191837f2b3f3de090ed38f0d89b24331bb48b",
+      "source_path": "go/harness/tools_projection_settlement.go",
+      "source_blob_sha1": "403a1d277f26681c56ed16cadd365deb4a943b36",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_register.go",
+      "sha256": "320d8e89e4ecdb37286bd1d1c903d829d555503f0caeec09a711847dba59daec",
+      "source_path": "go/harness/tools_register.go",
+      "source_blob_sha1": "27829b219cdd09c3fd9fe246398d3ab5e7d7bb3a",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/tools_resolve.go",
+      "sha256": "b96e80910765c002e59c3fc17a109e53dc7dc45cc92e0bf9e0e134a11cc37d7c",
+      "source_path": "go/harness/tools_resolve.go",
+      "source_blob_sha1": "e06a116216813c42c6bd5655961356e88c4daaed",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_retirement_test.go",
+      "sha256": "4240ed42645b222c2b8b5a499ee34a1004d4257b5add775e6482e9b5ff62bc41",
+      "source_path": "go/harness/tools_retirement_test.go",
+      "source_blob_sha1": "d04f2890ebe7a2a4e97947e266b32e6c3210b8c6",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/tools_source_final_content.go",
+      "sha256": "3ea8951270653adb727cf6c35e74965a8195c0edaa253b642b418c41642762ca",
+      "source_path": "go/harness/tools_source_final_content.go",
+      "source_blob_sha1": "806d42ae56ebf7d97702b0ebd8868a37616dbf72",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_source_handoff.go",
+      "sha256": "651394a3c8d5c30ce99a544e335ddfe6f0daeb8a55e0437f6584bae4c7b02da2",
+      "source_path": "go/harness/tools_source_handoff.go",
+      "source_blob_sha1": "7f526a3b646d01a018160e514acf19a27479944a",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_terminal_notification.go",
+      "sha256": "2c56e4b3c40204fc3c0aa535a61bdac4d2e2d6457a61c6aac667edd755e00a0a",
+      "source_path": "go/harness/tools_terminal_notification.go",
+      "source_blob_sha1": "687f6a147fd6bdf2450454ae73af42a1756abf67",
+      "change": "imports only"
+    },
+    {
+      "destination": "harness/tools_test.go",
+      "sha256": "a11c12ac235072402202e90fd7186966f458cd1e9f6dcee0d769875d62126a59",
+      "source_path": "go/harness/tools_test.go",
+      "source_blob_sha1": "e2bc33ba25eee727cd0cf60d7a58945267accb0c",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/types.go",
+      "sha256": "3bd0abc8fdb5ba78a8fc83cd783f18e8bba035b81033de9b8a0bd557d2b8857c",
+      "source_path": "go/harness/types.go",
+      "source_blob_sha1": "67f7e5b9ca77035679cc4cfc992007388f85833e",
+      "change": "adapted; review pinned source diff"
+    },
+    {
+      "destination": "harness/workspace_admission.go",
+      "sha256": "e19cefcc72be143a405e716cf381acd6418ddd144692e61dc6f12acbd0a7e5f4",
+      "source_path": "go/harness/workspace_admission.go",
+      "source_blob_sha1": "8a5b95bae0ea17f8b09f15a4c1003d0a52d09277",
+      "change": "imports only"
+    },
+    {
+      "destination": "acp/extraction_test.go",
+      "sha256": "5d4d67f01c14f4f0cf000ede3fe325bd3c86c4cf0221f74448baf125b20ab4b1",
+      "change": "new extraction glue or regression test"
+    },
+    {
+      "destination": "acp/lifecycle.go",
+      "sha256": "b5e8d4bfcbe5afc8dea7edf1d91f44be204a3c75e39dad0f04282e5218ab8223",
+      "source_path": "go/harness/acp/lifecycle.go",
+      "source_blob_sha1": "3e9b33ed2f4ba75e8ad4477269b0d890e2a1c40d",
+      "change": "adapted; close cancels ACP prompt admission context as well as active Agent execution"
+    },
+    {
+      "destination": "acp/server.go",
+      "sha256": "722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74",
+      "source_path": "go/harness/acp/server.go",
+      "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318",
+      "change": "adapted and concept-split; restores upstream per-prompt admission cancellation and waits for cancellation settlement before releasing ACP slot"
+    },
+    {
+      "destination": "acp/types.go",
+      "sha256": "56d5d8ea74982183c357ea69b9e6de8e27344d87edbc75d0018e202d26359bba",
+      "source_path": "go/harness/acp/types.go",
+      "source_blob_sha1": "ae83462e0a12d656cb5b36944310426676a2ba9a",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/json_schema_subset.go",
+      "sha256": "b9632ec4a9d8b6b68407b89d772d1ebb625ececb2f1457ac3602449e986c0a9d",
+      "source_path": "go/harness/tool/json_schema_subset.go",
+      "source_blob_sha1": "7c89dc963c551307a8c103cbf1bdfc6c92f69039",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/json_schema_subset_test.go",
+      "sha256": "8c2b2cb1502c355d275bcc0f039056ceba5ef3257a26e0d2a6d73f4019fada05",
+      "source_path": "go/harness/tool/json_schema_subset_test.go",
+      "source_blob_sha1": "ee2e829db95c79b66644256e00e7a0a3481a51b5",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/output.go",
+      "sha256": "378af268addebdfa0c8b9bb3894c5e9d1edfac30bb8563bc5bafe54cdac7e20a",
+      "source_path": "go/harness/tool/output.go",
+      "source_blob_sha1": "59cd4fb18022261c8b86faf030311bbfccc5a491",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/output_test.go",
+      "sha256": "493f25c82c7c3994aafb2b645b718f60b8bfebb2b323bde93a0c33468605696f",
+      "source_path": "go/harness/tool/output_test.go",
+      "source_blob_sha1": "e4054066760bf0203111b2f929c098ad4a8a6033",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/presentation.go",
+      "sha256": "da94453c315409afdbfbfaabab0d89e835ab24967ae46eab771d6c1728394467",
+      "source_path": "go/harness/tool/presentation.go",
+      "source_blob_sha1": "ca1976629642bbc358be9d712681c0a529bb45e1",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/pruner.go",
+      "sha256": "d0e4a17266ad18bf4d6bed90256842dcfc03af5f84e53b31a80793b9e414636a",
+      "source_path": "go/harness/tool/pruner.go",
+      "source_blob_sha1": "2b5468e2db4c41f3967c04213a1a7eb9ac649975",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/schema.go",
+      "sha256": "4f6d07d112c679b71bd2165704d592ade82ca91ebd3732514d0999803d5c5acc",
+      "source_path": "go/harness/tool/schema.go",
+      "source_blob_sha1": "465d3f2f6b366263d35f4e6b052ddface13e7fab",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/spill.go",
+      "sha256": "9a30284a35ceb05ec1b9fb59b8ef17126ec45d85074aa36a90f281370c6eedc5",
+      "source_path": "go/harness/tool/spill.go",
+      "source_blob_sha1": "3427e794c230e43c90ad80cee337aa2cda3dfb92",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/spill_local.go",
+      "sha256": "55e9fb55b6e0197a9a616da58c5842accf3657cdb265d3b6dd637a9409a2aa8e",
+      "source_path": "go/harness/tool/spill_local.go",
+      "source_blob_sha1": "7dd8317756cb01dd704f9116b9b22c7a83f37546",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/spill_local_cleanup_other.go",
+      "sha256": "172874338b1954e24bf3e2d2f6a3d18f59c0613cf347294fb41248e18c643081",
+      "source_path": "go/harness/tool/spill_local_cleanup_other.go",
+      "source_blob_sha1": "ebf90332841fec2fbf6283f3593b06ed169e16f9",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/spill_local_cleanup_unix.go",
+      "sha256": "c384c2e0ff25ed5f4d67397ea6dbde5f13314ac830ae5b7e1f8720bc24cb0df2",
+      "source_path": "go/harness/tool/spill_local_cleanup_unix.go",
+      "source_blob_sha1": "d846860b2559b06648e8ec9b87d3fff374b7ebdf",
+      "change": "imports only"
+    },
+    {
+      "destination": "tool/types.go",
+      "sha256": "26f4e8e25b49b73473deeebda6505afe3bdb7fa4ce0f08c7576e8a4ce8d4f519",
+      "source_path": "go/harness/tool/types.go",
+      "source_blob_sha1": "f4ef1e8844ec36a03155a74167d8ab1fcd6ab5b7",
+      "change": "imports only"
+    },
+    {
+      "destination": "mcp/config.go",
+      "sha256": "0c9129c55f29e56fc19784f8517c8ab52b17d2ff838a2fa4ee569dca75376272",
+      "source_path": "go/harness/mcp/config.go",
+      "source_blob_sha1": "c1fa9a0cc5be4bc61e171b871cd0813ae8664073",
+      "change": "imports only"
+    },
+    {
+      "destination": "mcp/connection.go",
+      "sha256": "5ba5f162e637da70ad91ae3ea8bee28bad108d26289b58e1ec2ada463480c516",
+      "source_path": "go/harness/mcp/connection.go",
+      "source_blob_sha1": "042724008626c8294ad5b8f4d26646c2ea1a7ec4",
+      "change": "imports only"
+    },
+    {
+      "destination": "mcp/resources.go",
+      "sha256": "80f0cfe1ad24673c3b45859ef40767bc32ee86b27b3860e3bf7689dbff5724b4",
+      "source_path": "go/harness/mcp/resources.go",
+      "source_blob_sha1": "a97eaf2175eed3ac3215b6b36455f42e01080bf6",
+      "change": "imports only"
+    },
+    {
+      "destination": "mcp/resources_test.go",
+      "sha256": "677fb1fc7b2a94f5aa4f848d6939bfcd07d922a7c301d275aa79ccf7553aefff",
+      "source_path": "go/harness/mcp/resources_test.go",
+      "source_blob_sha1": "28281bdc04e96062541d111373cad76503e77b6c",
+      "change": "imports only"
+    },
+    {
+      "destination": "mcp/tools.go",
+      "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e",
+      "source_path": "go/harness/mcp/tools.go",
+      "source_blob_sha1": "a063b2a06878fc28b99809ae0f7b03220318d70e",
+      "change": "imports adapted; honor advertised tools capability before discovery"
+    },
+    {
+      "destination": "mcp/visibility_test.go",
+      "sha256": "11d0cd531e9db7e736fda4474d611864345101147cf55b116f18a7ede18b860f",
+      "source_path": "go/harness/mcp/visibility_test.go",
+      "source_blob_sha1": "18dde473f3c4b7ff9e4025933931ef7de37f6ac2",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/compatibility_test.go",
+      "sha256": "9befd0e315b431b409adf54c1359a118c2687c63b83fb9d175ceeba25a1e0bb2",
+      "source_path": "go/harness/storage/compatibility_test.go",
+      "source_blob_sha1": "46f81138d7f326163704e00df16e52bf83097cc8",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/domain.go",
+      "sha256": "0008b9779f3c90d5a8e8c1c7973824aba3f1addf0073b5a559d7024d32e714b3",
+      "source_path": "go/harness/storage/domain.go",
+      "source_blob_sha1": "e162452f53cacc6f284b8b4792c67168f28fea67",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/json_backend.go",
+      "sha256": "ba9d6b2cfc26cea2b31c754dacb56d2e0290176e2e8ac4f368179ea6236a2342",
+      "source_path": "go/harness/storage/json_backend.go",
+      "source_blob_sha1": "fb59388e3654c4da85e8f8334dd1cf279073c2fc",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/json_units.go",
+      "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52",
+      "source_path": "go/harness/storage/json_units.go",
+      "source_blob_sha1": "20f51376f2af873fe9950bedd13799350735a551",
+      "change": "imports adapted; retain empty declared table initialization state"
+    },
+    {
+      "destination": "storage/namespace.go",
+      "sha256": "5d3908ca2e1112fb8591bcdd058045f5bfe9a83be0c908350bb6eac46943349e",
+      "source_path": "go/harness/storage/namespace.go",
+      "source_blob_sha1": "7a1995a83711c7b295051cda3859a5e51c4f3934",
+      "change": "imports adapted; capture Windows namespace identity eagerly through handle Stat instead of deferred path lookup"
+    },
+    {
+      "destination": "storage/namespace_test.go",
+      "sha256": "3db08794d656034d569fc0883ddf33e118ae2125efc6b6aecc9cff93ef74d88b",
+      "source_path": "go/harness/storage/namespace_test.go",
+      "source_blob_sha1": "3f80b26a10c18fa3f062e564ca90031cddedbb67",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/ordered.go",
+      "sha256": "88b19bd7b520cff6b98c249f84a9cb68a53d8008cd5b469b87c51ced2c037555",
+      "source_path": "go/harness/storage/ordered.go",
+      "source_blob_sha1": "f78cc417fd942920a743c76ff01332847433fffd",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/ordered_test.go",
+      "sha256": "694b34ad9734db6721af6a5a5d305828f4b2f8b9fa957beb3c690901694ec9f8",
+      "source_path": "go/harness/storage/ordered_test.go",
+      "source_blob_sha1": "a9f5c9ed935d7b683b34409dfd6ff513e80a9290",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/storage.go",
+      "sha256": "a7b50af052398bb4d816e72f396ac0228a9d2751823d08f19787f965b4afa4ba",
+      "source_path": "go/harness/storage/storage.go",
+      "source_blob_sha1": "ec237e885330a65d872e730759abe12a818c24bc",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/storage_test.go",
+      "sha256": "86eaabe73fe3cefe4f3206bdf542c5d8bd03fc80e339925df34eb8ceecd1003d",
+      "source_path": "go/harness/storage/storage_test.go",
+      "source_blob_sha1": "e3e464190e7c5acc6771e83847e324f6fa126d22",
+      "change": "imports only"
+    },
+    {
+      "destination": "storage/table.go",
+      "sha256": "d218be93b7b837f17919acca8f4630e7b71f7816aaacfebab74c05cad9edd287",
+      "source_path": "go/harness/storage/table.go",
+      "source_blob_sha1": "a905a24f63a91beff2f40f2e91439c988886a575",
+      "change": "imports only"
+    },
+    {
+      "destination": "sessionview/checkpoint.go",
+      "sha256": "85e1ba67e754360fced43aceffcf2a7e60f2ae55de4d785ad1f46570d9a6d4fc",
+      "source_path": "go/harness/sessionview/checkpoint.go",
+      "source_blob_sha1": "9cf3485a7118724b8aa1cafb301e842e69b7a0df",
+      "change": "imports only"
+    },
+    {
+      "destination": "sessionview/disk.go",
+      "sha256": "461b1058682f2ef956eef2d3ff008af3ecb1df41e99f4142c2ff2f4eaf9e3ac5",
+      "source_path": "go/harness/sessionview/disk.go",
+      "source_blob_sha1": "fe92af54cd79294ff82a3078c057ba7e5faeaac2",
+      "change": "imports adapted; immutable checkpoints retained for previously opened history continuation"
+    },
+    {
+      "destination": "sessionview/history.go",
+      "sha256": "c750fc7d609ad22321bb567f472141e336f2850b59d928fe85aa94c842b76934",
+      "source_path": "go/harness/sessionview/history.go",
+      "source_blob_sha1": "1f4a6a583518942af5419a697fe508b8228b4e6a",
+      "change": "imports only"
+    },
+    {
+      "destination": "sessionview/jsonv.go",
+      "sha256": "94bee68742a7b7e908985c41f7ced2f6fb29dace08184536901b4cfc776fc116",
+      "source_path": "go/harness/sessionview/jsonv.go",
+      "source_blob_sha1": "b0d6c75710767fa796acfa5c550e967149215e8a",
+      "change": "imports only"
+    },
+    {
+      "destination": "sessionview/project.go",
+      "sha256": "6218982ae3d5c5c3c28b5282c3b60599b1356001723a0a66581cf3a3cfc07555",
+      "source_path": "go/harness/sessionview/project.go",
+      "source_blob_sha1": "c70f0c5c2b1037a0475b927e5da52ca600aa9e6b",
+      "change": "imports adapted; correct unavailable JS oracle documentation"
+    },
+    {
+      "destination": "sessionview/project_events.go",
+      "sha256": "663db453bf085195324b01e75a90777fcf4c6c30a33d1eb6cdff0af7e8f28b45",
+      "source_path": "go/harness/sessionview/project_events.go",
+      "source_blob_sha1": "c694ee72390b6cdc395e8ec8f19c43e7f6dcd244",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/jsonwire/numbers.go",
+      "sha256": "742ec321579b793d52a340f004e884157dddb44d3ae588227049f88813b01558",
+      "source_path": "go/harness/internal/jsonwire/numbers.go",
+      "source_blob_sha1": "ca9d03a6fd44e954ce15eacb67d85ea49e2ec728",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/jsonwire/numbers_test.go",
+      "sha256": "a489f3f28f39bfa3a6dae20e8103fadeef8332dee8750c54af36bb6c5fa40c1f",
+      "source_path": "go/harness/internal/jsonwire/numbers_test.go",
+      "source_blob_sha1": "12b7a9e7fd58db606a22e81a4475a895ef448014",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/jsonwire/session_payload.go",
+      "sha256": "be6d0808cfc0c62ab2d8810f3bd5138506da330602aea4e6df31c065689c046c",
+      "source_path": "go/harness/internal/jsonwire/session_payload.go",
+      "source_blob_sha1": "9f01901425a650314cd56bce9094551a6ab48c89",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/jsonwire/session_payload_test.go",
+      "sha256": "2ece1855950c875762446a3ea45b38615a4b04aea93fb82e456211d6b8f46bbd",
+      "source_path": "go/harness/internal/jsonwire/session_payload_test.go",
+      "source_blob_sha1": "d03bd306dd56fb9963c0aabd0d39ef59d3e79f53",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/jsonwire/snapshot.go",
+      "sha256": "529ef695f7925b893485ccc7fe9994187f106fda3d28b4882c9a759a9b06467c",
+      "source_path": "go/harness/internal/jsonwire/snapshot.go",
+      "source_blob_sha1": "6033d48bc8488cb99642d334a0e95efdc51742f6",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/sessionlogroute/route.go",
+      "sha256": "1001bf663c9696e748f1d5dc7669686b57839aa1e27c145dd52a0d914ab98302",
+      "source_path": "go/harness/internal/sessionlogroute/route.go",
+      "source_blob_sha1": "6409307fb1cec2cad0280d0ce79a3843d663dee0",
+      "change": "imports only"
+    },
+    {
+      "destination": "internal/sessionlogroute/route_test.go",
+      "sha256": "8bdfe1659f1dfe465f425dd87902f9ce75b5fa2f54b6ed5bd9a854aaffbe6088",
+      "source_path": "go/harness/internal/sessionlogroute/route_test.go",
+      "source_blob_sha1": "e7c5c447936bfc983d053d21c7a46b8f75aebf75",
+      "change": "imports only"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/main.go",
+      "sha256": "d8f64ea9251798142188ef4fe7256681b9415947d53b4680a6b98cbd890f3803",
+      "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
+    },
+    {
+      "destination": "cmd/pero-agent-acp/main_test.go",
+      "sha256": "805e02c7e98223d53b39629e4d906fbe59e99afe7b9c90463535b63f6548687e",
+      "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
+    },
+    {
+      "destination": "acp/models.go",
+      "sha256": "97d8f59e6def8783736bca274fc4e27c4a0824df76abf36bd3bf9d765506fa63",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "acp/models_test.go",
+      "sha256": "ec3ddaeb7c0a80b7cfebba7cd82151318bc647f70e22c85c862abd4e7af1b5b9",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/models.go",
+      "sha256": "4387d0815a31fd8dac1e0bce827ede1535ca2620306b8f94f2e318ee33e3aa90",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/models_test.go",
+      "sha256": "53f287504af0935752cffe06bddf532925b45107da0d1ec521413e262fb5af88",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding.go",
+      "sha256": "6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding_test.go",
+      "sha256": "7efb8e1ae8c562bb4b6290d41ba035c61e081fab22bc7df62d00e1c7a86ea1a0",
+      "change": "new opt-in extraction/composition glue or synthetic regression; independent package provenance retained"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+      "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967",
+      "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
+    },
+    {
+      "destination": "acp/server_history.go",
+      "sha256": "f81a5326388117a1f17093247f20b4d175f55c2c089712bb7505a3f5cfdcbc01",
+      "split_from": "acp/server.go",
+      "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
+      "source_path": "go/harness/acp/server.go",
+      "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/windows_files_test.go",
+      "sha256": "3191d528ff46edcc2bd2b6f0cfafeaa8e5f64f2fc3d1c021ed0b3d881eb289e3",
+      "change": "new required native Windows built-CLI temp-file contracts; synthetic loopback provider only"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/windows_runtime_test.go",
+      "sha256": "2801f8ac0c21204929f5e6160a098749c91e5adf967b3658818444984c5aaa53",
+      "change": "new required native Windows built-CLI temp-file contracts; synthetic loopback provider only"
+    }
+  ],
+  "removed_files": [
+    {
+      "destination": "harness/agent_callback_gate.go",
+      "sha256": "19d424b7ff923afca2b3a655e80a325d09d15e75973f6fec149877e2fbabfa53",
+      "change": "new extraction glue or regression test",
+      "removal_reason": "Identical callback helper restored with the complete native subagents_lifecycle.go; duplicate extracted helper removed."
+    }
+  ],
+  "upstream_behavior_review": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-upstream-parity.md",
+    "additional_files": [
+      {
+        "destination": "acp/stream_test.go",
+        "sha256": "f751b76e9a0053e64bf6b6a262c7a61af21f98df75fb8b933dbdb6c0d91ff8d0"
+      },
+      {
+        "destination": "providers/openai/stream.go",
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
+      },
+      {
+        "destination": "providers/openai/provider_errors.go",
+        "sha256": "20ce09a75aa29b167c5e680dd14643ebd60593a5866451f22ba12f3b198ba8ab"
+      },
+      {
+        "destination": "providers/openai/adapter_test.go",
+        "sha256": "7188bb657680152f2e5c51e8be784c8204c0ac1bd9b2ee372b95474fd9ee13e5"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
+        "sha256": "874441b772a125bb1b703b0e55ac992be608559ee18e5fc0ced9dd1eeaf3ec0f"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+        "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967"
+      }
+    ]
+  },
+  "module_behavior_review": {
+    "official_commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-28-harness-module-contracts.md",
+    "files": [
+      {
+        "destination": "cmd/pero-agent-acp/coding.go",
+        "sha256": "6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
+        "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967"
+      },
+      {
+        "destination": "config/explicit_environment_test.go",
+        "sha256": "2341b3ba38b1a59a22c9c0e1fc3b50c3a255fb0133a9f9c45a1a1059746f0689"
+      },
+      {
+        "destination": "config/settings_json.go",
+        "sha256": "7dbfad51e9038823fe25acaa9192d1e1e736fb7c0fb42c27c2d897827d2bcec4"
+      },
+      {
+        "destination": "harness/harness_test.go",
+        "sha256": "90ffc5b95b188fd33959a868dbaebbc753f0f2affac4d56ba71643552e80f021"
+      },
+      {
+        "destination": "harness/loop.go",
+        "sha256": "95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798"
+      },
+      {
+        "destination": "mcp/resources_test.go",
+        "sha256": "677fb1fc7b2a94f5aa4f848d6939bfcd07d922a7c301d275aa79ccf7553aefff"
+      },
+      {
+        "destination": "mcp/tools.go",
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
+      },
+      {
+        "destination": "nativetools/tools.go",
+        "sha256": "98e6c60b700ccda11b9680a51f2b752ccbe8bf606f6a5dac2fc88d2e69e1697f"
+      },
+      {
+        "destination": "nativetools/tools_test.go",
+        "sha256": "d748f7cd03b297f403ae23dd3acaccc9ae65a481ca453ad60fbf1640463505ea"
+      },
+      {
+        "destination": "providers/openai/adapter_test.go",
+        "sha256": "7188bb657680152f2e5c51e8be784c8204c0ac1bd9b2ee372b95474fd9ee13e5"
+      },
+      {
+        "destination": "providers/openai/stream.go",
+        "sha256": "2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f"
+      },
+      {
+        "destination": "session/persistence.go",
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
+      },
+      {
+        "destination": "session/persistence_identity_test.go",
+        "sha256": "4cd3d90aa35969b72c7965d1d3617f8828ab916b470ed46fef52929629f0b5a6"
+      },
+      {
+        "destination": "sessionview/project.go",
+        "sha256": "6218982ae3d5c5c3c28b5282c3b60599b1356001723a0a66581cf3a3cfc07555"
+      },
+      {
+        "destination": "storage/compatibility_test.go",
+        "sha256": "9befd0e315b431b409adf54c1359a118c2687c63b83fb9d175ceeba25a1e0bb2"
+      },
+      {
+        "destination": "storage/json_units.go",
+        "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52"
+      }
+    ]
+  },
+  "source_verification_scope": {
+    "status": "partial",
+    "reconciled_mismatches": 6,
+    "note": "Six previously reported test-file origin mismatches independently rechecked. Other entries are not newly verified by this check; destination hashes do not attest source origin."
+  },
+  "retained_sessionview_review": {
+    "record": "docs/fitness/harness-module-comparison.md",
+    "scope": "Locally authored contract tests and immutable-cache checkpoint lifetime fix. No production composition or JavaScript oracle execution.",
+    "files": [
+      {
+        "destination": "sessionview/history_test.go",
+        "sha256": "01210049f5a9069a4abf62b41872d28d72f12d36c78e38c67013ea63dfc18a88"
+      },
+      {
+        "destination": "sessionview/project_test.go",
+        "sha256": "c198a0ec6cdbd9b5dc94f5f99078628720d18e7f079125bb0f16975f067fa8e9"
+      },
+      {
+        "destination": "sessionview/disk_test.go",
+        "sha256": "8137a39a7cd18c810f25abcfef2f8d1a4a9b68d6c9c411539ba062b6621b3b03"
+      }
+    ]
+  },
+  "gap_completion_review": {
+    "official_commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
+        "sha256": "874441b772a125bb1b703b0e55ac992be608559ee18e5fc0ced9dd1eeaf3ec0f"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/main.go",
+        "sha256": "d8f64ea9251798142188ef4fe7256681b9415947d53b4680a6b98cbd890f3803"
+      },
+      {
+        "destination": "harness/mcp.go",
+        "sha256": "9630011cf1fb599669fe563bfac44af63d9f4679ec9ab49adda5a7af514e593f"
+      },
+      {
+        "destination": "harness/mcp_output_test.go",
+        "sha256": "28fbcfe7c13a36a366953d4e6429215bc559e91b6bc40f26dbc79419813ac672"
+      },
+      {
+        "destination": "harness/session_compat.go",
+        "sha256": "5c6a15db1f28c3ffa37cb1da5b7b3ef1c92cf850c518c2abbc846fdc63023545"
+      },
+      {
+        "destination": "mcp/output.go",
+        "sha256": "c30eba61dfa9fa6fd2e2fd3efc6386cd7f68eaf073036c01b646e8131f6d792d"
+      },
+      {
+        "destination": "mcp/tools.go",
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
+      },
+      {
+        "destination": "sandbox/strict_test.go",
+        "sha256": "262d7c73ed1ce4b9449042cb43e149444a13d1f3f79579fb2d0b714ed35971dc"
+      },
+      {
+        "destination": "session/persistence.go",
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
+      },
+      {
+        "destination": "session/persistence_identity_test.go",
+        "sha256": "4cd3d90aa35969b72c7965d1d3617f8828ab916b470ed46fef52929629f0b5a6"
+      },
+      {
+        "destination": "sessionview/disk.go",
+        "sha256": "461b1058682f2ef956eef2d3ff008af3ecb1df41e99f4142c2ff2f4eaf9e3ac5"
+      },
+      {
+        "destination": "sessionview/disk_test.go",
+        "sha256": "8137a39a7cd18c810f25abcfef2f8d1a4a9b68d6c9c411539ba062b6621b3b03"
+      },
+      {
+        "destination": "sessionview/history_test.go",
+        "sha256": "01210049f5a9069a4abf62b41872d28d72f12d36c78e38c67013ea63dfc18a88"
+      },
+      {
+        "destination": "sessionview/project_test.go",
+        "sha256": "c198a0ec6cdbd9b5dc94f5f99078628720d18e7f079125bb0f16975f067fa8e9"
+      }
+    ]
+  },
+  "cross_platform_contract_review": {
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "fstools/review_race_test.go",
+        "sha256": "f5d20c97c0274da05fc9a2a1407449efd240e1566bd3f34d5d89c171f273ce19"
+      },
+      {
+        "destination": "fstools/workspace_test.go",
+        "sha256": "fe33d776a60085729f0c73a666b9ba83fabd6b5b24c15460dc70eab40894712b"
+      },
+      {
+        "destination": "media/attachment.go",
+        "sha256": "57a64329be175033de17a68f8c7d4f6cbd52ab9120cb1936fa078986bb4beaf6"
+      },
+      {
+        "destination": "media/file_attachment.go",
+        "sha256": "df2839b14d4374eab05c8e1de1aee90c50de5b619352fdbf4b126f26ee566877"
+      },
+      {
+        "destination": "media/file_attachment_test.go",
+        "sha256": "778d9c4c5acbf2fa3a2fa752b47605066db38d4333952418d788d2a501e34a19"
+      },
+      {
+        "destination": "media/request_image.go",
+        "sha256": "186a63de6edf8b5b46ebd5a846ec1671293d398dec7d31b99051ec86c2fabb87"
+      },
+      {
+        "destination": "media/request_image_test.go",
+        "sha256": "4a6bc8c3f27aa4499051635d4ed61b4fba8d493d5fc83952cead909ec681f696"
+      },
+      {
+        "destination": "nativetools/tools_test.go",
+        "sha256": "d748f7cd03b297f403ae23dd3acaccc9ae65a481ca453ad60fbf1640463505ea"
+      },
+      {
+        "destination": "sandbox/strict.go",
+        "sha256": "41ba02fec04ae5de8186def7275fb2fc85b266048e7201a537e24841e7875d05"
+      },
+      {
+        "destination": "sandbox/strict_test.go",
+        "sha256": "262d7c73ed1ce4b9449042cb43e149444a13d1f3f79579fb2d0b714ed35971dc"
+      },
+      {
+        "destination": "shell/local_test.go",
+        "sha256": "38c862954c5a9c37523676bc9f2e8678a7d884eb8f6ed3645213c09dd8925680"
+      },
+      {
+        "destination": "skills/catalog_test.go",
+        "sha256": "696fb711aa920754884cb2420e898d04032fa464366f0a4144f4364d36cbc161"
+      },
+      {
+        "destination": "storage/namespace.go",
+        "sha256": "5d3908ca2e1112fb8591bcdd058045f5bfe9a83be0c908350bb6eac46943349e"
+      }
+    ]
+  },
+  "subagent_receipt_review": {
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "subagents/tool.go",
+        "sha256": "1ea6cec0784422ba4c8a423f4a73f1a627a9080f37d8eed3ea56a312e2b24420"
+      },
+      {
+        "destination": "subagents/inprocess_test.go",
+        "sha256": "51e9970fa35b7583681ca6f8a3779bd711805de901b006168704f994ee4c15d2"
+      }
+    ]
+  }
+}

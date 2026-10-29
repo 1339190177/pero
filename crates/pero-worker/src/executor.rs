@@ -1,4 +1,7 @@
-use crate::model::{Outcome, Run};
+use crate::{
+    approval::{Gate, Policy, protected_path},
+    model::{Outcome, Run},
+};
 use pero_contracts::HostEvent;
 use pero_runtime::acp::{self, AgentConfig, SessionCommand};
 use pero_runtime::workspace_lease::WorkspaceLease;
@@ -26,6 +29,8 @@ pub struct Config {
     pub workspaces: BTreeMap<String, PathBuf>,
     pub agents_file: Option<PathBuf>,
     #[serde(default)]
+    pub native_approvals: BTreeMap<String, Policy>,
+    #[serde(default)]
     pub allowed_agents: BTreeMap<String, Vec<String>>,
 }
 
@@ -35,6 +40,13 @@ pub struct Execution {
     agent: AgentConfig,
     prompt: String,
     run_id: String,
+    approval: Option<Policy>,
+}
+
+impl Execution {
+    pub fn inherit_environment(&self) -> bool {
+        self.approval.is_none()
+    }
 }
 
 impl Config {
@@ -89,6 +101,34 @@ impl Config {
             .into_iter()
             .find(|agent| agent.id == run.spec.agent_id && agent.available())
             .ok_or("Agent is not allowed or installed on this Worker")?;
+        let approval = self.native_approvals.get(&run.spec.workspace_key).cloned();
+        if let Some(policy) = &approval {
+            let roots = self
+                .workspaces
+                .values()
+                .map(|p| {
+                    p.canonicalize()
+                        .map_err(|_| "Allowed workspace unavailable")
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let config_path = std::env::var_os("PERO_WORKER_CONFIG")
+                .map(PathBuf::from)
+                .ok_or("Native approvals require an explicit operator config")?;
+            protected_path(&config_path, &roots)?;
+            protected_path(
+                self.agents_file
+                    .as_deref()
+                    .ok_or("Native approvals require an explicit agent allowlist")?,
+                &roots,
+            )?;
+            policy.validate(&agent, &roots)?;
+            if agent.env.keys().any(|key| key.starts_with("PERO_")) {
+                return Err(
+                    "Native approval agent environment cannot contain control-plane variables"
+                        .into(),
+                );
+            }
+        }
         agent.env.retain(|key, _| !key.starts_with("PERO_"));
         let acceptance = match &run.spec.acceptance {
             Value::String(text) => text.clone(),
@@ -108,6 +148,7 @@ impl Config {
             agent,
             prompt,
             run_id: run.id.clone(),
+            approval,
         })
     }
 }
@@ -166,9 +207,13 @@ pub fn child_execute() -> Result<(), String> {
             }
         });
     }
+    if let Some(policy) = &execution.approval {
+        policy.validate(&execution.agent, std::slice::from_ref(&execution.workspace))?;
+    }
     // The actual executor holds the lease until it exits, including orphan cleanup.
     // A supervisor dying must not release the checkout while its child still writes.
     let _workspace_lease = WorkspaceLease::acquire(&execution.workspace)?;
+    let mut gate = Gate::new(execution.approval.clone(), execution.workspace.clone());
     let (tx, rx) = mpsc::channel();
     let handle = acp::start_supervised(execution.agent, execution.workspace, execution.run_id, tx);
     let cancel = Arc::new(AtomicBool::new(false));
@@ -184,6 +229,7 @@ pub fn child_execute() -> Result<(), String> {
     let mut closing_at = None;
     loop {
         if cancel.load(Ordering::SeqCst) && cancelled_at.is_none() {
+            gate.revoke();
             let _ = handle.tx.send(SessionCommand::Cancel);
             cancelled_at = Some(Instant::now());
         }
@@ -200,15 +246,32 @@ pub fn child_execute() -> Result<(), String> {
             Err(_) => break,
         };
         if event.kind == "permission" {
-            if let Some(id) = event.data["permission_id"].as_str() {
-                if let Some(answer) = handle.permissions.lock().unwrap().remove(id) {
-                    let _ = answer.send(None);
+            // Only a live local responder can consume a decision. No remote action
+            // or agent-supplied display text can create approval authority.
+            let mut approved = false;
+            if let Some(id) = event.data["permission_id"].as_str()
+                && let Some(answer) = handle.permissions.lock().unwrap().remove(id)
+            {
+                if cancel.load(Ordering::SeqCst) || result.is_some() {
+                    gate.revoke();
+                }
+                let selected = gate.select(&event.data);
+                approved = selected.is_some();
+                if answer.send(selected).is_err() {
+                    approved = false;
                 }
             }
-            // Do not expose tool arguments or executable approval actions remotely.
             emit(
-                "permission_denied",
-                "Unattended Worker denied an Agent permission request",
+                if approved {
+                    "permission_approved"
+                } else {
+                    "permission_denied"
+                },
+                if approved {
+                    "Operator policy admitted one sandbox-required native shell call"
+                } else {
+                    "Worker denied an Agent permission request"
+                },
                 Value::Null,
             )?;
             continue;
@@ -216,6 +279,7 @@ pub fn child_execute() -> Result<(), String> {
         emit(&event.kind, &event.text, event.data.clone())?;
         match event.kind.as_str() {
             "session_ready" => {
+                gate.ready(event.data["sessionId"].as_str());
                 handle
                     .tx
                     .send(SessionCommand::Prompt(execution.prompt.clone()))
@@ -244,6 +308,7 @@ pub fn child_execute() -> Result<(), String> {
             _ => {}
         }
         if result.is_some() && closing_at.is_none() {
+            gate.revoke();
             let _ = handle.tx.send(SessionCommand::Close);
             closing_at = Some(Instant::now());
         }
@@ -287,6 +352,7 @@ mod tests {
         let config = Config {
             workspaces: BTreeMap::new(),
             agents_file: None,
+            native_approvals: BTreeMap::new(),
             allowed_agents: BTreeMap::new(),
         };
         let run = Run {

@@ -1,0 +1,13 @@
+{
+  "source_repository": "phodal/point",
+  "source_commit": "edff76d7dd39b2900cff707af1896fe8ff9fd2dc",
+  "verified_via": "GitHub fetch_file, 2026-10-28",
+  "upstream": [
+    {"path": "go/harness/acp/server.go", "blob": "3d268e23af503d0933bdc2cc2c269462f6071318", "observation": "Empty configOptions; no set_config_option/set_model implementation. New transport glue is not copied upstream ACP behavior."},
+    {"path": "go/harness/agent_model_selection.go", "blob": "babadd5f46d24ed1d7e2c2586edd8e704a0def4b", "reuse": "Existing Agent.SelectModel and RecordedModelSelection; unchanged."},
+    {"path": "go/harness/provider_directory.go", "blob": "49f80299b84bb9df541fc6f6130e6c58d07cc1b6", "reuse": "Existing ModelCatalogProvider/ListModels and ProviderRegistry validation; unchanged."}
+  ],
+  "adaptation": "New opt-in ACP select-option handler and CLI declarations; local adapter implements existing catalog interface from its explicit Config.Models. No network discovery, new provider, credential persistence or parallel registry.",
+  "protocol": "https://agentclientprotocol.com/protocol/v1/session-config-options",
+  "constraints": "One provider, immutable launch catalog, uniform explicit context/output capacity, idle-only session-local selection. Existing compaction and token-meter implementation unchanged."
+}

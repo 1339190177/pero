@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "shell",
+    srcs = [
+        "local.go",
+        "output.go",
+        "process_unix.go",
+        "process_unsupported.go",
+        "types.go",
+    ],
+    importpath = "github.com/phodal/pero/harness/go/shell",
+    visibility = ["//visibility:public"],
+    deps = ["//sandbox"],
+)
+
+go_test(
+    name = "shell_test",
+    srcs = [
+        "local_test.go",
+        "process_linux_test.go",
+        "windows_runtime_test.go",
+    ],
+    embed = [":shell"],
+    deps = select({
+        "@rules_go//go/platform:windows": [
+            "//sandbox",
+            "@org_golang_x_sys//windows",
+        ],
+        "//conditions:default": [],
+    }),
+)
