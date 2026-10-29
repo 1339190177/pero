@@ -48,6 +48,7 @@ go_test(
     deps = [
         "//harness",
         "//providers/openai",
+        "//sandbox",
         "@com_github_modelcontextprotocol_go_sdk//mcp",
     ],
 )

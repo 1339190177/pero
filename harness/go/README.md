@@ -89,6 +89,16 @@ enables bounded read/write/edit/list/search; `--enable-shell` separately enables
 approved foreground Bash. Writes, edits and every shell call require approval.
 Optional `--sandbox strict-workspace-write` or `strict-read-only`, with explicit
 `--sandbox-runtime` paths, requires the strict backend and denies network access.
+
+Windows instead requires explicit `--sandbox windows-acl-workspace-write` (or
+`windows-acl-read-only`), `--approval ask`, `--enable-shell`, `--workspace`, and
+an absolute `--shell` path to `pwsh.exe`. These presets are **partial write
+isolation only: outside reads and network remain unrestricted**; they reject
+`--sandbox-runtime` and never satisfy strict mode. Windows registers only the
+approved `shell` tool; descriptor-rooted native file tools remain Unix-only.
+See [native tool composition](nativetools/README.md) and the
+[Windows sandbox contract](sandbox/README.md) before enabling it.
+
 Unsupported backends fail closed. See `sandbox/README.md` and
 `nativetools/README.md` for workspace trust assumptions and limits. Skills are
 default-off; explicit `--skills-root` enables the [read-only catalog](skills/README.md).

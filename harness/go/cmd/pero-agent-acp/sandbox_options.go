@@ -23,7 +23,7 @@ func (p *runtimePaths) Set(s string) error {
 }
 func bindSandbox(fs *flag.FlagSet) *sandboxFlags {
 	o := &sandboxFlags{}
-	fs.StringVar(&o.preset, "sandbox", "", "opt-in strict-read-only or strict-workspace-write; requires native shell and approval ask")
+	fs.StringVar(&o.preset, "sandbox", "", "opt-in strict-read-only/strict-workspace-write or Windows-only windows-acl-read-only/windows-acl-workspace-write (PARTIAL: reads/network unrestricted); requires shell and approval ask")
 	fs.Var(&o.paths, "sandbox-runtime", "trusted absolute runtime file/tree (repeat; no implicit mounts)")
 	return o
 }
@@ -41,8 +41,12 @@ func (o *sandboxFlags) config(workspace string, shell bool, approval string) (*s
 	if e != nil {
 		return nil, e
 	}
-	if len(o.paths) < 1 || len(o.paths) > 32 {
+	if p.Backend == sandbox.BackendWindowsACL {
+		if len(o.paths) != 0 {
+			return nil, errors.New("Windows ACL sandbox does not isolate reads and cannot accept --sandbox-runtime")
+		}
+	} else if len(o.paths) < 1 || len(o.paths) > 32 {
 		return nil, errors.New("strict sandbox requires 1–32 runtime mounts")
 	}
-	return &sandbox.Config{Mode: p.Sandbox, RuntimePaths: append([]string(nil), o.paths...)}, nil
+	return &sandbox.Config{Backend: p.Backend, Mode: p.Sandbox, RuntimePaths: append([]string(nil), o.paths...)}, nil
 }
