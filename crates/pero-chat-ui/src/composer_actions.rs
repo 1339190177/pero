@@ -1,4 +1,5 @@
 //! ChatPanel shell for the shared completion surface. Context I/O stays in Host.
+use crate::session_state::SessionState;
 use crate::{composer_picker::PickerItem, composer_state::*, panel::ChatPanel};
 use base64::Engine as _;
 use gpui_kit::{component::input::InlineToken, *};
@@ -451,7 +452,7 @@ impl ChatPanel {
             && !self
                 .active_chat
                 .and_then(|i| self.chats.get(i))
-                .is_some_and(|c| c.state == "draft" || c.capabilities.images)
+                .is_some_and(|c| c.state == SessionState::Draft || c.capabilities.images)
         {
             self.error = Some(self.t("composer.image_unsupported").into());
             self.close_composer_picker(cx);

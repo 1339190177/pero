@@ -346,7 +346,7 @@ impl Workbench {
                             .chats
                             .iter()
                             .find(|chat| chat.id == session.thread_id)
-                            .map(|chat| chat.state.clone())
+                            .map(|chat| chat.state.as_str().to_owned())
                     });
                 el.child(
                     div()

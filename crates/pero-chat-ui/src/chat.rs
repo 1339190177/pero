@@ -1,3 +1,4 @@
+use crate::session_state::SessionState;
 use crate::{
     conversation::{Conversation, StreamItem},
     panel::ChatPanel,
@@ -115,7 +116,7 @@ impl ChatPanel {
             cx.notify();
             return;
         };
-        if chat.state == "draft" {
+        if chat.state == SessionState::Draft {
             self.forget_chat(index, cx);
             return;
         }
@@ -176,8 +177,8 @@ impl ChatPanel {
     }
     pub fn connect_chat(&mut self, cx: &mut Context<Self>) {
         if let Some(i) = self.active_chat {
-            if self.chats[i].state == "draft" {
-                self.chats[i].state = "connecting".into();
+            if self.chats[i].state == SessionState::Draft {
+                self.chats[i].state = SessionState::Connecting;
                 self.command(json!({"action":"new_session","thread_id":self.chats[i].id,"agent_id":self.chats[i].agent,"scope":self.chats[i].scope}),cx);
             }
         }
@@ -197,7 +198,7 @@ impl ChatPanel {
         }
         let index = self.active_chat.unwrap();
         let chat = &mut self.chats[index];
-        if !matches!(chat.state.as_str(), "draft" | "idle")
+        if !chat.state.can_submit()
             || chat.pending_model.is_some()
             || chat.pending_setting.is_some()
         {
@@ -206,7 +207,7 @@ impl ChatPanel {
         if contexts
             .iter()
             .any(|r| r.kind == pero_contracts::context::ContextKind::Image)
-            && chat.state != "draft" && !chat.capabilities.images
+            && chat.state != SessionState::Draft && !chat.capabilities.images
         {
             chat.error =
                 Some(pero_contracts::i18n::text(&self.locale, "composer.image_unsupported").into());
@@ -217,13 +218,13 @@ impl ChatPanel {
             chat.title = Conversation::title_from(&text);
         }
         chat.error = None;
-        let value = if chat.state == "draft" {
-            chat.state = "connecting".into();
+        let value = if chat.state == SessionState::Draft {
+            chat.state = SessionState::Connecting;
             chat.queued = Some(text);
             chat.queued_contexts = contexts;
             json!({"action":"new_session","thread_id":chat.id,"agent_id":chat.agent,"scope":chat.scope})
         } else {
-            chat.state = "running".into();
+            chat.state = SessionState::Running;
             json!({"action":"prompt","thread_id":chat.id,"text":text,"contexts":contexts})
         };
         self.attachments.clear();
@@ -265,8 +266,8 @@ impl ChatPanel {
                 let active = event.data["active"]
                     .as_array()
                     .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(&chat.id)));
-                if !active && chat.state != "draft" {
-                    chat.state = "closed".into();
+                if !active && chat.state != SessionState::Draft {
+                    chat.state = SessionState::Closed;
                     chat.queued = None;
                     chat.queued_contexts.clear();
                     chat.permission = None;
@@ -281,12 +282,12 @@ impl ChatPanel {
                 && selected
                     .as_ref()
                     .and_then(|id| self.chats.iter().find(|chat| &chat.id == id))
-                    .is_some_and(|chat| chat.state == "draft" && chat.draft.text().is_empty());
+                    .is_some_and(|chat| chat.state == SessionState::Draft && chat.draft.text().is_empty());
             let restored = initial_empty
                 .then(|| {
                     self.chats
                         .iter()
-                        .rposition(|chat| chat.scope == self.scope && chat.state != "draft")
+                        .rposition(|chat| chat.scope == self.scope && chat.state != SessionState::Draft)
                 })
                 .flatten();
             let next = restored
@@ -373,7 +374,7 @@ impl ChatPanel {
                     .unwrap_or_default()
             }
             "session_authenticated" => {
-                chat.state = "idle".into();
+                chat.state = SessionState::Idle;
                 chat.error = None;
             }
             "session_auth_required" | "session_auth_error" => {
@@ -382,7 +383,7 @@ impl ChatPanel {
                     .cloned()
                     .unwrap_or_else(|| chat.auth_methods.clone());
                 chat.error = Some(event.text.clone());
-                chat.state = "auth_required".into();
+                chat.state = SessionState::AuthRequired;
             }
             "user_message" => {
                 if chat.messages.is_empty() {
@@ -398,16 +399,16 @@ impl ChatPanel {
                         .collect();
                 }
             }
-            "session_connecting" => chat.state = "connecting".into(),
+            "session_connecting" => chat.state = SessionState::Connecting,
             "session_ready" => {
                 chat.session_id = event.data["sessionId"].as_str().unwrap_or_default().into();
                 chat.config(&event.data);
-                chat.state = "idle".into();
+                chat.state = SessionState::Idle;
                 if let Some(text) = chat.queued.take() {
-                    chat.state = "running".into();
+                    chat.state = SessionState::Running;
                     let contexts = std::mem::take(&mut chat.queued_contexts);
                     if !chat.capabilities.images && contexts.iter().any(|r|r.kind==pero_contracts::context::ContextKind::Image){
-                        chat.state="idle".into();chat.error=Some(pero_contracts::i18n::text(&self.locale,"composer.image_unsupported").into());
+                        chat.state = SessionState::Idle;chat.error=Some(pero_contracts::i18n::text(&self.locale,"composer.image_unsupported").into());
                         self.pending_prompts.push(crate::panel::ComposerInsertion{thread_id:chat.id.clone(),text,contexts,replace:false});
                         cx.notify();return true;
                     }
@@ -435,10 +436,10 @@ impl ChatPanel {
                     chat.usage = Some(usage);
                 }
             }
-            "turn_started" => chat.state = "running".into(),
+            "turn_started" => chat.state = SessionState::Running,
             "turn_finished" => {
                 chat.flush(cx);
-                chat.state = "idle".into();
+                chat.state = SessionState::Idle;
                 chat.permission = None;
             }
             "permission" => chat.permission = Some(event.data.clone()),
@@ -447,14 +448,14 @@ impl ChatPanel {
                 chat.pending_model = None;
                 chat.flush(cx);
                 chat.error = Some(event.text.clone());
-                chat.state = "idle".into();
+                chat.state = SessionState::Idle;
                 chat.permission = None;
             }
             "session_closed" => {
                 chat.pending_setting = None;
                 chat.pending_model = None;
                 chat.flush(cx);
-                chat.state = "closed".into();
+                chat.state = SessionState::Closed;
                 chat.permission = None;
             }
             _ => {}
@@ -524,7 +525,7 @@ impl ChatPanel {
                 }))
                 .when(busy,|el|el.child(div().text_color(p.color("text-muted")).child(self.t("chat.thinking"))))
                 .when(chat.and_then(|c|c.error.as_ref()).is_some(),|el|el.child(div().p(px(14.)).bg(p.color("error-bg")).text_color(p.color("error")).rounded(px(6.)).child(chat.and_then(|c|c.error.clone()).unwrap_or_default()))))
-            .children(chat.filter(|c|c.state=="auth_required").into_iter().map(|chat|{
+            .children(chat.filter(|c|c.state == SessionState::AuthRequired).into_iter().map(|chat|{
                 div().mx(px(16.)).mb(px(10.)).p(px(12.)).bg(p.color("warning-bg")).rounded(px(4.))
                     .child(div().font_weight(FontWeight::BOLD).child(self.t("chat.signin")))
                     .child(div().mt(px(8.)).flex().gap(px(8.)).children(chat.auth_methods.iter().enumerate().map(|(i,method)|{

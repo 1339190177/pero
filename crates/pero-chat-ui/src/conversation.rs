@@ -1,3 +1,4 @@
+use crate::session_state::SessionState;
 use crate::{content_document::ContentDocument, content_reader::ContentReader, stream::StreamText};
 use gpui_kit::{App, AppContext as _, Entity};
 use serde::{Deserialize, Serialize};
@@ -118,7 +119,7 @@ pub struct Conversation {
     pub id: String,
     pub title: String,
     pub agent: String,
-    pub state: String,
+    pub state: SessionState,
     pub session_id: String,
     pub messages: Vec<Message>,
     pub tools: Vec<Tool>,
@@ -160,7 +161,7 @@ impl Conversation {
             id,
             agent,
             title,
-            state: "draft".into(),
+            state: SessionState::Draft,
             session_id: String::new(),
             messages: vec![],
             tools: vec![],
@@ -183,7 +184,7 @@ impl Conversation {
     }
 
     pub fn busy(&self) -> bool {
-        matches!(self.state.as_str(), "connecting" | "running" | "stopping")
+        self.state.busy()
     }
 
     pub fn push_user(&mut self, text: impl Into<String>, cx: &mut App) {

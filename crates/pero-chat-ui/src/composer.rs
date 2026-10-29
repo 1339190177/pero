@@ -1,3 +1,4 @@
+use crate::session_state::SessionState;
 use crate::panel::ChatPanel;
 use crate::theme::WorkbenchStyle as W;
 use gpui_kit::{
@@ -76,7 +77,7 @@ impl ChatPanel {
             Button::new("model-picker").ghost().small().h(px(W::CONTROL))
                 .label(label).max_w(px(220.)).dropdown_caret(true)
                 .loading(model_pending).loading_icon(Icon::default().path("icons/clock.svg"))
-                .disabled(busy || model_pending || chat.state != "idle")
+                .disabled(busy || model_pending || chat.state != SessionState::Idle)
                 .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                     models.iter().fold(menu.min_w(px(W::MENU_WIDTH)).max_w(px(340.)).max_h(px(280.))
                         .scrollable(true).check_side(Side::Right), |menu, (model, label)| {
@@ -290,8 +291,8 @@ impl ChatPanel {
                             .icon(Icon::default().path("icons/terminal.svg"))
                             .label(agent.clone())
                             .tooltip(self.t("composer.acp"))
-                            .dropdown_caret(chat.is_none_or(|chat| chat.state == "draft"))
-                            .disabled(chat.is_some_and(|chat| chat.state != "draft"))
+                            .dropdown_caret(chat.is_none_or(|chat| chat.state == SessionState::Draft))
+                            .disabled(chat.is_some_and(|chat| chat.state != SessionState::Draft))
                             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                                 agent_choices.iter().enumerate().fold(
                                     menu.min_w(px(W::MENU_WIDTH)).check_side(Side::Right),
@@ -309,7 +310,7 @@ impl ChatPanel {
                                                             .active_chat
                                                             .and_then(|i| this.chats.get_mut(i))
                                                         {
-                                                            if chat.state == "draft" {
+                                                            if chat.state == SessionState::Draft {
                                                                 chat.agent = agent.clone();
                                                             }
                                                         }
@@ -323,20 +324,20 @@ impl ChatPanel {
                     )
                     .children(model_picker)
                     .children(self.session_setting_controls("thought_level", cx))
-                    .when(chat.is_none_or(|chat| chat.state == "draft"), |el| {
+                    .when(chat.is_none_or(|chat| chat.state == SessionState::Draft), |el| {
                         el.child(
                             Button::new("workspace-picker")
                                 .ghost()
                                 .small().h(px(W::CONTROL))
                                 .icon(IconName::Folder)
                                 .label(workspace)
-                                .disabled(chat.is_some_and(|c| c.state != "draft"))
+                                .disabled(chat.is_some_and(|c| c.state != SessionState::Draft))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.command(json!({"action":"choose_workspace"}), cx)
                                 })),
                         )
                     })
-                    .when(chat.is_some_and(|c| c.state == "draft"), |el| {
+                    .when(chat.is_some_and(|c| c.state == SessionState::Draft), |el| {
                         el.child(
                             Button::new("connect-chat")
                                 .outline()
@@ -355,7 +356,7 @@ impl ChatPanel {
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     if let Some(i) = this.active_chat {
                                         let id = this.chats[i].id.clone();
-                                        this.chats[i].state = "stopping".into();
+                                        this.chats[i].state = SessionState::Stopping;
                                         this.command(json!({"action":"cancel","thread_id":id}), cx);
                                     }
                                 })),
@@ -376,7 +377,7 @@ impl ChatPanel {
                                         || self.composer.read(cx).value().trim().is_empty()
                                             && self.attachments.is_empty()
                                         || chat.is_some_and(|c| {
-                                            !matches!(c.state.as_str(), "idle" | "draft")
+                                            !c.state.can_submit()
                                         }),
                                 )
                                 .on_click(

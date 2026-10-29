@@ -1,4 +1,5 @@
 //! Capability-driven session controls share one choice menu and one selection action.
+use crate::session_state::SessionState;
 use crate::panel::ChatPanel;
 use crate::theme::WorkbenchStyle as W;
 use gpui_kit::{
@@ -86,7 +87,7 @@ impl ChatPanel {
                             .as_ref()
                             .is_some_and(|selection| selection.id == option.id),
                     )
-                    .disabled(chat.busy() || pending || chat.state != "idle")
+                    .disabled(chat.busy() || pending || chat.state != SessionState::Idle)
                     .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                         setting_menu(menu, &setting, &thread, &workbench)
                     })
@@ -147,7 +148,7 @@ impl ChatPanel {
                     chat.busy()
                         || chat.pending_setting.is_some()
                         || chat.pending_model.is_some()
-                        || chat.state != "idle",
+                        || chat.state != SessionState::Idle,
                 )
                 .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, window, cx| {
                     options.iter().fold(menu.min_w(px(W::MENU_WIDTH)), |menu, option| {
