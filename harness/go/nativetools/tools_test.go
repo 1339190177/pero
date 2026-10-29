@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -18,6 +19,9 @@ import (
 )
 
 func TestNativeToolApprovalAndWorkspaceBoundary(t *testing.T) {
+	if goruntime.GOOS != "linux" && goruntime.GOOS != "darwin" {
+		t.Skip("positive native workspace contract requires Linux or Darwin")
+	}
 	root := t.TempDir()
 	ctx := t.Context()
 	h, e := harness.Boot(ctx, harness.Options{ApprovalPolicy: harness.ApprovalAsk})
@@ -108,6 +112,9 @@ func TestOutputBudgetPreservesFailedShellAndUnknownReceipt(t *testing.T) {
 }
 
 func TestEarlyCWDCheckRejectsReplacedWorkspace(t *testing.T) {
+	if goruntime.GOOS != "linux" && goruntime.GOOS != "darwin" {
+		t.Skip("positive native workspace contract requires Linux or Darwin")
+	}
 	root := t.TempDir()
 	files, err := fstools.OpenWorkspace(root)
 	if err != nil {
@@ -156,5 +163,20 @@ func TestShellOutputBudgetRetainsTail(t *testing.T) {
 				t.Fatal("failure status lost")
 			}
 		})
+	}
+}
+
+func TestUnsupportedNativeMount(t *testing.T) {
+	if goruntime.GOOS == "linux" || goruntime.GOOS == "darwin" {
+		t.Skip("unsupported-platform contract")
+	}
+	h, err := harness.Boot(t.Context(), harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()) }()
+	app, err := Mount(t.Context(), h, Options{Workspace: t.TempDir()})
+	if app != nil || err == nil || !strings.Contains(err.Error(), "supported descriptor-rooted Unix") {
+		t.Fatalf("native mount: %v %v", app, err)
 	}
 }

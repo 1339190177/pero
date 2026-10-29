@@ -5,13 +5,33 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
 )
 
+func requireNativeWorkspace(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("positive descriptor-rooted workspace contract requires Linux or Darwin; unsupported admission tested separately")
+	}
+}
+func TestUnsupportedWorkspaceAdmission(t *testing.T) {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		t.Skip("unsupported-platform contract")
+	}
+	root := t.TempDir()
+	if w, err := OpenWorkspace(root); w != nil || err == nil || !strings.Contains(err.Error(), "supported descriptor-rooted Unix") {
+		t.Fatalf("workspace admission: %v %v", w, err)
+	}
+	if f, err := OpenScopedTextFiles(root, []string{"file"}, 1024); f != nil || err == nil || !strings.Contains(err.Error(), "supported descriptor-rooted Unix") {
+		t.Fatalf("scoped admission: %v %v", f, err)
+	}
+}
 func workspace(t *testing.T) (*Workspace, string) {
 	t.Helper()
+	requireNativeWorkspace(t)
 	p := t.TempDir()
 	w, e := OpenWorkspace(p)
 	if e != nil {

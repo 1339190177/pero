@@ -182,11 +182,18 @@ func TestWorkspaceReplacementRejectsPreviouslyResolvedCommand(t *testing.T) {
 }
 
 func TestUnconfinedExecutorCannotAttest(t *testing.T) {
-	e, err := NewLocalExecutor(LocalOptions{Shell: "/bin/bash", CWD: t.TempDir()})
-	if err != nil {
-		t.Fatal(err)
-	}
+	e := testExecutor(t, LocalOptions{})
 	if err := e.CheckConfinement(t.Context()); err == nil {
 		t.Fatal("unconfined executor attested")
+	}
+}
+
+func TestUnsupportedExecutorAdmission(t *testing.T) {
+	if platformSupported() {
+		t.Skip("unsupported-platform contract")
+	}
+	e, err := NewLocalExecutor(LocalOptions{Shell: filepath.Join(t.TempDir(), "shell.exe"), CWD: t.TempDir()})
+	if e != nil || err == nil || !strings.Contains(err.Error(), "process-group ownership is unsupported") {
+		t.Fatalf("executor admission: %v %v", e, err)
 	}
 }

@@ -6,12 +6,32 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/phodal/pero/harness/go/fstools"
 	"github.com/phodal/pero/harness/go/harness"
 )
+
+// The catalog requires explicit canonical roots. On macOS the OS temporary
+// directory can contain /var -> /private/var; canonicalize trusted fixture
+// creation only, never the roots supplied to the production admission boundary.
+func canonicalTempDir(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func requireCatalogPlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("positive descriptor-bound catalog contract requires Linux or Darwin; unsupported admission tested separately")
+	}
+}
 
 func fixture(t *testing.T, root, name, text string) string {
 	t.Helper()
@@ -29,7 +49,8 @@ func fixture(t *testing.T, root, name, text string) string {
 	return path
 }
 func TestCatalogReadAndChange(t *testing.T) {
-	root := t.TempDir()
+	requireCatalogPlatform(t)
+	root := canonicalTempDir(t)
 	path := fixture(t, root, "demo", "")
 	c, err := Open(t.Context(), []string{root})
 	if err != nil {
@@ -67,13 +88,14 @@ func TestCatalogReadAndChange(t *testing.T) {
 	}
 }
 func TestDiscoveryFailures(t *testing.T) {
+	requireCatalogPlatform(t)
 	for _, tc := range []struct{ name, text string }{
 		{"missing-header", "body"}, {"wrong-name", "---\nname: other\ndescription: nope\n---\nbody"},
 		{"binary", "\x00"}, {"utf8", string([]byte{0xff})}, {"oversize", strings.Repeat("x", MaxFileBytes+1)},
 		{"description", "---\nname: demo\ndescription: " + strings.Repeat("x", 1025) + "\n---\nbody"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			root := t.TempDir()
+			root := canonicalTempDir(t)
 			fixture(t, root, "demo", tc.text)
 			c, e := Open(t.Context(), []string{root})
 			if e == nil {
@@ -82,9 +104,9 @@ func TestDiscoveryFailures(t *testing.T) {
 			}
 		})
 	}
-	root := t.TempDir()
+	root := canonicalTempDir(t)
 	fixture(t, root, "demo", "")
-	other := t.TempDir()
+	other := canonicalTempDir(t)
 	fixture(t, other, "demo", "")
 	for _, roots := range [][]string{nil, {""}, {root, root}, {root, other}, make([]string, MaxRoots+1)} {
 		c, e := Open(t.Context(), roots)
@@ -95,11 +117,12 @@ func TestDiscoveryFailures(t *testing.T) {
 	}
 }
 func TestNoImplicitRootsAndDepth(t *testing.T) {
-	home := t.TempDir()
+	requireCatalogPlatform(t)
+	home := canonicalTempDir(t)
 	fixture(t, filepath.Join(home, ".dsh", "skills"), "hidden", "")
 	t.Setenv("HOME", home)
 	t.Setenv("DSH_HOME", filepath.Join(home, ".dsh"))
-	root := t.TempDir()
+	root := canonicalTempDir(t)
 	fixture(t, filepath.Join(root, "nested"), "deep", "")
 	fixture(t, root, "disabled", "---\nname: disabled\ndescription: human only\ndisable-model-invocation: true\n---\nbody")
 	c, e := Open(t.Context(), []string{root})
@@ -121,8 +144,9 @@ func TestNoImplicitRootsAndDepth(t *testing.T) {
 	}
 }
 func TestSymlinksAndReplacement(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
+	requireCatalogPlatform(t)
+	root := canonicalTempDir(t)
+	outside := canonicalTempDir(t)
 	fixture(t, outside, "outside", "")
 	if e := os.Symlink(filepath.Join(outside, "outside"), filepath.Join(root, "escape")); e != nil {
 		t.Skip(e)
@@ -156,7 +180,7 @@ func TestSymlinksAndReplacement(t *testing.T) {
 	if _, e = c.Read(t.Context(), "demo", rows[0].Digest); e == nil {
 		t.Fatal("parent replacement accepted")
 	}
-	link := filepath.Join(t.TempDir(), "link")
+	link := filepath.Join(canonicalTempDir(t), "link")
 	os.Symlink(root, link)
 	if c, e = Open(t.Context(), []string{link}); e == nil {
 		c.Close()
@@ -164,8 +188,9 @@ func TestSymlinksAndReplacement(t *testing.T) {
 	}
 }
 func TestLimits(t *testing.T) {
+	requireCatalogPlatform(t)
 	t.Run("entries", func(t *testing.T) {
-		root := t.TempDir()
+		root := canonicalTempDir(t)
 		for i := 0; i <= MaxEntries; i++ {
 			if e := os.WriteFile(filepath.Join(root, fmt.Sprint(i)), nil, 0600); e != nil {
 				t.Fatal(e)
@@ -177,7 +202,7 @@ func TestLimits(t *testing.T) {
 		}
 	})
 	t.Run("skills", func(t *testing.T) {
-		root := t.TempDir()
+		root := canonicalTempDir(t)
 		for i := 0; i <= MaxSkills; i++ {
 			fixture(t, root, fmt.Sprintf("skill-%d", i), "")
 		}
@@ -188,6 +213,7 @@ func TestLimits(t *testing.T) {
 	})
 }
 func TestToolUsesExistingRegistry(t *testing.T) {
+	requireCatalogPlatform(t)
 	ctx := t.Context()
 	h, e := harness.Boot(ctx, harness.Options{})
 	if e != nil {
@@ -198,7 +224,7 @@ func TestToolUsesExistingRegistry(t *testing.T) {
 	if off, e := Mount(ctx, h, nil); e != nil || off != nil {
 		t.Fatalf("off: %v %v", off, e)
 	}
-	root := t.TempDir()
+	root := canonicalTempDir(t)
 	fixture(t, root, "demo", "")
 	c, e = Mount(ctx, h, []string{root})
 	if e != nil {
@@ -236,7 +262,8 @@ func TestToolUsesExistingRegistry(t *testing.T) {
 }
 
 func TestDiscoveryRootABAFailsBeforeContentRead(t *testing.T) {
-	parent := t.TempDir()
+	requireCatalogPlatform(t)
+	parent := canonicalTempDir(t)
 	root, substitute, saved := filepath.Join(parent, "root"), filepath.Join(parent, "substitute"), filepath.Join(parent, "saved")
 	fixture(t, root, "demo", "")
 	fixture(t, substitute, "demo", "---\nname: demo\ndescription: must not leak\n---\nunauthorized")
@@ -279,7 +306,8 @@ func TestDiscoveryRootABAFailsBeforeContentRead(t *testing.T) {
 	}
 }
 func TestRootReplacementAfterOpen(t *testing.T) {
-	parent := t.TempDir()
+	requireCatalogPlatform(t)
+	parent := canonicalTempDir(t)
 	root := filepath.Join(parent, "root")
 	fixture(t, root, "demo", "")
 	c, err := Open(t.Context(), []string{root})
@@ -298,7 +326,8 @@ func TestRootReplacementAfterOpen(t *testing.T) {
 }
 
 func TestFrontmatterAndScriptsAreInertData(t *testing.T) {
-	root := t.TempDir()
+	requireCatalogPlatform(t)
+	root := canonicalTempDir(t)
 	marker := filepath.Join(root, "executed")
 	body := "{{ template }} $(touch " + marker + ")\nRead resources only with separately authorized tools."
 	text := "---\nname: demo\ndescription: inert data\nallowed-tools: [shell]\npermissions: full-access\nmetadata: {template: '{{ execute }}'}\nimports: [/outside/private]\nscript: ./run.sh\n---\n" + body
@@ -328,5 +357,44 @@ func TestFrontmatterAndScriptsAreInertData(t *testing.T) {
 	if c, err := Open(ctx, []string{root}); err == nil {
 		c.Close()
 		t.Fatal("cancelled discovery succeeded")
+	}
+}
+
+func TestUnsupportedCatalogAdmission(t *testing.T) {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		t.Skip("unsupported-platform contract")
+	}
+	root := canonicalTempDir(t)
+	path := fixture(t, root, "demo", "")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := Open(t.Context(), []string{root})
+	// The valid fixture reaches the explicitly unsupported descriptor boundary.
+	if c != nil || err == nil || !strings.Contains(err.Error(), "supported descriptor-rooted Unix") {
+		t.Fatalf("catalog admission: %v %v", c, err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("unsupported admission mutated source: %v", err)
+	}
+}
+func TestFrontmatterParsingPlatformIndependent(t *testing.T) {
+	for _, tc := range []struct {
+		text                string
+		wantError, disabled bool
+	}{
+		{text: "---\nname: demo\ndescription: data only\n---\n$(do not execute)"},
+		{text: "---\nname: demo\ndescription: data only\ndisable-model-invocation: true\n---\nbody", disabled: true},
+		{text: "body without header", wantError: true},
+	} {
+		def, disabled, err := parse(tc.text)
+		if (err != nil) != tc.wantError || disabled != tc.disabled {
+			t.Fatalf("parse: %+v %v %v", def, disabled, err)
+		}
+		if !tc.wantError && (def.Name != "demo" || def.Description != "data only") {
+			t.Fatalf("metadata: %+v", def)
+		}
 	}
 }

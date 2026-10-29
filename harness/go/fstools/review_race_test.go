@@ -21,6 +21,7 @@ func (c *replaceOnErr) Err() error {
 	return nil
 }
 func TestReviewSearchDoesNotReadReplacedRoot(t *testing.T) {
+	requireNativeWorkspace(t)
 	root := filepath.Join(t.TempDir(), "root")
 	os.Mkdir(root, 0700)
 	os.WriteFile(filepath.Join(root, "same"), []byte("old allowed"), 0600)
@@ -42,6 +43,7 @@ func TestReviewSearchDoesNotReadReplacedRoot(t *testing.T) {
 	}
 }
 func TestReviewCreateDoesNotClaimAppliedOnReplacedRoot(t *testing.T) {
+	requireNativeWorkspace(t)
 	root := filepath.Join(t.TempDir(), "root")
 	os.Mkdir(root, 0700)
 	w, e := OpenWorkspace(root)
