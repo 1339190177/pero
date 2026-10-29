@@ -12,6 +12,7 @@ go_library(
         "011_desktop_auth.sql",
         "012_public_sources.sql",
         "013_contribution_pr.sql",
+        "014_worker_devices.sql",
     ],
     importpath = "github.com/phodal/pero/server/migrations",
     visibility = ["//server:__subpackages__"],
