@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import * as AppSDK from '@pero/app-sdk';
-import { downloadFile, useAppAgent, useAppApi, useAppI18n, useAppInfo } from '@pero/app-sdk';
+import { downloadFile, useAppAgent, useAppApi, useAppI18n, useAppInfo, useAppChat, useAppObject, useAppDataChanged, appObjectProps } from '@pero/app-sdk';
 import { Button, Checkbox, EmptyState, Feedback, Field, Icon, Input, Select, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar } from '@pero/app-sdk/ui';
 import { messages } from './i18n';
 import { ImportPanel, PaperList } from './library';
@@ -9,11 +8,8 @@ import { useResearch } from './use-research';
 import type { EvidenceLocation, Library, Paper } from './types';
 import './styles.css';
 
-// App chat is optional; research sessions use the Host Agent API independently.
-const useHostChat = Reflect.get(AppSDK, 'useAppChat') as (() => { open(): void; compose(text: string): void }) | undefined;
-
 export default function PaperAgent() {
-  const api = useAppApi(), agent = useAppAgent(), chat = useHostChat?.(), info = useAppInfo(), { t } = useAppI18n(messages);
+  const api = useAppApi(), agent = useAppAgent(), chat = useAppChat(), info = useAppInfo(), { t } = useAppI18n(messages);
   const [library, setLibrary] = useState<Library>({ papers: [], intents: [], reports: [] });
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [selected, setSelected] = useState<string[]>([]), [reading, setReading] = useState<Paper | null>(null), [readingBusy, setReadingBusy] = useState(false);
@@ -47,12 +43,12 @@ export default function PaperAgent() {
   }, [task.intent?.id]);
   useEffect(() => { if (task.report) { setAdding(false); setView('report'); } }, [task.report?.id]);
 
-  async function read(paper: Paper) {
+  async function read(paper: Paper, propagate = false) {
     const version = ++readVersion.current; setReadingBusy(true); setReading(null); setCitation(null); setAdding(false); setView('source');
     try {
       const full = paper.content ? paper : await api.get<Paper>(`/api/papers/${paper.id}`);
       if (mounted.current && version === readVersion.current) { setReading(full); setError(''); }
-    } catch (error) { if (mounted.current && version === readVersion.current) onError(error); }
+    } catch (error) { if (mounted.current && version === readVersion.current) onError(error); if (propagate) throw error; }
     finally { if (mounted.current && version === readVersion.current) setReadingBusy(false); }
   }
   async function added(paper: Paper, focus: boolean | (() => boolean)) {
@@ -106,16 +102,26 @@ export default function PaperAgent() {
   }
   function discuss(text: string) {
     if (!text || !reading) { onError(new Error(t('noSelection'))); return; }
-    chat?.compose(`${t('discussPrompt')}\n\n${reading.title}\n${reading.url}\n${reading.contentDigest}\n\n> ${text}`);
+    void chat.compose(`${t('discussPrompt')}\n\n> ${text}`, {attachments:[chat.objectReference('paper-agent',{paperId:reading.id,contentDigest:reading.contentDigest,quote:text.slice(0,800)})]}).catch(onError);
   }
   function begin(execute: boolean) {
     setError('');
     void task.begin({ question, paperIds: selected, verifyCode, verificationPlan }, agentId, execute);
   }
+  useAppDataChanged(() => refresh().catch(onError));
+  useAppObject({id:'paper-agent',kind:'research-library',label:'Paper Agent',state:{
+    paperCount:library.papers.length,reportCount:library.reports.length,selected,
+    readingId:reading?.id??null,title:reading?.title??null,contentDigest:reading?.contentDigest??null,url:reading?.url??null,sourceId:reading?.sourceId??null,
+    sourceExcerpt:reading?.content?.slice(0,4000)??null,sourceTruncated:(reading?.content?.length??0)>4000,
+    loading:loading||readingBusy,status:task.status,acceptance:'unverified',
+  },actions:{
+    open_paper:{description:'Read an existing source snapshot from the library',parameters:{type:'object',properties:{id:{type:'string'}},required:['id'],additionalProperties:false},run:async({id})=>{const paper=library.papers.find(paper=>paper.id===id);if(!paper)throw new Error('The paper is not in this library');await read(paper,true);}},
+    refresh:{description:'Refresh the persisted source library',parameters:{type:'object',properties:{},additionalProperties:false},run:refresh},
+  }});
   const frozen = task.intent, citationPaper = frozen?.papers.find(paper => paper.id === citation?.paperId);
   const canPrepare = !!selected.length && !!question.trim() && (!verifyCode || !!verificationPlan.trim()) && !locked;
   const runStatus = task.status === 'needs_input' ? t('needsInput') : task.status === 'running' ? t('running') : task.status === 'completed' ? t('completed') : task.status === 'cancelled' ? t('cancelled') : task.status === 'cancelling' ? t('cancelling') : task.status === 'failed' ? t('failed') : '';
-  return <div className="pa-workbench" data-research={showResearch}>
+  return <div className="pa-workbench" data-research={showResearch} {...appObjectProps('paper-agent')}>
     <header className="pa-workbench-toolbar">
       <div className="pa-toolbar-title">{reading?.title || t('papers')}</div>
       <div className="pa-actions" ref={addTrigger}><Button onClick={() => setAdding(true)}><Icon name="plus"/>{t('add')}</Button><Button variant="ghost" aria-pressed={showResearch} onClick={() => setShowResearch(value => !value)}>{t('showResearch')}</Button></div>
@@ -157,7 +163,7 @@ export default function PaperAgent() {
           {!task.working && !task.pending && <Button disabled={!canPrepare} onClick={() => begin(false)}>{t('prepare')}</Button>}
         </div>
         {task.status === 'failed' && task.raw && <Feedback kind="error">{task.raw}</Feedback>}
-        {!!runStatus && <p className="pa-run-status" role="status">{runStatus}{task.status === 'needs_input' && chat && <Button onClick={() => chat.open()}>{t('openChat')}</Button>}{task.status === 'failed' && task.sessionId && <Button onClick={task.retryPoll}>{t('retry')}</Button>}</p>}
+        {!!runStatus && <p className="pa-run-status" role="status">{runStatus}{task.status === 'needs_input' && chat && <Button onClick={() => {void chat.open().catch(onError);}}>{t('openChat')}</Button>}{task.status === 'failed' && task.sessionId && <Button onClick={task.retryPoll}>{t('retry')}</Button>}</p>}
         {task.sessionId && <details className="pa-small-details"><summary>{t('session')}</summary><code>{task.sessionId}</code></details>}
         {frozen && <div className="pa-frozen"><div className="pa-kicker">{t('prepared')}</div><small>{frozen.id.slice(0, 16)}</small><Button variant="ghost" onClick={() => downloadFile('research-prompt.txt', frozen.prompt, 'text/plain;charset=utf-8')}>{t('prompt')}</Button>
           <details className="pa-output" open={task.repair}><summary>{t('importReport')}</summary>{task.repair && <p role="status">{t('invalidReport')}</p>}<Field label={t('rawOutput')}>{props => <Textarea {...props} rows={8} value={task.raw} disabled={task.working || task.busy} maxLength={500000} onChange={event => task.setRaw(event.target.value)} placeholder={t('reportPlaceholder')}/>}</Field><Button disabled={task.working || task.busy || !task.raw.trim()} onClick={() => { setError(''); void task.saveRaw(); }}>{t('saveReport')}</Button></details>
