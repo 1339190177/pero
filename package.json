@@ -48,7 +48,8 @@
     "build:product": "node scripts/build/product.mjs",
     "test:product": "node --test packages/product/*.test.ts scripts/build/app-bundle.test.mjs",
     "test:product:e2e": "node tests/e2e/product.mjs",
-    "test:sidebar": "node tests/e2e/sidebar.mjs"
+    "test:sidebar": "node tests/e2e/sidebar.mjs",
+    "test:local-roadmap": "node tests/e2e/local-roadmap.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",

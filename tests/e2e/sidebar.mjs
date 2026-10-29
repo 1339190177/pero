@@ -78,8 +78,11 @@ try{
   await page.mouse.click(100,158);
   await expect.poll(async()=>(await state()).selectedProject).toBe(`workspace:${root}`);
   await capture('02-pero-tasks');
+  await page.mouse.click(425,165);
+  await expect.poll(async()=>(await state()).localRoadmap.show_cloud).toBe(true);
+  await frames();
   holdDetail=new Promise(resolve=>{releaseDetail=resolve;});
-  await page.mouse.click(500,326);
+  await page.mouse.click(500,366);
   await expect.poll(()=>detailWaiting).toBe(true);
   // The selected page must remain stable while its HTTP response is pending.
   await frames();
@@ -89,7 +92,7 @@ try{
   await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
   await capture('03-task-detail');
   holdList=new Promise(resolve=>{releaseList=resolve;});
-  await page.mouse.click(335,156);
+  await page.mouse.click(335,196);
   await expect.poll(()=>listWaiting).toBe(true);
   await frames();
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
@@ -99,11 +102,11 @@ try{
   // A queued task leads to the existing explicit device setup, with its own
   // project/workspace/Agent; browsing setup must not enroll or dispatch.
   tasks[0].state='queued';
-  await page.mouse.click(500,326);
+  await page.mouse.click(500,366);
   await expect.poll(async()=>(await state()).remote.state.detail?.task?.state).toBe('queued');
   await frames();
   await capture('03-queued-local-execution');
-  await page.mouse.click(350,432);
+  await page.mouse.click(350,472);
   await expect.poll(async()=>(await state()).navigation).toBe(5);
   expect((await state()).localExecution).toMatchObject({editing:true,project_id:'pero',workspace_key:'default',path:root,agent_id:'fixture',setup:{enabled:false}});
   await capture('03-task-device-setup');
@@ -111,7 +114,7 @@ try{
   await page.mouse.click(100,218);
   await expect.poll(async()=>(await state()).navigation).toBe(3);
   await frames();
-  await page.mouse.click(335,156);
+  await page.mouse.click(335,196);
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
   await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
   await frames();
