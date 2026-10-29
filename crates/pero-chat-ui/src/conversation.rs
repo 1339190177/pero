@@ -175,6 +175,8 @@ pub struct Conversation {
     pub draft_references:
         std::collections::HashMap<String, pero_contracts::context::ContextReference>,
     pub permission: Option<Value>,
+    #[serde(skip)]
+    pub(crate) permission_bounds: Vec<crate::view_bounds::ViewBounds>,
     pub auth_methods: Vec<crate::authentication::AuthenticationMethod>,
     pub models: Vec<(String, String)>,
     pub model: String,
@@ -207,6 +209,7 @@ impl Conversation {
             draft: gpui_kit::component::input::InputContent::new(""),
             draft_references: Default::default(),
             permission: None,
+            permission_bounds: vec![],
             auth_methods: vec![],
             models: vec![],
             model: String::new(),

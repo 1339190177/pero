@@ -579,7 +579,10 @@ impl ChatPanel {
                 chat.state = SessionState::Idle;
                 chat.permission = None;
             }
-            "permission" => chat.permission = Some(event.data.clone()),
+            "permission" => {
+                chat.permission_bounds = event.data["options"].as_array().into_iter().flatten().map(|_|Default::default()).collect();
+                chat.permission = Some(event.data.clone());
+            },
             "session_error" => {
                 chat.thinking.streaming(None);
                 chat.pending_setting = None;
@@ -693,19 +696,7 @@ impl ChatPanel {
                                 .on_click(cx.listener(move|this,_,_,cx|this.command(json!({"action":"authenticate","thread_id":thread,"method_id":method_id}),cx))))
                     })))
             }))
-            .children(chat.and_then(|c|c.permission.as_ref()).into_iter().map(|permission|{
-                let request=permission["permission_id"].as_str().unwrap_or_default().to_string();
-                div().mx(px(28.)).mb(px(12.)).p(px(14.)).rounded(px(6.)).bg(p.warning_bg)
-                    .child(div().font_weight(FontWeight::BOLD).child(self.t("chat.permission")))
-                    .child(div().my(px(10.)).child(permission["toolCall"]["title"].as_str().unwrap_or_default().to_string()))
-                    .child(div().flex().gap(px(8.)).children(permission["options"].as_array().into_iter().flatten().enumerate().map(|(i,option)|{
-                        let option_id=option["optionId"].as_str().unwrap_or_default().to_string();let thread=id.clone();let request=request.clone();
-                        Button::new(("permission",i)).label(option["name"].as_str().unwrap_or("Allow").to_string()).on_click(cx.listener(move|this,_,_,cx|{
-                            this.command(json!({"action":"permission","thread_id":thread,"request_id":request,"option_id":option_id}),cx);
-                            if let Some(i)=this.active_chat{this.chats[i].permission=None;}cx.notify();
-                        }))
-                    })))
-            }))
+            .children(self.approval(&id, None, cx))
             .children(chat.and_then(|c| c.usage.as_ref()).map(|usage| crate::usage::render_usage(usage, &self.locale, p, cx)))
             .child(self.composer_view(window, cx))
     }

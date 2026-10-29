@@ -270,6 +270,7 @@ mod rendering {
                             })),
                     )
                 })
+                .children(tools.iter().filter_map(|tool|self.approval(conversation_id, Some(&tool.id), cx)))
                 .when(failed && !open, |el| {
                     el.child(
                         div()

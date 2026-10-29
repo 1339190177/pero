@@ -174,7 +174,8 @@ try {
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await state()).chats[0].permission !== null).toBe(true);
   await page.screenshot({ path: resolve(output, 'permission.png') });
-  await page.mouse.click(310, await height() - 164);
+  const permission = (await state()).permissionBounds.find(item => item.index === 0).bounds;
+  await page.mouse.click(permission.x + permission.width / 2, permission.y + permission.height / 2);
   await expect.poll(async () => (await state()).chats[0].state).toBe('idle');
 
   await input('@');
