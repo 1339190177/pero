@@ -4784,11 +4784,15 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "console_error_panic_hook",
+ "getrandom 0.2.17",
  "gpui-kit",
  "js-sys",
  "pero-contracts",
+ "reqwest",
+ "security-framework",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "wasm-bindgen",
 ]
 
