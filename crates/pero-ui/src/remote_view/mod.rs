@@ -175,7 +175,7 @@ impl Workbench {
                                         .flex()
                                         .flex_col()
                                         .child(div().px(px(24.)).py(px(8.)).child(Button::new("project-task-back").ghost().small().icon(IconName::ArrowLeft).label(self.t("project.back_tasks"))
-                                            .on_click(cx.listener(|this,_,_,cx|{this.remote.creating=false;this.remote.data["selected_task_id"]=Value::Null;this.command(json!({"action":"remote_select","task_id":null}),cx);}))))
+                                            .on_click(cx.listener(|this,_,_,cx|{this.remote.creating=false;this.command(json!({"action":"remote_select","task_id":null}),cx);}))))
                                         .when(self.remote.creating, |el| {
                                             el.child(self.remote_form(narrow, cx))
                                         })

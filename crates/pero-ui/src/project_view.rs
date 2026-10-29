@@ -122,8 +122,6 @@ impl Workbench {
         if let Some(workspace) = project.workspace {
             self.command(json!({"action":"workspace","path":workspace}), cx);
         }
-        self.remote.data["selected_task_id"] = Value::Null;
-        self.remote.data["detail"] = Value::Null;
         self.command(json!({"action":"remote_select","task_id":null}), cx);
         self.sync_follow(cx);
         cx.notify();
@@ -153,7 +151,6 @@ impl Workbench {
         self.remote.connection.editing = false;
         self.remote.public_contributions = false;
         self.remote.confirm_cancel = None;
-        self.remote.data["selected_task_id"] = json!(id);
         self.command(json!({"action":"remote_select","task_id":id}), cx);
         self.sync_follow(cx);
     }
@@ -206,7 +203,6 @@ impl Workbench {
                                 this.navigation = 3;
                                 this.remote.connection.editing = false;
                                 this.remote.public_contributions = false;
-                                this.remote.data["selected_task_id"] = Value::Null;
                                 this.command(json!({"action":"remote_select","task_id":null}), cx);
                                 this.sync_follow(cx);
                             })),

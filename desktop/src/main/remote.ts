@@ -248,8 +248,14 @@ export class RemoteAdapter {
     clearTimeout(this.timer);
     this.state.loading = true;
     if (action !== 'remote_configure') this.state.error = null;
-    this.publish();
     try {
+      // Selection belongs to this adapter. Publish the requested page with its
+      // loading state so an earlier selection cannot flash back during HTTP I/O.
+      if (action === 'remote_select') {
+        this.state.selected_task_id = command.task_id === null ? null : id(command.task_id);
+        this.state.detail = null;
+      }
+      this.publish();
       if (action === 'remote_login') {
         if (!await this.storageAvailable()) throw new Error('System credential storage is unavailable. Unlock or enable it and retry.');
         const base = endpoint(text(command.url || this.base || defaultTaskCenter, 2048))!;
@@ -276,9 +282,7 @@ export class RemoteAdapter {
         this.clearTasks();
       }
       if (action === 'remote_more') this.pages += 1;
-      if (action === 'remote_select') {
-        this.state.selected_task_id = command.task_id === null ? null : id(command.task_id); this.state.detail = null;
-      } else if (action === 'remote_create') {
+      if (action === 'remote_create') {
         if (this.clientMode) throw new Error('Only the operator can create manual tasks');
         const spec: TaskSpec = {
           title: text(command.title, 240), prompt: text(command.prompt, 64000), acceptance: text(command.acceptance, 16000),

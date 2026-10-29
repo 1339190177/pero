@@ -8,6 +8,26 @@ github_url: https://github.com/phodal/pero/issues/14
 
 # Project-first sidebar and task workspace
 
+## Task detail/list flicker (2026-10-29)
+
+The renderer optimistically changed `selected_task_id`, but the Desktop adapter
+published the previous selection with `loading: true` before applying
+`remote_select`. Every navigation could therefore flash back to the previous
+screen until the HTTP response arrived. Queued polls could also overwrite the
+optimistic selection. Selection must have one owner: the Cloud adapter applies
+the requested selection before publishing loading, and the renderer displays its
+snapshots without independently changing that field.
+
+Reproduced in actual Electron by holding the task-detail HTTP response: after
+opening task_1, the visible snapshot reverted to the list (`selected_task_id:
+null`). The regression also holds the list response after Back to ensure the
+detail does not return while waiting. After the fix, the full actual Electron
+sidebar suite passed, including both held-response cases, project scope, restart,
+light/dark and narrow windows. Screenshots are in `test-results/sidebar/03-task-loading.png`,
+`03-back-loading.png`. TypeScript/theme/locale/contracts checks, 14 UI unit
+tests, the native UI check and Wasm/Web/Desktop development builds passed.
+The running user Desktop must restart to load the changed main-process adapter.
+
 ## What and why
 
 The sidebar currently separates Cloud tasks and infrastructure from local

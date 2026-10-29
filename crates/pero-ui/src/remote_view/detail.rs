@@ -397,7 +397,6 @@ impl Workbench {
                             .label(self.t("remote.back"))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.remote.creating = false;
-                                this.remote.data["selected_task_id"] = Value::Null;
                                 this.command(json!({"action":"remote_select","task_id":null}), cx);
                             })),
                     ),
