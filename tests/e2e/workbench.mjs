@@ -9,6 +9,7 @@ const packaged=process.env.PERO_PACKAGED_EXECUTABLE;
 const out=resolve(root,packaged?'test-results/package/workbench':'test-results/workbench');await mkdir(out,{recursive:true});
 const temp=await mkdtemp(resolve(tmpdir(),'pero-session-'));
 const agents=resolve(temp,'agents.json');await writeFile(agents,JSON.stringify([{id:'fixture',name:'ACP test fixture',command:process.execPath,args:[resolve(root,'tests/fixtures/acp-agent.mjs')]}]));
+await writeFile(resolve(temp,'settings.json'),JSON.stringify({chat_agent:'fixture'}));
 const env={...process.env,PERO_DESKTOP_DATA_DIR:resolve(temp,'profile'),PERO_LOCALE:'zh-CN',PERO_SETTINGS_PATH:resolve(temp,'settings.json'),PERO_HISTORY_PATH:resolve(temp,'sessions.jsonl'),PERO_AGENTS_FILE:agents};delete env.ELECTRON_RUN_AS_NODE;
 // No real credentials in this fixture; macOS must not prompt for the user's keychain.
 const args=[...(process.platform==='darwin'?['--use-mock-keychain']:[]),...(packaged?[]:[resolve(root,'desktop')])];
@@ -27,11 +28,9 @@ try{
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await expect.poll(async()=>(await state()).chats.length).toBe(1);
  await page.screenshot({path:resolve(out,'chat-empty.png')});
- await page.mouse.click(await page.evaluate(()=>innerWidth-208),await page.evaluate(()=>innerHeight-20));
- await page.screenshot({path:resolve(out,'agent-options.png')});
- await page.keyboard.press('ArrowUp');
- await page.keyboard.press('Enter');
  await expect.poll(async()=>(await state()).chats[0].agent).toBe('fixture');
+ await expect.poll(async()=>(await state()).chats[0].state).toBe('idle');
+ await page.screenshot({path:resolve(out,'agent-ready.png')});
  const input=async(text)=>{
   await page.mouse.click(950,975);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
   const cdp=await page.context().newCDPSession(page);
@@ -100,7 +99,7 @@ try{
  expect((await state()).activeContent).toEqual(draftItem);
  await page.screenshot({path:resolve(out,'history-retained-draft.png')});
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- await page.mouse.click(100,185);
+ await page.mouse.click(100,166);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  await expect.poll(async()=>(await state()).activeContent).toEqual({kind:'conversation',value:restoredThread.id});

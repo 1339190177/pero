@@ -77,3 +77,5 @@ Workspace navigation ownership and pure layout refactor:
 [workspace-architecture.md](workspace-architecture.md).
 
 Agent → App tools, task grants and panel evidence: [App Use](app-use.md).
+
+Automatic ACP Agent preparation, draft preservation and external login: [Agent preparation](agent-preparation.md).
