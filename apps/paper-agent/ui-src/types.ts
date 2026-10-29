@@ -4,7 +4,7 @@ export type Paper = {
   contentDigest: string; fetchedAt: string; content?: string;
 };
 export type Intent = {
-  id: string; question: string; requestId: string; paperIds?: string[]; papers: Paper[];
+  id: string; createdAt?: string; question: string; requestId: string; paperIds?: string[]; papers: Paper[];
   retrieval?: { method: string; totalMatches: number; unmatchedPaperIds: string[] };
   verifyCode: boolean; verificationPlan: string; prompt: string; fullText?: boolean; passages?: { id: string; page: number; content: string }[];
 };
@@ -16,7 +16,7 @@ export type Experiment = {
   paperIds: string[]; evidence?: Evidence[]; expected: string; observed: string; limitations: string;
 };
 export type Report = {
-  id: string; intentId: string; title: string; sections?: ReportSection[];
+  id: string; createdAt?: string; intentId: string; title: string; sections?: ReportSection[];
   experiments?: Experiment[]; limitations?: string; acceptance: 'unverified';
   matrix?: { columns: { id: string; label: string }[]; cells: { paperId: string; columnId: string; value: string; status: 'supported' | 'missing' | 'conflict'; evidence: Evidence[] }[] };
 };

@@ -31,6 +31,7 @@ export function useResearch(api: Api, agent: Agent, active: boolean, refresh: ()
     if (gate.current || working) return;
     gate.current = true; setBusy(true); const id = ++generation.current;
     try {
+      if (input.fullText && !pending) await Promise.all(input.paperIds.map(paperId => api.post('/api/pdf', { paperId })));
       const frozen = pending && intent ? intent : await api.post<Intent>('/api/intents', { ...input, requestId: crypto.randomUUID() });
       if (!current(id)) return;
       setIntent(frozen); setReport(null); setRaw(''); setRepair(false); setSessionId(''); setStatus('');

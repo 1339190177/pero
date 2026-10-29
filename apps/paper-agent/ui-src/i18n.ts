@@ -1,4 +1,12 @@
 export const messages = {
+  ask: { zh: '提问', en: 'Ask' }, closeAgent: { zh: '关闭 Agent', en: 'Close Agent' },
+  backToLibrary: { zh: '返回文库', en: 'Back to library' }, sendQuestion: { zh: '发送问题', en: 'Send question' },
+  askPlaceholder: { zh: '询问这篇论文…', en: 'Ask about this paper…' },
+  reportActions: { zh: '导出', en: 'Export' }, chooseSources: { zh: '选择论文', en: 'Choose papers' },
+  resumeQuestion: { zh: '继续此问题', en: 'Resume question' }, removeContext: { zh: '移除选段', en: 'Remove selection' },
+  pdfFitPage: { zh: '适应页面', en: 'Fit page' },
+  closeAnnotations: { zh: '关闭标注', en: 'Close annotations' },
+  pdfActions: { zh: 'PDF 操作', en: 'PDF actions' },
   localSearch: { zh: '搜索本地原文', en: 'Search saved text' }, clearSearch: { zh: '清除', en: 'Clear search' },
   localPassages: { zh: '匹配片段', en: 'matching passages' },
   localNoMatches: { zh: '没有匹配片段。试试原文语言的关键词，或清除搜索以阅读论文。', en: 'No matching passages. Try keywords in the source language, or clear the search to read papers.' },
