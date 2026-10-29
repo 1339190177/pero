@@ -17,10 +17,17 @@ export type Experiment = {
 export type Report = {
   id: string; intentId: string; title: string; sections?: ReportSection[];
   experiments?: Experiment[]; limitations?: string; acceptance: 'unverified';
+  matrix?: { columns: { id: string; label: string }[]; cells: { paperId: string; columnId: string; value: string; status: 'supported' | 'missing' | 'conflict'; evidence: Evidence[] }[] };
 };
-export type Library = { papers: Paper[]; intents: Intent[]; reports: Report[] };
+export type Library = { papers: Paper[]; intents: Intent[]; reports: Report[]; matrixCount?: number; favorites?: SavedDiscovery[]; discoveries?: Pick<DiscoveryBatch, 'id' | 'seedId' | 'seedTitle' | 'relation' | 'page' | 'fetchedAt'>[] };
 export type SearchItem = { id: string; source: string; title: string; url: string; authors?: string[]; abstract?: string };
-export type EvidenceLocation = { start: number; end: number; heading?: string; before?: string; quote: string; after?: string };
+export type EvidenceLocation = { start: number; end: number; heading?: string; before?: string; quote: string; after?: string; pdf?: { documentId: string; pages: number[] } };
+export type PdfRect = { x: number; y: number; width: number; height: number };
+export type PdfDocument = { id: string; paperId: string; fileDigest: string; sourceUrl: string; pages: { number: number; width: number; height: number; text: string }[]; createdAt: string };
+export type PdfAnnotation = { id: string; documentId: string; paperId: string; page: number; kind: 'highlight' | 'figure'; rects: PdfRect[]; quote: string; note: string; createdAt: string };
+export type PdfReading = { document: PdfDocument | null; annotations: PdfAnnotation[] };
+export type PdfFocus = { documentId: string; page: number; annotationId?: string };
+export type PdfSource = { documentId: string; page: number; fileDigest: string };
 export type Api = { get<T>(path: string): Promise<T>; post<T>(path: string, body: unknown): Promise<T> };
 export type Agent = {
   available: boolean; agents: { id: string; name: string; available: boolean }[]; workspace: string;
@@ -29,3 +36,7 @@ export type Agent = {
   events(input: { sessionId: string; after: number }): Promise<{ events: unknown[]; cursor: number; status: string; text: string }>;
   cancel(input: { sessionId: string }): Promise<void>;
 };
+export type DiscoveryRelation = 'related' | 'references' | 'citing';
+export type DiscoveryPaper = SearchItem & { authors: string[]; abstract: string; publicationDate: string; citations: number; doi: string };
+export type DiscoveryBatch = { id: string; seedId: string; seedTitle: string; relation: DiscoveryRelation; work: DiscoveryPaper; items: DiscoveryPaper[]; page: number; hasMore: boolean; fetchedAt: string; matching: string };
+export type SavedDiscovery = { id: string; batchId: string; seedId: string; seedTitle: string; relation: DiscoveryRelation; paper: DiscoveryPaper; fetchedAt: string };
