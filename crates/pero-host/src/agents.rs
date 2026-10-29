@@ -25,6 +25,7 @@ pub struct Manager {
     history: Arc<Mutex<Vec<HostEvent>>>,
     app_bindings: HashMap<String, AppSessionBinding>,
     app_use: Option<acp::AppUseEndpoint>,
+    settings_path: Option<PathBuf>,
 }
 impl Manager {
     pub fn new(root: PathBuf) -> Self {
@@ -102,10 +103,17 @@ impl Manager {
                 }
             }
         });
-        let agents = acp::registry(&root).unwrap_or_else(|error| {
+        let mut agents = acp::registry(&root).unwrap_or_else(|error| {
             eprintln!("Agent config: {error}");
             vec![]
         });
+        let settings_path = std::env::var_os("PERO_SETTINGS_PATH").map(PathBuf::from);
+        if let Some(selected) = settings_path.as_deref().and_then(pero_runtime::settings::load_chat_agent) {
+            if let Some(index) = agents.iter().position(|agent| agent.id == selected && agent.available()) {
+                let preferred = agents.remove(index);
+                agents.insert(0, preferred);
+            }
+        }
         Self {
             workspace: root,
             agents,
@@ -114,6 +122,7 @@ impl Manager {
             history,
             app_bindings,
             app_use: acp::AppUseEndpoint::from_environment(),
+            settings_path,
         }
     }
     fn visible_history(&self) -> Vec<HostEvent> {

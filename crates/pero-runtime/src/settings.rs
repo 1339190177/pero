@@ -88,6 +88,15 @@ pub fn save_locale(path: &Path, locale: &str) -> io::Result<()> {
     })
 }
 
+pub fn load_chat_agent(path: &Path) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    value["chat_agent"].as_str().map(str::to_owned)
+}
+
+pub fn save_chat_agent(path: &Path, agent: &str) -> io::Result<()> {
+    update(path, |value| value["chat_agent"] = agent.into())
+}
+
 pub fn load_workbench(path: &Path) -> pero_contracts::workbench::WorkbenchPreferences {
     std::fs::read(path).ok()
         .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -134,6 +143,8 @@ mod tests {
         assert_eq!(restored.layout.chat_width(), 420.);
         assert!(!restored.layout.chat_open);
         save_locale(&path, "en").unwrap();
+        save_chat_agent(&path, "fixture").unwrap();
+        assert_eq!(load_chat_agent(&path).as_deref(), Some("fixture"));
         assert_eq!(load_locale(&path).as_deref(), Some("en"));
         save_locale(&path, "zh-CN").unwrap();
         assert_eq!(load_locale(&path).as_deref(), Some("zh-CN"));

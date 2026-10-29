@@ -36,6 +36,11 @@ impl Manager {
             .iter()
             .find(|agent| agent.id == agent_id && agent.available())
             .ok_or("Agent is not installed")?;
+        if binding.is_none() {
+            if let Some(path) = &self.settings_path {
+                pero_runtime::settings::save_chat_agent(path, agent_id).map_err(|error| error.to_string())?;
+            }
+        }
         let mut event = HostEvent::new("session_created", None, String::new());
         event.thread_id = Some(thread_id.clone());
         event.data = serde_json::json!({"agent":agent.id,"workspace":self.workspace});
