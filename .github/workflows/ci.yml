@@ -168,6 +168,20 @@ jobs:
           python scripts/ast-compare/build_typescript.py --cli scripts/ast-compare/node_modules/.bin/tree-sitter
       - name: Test AST contracts
         run: python -m unittest discover -s scripts/ast-compare -v
+      - name: Checkout pinned official source for read-only comparison
+        uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: f3803c96974ad4a94195fb97e5c637e9c2a3afe3
+          path: .official-dsh-reference
+          persist-credentials: false
+      - name: Extract all selected official references
+        run: |
+          python scripts/ast-compare/references.py \
+            --mapping scripts/ast-compare/mappings/official-dsh.json \
+            --left-root .official-dsh-reference --right-root . \
+            --json "$RUNNER_TEMP/official-dsh.json" \
+            --markdown "$RUNNER_TEMP/official-dsh.md"
 
   desktop:
     name: Build, check, and Rust tests (${{ matrix.os }})
