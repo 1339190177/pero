@@ -197,3 +197,39 @@ func TestUnsupportedExecutorAdmission(t *testing.T) {
 		t.Fatalf("executor admission: %v %v", e, err)
 	}
 }
+
+func TestShellCommandUsesFixedNoninteractiveStartup(t *testing.T) {
+	for _, tc := range []struct {
+		platform string
+		want     []string
+	}{
+		{"linux", []string{"shell", "--noprofile", "--norc", "-c", "body; unchanged"}},
+		{"darwin", []string{"shell", "--noprofile", "--norc", "-c", "body; unchanged"}},
+		{"windows", []string{"shell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "body; unchanged"}},
+	} {
+		got := shellCommand("shell", "body; unchanged", tc.platform)
+		if strings.Join(got, "\x00") != strings.Join(tc.want, "\x00") {
+			t.Fatalf("%s argv=%q want=%q", tc.platform, got, tc.want)
+		}
+	}
+}
+
+func TestSessionCWDUsesExactWorkspaceIdentity(t *testing.T) {
+	e := testExecutor(t, LocalOptions{})
+	if err := e.CheckCWD(e.cwd); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.CheckCWD("."); err == nil {
+		t.Fatal("relative session cwd accepted")
+	}
+	if err := e.CheckCWD(t.TempDir()); err == nil {
+		t.Fatal("unrelated session cwd accepted")
+	}
+	child := filepath.Join(e.cwd, "child")
+	if err := os.Mkdir(child, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.CheckCWD(child); err == nil {
+		t.Fatal("subdirectory changed session authority")
+	}
+}

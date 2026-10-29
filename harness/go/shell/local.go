@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ type LocalOptions struct {
 
 type LocalExecutor struct {
 	sandbox                    *sandbox.Executor
+	windowsACL                 bool
 	shell, cwd                 string
 	workspaceIdentity          os.FileInfo
 	timeout, maxTimeout, grace time.Duration
@@ -45,7 +47,8 @@ type LocalExecutor struct {
 }
 
 func NewLocalExecutor(options LocalOptions) (*LocalExecutor, error) {
-	if !platformSupported() {
+	windowsACL := runtime.GOOS == "windows" && options.Sandbox != nil && options.Sandbox.Backend == sandbox.BackendWindowsACL
+	if !platformSupported() && !windowsACL {
 		return nil, errors.New("shell: process-group ownership is unsupported on this platform")
 	}
 	if !filepath.IsAbs(options.Shell) || !filepath.IsAbs(options.CWD) {
@@ -56,7 +59,7 @@ func NewLocalExecutor(options LocalOptions) (*LocalExecutor, error) {
 		return nil, fmt.Errorf("shell: executable: %w", err)
 	}
 	info, err := os.Stat(shell)
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 {
+	if err != nil || !info.Mode().IsRegular() || (runtime.GOOS != "windows" && info.Mode().Perm()&0111 == 0) {
 		return nil, errors.New("shell: executable must be a regular executable file")
 	}
 	cwd, err := filepath.EvalSymlinks(options.CWD)
@@ -93,7 +96,7 @@ func NewLocalExecutor(options LocalOptions) (*LocalExecutor, error) {
 			return nil, err
 		}
 	}
-	return &LocalExecutor{sandbox: confined, shell: shell, cwd: cwd, workspaceIdentity: info, timeout: options.Timeout, maxTimeout: options.MaxTimeout, maxOutputBytes: options.MaxOutputBytes, grace: options.Grace, baseEnv: env}, nil
+	return &LocalExecutor{sandbox: confined, windowsACL: windowsACL, shell: shell, cwd: cwd, workspaceIdentity: info, timeout: options.Timeout, maxTimeout: options.MaxTimeout, maxOutputBytes: options.MaxOutputBytes, grace: options.Grace, baseEnv: env}, nil
 }
 
 func explicitEnvironment(entries []string) ([]string, error) {
@@ -200,7 +203,7 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 	stopCaller := context.AfterFunc(ctx, func() { cancel(ctx.Err()) })
 	timer := time.AfterFunc(spec.Timeout, func() { cancel(ErrTimeout) })
 	defer func() { stopCaller(); timer.Stop(); cancel(nil) }()
-	argv := []string{e.shell, "--noprofile", "--norc", "-c", spec.Command}
+	argv := shellCommand(e.shell, spec.Command, runtime.GOOS)
 	env := append([]string(nil), e.baseEnv...)
 	if e.sandbox != nil {
 		confined, err := e.sandbox.Confine(argv)
@@ -208,10 +211,24 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 			return result, err
 		}
 		argv = confined.Argv
+		result.Enforcement = confined.Enforcement
+		result.ReadIsolated, result.NetworkIsolated = confined.ReadIsolated, confined.NetworkIsolated
 		env = e.sandbox.Environment()
 	}
 	command := exec.Command(argv[0], argv[1:]...)
 	command.Dir, command.Env = spec.Workdir, env
+	// The Windows runner owns ACL rollback. EOF requests cooperative Job Object
+	// termination, unlike Process.Kill which bypasses the runner's defers.
+	var controlRead, controlWrite *os.File
+	if e.windowsACL {
+		controlRead, controlWrite, err = os.Pipe()
+		if err != nil {
+			return result, fmt.Errorf("shell: runner control pipe: %w", err)
+		}
+		defer controlRead.Close()
+		defer controlWrite.Close()
+		command.Stdin = controlRead
+	}
 	stdout, stderr := newTailWriter(spec.StdoutMaxBytes), newTailWriter(e.maxOutputBytes)
 	command.Stdout, command.Stderr = stdout, stderr
 	command.WaitDelay = e.grace
@@ -225,14 +242,30 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 		return result, cause
 	}
 	if err := command.Start(); err != nil {
-		return result, fmt.Errorf("shell: start bash: %w", err)
+		return result, fmt.Errorf("shell: start command: %w", err)
+	}
+	if controlRead != nil {
+		_ = controlRead.Close()
 	}
 	done, killerDone := make(chan struct{}), make(chan struct{})
+	cleanupUncertain := false
 	go func() {
 		defer close(killerDone)
 		select {
 		case <-executionCtx.Done():
-			terminateProcess(command.Process, e.grace)
+			if controlWrite == nil {
+				terminateProcess(command.Process, e.grace)
+				return
+			}
+			_ = controlWrite.Close()
+			cleanup := time.NewTimer(5 * time.Second)
+			defer cleanup.Stop()
+			select {
+			case <-done:
+			case <-cleanup.C:
+				cleanupUncertain = true
+				_ = command.Process.Kill()
+			}
 		case <-done:
 			killProcessGroup(command.Process)
 		}
@@ -241,6 +274,7 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 	close(done)
 	<-killerDone
 	result.Stdout, result.Stderr = stdout.Output(), stderr.Output()
+	result.CleanupUncertain = cleanupUncertain
 	cause := context.Cause(executionCtx)
 	result.TimedOut = errors.Is(cause, ErrTimeout)
 	result.Aborted = cause != nil && !result.TimedOut
@@ -250,13 +284,23 @@ func (e *LocalExecutor) Run(ctx context.Context, spec ExecSpec) (RunResult, erro
 			result.ExitCode = &code
 		}
 	}
+	if e.windowsACL && strings.Contains(result.Stderr.Text, "windows-acl-run:") && (result.ExitCode == nil || *result.ExitCode == 127) {
+		if cause != nil {
+			cause = errors.Join(cause, errors.New("shell: Windows sandbox runner failed; inspect cleanup diagnostics"))
+		} else {
+			return result, errors.New("shell: Windows sandbox runner failed; inspect cleanup diagnostics")
+		}
+	}
 	if cause != nil {
+		if cleanupUncertain {
+			cause = errors.Join(cause, errors.New("shell: forced Windows runner termination; ACL cleanup uncertain"))
+		}
 		return result, cause
 	}
 	if waitErr != nil {
 		var exitError *exec.ExitError
 		if !errors.As(waitErr, &exitError) {
-			return result, fmt.Errorf("shell: wait for bash: %w", waitErr)
+			return result, fmt.Errorf("shell: wait for command: %w", waitErr)
 		}
 	}
 	return result, nil
@@ -276,6 +320,9 @@ func (e *LocalExecutor) CheckConfinement(ctx context.Context) error {
 	if e == nil || e.sandbox == nil {
 		return errors.New("shell: strict confinement is not configured")
 	}
+	if e.windowsACL {
+		return errors.New("shell: partial Windows ACL cannot attest strict read/network confinement")
+	}
 	if err := e.verifyWorkspace(); err != nil {
 		return err
 	}
@@ -283,4 +330,32 @@ func (e *LocalExecutor) CheckConfinement(ctx context.Context) error {
 		return err
 	}
 	return ctx.Err()
+}
+
+// Startup arguments are fixed; a tool request only supplies the command body.
+func shellCommand(executable, command, platform string) []string {
+	if platform == "windows" {
+		return []string{executable, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command}
+	}
+	return []string{executable, "--noprofile", "--norc", "-c", command}
+}
+
+// CheckCWD validates the exact launch workspace, including its original identity.
+// Windows shell-only composition uses this in place of unsupported file tools.
+func (e *LocalExecutor) CheckCWD(cwd string) error {
+	if err := e.verifyWorkspace(); err != nil {
+		return err
+	}
+	if !filepath.IsAbs(cwd) {
+		return errors.New("shell: session cwd must be absolute")
+	}
+	resolved, err := filepath.EvalSymlinks(cwd)
+	if err != nil {
+		return fmt.Errorf("shell: session cwd: %w", err)
+	}
+	rel, err := filepath.Rel(e.cwd, resolved)
+	if err != nil || rel != "." {
+		return errors.New("shell: session cwd differs from configured workspace")
+	}
+	return nil
 }

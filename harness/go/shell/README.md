@@ -5,8 +5,9 @@ primitives are adapted from `phodal/point` commit
 `69a1f8692725078c4ce7feaf497f5b80799ca44d`, `go/harness/shell`.
 See `SOURCE.json` for exact source blobs and extraction changes.
 
-`NewLocalExecutor` requires an explicit absolute Bash executable and workspace
-directory. `Resolve` validates the launch directory remains within that root,
+`NewLocalExecutor` requires an explicit absolute shell executable and workspace
+directory: Bash on Unix, or PowerShell (`pwsh.exe`) only with the explicit Windows
+ACL backend. `Resolve` validates the launch directory remains within that root,
 and checks the original workspace object identity before resolution and process
 start. Replacing that root between operations fails closed; pathname races in
 the final check/start interval are not eliminated. **This is not a filesystem
@@ -27,8 +28,25 @@ Bash startup files are disabled. Cancellation/timeout terminate then kill the
 owned process group even if the leader exits first. Pipe drain time is bounded.
 Ordinary descendants are cleaned up on completion; deliberate process-group or
 session escape is not prevented and requires OS-level isolation. Linux and
-macOS are supported; other platforms fail closed at construction.
+macOS retain this foreground execution path. Windows is accepted only with
+`sandbox.Config{Backend: sandbox.BackendWindowsACL, ...}`; unsandboxed Windows
+and strict Windows remain unavailable. Other platforms fail closed.
 
 Source reuse is owner-authorized. No blanket license for the source is inferred
 or assigned here; none of the selected source files carries a third-party
 license notice. Repository licensing remains an owner decision.
+
+## Windows ACL partial mode
+
+Windows uses fixed `-NoLogo -NoProfile -NonInteractive -Command` arguments, not
+Bash switches. The sandbox runner supplies a minimal environment, a restricted
+Low-integrity token and Job Object ownership. **Outside reads and network are
+not isolated**. Results report `enforcement: partial`, `readIsolated: false` and
+`networkIsolated: false`; this mode never satisfies strict admission.
+
+The parent holds a control pipe open; cancellation closes it so the runner can
+terminate its Job Object, wait for child exit and perform ACL/temp cleanup before
+returning. A five-second cleanup deadline forces termination if necessary and
+reports `cleanupUncertain: true`; inspect the runner diagnostics before retrying.
+The ordinary Unix process-group grace is unchanged. Native Windows tests skip
+unless `PERO_REQUIRE_WINDOWS_ACL=1` is set for an approved disposable runner.

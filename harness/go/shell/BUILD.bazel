@@ -19,6 +19,14 @@ go_test(
     srcs = [
         "local_test.go",
         "process_linux_test.go",
+        "windows_runtime_test.go",
     ],
     embed = [":shell"],
+    deps = select({
+        "@rules_go//go/platform:windows": [
+            "//sandbox",
+            "@org_golang_x_sys//windows",
+        ],
+        "//conditions:default": [],
+    }),
 )

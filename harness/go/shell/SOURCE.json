@@ -24,7 +24,8 @@
     "Run revalidates direct ExecSpec input, returns timeout/cancellation errors with populated result flags; nonzero exit remains a result.",
     "All tests are new regressions using temporary workspace and bounded local processes.",
     "Store workspace os.FileInfo and require Lstat/SameFile identity at Resolve and immediately before process.Start; reject root replacement/symlink and regression-test pre-resolved commands. Pathname race protection is not claimed as sandboxing.",
-    "Optional strict confinement is reintroduced through the standalone sandbox package; CheckConfinement validates root and backend before approval and execution. No fallback when strict mode is requested."
+    "Optional strict confinement is reintroduced through the standalone sandbox package; CheckConfinement validates root and backend before approval and execution. No fallback when strict mode is requested.",
+    "Windows PowerShell startup is composed explicitly only through the Windows ACL sandbox backend, using fixed noninteractive arguments, cooperative stdin-EOF Job Object cancellation and a bounded forced-cleanup warning. Unsandboxed Windows remains refused; result metadata preserves partial read/network non-isolation."
   ],
   "license": "No blanket license inferred or assigned; selected source files have no third-party license notice."
 }

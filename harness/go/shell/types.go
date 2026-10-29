@@ -1,9 +1,11 @@
-// Package shell provides bounded foreground Bash execution, not an OS sandbox.
+// Package shell provides bounded foreground shell execution, not an OS sandbox.
 package shell
 
 import (
 	"context"
 	"time"
+
+	"github.com/phodal/pero/harness/go/sandbox"
 )
 
 type CollectedOutput struct {
@@ -26,13 +28,17 @@ type ExecSpec struct {
 }
 
 type RunResult struct {
-	ExitCode *int            `json:"exitCode"`
-	Signal   string          `json:"signal,omitempty"`
-	TimedOut bool            `json:"timedOut"`
-	Aborted  bool            `json:"aborted"`
-	Timeout  time.Duration   `json:"-"`
-	Stdout   CollectedOutput `json:"stdout"`
-	Stderr   CollectedOutput `json:"stderr"`
+	Enforcement      sandbox.Enforcement `json:"enforcement,omitempty"`
+	ReadIsolated     bool                `json:"readIsolated"`
+	NetworkIsolated  bool                `json:"networkIsolated"`
+	CleanupUncertain bool                `json:"cleanupUncertain,omitempty"`
+	ExitCode         *int                `json:"exitCode"`
+	Signal           string              `json:"signal,omitempty"`
+	TimedOut         bool                `json:"timedOut"`
+	Aborted          bool                `json:"aborted"`
+	Timeout          time.Duration       `json:"-"`
+	Stdout           CollectedOutput     `json:"stdout"`
+	Stderr           CollectedOutput     `json:"stderr"`
 }
 
 type Executor interface {
