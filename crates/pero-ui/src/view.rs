@@ -3,7 +3,7 @@ use crate::{
     app::Workbench,
     components::{
         ActionHandler, Ui,
-        sidebar::{self, SidebarAction, SidebarProps},
+        sidebar::{self, DeleteAffordance, SidebarAction, SidebarProps},
         task_detail::{self, SessionHeader, TaskDetailAction, TaskDetailProps},
         workspace::{self, AgentRow, WorkspaceAction},
     },
@@ -28,25 +28,48 @@ impl Workbench {
         let on_action = Rc::new(cx.listener(
             |this: &mut Self, action: &SidebarAction, window, cx| {
                 match action {
-                    SidebarAction::NewChat => this.new_chat(cx),
+                    SidebarAction::RequestDelete(index) => {
+                        this.deleting_chat = this.chats.get(*index).map(|chat| chat.id.clone());
+                    }
+                    SidebarAction::ConfirmDelete(index) => {
+                        if this.deleting_chat.as_deref()
+                            == this.chats.get(*index).map(|chat| chat.id.as_str())
+                        {
+                            this.delete_chat(*index, cx);
+                        }
+                    }
+                    SidebarAction::CancelDelete => this.deleting_chat = None,
+                    SidebarAction::NewChat => {
+                        this.deleting_chat = None;
+                        this.new_chat(cx);
+                    }
                     SidebarAction::Navigate(index) => {
+                        this.deleting_chat = None;
                         this.navigation = *index;
                         this.sync_follow(cx);
                         if *index == 7 {
                             this.refresh_apps(cx);
                         }
                     }
-                    SidebarAction::OpenProject(key) => this.open_project(key.clone(), window, cx),
+                    SidebarAction::OpenProject(key) => {
+                        this.deleting_chat = None;
+                        this.open_project(key.clone(), window, cx);
+                    }
                     SidebarAction::ToggleProject(key) => {
+                        this.deleting_chat = None;
                         if !this.collapsed_projects.remove(key) {
                             this.collapsed_projects.insert(key.clone());
                         }
                     }
                     SidebarAction::SelectSession(index) => {
+                        this.deleting_chat = None;
                         this.navigation = 0;
                         this.focus_chat(Some(*index), 4, cx);
                     }
-                    SidebarAction::SelectTask(id) => this.open_task(id.clone(), cx),
+                    SidebarAction::SelectTask(id) => {
+                        this.deleting_chat = None;
+                        this.open_task(id.clone(), cx);
+                    }
                 }
                 cx.notify();
             },
@@ -60,6 +83,12 @@ impl Workbench {
             busy: chat.busy(),
             attention: chat.permission.is_some() || chat.error.is_some(),
             action: SidebarAction::SelectSession(i),
+            delete: Some(DeleteAffordance {
+                confirming: self.deleting_chat.as_deref() == Some(chat.id.as_str()),
+                request: SidebarAction::RequestDelete(i),
+                confirm: SidebarAction::ConfirmDelete(i),
+                cancel: SidebarAction::CancelDelete,
+            }),
         };
         let groups = self
             .project_catalog()
@@ -114,6 +143,7 @@ impl Workbench {
                             action: SidebarAction::SelectTask(
                                 crate::remote::string(task, "id").to_string(),
                             ),
+                            delete: None,
                         }),
                 );
                 if !query.is_empty() && rows.is_empty() && !matches(&project.name) {
@@ -315,9 +345,19 @@ impl Render for Workbench {
                     .when(self.navigation == 0, |el| el.child(self.detail(window, cx)))
                     .when(self.navigation == 5, |el| el.child(self.workers_view(cx)))
                     .when(self.show_local_execution_onboarding(), |el| {
-                        el.child(div().id("first-run-setup").flex_1().min_h_0().overflow_y_scroll().child(self.local_execution_setup_view(true, cx)))
+                        el.child(
+                            div()
+                                .id("first-run-setup")
+                                .flex_1()
+                                .min_h_0()
+                                .overflow_y_scroll()
+                                .child(self.local_execution_setup_view(true, cx)),
+                        )
                     })
-                    .when(self.navigation == 1 && !self.show_local_execution_onboarding(), |el| el.child(self.projects_view(cx)))
+                    .when(
+                        self.navigation == 1 && !self.show_local_execution_onboarding(),
+                        |el| el.child(self.projects_view(cx)),
+                    )
                     .when(self.navigation == 2, |el| el.child(self.environments(cx)))
                     .when(self.navigation == 7, |el| el.child(self.apps_view(cx)))
                     .when(self.navigation == 8, |el| el.child(self.insights_view(cx)))

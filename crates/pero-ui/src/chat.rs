@@ -86,13 +86,13 @@ impl Workbench {
     }
     pub fn focus_chat(&mut self, index: Option<usize>, tab: usize, cx: &mut Context<Self>) {
         if self.active_chat != index {
-            if let Some(chat) = self.active_chat.and_then(|i|self.chats.get_mut(i)) {
+            if let Some(chat) = self.active_chat.and_then(|i| self.chats.get_mut(i)) {
                 chat.draft = self.composer.read(cx).content();
                 chat.draft_references = self.composer_state.references.clone();
             }
             self.composer_state = Default::default();
             self.attachments.clear();
-            if let Some(chat) = index.and_then(|i|self.chats.get(i)) {
+            if let Some(chat) = index.and_then(|i| self.chats.get(i)) {
                 self.composer_restore = Some(chat.draft.clone());
                 self.composer_state.references = chat.draft_references.clone();
             }
@@ -103,7 +103,9 @@ impl Workbench {
         cx.notify();
     }
     pub fn command(&mut self, value: Value, cx: &mut Context<Self>) {
-        if value["action"] == "choose_workspace" && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings) {
+        if value["action"] == "choose_workspace"
+            && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings)
+        {
             self.pending_project_workspace = false;
         }
         if session_command(&value.to_string()).is_err() {
@@ -113,6 +115,44 @@ impl Workbench {
             }
             self.error = Some("error.connection".into());
         }
+        cx.notify();
+    }
+    pub fn delete_chat(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(chat) = self.chats.get(index) else {
+            self.deleting_chat = None;
+            cx.notify();
+            return;
+        };
+        if chat.state == "draft" {
+            self.forget_chat(index, cx);
+            return;
+        }
+        let id = chat.id.clone();
+        self.command(json!({"action":"delete","thread_id":id}), cx);
+    }
+    fn forget_chat(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(chat) = self.chats.get(index) else {
+            return;
+        };
+        let id = chat.id.clone();
+        let active = self.active_chat == Some(index);
+        self.expanded_tools
+            .retain(|key| !key.starts_with(&format!("{id}/")));
+        self.chats.remove(index);
+        self.active_chat = match self.active_chat {
+            Some(current) if current == index => None,
+            Some(current) if current > index => Some(current - 1),
+            current => current,
+        };
+        if self.deleting_chat.as_deref() == Some(id.as_str()) {
+            self.deleting_chat = None;
+        }
+        if active {
+            self.composer_restore = Some(gpui_kit::component::input::InputContent::new(""));
+            self.composer_state = Default::default();
+            self.attachments.clear();
+        }
+        self.sync_follow(cx);
         cx.notify();
     }
     pub fn new_chat(&mut self, cx: &mut Context<Self>) {
@@ -147,7 +187,11 @@ impl Workbench {
     pub fn send_chat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.composer.read(cx).value().trim_end().to_string();
         let contexts = self.attachments.clone();
-        if text.trim().is_empty() || text.chars().count() > 64000 || !self.connected || self.composer_state.loading && self.composer_state.resolve_range.is_some() {
+        if text.trim().is_empty()
+            || text.chars().count() > 64000
+            || !self.connected
+            || self.composer_state.loading && self.composer_state.resolve_range.is_some()
+        {
             return;
         }
         if self.active_chat.is_none() {
@@ -161,8 +205,15 @@ impl Workbench {
         {
             return;
         }
-        if contexts.iter().any(|r|r.kind == pero_contracts::context::ContextKind::Image) && !chat.capabilities.images {
-            chat.error=Some(pero_contracts::i18n::text(&self.locale,"composer.image_unsupported").into());cx.notify();return;
+        if contexts
+            .iter()
+            .any(|r| r.kind == pero_contracts::context::ContextKind::Image)
+            && !chat.capabilities.images
+        {
+            chat.error =
+                Some(pero_contracts::i18n::text(&self.locale, "composer.image_unsupported").into());
+            cx.notify();
+            return;
         }
         if chat.messages.is_empty() {
             chat.title = Conversation::title_from(&text);
@@ -220,27 +271,52 @@ impl Workbench {
         }
         if event.kind == "context_files" {
             self.next_request += 1;
-            self.composer_state.pending_files = event.data.as_array().into_iter().flatten().filter_map(|file| {
-                let source=file["path"].as_str()?.to_string();
-                Some(pero_contracts::context::ContextReference {id:format!("file:{}:{source}",self.next_request),kind:pero_contracts::context::ContextKind::File,label:file["name"].as_str()?.into(),source,content:pero_contracts::context::ContextContent::Text {text:file["text"].as_str()?.into()} })
-            }).collect();
+            self.composer_state.pending_files = event
+                .data
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|file| {
+                    let source = file["path"].as_str()?.to_string();
+                    Some(pero_contracts::context::ContextReference {
+                        id: format!("file:{}:{source}", self.next_request),
+                        kind: pero_contracts::context::ContextKind::File,
+                        label: file["name"].as_str()?.into(),
+                        source,
+                        content: pero_contracts::context::ContextContent::Text {
+                            text: file["text"].as_str()?.into(),
+                        },
+                    })
+                })
+                .collect();
             cx.notify();
             return true;
         }
         if event.kind == "workspace" {
             self.workspace = event.text.clone();
-            if let Ok(identity) = serde_json::from_value::<pero_contracts::workbench::WorkspaceIdentity>(event.data.clone()) {
-                self.workspace_repositories.retain(|entry| entry.workspace != event.text);
+            if let Ok(identity) = serde_json::from_value::<
+                pero_contracts::workbench::WorkspaceIdentity,
+            >(event.data.clone())
+            {
+                self.workspace_repositories
+                    .retain(|entry| entry.workspace != event.text);
                 if let Some(repository) = identity.repository {
-                    self.workspace_repositories.push(pero_contracts::workbench::WorkspaceRepository {workspace:event.text.clone(),repository});
+                    self.workspace_repositories.push(
+                        pero_contracts::workbench::WorkspaceRepository {
+                            workspace: event.text.clone(),
+                            repository,
+                        },
+                    );
                 }
             }
             self.reconcile_project_selection();
             if self.pending_project_workspace {
-                self.pending_project_workspace=false;
-                if let Some(id)=self.current_project().and_then(|project|project.shared_id) {
-                    let mut preferences=self.preferences.clone();preferences.bind(event.text.clone(),id);self.save_preferences(preferences,cx);
-                    self.selected_project=Some(format!("workspace:{}",event.text));
+                self.pending_project_workspace = false;
+                if let Some(id) = self.current_project().and_then(|project| project.shared_id) {
+                    let mut preferences = self.preferences.clone();
+                    preferences.bind(event.text.clone(), id);
+                    self.save_preferences(preferences, cx);
+                    self.selected_project = Some(format!("workspace:{}", event.text));
                 }
             }
             cx.notify();
@@ -259,13 +335,21 @@ impl Workbench {
         let Some(index) = self.chats.iter().position(|c| &c.id == id) else {
             return true;
         };
+        if event.kind == "session_deleted" {
+            self.forget_chat(index, cx);
+            return true;
+        }
         let chat = &mut self.chats[index];
         match event.kind.as_str() {
             "session_created" => {
                 chat.workspace = event.data["workspace"].as_str().unwrap_or_default().into();
             }
             "agent_info" => {
-                chat.capabilities = pero_contracts::composer_capabilities::AgentCapabilities::from_initialize(&event.data).unwrap_or_default();
+                chat.capabilities =
+                    pero_contracts::composer_capabilities::AgentCapabilities::from_initialize(
+                        &event.data,
+                    )
+                    .unwrap_or_default();
                 chat.auth_methods = event.data["authMethods"]
                     .as_array()
                     .cloned()
@@ -289,7 +373,12 @@ impl Workbench {
                 }
                 chat.push_user(event.text.clone(), cx);
                 if let Some(message) = chat.messages.last_mut() {
-                    message.attached_files = event.data["contexts"].as_array().into_iter().flatten().filter_map(|r|r["label"].as_str().map(str::to_string)).collect();
+                    message.attached_files = event.data["contexts"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|r| r["label"].as_str().map(str::to_string))
+                        .collect();
                 }
             }
             "session_connecting" => chat.state = "connecting".into(),
@@ -343,7 +432,13 @@ impl Workbench {
             }
             _ => {}
         }
-        if self.composer_state.open && matches!(self.composer_state.completion.as_ref().map(|q|&q.kind),Some(crate::composer_state::CompletionKind::Slash)) && event.data["sessionUpdate"] == "available_commands_update" {
+        if self.composer_state.open
+            && matches!(
+                self.composer_state.completion.as_ref().map(|q| &q.kind),
+                Some(crate::composer_state::CompletionKind::Slash)
+            )
+            && event.data["sessionUpdate"] == "available_commands_update"
+        {
             self.refresh_composer_commands();
         }
         self.sync_follow(cx);

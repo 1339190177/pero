@@ -16,6 +16,13 @@ pub(crate) struct RecentRow {
     pub busy: bool,
     pub attention: bool,
     pub action: SidebarAction,
+    pub delete: Option<DeleteAffordance>,
+}
+pub(crate) struct DeleteAffordance {
+    pub confirming: bool,
+    pub request: SidebarAction,
+    pub confirm: SidebarAction,
+    pub cancel: SidebarAction,
 }
 pub(crate) struct ProjectGroup {
     pub key: String,
@@ -40,6 +47,9 @@ pub(crate) enum SidebarAction {
     ToggleProject(String),
     SelectSession(usize),
     SelectTask(String),
+    RequestDelete(usize),
+    ConfirmDelete(usize),
+    CancelDelete,
 }
 
 fn recent_row(
@@ -48,15 +58,17 @@ fn recent_row(
     index: usize,
     on_action: &ActionHandler<SidebarAction>,
 ) -> impl IntoElement {
+    let title = row.label.clone();
     let label = if row.attention {
-        format!("{} · {}", row.label, ui.t("insights.attention"))
+        format!("{} · {}", title, ui.t("insights.attention"))
     } else {
-        row.label.clone()
+        title.clone()
     };
-    Button::new(("recent-work", index))
+    let deletable = row.delete.is_some();
+    let confirming = row.delete.as_ref().is_some_and(|delete| delete.confirming);
+    let button = Button::new(("recent-work", index))
         .ghost()
         .small()
-        .w_full()
         .h(px(34.))
         .justify_start()
         .child(div().flex_1())
@@ -74,6 +86,68 @@ fn recent_row(
         .label(row.label)
         .accessibility_label(label)
         .on_click(click(on_action, row.action))
+        .when(!deletable, |button| button.w_full())
+        .when(deletable, |button| {
+            button
+                .max_w(px(if confirming { 96. } else { 176. }))
+                .flex_shrink_0()
+        });
+    let delete = row.delete.map(|delete| {
+        let request = delete.request.clone();
+        let confirm = delete.confirm.clone();
+        let cancel = delete.cancel.clone();
+        let confirm_title = title.clone();
+        div()
+            .flex_shrink_0()
+            .flex()
+            .items_center()
+            .gap(px(2.))
+            .when(!delete.confirming, |el| {
+                el.child(
+                    Button::new(("recent-delete", index))
+                        .ghost()
+                        .small()
+                        .w(px(28.))
+                        .h(px(28.))
+                        .icon(Icon::default().path("icons/x.svg"))
+                        .tooltip(ui.t("chat.delete"))
+                        .accessibility_label(format!("{}, {}", ui.t("chat.delete"), title))
+                        .on_click(click(on_action, request)),
+                )
+            })
+            .when(delete.confirming, |el| {
+                el.child(
+                    Button::new(("recent-delete-cancel", index))
+                        .ghost()
+                        .small()
+                        .h(px(28.))
+                        .label(ui.t("chat.delete_cancel"))
+                        .on_click(click(on_action, cancel)),
+                )
+                .child(
+                    Button::new(("recent-delete-confirm", index))
+                        .outline()
+                        .small()
+                        .h(px(28.))
+                        .label(ui.t("chat.delete_confirm"))
+                        .accessibility_label(format!(
+                            "{}, {}",
+                            ui.t("chat.delete_confirm"),
+                            confirm_title
+                        ))
+                        .on_click(click(on_action, confirm)),
+                )
+            })
+    });
+    div()
+        .w_full()
+        .h(px(34.))
+        .flex()
+        .items_center()
+        .overflow_hidden()
+        .child(button)
+        .when(deletable, |el| el.child(div().flex_1().min_w(px(0.))))
+        .children(delete)
 }
 
 pub(crate) fn sidebar(

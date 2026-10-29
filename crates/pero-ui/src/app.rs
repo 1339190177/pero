@@ -3,7 +3,7 @@ use crate::conversation::{AgentChoice, Conversation};
 pub(crate) use crate::native::{request_locale, send_probe, session_command};
 use crate::theme::Palettes;
 use gpui_kit::{
-    component::input::{TextareaState, InputEvent, InputState},
+    component::input::{InputEvent, InputState, TextareaState},
     *,
 };
 use pero_contracts::{EchoRequest, HostEvent, MAX_TEXT_CHARS};
@@ -65,6 +65,7 @@ pub(crate) struct Workbench {
     pub search: Entity<InputState>,
     pub chats: Vec<Conversation>,
     pub active_chat: Option<usize>,
+    pub deleting_chat: Option<String>,
     pub agents: Vec<AgentChoice>,
     pub agent_index: usize,
     pub model_menu: bool,
@@ -117,8 +118,14 @@ impl Workbench {
                 match event {
                     InputEvent::PressEnter { shift: false, .. } => {
                         if this.composer_state.open {
-                            this.select_composer_candidate(this.composer_state.selected, window, cx);
-                        } else { this.send_chat(window, cx); }
+                            this.select_composer_candidate(
+                                this.composer_state.selected,
+                                window,
+                                cx,
+                            );
+                        } else {
+                            this.send_chat(window, cx);
+                        }
                     }
                     InputEvent::Change => this.update_composer_completion(cx),
                     _ => {}
@@ -126,11 +133,14 @@ impl Workbench {
                 cx.notify();
             }),
         );
-        subscriptions.push(cx.observe(&composer, |this, _, cx| this.update_composer_completion(cx)));
+        subscriptions
+            .push(cx.observe(&composer, |this, _, cx| this.update_composer_completion(cx)));
         subscriptions.push(cx.subscribe(&search, |_, _, _: &InputEvent, cx| cx.notify()));
-        let project_binding=cx.new(|cx|InputState::new(window,cx));
-        subscriptions.push(cx.subscribe(&project_binding,|this,_,event,cx| {
-            if matches!(event,InputEvent::Change) {this.preferences_status=crate::settings_menu::PreferenceSaveState::Idle;}
+        let project_binding = cx.new(|cx| InputState::new(window, cx));
+        subscriptions.push(cx.subscribe(&project_binding, |this, _, event, cx| {
+            if matches!(event, InputEvent::Change) {
+                this.preferences_status = crate::settings_menu::PreferenceSaveState::Idle;
+            }
             cx.notify();
         }));
         let remote = crate::remote::RemoteState::new(window, cx);
@@ -171,6 +181,7 @@ impl Workbench {
             search,
             chats: vec![],
             active_chat: None,
+            deleting_chat: None,
             agents: vec![],
             agent_index: 0,
             model_menu: false,
@@ -216,9 +227,15 @@ impl Workbench {
     }
 
     pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
-        if self.receive_roadmap(&event, cx) { return; }
-        if self.receive_local_execution(&event, cx) { return; }
-        if self.receive_composer(&event, cx) { return; }
+        if self.receive_roadmap(&event, cx) {
+            return;
+        }
+        if self.receive_local_execution(&event, cx) {
+            return;
+        }
+        if self.receive_composer(&event, cx) {
+            return;
+        }
         if self.receive_contribution(&event, cx) {
             return;
         }
@@ -233,9 +250,13 @@ impl Workbench {
         }
         match event.kind.as_str() {
             "workbench_settings" => {
-                if let Ok(preferences) = serde_json::from_value::<pero_contracts::workbench::WorkbenchPreferences>(event.data.clone()) {
+                if let Ok(preferences) = serde_json::from_value::<
+                    pero_contracts::workbench::WorkbenchPreferences,
+                >(event.data.clone())
+                {
                     self.preferences = preferences;
-                    if self.preferences_status == crate::settings_menu::PreferenceSaveState::Saving {
+                    if self.preferences_status == crate::settings_menu::PreferenceSaveState::Saving
+                    {
                         self.preferences_status = crate::settings_menu::PreferenceSaveState::Saved;
                     }
                     self.dark = self.preferences.appearance.dark(self.system_dark);
@@ -300,7 +321,6 @@ impl Workbench {
             .map(|key| self.t(key).to_string())
             .unwrap_or_else(|| event.text.clone())
     }
-
 }
 
 #[cfg(target_family = "wasm")]
@@ -348,18 +368,21 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
             gpui_kit::init(cx);
             // Wasm has no target_os=macos; bind ordinary editing to the actual OS.
             if cx.platform_info().is_mac() {
-                use gpui_kit::component::input::{SelectAll,Copy,Cut,Paste,Undo,Redo,MoveHome,MoveEnd,DeleteToBeginningOfLine,DeleteToEndOfLine};
+                use gpui_kit::component::input::{
+                    Copy, Cut, DeleteToBeginningOfLine, DeleteToEndOfLine, MoveEnd, MoveHome,
+                    Paste, Redo, SelectAll, Undo,
+                };
                 cx.bind_keys([
-                    KeyBinding::new("cmd-a",SelectAll,Some("Input")),
-                    KeyBinding::new("cmd-c",Copy,Some("Input")),
-                    KeyBinding::new("cmd-x",Cut,Some("Input")),
-                    KeyBinding::new("cmd-v",Paste,Some("Input")),
-                    KeyBinding::new("cmd-z",Undo,Some("Input")),
-                    KeyBinding::new("cmd-shift-z",Redo,Some("Input")),
-                    KeyBinding::new("cmd-left",MoveHome,Some("Input")),
-                    KeyBinding::new("cmd-right",MoveEnd,Some("Input")),
-                    KeyBinding::new("cmd-backspace",DeleteToBeginningOfLine,Some("Input")),
-                    KeyBinding::new("cmd-delete",DeleteToEndOfLine,Some("Input")),
+                    KeyBinding::new("cmd-a", SelectAll, Some("Input")),
+                    KeyBinding::new("cmd-c", Copy, Some("Input")),
+                    KeyBinding::new("cmd-x", Cut, Some("Input")),
+                    KeyBinding::new("cmd-v", Paste, Some("Input")),
+                    KeyBinding::new("cmd-z", Undo, Some("Input")),
+                    KeyBinding::new("cmd-shift-z", Redo, Some("Input")),
+                    KeyBinding::new("cmd-left", MoveHome, Some("Input")),
+                    KeyBinding::new("cmd-right", MoveEnd, Some("Input")),
+                    KeyBinding::new("cmd-backspace", DeleteToBeginningOfLine, Some("Input")),
+                    KeyBinding::new("cmd-delete", DeleteToEndOfLine, Some("Input")),
                 ]);
             }
             gpui_kit::component::set_locale(&locale);
@@ -428,9 +451,10 @@ pub fn snapshot() -> String {
             "renderStats":ui.chats.iter().map(|c|c.messages.iter().map(|m|m.view.read(cx).stats()).collect::<Vec<_>>()).collect::<Vec<_>>(),
             "renderedBytes":ui.chats.iter().map(|c|c.messages.iter().map(|m|m.view.read(cx).rendered_bytes(cx)).collect::<Vec<_>>()).collect::<Vec<_>>(),
         });
-        value["preferencesStatus"]=serde_json::json!(ui.preferences_status);
-        value["projectBinding"]=serde_json::json!(ui.project_binding.read(cx).value().as_ref());
-        value["sidebarSearch"]=serde_json::json!(ui.search.read(cx).value().as_ref());
+        value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
+        value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
+        value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());
+        value["deletingChat"] = serde_json::json!(ui.deleting_chat);
         value["localRoadmap"] = serde_json::json!(ui.local_roadmap);
         value["localExecution"] = ui.local_execution.snapshot(cx);
     });
@@ -441,7 +465,7 @@ pub fn snapshot() -> String {
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn paste_image(data: &str, mime_type: &str) {
-    update(|ui,cx| ui.queue_composer_image(data.to_owned(),mime_type.to_owned(),cx));
+    update(|ui, cx| ui.queue_composer_image(data.to_owned(), mime_type.to_owned(), cx));
 }
 
 #[cfg(target_family = "wasm")]
