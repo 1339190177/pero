@@ -37,10 +37,10 @@
     "Host adapter and regression tests are new extraction glue; no planmode or user-question subsystem imported."
   ],
   "destination_sha256": {
-    "BUILD.bazel": "45f5ec6c07b0e7f86908856b28dfe271eacf5cc63c30aa5cc2519d712f3809ab",
+    "BUILD.bazel": "205c1c63b03695442206be3a657b75f5473f96fd9612705f10c2e3d0fdde1c44",
     "README.md": "060d0459e2065a1d3d7063cc0c8bc35136ca8b5aa01424a3a8e6f74c4bef9b78",
     "app.go": "27f2d1894d997a2703e7bd6150785eb3e82d09c463f5542e384403cae9206629",
-    "app_test.go": "6e3712fc3d03e50430ded616b710fe2745ea8a7d6f798bc9f8f2e43bdefc5726",
+    "app_test.go": "45bf7e6d73d28029ab3db4a6c1f0d1bd840cba4a5a452baa30572987f881c9fc",
     "config.go": "04ad795d0cec9cddd52911821a6140e2a74c1d0697c35d3e202031b51b588f45",
     "files.go": "f8157404e2a7fc76a43f2099952544942238148603980909ff02d6fbd89647f0",
     "render.go": "9981cf0b1d47a88f582473407d1606b3113cd0d342c040a223fb8ac56f03b19f"

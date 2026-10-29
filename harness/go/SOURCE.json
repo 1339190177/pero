@@ -1196,7 +1196,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-      "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc",
+      "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a",
       "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
     },
     {
@@ -1243,7 +1243,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-        "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc"
+        "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a"
       }
     ]
   },
@@ -1257,7 +1257,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-        "sha256": "0784851180f089ca9f17821282c42796b003c916906b8034f8136d8422cc87dc"
+        "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a"
       },
       {
         "destination": "config/explicit_environment_test.go",

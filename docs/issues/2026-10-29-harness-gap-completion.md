@@ -152,3 +152,28 @@ revocation and closed-without-result failure. Old Dispose behavior fails the thr
 receipt rows deterministically; the repaired table and real parent/child HTTP
 budget integration pass 30 race repetitions. Failed pre-fix aggregate evidence is
 retained rather than relabeled as a platform failure.
+
+## Portable coding workflow verification
+
+The next run (`40803485815`, `cb972a6`) passed the standalone harness Bazel gate,
+macOS harness tests and the actual Windows media/storage/sandbox/subagent packages.
+Its complete Windows harness failure index contained only native instruction
+fixtures and the combined CLI fixture enabling Unix-only workspace tools.
+
+The combined CLI workflow now runs a portable variant on every platform, without
+workspace/native-instruction flags. MCP, Todo (including Unicode behavior), model
+selection, compaction, streaming and resume assertions remain active; every model
+request must omit the unmounted AGENTS marker. Linux/Darwin additionally run the
+full native-instructions variant. Windows explicitly tests rejection when native
+flags are requested, before any durable session is created. Instruction framing
+and bounded Unicode rendering are separately tested on every platform. Production
+capability guards remain unchanged; this is not a Windows native-files backend.
+
+That run completed with 13 passing jobs and two Windows fixture failures only.
+After the MCP fixture correction, Windows desktop tests reached the worker
+approval fixture: its trusted root still used a noncanonical drive spelling.
+The fixture now canonicalizes its freshly created directory before deriving the
+inert executable path, matching `protected_path`'s existing canonical contract.
+Production binary pinning, ownership, workspace exclusion and script rejection
+are unchanged. The positive assertion reports the actual validation error on any
+future failure. No local Rust execution is claimed; final Windows CI is required.

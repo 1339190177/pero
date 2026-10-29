@@ -16,7 +16,7 @@
   "files": [
     {
       "destination": "review_race_test.go",
-      "sha256": "787f9ae881ad73301376cb82edb4284d53fb823c804cfd6dab498b26c8b72e99",
+      "sha256": "f5d20c97c0274da05fc9a2a1407449efd240e1566bd3f34d5d89c171f273ce19",
       "changes": "new bounded workspace adapter or deterministic regression test"
     },
     {
@@ -54,7 +54,7 @@
     },
     {
       "destination": "workspace_test.go",
-      "sha256": "460a6b8680a8687a4bbbebd7ec6847c13545571ca4afd7815ce511531a02247f",
+      "sha256": "87b4c4815f6adc960f12171464894cf4aecc9bcd2300084d14a44e1bdabb74a5",
       "changes": "new bounded workspace adapter or deterministic regression test"
     }
   ],

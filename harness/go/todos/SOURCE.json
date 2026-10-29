@@ -44,7 +44,7 @@
     "Default legacy normalization retained. Whole-list replacement; next turn/start clears standing plan."
   ],
   "destination_sha256": {
-    "BUILD.bazel": "69364085169787ed9152dfba47ba9a9930381b71d2da245928a049ffe1165946",
+    "BUILD.bazel": "5140d1ce8f5784ddac353f354948fc1904ed4031182b3b21b7064e6bf8e2af56",
     "README.md": "c37363f11b28e225bc440e5d476d5ff618dc8b033739999624b80374752021ab",
     "argument_errors_test.go": "dd3bb7173417c5a0a5b4649d083904b522232deb3eeba3a0f2f513c3b67e2a63",
     "normalization.go": "df8da35d86358b0d8e5a9be8226c1b17cef340d3c4a4da34b0337ed84ed26d09",
