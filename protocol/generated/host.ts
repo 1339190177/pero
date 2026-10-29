@@ -5,6 +5,7 @@
  */
 export type HostProtocol = HostInput | HostEvent;
 export type HostInput =
+  | FileDocumentRequest
   | LocalWorkerRequest
   | EchoRequest
   | SetLocaleRequest
@@ -14,6 +15,7 @@ export type HostInput =
   | HostCommand
   | AppRequest
   | ContributionRequest;
+export type FileDocumentRequest = OpenFileDocument | FollowFileDocument | SaveFileDocument | ReleaseFileDocument;
 export type LocalWorkerRequest = LocalWorkerStartCommand | LocalWorkerStopCommand | LocalWorkerGetCommand;
 export type HostCommand =
   | ListAgentsCommand
@@ -41,6 +43,10 @@ export type AppName = string;
 export type AgentRequest = AgentInfoRequest | AgentStartRequest | AgentEventsRequest | AgentCancelRequest;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | DocumentOpenEvent
+  | DocumentChooseEvent
+  | FileDocumentEvent
+  | FileDocumentErrorEvent
   | ContentDocumentEvent
   | LocalWorkerStateEvent
   | ContributorStateEvent
@@ -79,6 +85,8 @@ export type HostEvent =
   | PermissionEvent
   | PromptQueuedEvent
   | CommandRejectedEvent;
+export type ContentOrigin = ConversationOrigin | FileOrigin | AppOrigin | McpOrigin;
+export type ContentFormat = PlainContentFormat | CodeContentFormat;
 /**
  * Catalog key resolved by the UI from locales/*.json.
  */
@@ -102,6 +110,32 @@ export type ThreadEvent =
 export type AppResult = AppSuccess | AppFailure;
 export type AppAgentStatus = "running" | "text" | "needs_input" | "completed" | "cancelled" | "failed";
 
+export interface OpenFileDocument {
+  method: "documents";
+  action: "open";
+  request_id: string;
+  path: string;
+}
+export interface FollowFileDocument {
+  method: "documents";
+  action: "follow";
+  request_id: string;
+  source: string;
+  href: string;
+}
+export interface SaveFileDocument {
+  method: "documents";
+  action: "save";
+  request_id: string;
+  source: string;
+  revision: number;
+  text: string;
+}
+export interface ReleaseFileDocument {
+  method: "documents";
+  action: "release";
+  source: string;
+}
 export interface LocalWorkerStartCommand {
   action: "local_worker_start";
   request_id: string;
@@ -361,6 +395,71 @@ export interface ContributionPublish {
   operation: "publish";
   workspace: string;
   review_token: string;
+}
+export interface DocumentOpenEvent {
+  kind: "document_open";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: DocumentHeader;
+}
+export interface DocumentHeader {
+  source: DocumentSource;
+  revision: number;
+  format: ContentFormat;
+}
+export interface DocumentSource {
+  id: string;
+  title: string;
+  origin: ContentOrigin;
+}
+export interface ConversationOrigin {
+  kind: "conversation";
+  thread_id: string;
+}
+export interface FileOrigin {
+  kind: "file";
+  path: string;
+}
+export interface AppOrigin {
+  kind: "app";
+  app: string;
+  panel: string;
+}
+export interface McpOrigin {
+  kind: "mcp";
+  server: string;
+  thread_id: string;
+}
+export interface PlainContentFormat {
+  kind: "json" | "json_lines" | "text" | "markdown";
+}
+export interface CodeContentFormat {
+  kind: "code";
+  language: string;
+}
+export interface DocumentChooseEvent {
+  kind: "document_choose";
+  version: 1;
+  request_id: string | null;
+  text: string;
+}
+export interface FileDocumentEvent {
+  kind: "document_file";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: DocumentHeader;
+}
+export interface FileDocumentErrorEvent {
+  kind: "document_error";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: {
+    source: string;
+    reason: "conflict" | "unsupported" | "unavailable" | "read_write";
+  };
 }
 /**
  * Read-only Desktop result-file transport. It never starts an Agent turn.

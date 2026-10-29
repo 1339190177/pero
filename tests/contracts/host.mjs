@@ -58,7 +58,7 @@ function startHost() {
   });
   const send = (input, { invalid = false } = {}) => {
     if (!invalid && !validInput(input)) {
-      const name = input.action ? commandVariants.get(input.action) : input.method === 'settings.remote' ? 'SetRemoteSettingsRequest' : input.method ? 'SetLocaleRequest' : 'EchoRequest';
+      const name = input.action ? commandVariants.get(input.action) : input.method === 'documents' ? 'FileDocumentRequest' : input.method === 'settings.remote' ? 'SetRemoteSettingsRequest' : input.method ? 'SetLocaleRequest' : 'EchoRequest';
       const preview = input.method === 'settings.remote' ? '[remote settings redacted]' : JSON.stringify(input);
       failures.push(`input ${preview}: ${explain(name, input)}`);
     }
@@ -82,6 +82,20 @@ try {
   await host.next('settings');
   await host.next('ready');
 
+  const guide=resolve(temp,'guide.md');
+  writeFileSync(guide,'# File document\n');
+  writeFileSync(resolve(temp,'data set.json'),'[{"n":9007199254740993}]');
+  host.send({method:'documents',action:'open',request_id:'file-open',path:guide});
+  const openedFile=await host.next('document_file',e=>e.request_id==='file-open');
+  if(openedFile.text!=='# File document\n' || openedFile.data.format.kind!=='markdown')failures.push('File document source/format did not cross the Host boundary');
+  host.send({method:'documents',action:'save',request_id:'file-save',source:openedFile.data.source.id,revision:openedFile.data.revision,text:'# Saved\n'});
+  await host.next('document_file',e=>e.request_id==='file-save');
+  if(readFileSync(guide,'utf8')!=='# Saved\n')failures.push('File save did not reach disk');
+  host.send({method:'documents',action:'follow',request_id:'file-link',source:openedFile.data.source.id,href:'data%20set.json'});
+  const linkedFile=await host.next('document_file',e=>e.request_id==='file-link');
+  if(linkedFile.text!=='[{"n":9007199254740993}]')failures.push('Relative file link changed exact source');
+  host.send({method:'documents',action:'release',source:openedFile.data.source.id});
+
   host.send({ id: 'probe-1', text: '你好，Pero' });
   await host.next('echo', (e) => e.request_id === 'probe-1');
   host.send('not json', { invalid: true });
@@ -91,8 +105,9 @@ try {
   const legacyWorkbench = {appearance:'dark',projects:[{workspace:temp,project_id:'pero'}]};
   host.send({method:'settings.workbench',preferences:legacyWorkbench});
   const migrated = await host.next('workbench_settings');
-  if (!isDeepStrictEqual(migrated.data,{...legacyWorkbench,layout:{chat_width:420,chat_open:false}})) failures.push('Legacy workbench preferences did not restore default layout');
-  const workbench = {...legacyWorkbench,layout:{chat_width:512,chat_open:true}};
+  const expectedLegacy={...legacyWorkbench,accent:'teal',typography:{ui_size:14,chat_size:16,code_size:null},layout:{chat_width:420,chat_open:false}};
+  if (!isDeepStrictEqual(migrated.data,expectedLegacy)) failures.push('Legacy workbench preferences did not restore default layout');
+  const workbench = {...expectedLegacy,layout:{chat_width:512,chat_open:true}};
   host.send({method:'settings.workbench',preferences:workbench});
   const applied = await host.next('workbench_settings');
   if (!isDeepStrictEqual(applied.data,workbench)) failures.push('Workbench preferences were not acknowledged');
