@@ -618,7 +618,7 @@ impl Workbench {
                 } else {
                     "filter.running"
                 });
-                (i, chat.title.clone(), status)
+                (i, chat.title.display().to_owned(), status)
             })
             .collect::<Vec<_>>();
         let tasks = self

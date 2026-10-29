@@ -156,7 +156,7 @@ impl Workbench {
                     .chats
                     .iter()
                     .find(|chat| &chat.id == id)
-                    .map(|chat| chat.title.clone())
+                    .map(|chat| chat.title.display().to_owned())
                     .unwrap_or_else(|| self.t("chat.session").into()),
                 "message-circle",
             ),

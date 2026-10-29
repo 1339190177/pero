@@ -39,3 +39,5 @@ pub mod usage;
 
 pub mod session_state;
 pub mod authentication;
+
+pub mod conversation_title;

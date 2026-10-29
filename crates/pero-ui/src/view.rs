@@ -92,7 +92,7 @@ impl Workbench {
         };
         let session_row =
             |i: usize, chat: &pero_chat_ui::conversation::Conversation| sidebar::RecentRow {
-                label: chat.title.clone(),
+                label: chat.title.display().to_owned(),
                 icon: "terminal",
                 active: self.navigation.page() == WorkbenchPage::Conversation
                     && panel.active_chat == Some(i),

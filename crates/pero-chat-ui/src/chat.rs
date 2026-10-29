@@ -332,7 +332,7 @@ impl ChatPanel {
             return false;
         }
         if chat.messages.is_empty() {
-            chat.title = Conversation::title_from(&text);
+            chat.title.prompt(&text);
         }
         chat.error = None;
         let value = if matches!(chat.state, SessionState::Draft | SessionState::Connecting) {
@@ -525,7 +525,7 @@ impl ChatPanel {
             }
             "user_message" => {
                 if chat.messages.is_empty() {
-                    chat.title = Conversation::title_from(&event.text);
+                    chat.title.prompt(&event.text);
                 }
                 chat.push_user(event.text.clone(), cx);
                 if let Some(message) = chat.messages.last_mut() {

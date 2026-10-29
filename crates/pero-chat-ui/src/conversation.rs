@@ -144,7 +144,7 @@ pub struct Conversation {
     pub scope: Option<pero_contracts::AppChatScope>,
     pub usage: Option<pero_contracts::usage::SessionUsage>,
     pub id: String,
-    pub title: String,
+    pub title: crate::conversation_title::ConversationTitle,
     pub agent: String,
     pub state: SessionState,
     pub session_id: String,
@@ -173,15 +173,6 @@ pub struct Conversation {
 }
 
 impl Conversation {
-    pub fn title_from(text: &str) -> String {
-        text.lines()
-            .map(str::trim)
-            .find(|line| !line.is_empty())
-            .unwrap_or_default()
-            .chars()
-            .take(24)
-            .collect()
-    }
     pub fn new(id: String, agent: String, title: String) -> Self {
         Self {
             workspace: String::new(),
@@ -189,7 +180,7 @@ impl Conversation {
             usage: None,
             id,
             agent,
-            title,
+            title: crate::conversation_title::ConversationTitle::new(title),
             state: SessionState::Draft,
             session_id: String::new(),
             messages: vec![],
@@ -359,6 +350,10 @@ impl Conversation {
                     }
                 }
                 true
+            }
+            "session_info_update" => {
+                if data.get("title").is_some() { self.title.report(data["title"].as_str()); return true; }
+                false
             }
             "available_commands_update" => {
                 match pero_contracts::composer_capabilities::AgentCommand::from_update(data) {

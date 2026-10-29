@@ -84,14 +84,14 @@ impl Render for ChatWindow {
         let active = panel.active_chat;
         let label = active
             .and_then(|i| panel.chats.get(i))
-            .map(|chat| chat.title.clone())
+            .map(|chat| chat.title.display().to_owned())
             .unwrap_or_else(|| panel.t("chat.new").into());
         let threads = panel
             .chats
             .iter()
             .enumerate()
             .filter(|(_, c)| c.scope == panel.scope)
-            .map(|(i, c)| (i, c.title.clone()))
+            .map(|(i, c)| (i, c.title.display().to_owned()))
             .collect::<Vec<_>>();
         let choose = self.panel.downgrade();
         let new = self.panel.clone();
