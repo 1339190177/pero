@@ -4730,6 +4730,7 @@ dependencies = [
  "gpui-kit",
  "js-sys",
  "pero-contracts",
+ "pero-theme",
  "serde",
  "serde_json",
 ]
@@ -4742,6 +4743,7 @@ dependencies = [
  "gpui-kit",
  "pero-chat-ui",
  "pero-contracts",
+ "pero-theme",
  "serde_json",
  "wasm-bindgen",
 ]
@@ -4791,6 +4793,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pero-theme"
+version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "pero-contracts",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pero-ui"
 version = "0.1.0"
 dependencies = [
@@ -4803,6 +4815,7 @@ dependencies = [
  "js-sys",
  "pero-chat-ui",
  "pero-contracts",
+ "pero-theme",
  "reqwest",
  "security-framework",
  "serde",
