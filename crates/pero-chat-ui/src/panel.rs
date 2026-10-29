@@ -5,7 +5,7 @@ use crate::{
     theme::Palettes,
 };
 use gpui_kit::{
-    component::input::{InputContent, InputEvent, TextareaState},
+    component::input::{InlineToken, InputContent, InputEvent, TextareaState},
     prelude::*,
     *,
 };
@@ -24,13 +24,22 @@ pub enum ChatAction {
         kind: Option<ContextKind>,
         request_id: Option<String>,
     },
+    PreviewContext { reference: ContextReference, thread_id: String },
+    Selected { thread_id: Option<String> },
     Activated,
     ReturnToReview,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ComposerInsertion {
-    thread_id: String,
-    text: String,
+    pub(crate) thread_id: String,
+    #[serde(default)]
+    pub(crate) text: String,
+    #[serde(default)]
+    pub(crate) contexts: Vec<ContextReference>,
+    #[serde(default)]
+    pub(crate) replace: bool,
 }
 
 pub struct ChatPanel {
@@ -158,7 +167,7 @@ impl ChatPanel {
         if let Some(chat) = self.active_chat.and_then(|index| self.chats.get(index)) {
             self.pending_prompts.push(ComposerInsertion {
                 thread_id: chat.id.clone(),
-                text,
+                text,contexts:vec![],replace:false,
             });
         }
         cx.notify();
@@ -263,6 +272,12 @@ impl ChatPanel {
                     self.set_scope(scope, cx);
                 }
             }
+            "compose_context" => {
+                match serde_json::from_value::<ComposerInsertion>(event.data.clone()) {
+                    Ok(mut insertion)=>{insertion.text=event.text.clone();self.pending_prompts.push(insertion);},
+                    Err(error)=>self.error=Some(error.to_string()),
+                }
+            }
             "compose_intent" => {
                 self.compose(event.text.clone(), cx);
             }
@@ -305,20 +320,33 @@ impl Render for ChatPanel {
                 continue;
             };
             if self.active_chat == Some(index) {
-                self.composer.update(cx, |input, cx| {
-                    input.insert(&insertion.text, window, cx);
-                    input.focus(window, cx);
-                });
-            } else {
-                let draft = &self.chats[index].draft;
-                let mut next = InputContent::new(format!("{}{}", draft.text(), insertion.text));
-                for span in draft.tokens() {
-                    next = next
-                        .with_token(span.range(), span.token().clone())
-                        .expect("append preserves token ranges");
+                let end=self.composer.read(cx).value().len();
+                self.replace_composer_range(if insertion.replace{0..end}else{end..end},&insertion.text,window,cx);
+                self.update_composer_completion(cx);
+                for reference in insertion.contexts {
+                    let end=self.composer.read(cx).value().len();
+                    self.insert_composer_reference(reference,end..end,window,cx);
                 }
-                self.chats[index].draft = next;
+                self.composer.update(cx,|input,cx|input.focus(window,cx));
+            } else {
+                let chat=&mut self.chats[index];
+                let mut text=if insertion.replace{String::new()}else{chat.draft.text().to_string()};
+                let mut tokens=if insertion.replace{vec![]}else{chat.draft.tokens().iter().map(|span|(span.range(),span.token().clone())).collect::<Vec<_>>()};
+                text.push_str(&insertion.text);
+                let mut references=if insertion.replace{HashMap::new()}else{chat.draft_references.clone()};
+                references.retain(|id,_|tokens.iter().any(|(_,token)|token.id().as_ref()==id.as_str()));
+                for reference in insertion.contexts {
+                    let start=text.len();let label=format!("@{}",reference.label.replace(['\n','\r','\t']," "));
+                    text.push_str(&label);let end=text.len();text.push(' ');
+                    tokens.push((start..end,InlineToken::new(reference.id.clone(),label).with_label(reference.label.clone())));
+                    references.insert(reference.id.clone(),reference);
+                }
+                if let Err(error)=ContextReference::validate_all(&references.values().cloned().collect::<Vec<_>>()){self.error=Some(error.into());continue;}
+                let mut next=InputContent::new(text);
+                for (range,token) in tokens{next=next.with_token(range,token).expect("valid appended token");}
+                chat.draft=next;chat.draft_references=references;
             }
+
         }
         if self.input_locale != self.locale {
             self.input_locale = self.locale.clone();

@@ -228,7 +228,7 @@ impl ChatPanel {
             .update(cx, |input, cx| input.focus(window, cx));
     }
 
-    fn replace_composer_range(
+    pub(crate) fn replace_composer_range(
         &mut self,
         range: std::ops::Range<usize>,
         text: &str,
@@ -440,7 +440,7 @@ impl ChatPanel {
         }
     }
 
-    fn insert_composer_reference(
+    pub(crate) fn insert_composer_reference(
         &mut self,
         reference: ContextReference,
         range: std::ops::Range<usize>,
@@ -451,7 +451,7 @@ impl ChatPanel {
             && !self
                 .active_chat
                 .and_then(|i| self.chats.get(i))
-                .is_some_and(|c| c.capabilities.images)
+                .is_some_and(|c| c.state == "draft" || c.capabilities.images)
         {
             self.error = Some(self.t("composer.image_unsupported").into());
             self.close_composer_picker(cx);

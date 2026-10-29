@@ -172,6 +172,9 @@ impl ChatPanel {
             .when(!self.attachments.is_empty(), |el| {
                 el.child(div().flex().flex_wrap().gap(px(6.)).mb(px(6.)).children(
                     self.attachments.iter().enumerate().map(|(i, file)| {
+                        let preview=file.clone();
+                        let thread_id=self.active_chat.and_then(|index|self.chats.get(index)).map(|chat|chat.id.clone()).unwrap_or_default();
+                        div().flex().items_center().child(
                         Button::new(("attached-file", i))
                             .ghost()
                             .small()
@@ -181,6 +184,10 @@ impl ChatPanel {
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 this.remove_composer_context(i, window, cx);
                             }))
+                        ).when(cfg!(target_family="wasm"), |row| row.child(
+                            Button::new(("preview-context",i)).ghost().small().label(self.t("composer.preview"))
+                                .on_click(cx.listener(move|_,_,_,cx|cx.emit(crate::ChatAction::PreviewContext{reference:preview.clone(),thread_id:thread_id.clone()})))
+                        ))
                     }),
                 ))
             })

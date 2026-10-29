@@ -102,7 +102,10 @@ impl ChatPanel {
                 self.composer_restore = Some(gpui_kit::component::input::InputContent::new(""));
             }
         }
+        let previous=self.active_chat.and_then(|i|self.chats.get(i)).map(|c|c.id.clone());
         self.active_chat = index;
+        let thread_id=index.and_then(|i|self.chats.get(i)).map(|c|c.id.clone());
+        if previous!=thread_id {cx.emit(crate::ChatAction::Selected{thread_id});}
         self.sync_follow(cx);
         cx.notify();
     }
@@ -182,7 +185,7 @@ impl ChatPanel {
     pub fn send_chat(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.composer.read(cx).value().trim_end().to_string();
         let contexts = self.attachments.clone();
-        if text.trim().is_empty()
+        if text.trim().is_empty() && contexts.is_empty()
             || text.chars().count() > 64000
             || !self.connected
             || self.composer_state.loading && self.composer_state.resolve_range.is_some()
@@ -203,7 +206,7 @@ impl ChatPanel {
         if contexts
             .iter()
             .any(|r| r.kind == pero_contracts::context::ContextKind::Image)
-            && !chat.capabilities.images
+            && chat.state != "draft" && !chat.capabilities.images
         {
             chat.error =
                 Some(pero_contracts::i18n::text(&self.locale, "composer.image_unsupported").into());
@@ -403,6 +406,11 @@ impl ChatPanel {
                 if let Some(text) = chat.queued.take() {
                     chat.state = "running".into();
                     let contexts = std::mem::take(&mut chat.queued_contexts);
+                    if !chat.capabilities.images && contexts.iter().any(|r|r.kind==pero_contracts::context::ContextKind::Image){
+                        chat.state="idle".into();chat.error=Some(pero_contracts::i18n::text(&self.locale,"composer.image_unsupported").into());
+                        self.pending_prompts.push(crate::panel::ComposerInsertion{thread_id:chat.id.clone(),text,contexts,replace:false});
+                        cx.notify();return true;
+                    }
                     let value = json!({"action":"prompt","thread_id":chat.id,"text":text,"contexts":contexts});
                     self.command(value, cx);
                 }

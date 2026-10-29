@@ -123,6 +123,16 @@ impl Workbench {
                     json!({"action":"choose_context","kind":kind,"request_id":request_id}),
                     cx,
                 ),
+                ChatAction::PreviewContext { reference, thread_id } => {
+                    if cfg!(target_family = "wasm") {
+                        this.command(json!({"action":"app_context_preview","reference":reference,"thread_id":thread_id}),cx);
+                    }
+                }
+                ChatAction::Selected { thread_id } => {
+                    if cfg!(target_family = "wasm") {
+                        this.command(json!({"action":"app_use_selection","thread_id":thread_id}),cx);
+                    }
+                }
                 ChatAction::Activated => {
                     if !this.chat_dock_visible() {
                         let index = this.chat.read(cx).active_chat;

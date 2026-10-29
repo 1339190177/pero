@@ -44,6 +44,8 @@ impl ChatWindow {
                     ChatAction::Command(value) => {
                         serde_json::to_value(value).expect("typed Host command")
                     }
+                    ChatAction::PreviewContext{reference,thread_id}=>json!({"action":"app_context_preview","reference":reference,"thread_id":thread_id}),
+                    ChatAction::Selected{thread_id}=>json!({"action":"app_use_selection","thread_id":thread_id}),
                     ChatAction::ChooseWorkspace => json!({"action":"choose_workspace"}),
                     ChatAction::ChooseContext { kind, request_id } => {
                         json!({"action":"choose_context","kind":kind,"request_id":request_id})
