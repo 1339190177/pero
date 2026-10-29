@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
+import { Product } from '../../packages/product/product.ts';
 
 const root = resolve(import.meta.dirname, '../..');
 const taskCenter = 'https://app.openpero.com';
@@ -11,8 +12,8 @@ const kitRevision = 'ec89cfc36404667b7947aeb3d40b1c2859d729dd';
 const tag = process.env.RELEASE_TAG || '';
 const standalone = process.env.RELEASE_PRODUCT === 'virtual-cell';
 const platform = { darwin: 'macos', linux: 'linux', win32: 'windows' }[process.platform];
-const product = JSON.parse(readFileSync(resolve(root, standalone ? 'products/virtual-cell/product.json' : 'products/pero.json'), 'utf8'));
-const asset = `${product.name}-${platform}-${process.arch}`;
+const product = Product.parse(JSON.parse(readFileSync(resolve(root, standalone ? 'products/virtual-cell/product.json' : 'products/pero.json'), 'utf8')));
+const asset = `${product.artifactStem()}-${platform}-${process.arch}`;
 if (process.env.GITHUB_ACTIONS !== 'true' || !platform || (standalone && process.platform !== 'darwin')) {
   throw new Error('Release packages require a native GitHub Actions runner; Virtual Cell requires macOS.');
 }

@@ -49,3 +49,12 @@ on both Ubuntu 24.04 and Windows 2025 using ANGLE SwiftShader WebGL2, including
 RGBA pixel readback. Packaged non-macOS smoke now uses those same three flags.
 GPUI already owns the WebGPU-to-WebGL2 fallback and creates a fresh canvas for
 it; no renderer implementation or platform test gate is bypassed.
+
+Public-download verification exposed GitHub normalizing `Virtual Cell` file
+names to `Virtual.Cell`, leaving the CI checksum manifest with nonexistent
+space-containing names. The published DMG bytes match the CI archive SHA-256.
+The current release asset names and checksum/build metadata were normalized to
+`Virtual-Cell`; the binary was not rebuilt or replaced. Product.artifactStem
+now owns download-safe ASCII file stems for both packagers and release metadata.
+That preventive CI/build fix is proposed in PR #13 and remains unmerged pending
+review; this record stays active until that fix is integrated.

@@ -27,6 +27,11 @@ export class Product {
     Object.freeze(this);
   }
 
+  /** Display names may contain spaces; download identities must survive release hosts. */
+  artifactStem(): string {
+    return this.name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '') || this.id;
+  }
+
   /** A product can open only its included Apps; secondary Apps use their first panel. */
   selectApp(name: unknown = this.entry?.app): Readonly<{ app: string; panel?: string }> {
     if (this.shell !== 'app' || typeof name !== 'string' || !this.apps.includes(name)) {

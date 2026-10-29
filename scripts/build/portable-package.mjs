@@ -9,7 +9,7 @@ if (!['linux', 'win32'].includes(process.platform)) throw new Error('Use package
 const root = resolve(import.meta.dirname, '../..');
 const product = Product.parse(JSON.parse(readFileSync(resolve(root, 'products/pero.json'), 'utf8')));
 const platform = process.platform === 'win32' ? 'windows' : 'linux';
-const name = `Pero-${platform}-${process.arch}`;
+const name = `${product.artifactStem()}-${platform}-${process.arch}`;
 const destination = resolve(root, 'target/package');
 const output = join(destination, name);
 mkdirSync(destination, { recursive: true });

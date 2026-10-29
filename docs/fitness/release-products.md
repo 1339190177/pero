@@ -18,7 +18,7 @@ The release matrix has four independent native jobs:
 | Pero | macos-26 / arm64 | Pero-macos-arm64.dmg |
 | Pero | windows-2025 / x64 | Pero-windows-x64.zip |
 | Pero | ubuntu-24.04 / x64 | Pero-linux-x64.tar.gz |
-| Virtual Cell | macos-26 / arm64 | Virtual Cell-macos-arm64.dmg |
+| Virtual Cell | macos-26 / arm64 | Virtual-Cell-macos-arm64.dmg |
 
 Each job verifies source-tag identity and embedded product/platform metadata,
 then launches its actual packaged executable from outside the checkout. macOS
