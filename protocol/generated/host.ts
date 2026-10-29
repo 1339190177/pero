@@ -35,9 +35,10 @@ export type ContextKind =
   "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch";
 export type ThreadId = string;
 export type ContextContent = TextContextContent | ImageContextContent;
-export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp;
+export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp | AgentApp;
 export type RequestId = string;
 export type AppName = string;
+export type AgentRequest = AgentInfoRequest | AgentStartRequest | AgentEventsRequest | AgentCancelRequest;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
   | LocalWorkerStateEvent
@@ -98,6 +99,7 @@ export type ThreadEvent =
   | SessionClosedEvent
   | SessionDeletedEvent;
 export type AppResult = AppSuccess | AppFailure;
+export type AppAgentStatus = "running" | "text" | "needs_input" | "completed" | "cancelled" | "failed";
 
 export interface LocalWorkerStartCommand {
   action: "local_worker_start";
@@ -295,6 +297,31 @@ export interface ResolveApp {
   name: AppName;
   method: "apps";
   id: RequestId;
+}
+export interface AgentApp {
+  action: "agent";
+  name: AppName;
+  request: AgentRequest;
+  method: "apps";
+  id: RequestId;
+}
+export interface AgentInfoRequest {
+  operation: "info";
+}
+export interface AgentStartRequest {
+  operation: "start";
+  requestId: string;
+  prompt: string;
+  agentId: string;
+}
+export interface AgentEventsRequest {
+  operation: "events";
+  sessionId: string;
+  after: number;
+}
+export interface AgentCancelRequest {
+  operation: "cancel";
+  sessionId: string;
 }
 export interface ContributionPrepare {
   method: "contribution";
@@ -528,6 +555,13 @@ export interface SessionCreatedData {
   agent: string;
   workspace: string;
   scope?: AppChatScope;
+  appBinding?: AppSessionBinding;
+}
+export interface AppSessionBinding {
+  app: AppName;
+  requestId: string;
+  agentId: string;
+  prompt: string;
 }
 export interface UserMessageEvent {
   kind: "user_message";
@@ -761,7 +795,7 @@ export interface AppsResultEvent {
 }
 export interface AppSuccess {
   ok: true;
-  value: AppRecord[] | AppAccess;
+  value: AppRecord[] | AppAccess | AppAgentInfo | AppAgentStarted | AppAgentTranscript | AppAgentCancelled;
 }
 /**
  * Public catalog: no local paths or backend credentials.
@@ -790,6 +824,32 @@ export interface AppAccess {
 export interface BackendAccess {
   url: string;
   token: string;
+}
+export interface AppAgentInfo {
+  available: boolean;
+  workspace: string;
+  agents: AppAgentSummary[];
+}
+export interface AppAgentSummary {
+  id: string;
+  name: string;
+  available: boolean;
+}
+export interface AppAgentStarted {
+  sessionId: string;
+}
+export interface AppAgentTranscript {
+  events: AppAgentEvent[];
+  cursor: number;
+  status: AppAgentStatus;
+  text: string;
+}
+export interface AppAgentEvent {
+  kind: AppAgentStatus;
+  text: string;
+}
+export interface AppAgentCancelled {
+  cancelled: true;
 }
 export interface AppFailure {
   ok: false;

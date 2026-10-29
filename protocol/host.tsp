@@ -200,7 +200,7 @@ model AppsErrorEvent { kind: "apps_error"; ...EventBase }
 model AppOpenedData { name: string; panel: string; url: string; ...Closed; }
 model AppsOpenedEvent { kind: "apps_opened"; ...EventBase; data: AppOpenedData }
 
-model SessionCreatedData { agent: string; workspace: string; scope?: AppChatScope; ...Closed }
+model SessionCreatedData { agent: string; workspace: string; scope?: AppChatScope; appBinding?: Pero.Apps.AppSessionBinding; ...Closed }
 model SessionCreatedEvent { kind: "session_created"; ...ThreadEventBase; data: SessionCreatedData }
 model UserMessageContext {contexts: ContextReference[]; ...Closed}
 model UserMessageEvent { kind: "user_message"; ...ThreadEventBase; data?: UserMessageContext }
