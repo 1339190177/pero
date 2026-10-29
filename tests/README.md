@@ -16,6 +16,8 @@
 | `e2e/desktop.mjs` | L1 | `npm run test:e2e` | 顺序执行 `workbench.mjs` 和 `toolcalls.mjs`，各启动一次真实 Electron |
 | `e2e/workbench.mjs` | L1 | 同上 | 中文组字、多轮、取消、权限、千段长流式、上滚不跳动、刷新后历史还在 |
 | `e2e/toolcalls.mjs` | L1 | 同上 | 九种工具行、diff、失败、取消、附件上下文 |
+| `e2e/local-execution.mjs` | L1 | `npm run test:local-execution` | 首次引导、明确授权本机执行、真实 Host/Worker 与 ACP fixture、加密配置、重启自动恢复、停止/继续和账号隔离 |
+| `runtime/local-worker-host.mjs` | L1 | `node tests/runtime/local-worker-host.mjs` | 临时目录与 loopback Cloud 下的真实 Host/Worker 生命周期、异常/EOF 清理、凭据不进入公共状态 |
 | `e2e/composer.mjs` | L1 | `npm run test:composer` | 类型化上下文、`@`/`/`、键盘与 token 删除/撤销、冻结快照、图片粘贴、Agent 声明的模式/强度/权限，以及明暗主题和窄窗口 |
 | `e2e/i18n.mjs` | L1 | `npm run test:i18n` | 中英文切换、原生菜单、重启后偏好、用户原文不翻译、无 Host 的预览窗口。文案源见 [locales/README.md](../locales/README.md) |
 | `e2e/remote.mjs` | L2 | `npm run test:remote` | Electron、Go、PostgreSQL、`pero-worker` 和 ACP fixture 的一轮创建、执行、取消和断线恢复。需要 `PERO_TEST_DATABASE_URL` |
