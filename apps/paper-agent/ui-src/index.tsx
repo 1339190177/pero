@@ -4,8 +4,10 @@ import { Button, Checkbox, EmptyState, Feedback, Field, Icon, Input, Select, Tab
 import { messages } from './i18n';
 import { ImportPanel, PaperList } from './library';
 import { EvidencePanel, Experiments, Reader, ReportView, type Citation } from './documents';
+import { Discovery, type DiscoveryOpening } from './discovery';
+import { ReadingMatrix } from './reading-matrix';
 import { useResearch } from './use-research';
-import type { EvidenceLocation, Library, Paper } from './types';
+import type { EvidenceLocation, Library, Paper, SavedDiscovery, PdfFocus, PdfSource } from './types';
 import './styles.css';
 
 export default function PaperAgent() {
@@ -13,9 +15,11 @@ export default function PaperAgent() {
   const [library, setLibrary] = useState<Library>({ papers: [], intents: [], reports: [] });
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [selected, setSelected] = useState<string[]>([]), [reading, setReading] = useState<Paper | null>(null), [readingBusy, setReadingBusy] = useState(false);
-  const [libraryView, setLibraryView] = useState('papers'), [view, setView] = useState('source'), [adding, setAdding] = useState(false), [showResearch, setShowResearch] = useState(true);
+  const [libraryView, setLibraryView] = useState('papers'), [view, setView] = useState('source'), [adding, setAdding] = useState(false), [showResearch, setShowResearch] = useState(false);
   const [question, setQuestion] = useState(''), [verifyCode, setVerifyCode] = useState(false), [verificationPlan, setVerificationPlan] = useState(''), [agentId, setAgentId] = useState('');
+  const [discoveryOpening, setDiscoveryOpening] = useState<DiscoveryOpening | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null), [evidence, setEvidence] = useState<EvidenceLocation | null>(null), [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [pdfFocus, setPdfFocus] = useState<PdfFocus | null>(null);
   const mounted = useRef(true), active = useRef(info.active), readVersion = useRef(0), libraryVersion = useRef(0), evidenceVersion = useRef(0);
   const citationTrigger = useRef<HTMLElement | null>(null), addTrigger = useRef<HTMLDivElement>(null);
   active.current = info.active;
@@ -44,6 +48,7 @@ export default function PaperAgent() {
   useEffect(() => { if (task.report) { setAdding(false); setView('report'); } }, [task.report?.id]);
 
   async function read(paper: Paper, propagate = false) {
+    setPdfFocus(null);
     const version = ++readVersion.current; setReadingBusy(true); setReading(null); setCitation(null); setAdding(false); setView('source');
     try {
       const full = paper.content ? paper : await api.get<Paper>(`/api/papers/${paper.id}`);
@@ -56,6 +61,22 @@ export default function PaperAgent() {
     if (!mounted.current || !active.current || !(typeof focus === 'function' ? focus() : focus)) return;
     if (!locked) setSelected(prior => prior.includes(paper.id) || prior.length >= 5 ? prior : [...prior, paper.id]);
     await read(paper);
+  }
+  function discoverCurrent() {
+    if (!reading) return;
+    setDiscoveryOpening({ seed: reading }); setAdding(false); setView('discovery');
+  }
+  function addToComparison(paper: Paper, seedId: string) {
+    if (locked || task.repair) return false;
+    const ids = Array.from(new Set([...selected, seedId, paper.id]));
+    if (ids.length > 5) { onError(new Error(t('maxSelection'))); return false; }
+    task.reset(); setSelected(ids); setShowResearch(true);
+    setQuestion(prior => prior.includes(t('matrixInstruction')) ? prior : `${prior.trim()}${prior.trim() ? '\n\n' : ''}${t('matrixInstruction')}`);
+    return true;
+  }
+  async function readFavorite(favorite: SavedDiscovery, compare = false) {
+    try { const paper = await api.post<Paper>('/api/discoveries/read', { batchId: favorite.batchId, workId: favorite.paper.id }); await refresh(); if (compare) addToComparison(paper, favorite.seedId); else await read(paper); }
+    catch (e) { onError(e); }
   }
   async function example() {
     try {
@@ -100,9 +121,9 @@ export default function PaperAgent() {
     setQuestion(prior => `${prior}${prior ? '\n\n' : ''}> ${text}`); setShowResearch(true);
     requestAnimationFrame(() => document.getElementById('paper-question')?.focus());
   }
-  function discuss(text: string) {
+  function discuss(text: string, pdf?: PdfSource) {
     if (!text || !reading) { onError(new Error(t('noSelection'))); return; }
-    void chat.compose(`${t('discussPrompt')}\n\n> ${text}`, {attachments:[chat.objectReference('paper-agent',{paperId:reading.id,contentDigest:reading.contentDigest,quote:text.slice(0,800)})]}).catch(onError);
+    void chat.compose(`${t('discussPrompt')}\n\n> ${text}`, {attachments:[chat.objectReference('paper-agent',{paperId:reading.id,contentDigest:reading.contentDigest,quote:text.slice(0,800),...(pdf ? {pdfDocumentId:pdf.documentId,pdfDigest:pdf.fileDigest,page:pdf.page} : {})})]}).catch(onError);
   }
   function begin(execute: boolean) {
     setError('');
@@ -123,17 +144,24 @@ export default function PaperAgent() {
   const runStatus = task.status === 'needs_input' ? t('needsInput') : task.status === 'running' ? t('running') : task.status === 'completed' ? t('completed') : task.status === 'cancelled' ? t('cancelled') : task.status === 'cancelling' ? t('cancelling') : task.status === 'failed' ? t('failed') : '';
   return <div className="pa-workbench" data-research={showResearch} {...appObjectProps('paper-agent')}>
     <header className="pa-workbench-toolbar">
-      <div className="pa-toolbar-title">{reading?.title || t('papers')}</div>
-      <div className="pa-actions" ref={addTrigger}><Button onClick={() => setAdding(true)}><Icon name="plus"/>{t('add')}</Button><Button variant="ghost" aria-pressed={showResearch} onClick={() => setShowResearch(value => !value)}>{t('showResearch')}</Button></div>
+      <div className="pa-toolbar-title">{t('papers')}</div>
+      <div className="pa-actions" ref={addTrigger}><Button onClick={() => setAdding(true)}><Icon name="plus"/>{t('add')}</Button><Button variant="ghost" aria-pressed={showResearch} onClick={() => setShowResearch(value => !value)}>{t('showResearch')}{task.working && <span role="status"> · {task.status === 'needs_input' ? t('needsAttention') : t('running')}</span>}</Button></div>
     </header>
     {error && <div className="pa-global-error"><Feedback kind="error"><span>{error}</span><Button variant="ghost" onClick={() => setError('')}>{t('dismiss')}</Button></Feedback></div>}
     <div className="pa-layout">
       <aside className="pa-library" aria-label={t('papers')}>
         <Tabs value={libraryView} onValueChange={setLibraryView}>
-          <TabsList><TabsTrigger value="papers">{t('papers')} <span className="pa-count">{library.papers.length}</span></TabsTrigger><TabsTrigger value="reports">{t('reports')} <span className="pa-count">{library.reports.length}</span></TabsTrigger></TabsList>
+          <TabsList><TabsTrigger value="papers">{t('papers')} <span className="pa-count">{library.papers.length}</span></TabsTrigger><TabsTrigger value="favorites">{t('favorites')} <span className="pa-count">{library.favorites?.length ?? 0}</span></TabsTrigger><TabsTrigger value="reports">{t('reports')} <span className="pa-count">{library.reports.length}</span></TabsTrigger></TabsList>
           <TabsContent value="papers" forceMount>
-            {loading ? <p role="status">{t('loading')}</p> : <PaperList papers={library.papers} selected={selected} readingId={reading?.id ?? ''} locked={locked} onRead={paper => void read(paper)} onSelect={(id, checked) => setSelected(prior => checked ? [...prior, id] : prior.filter(item => item !== id))} t={t}/>}
+            {loading ? <p role="status">{t('loading')}</p> : <PaperList selecting={showResearch} papers={library.papers} selected={selected} readingId={reading?.id ?? ''} locked={locked} onRead={paper => void read(paper)} onSelect={(id, checked) => setSelected(prior => checked ? [...prior, id] : prior.filter(item => item !== id))} t={t}/>}
           </TabsContent>
+          <TabsContent value="favorites" forceMount><ul className="pa-report-list">{(library.favorites ?? []).map(favorite => <li key={favorite.id} data-favorite-work={favorite.paper.id}>
+            <Button variant="ghost" disabled={!favorite.paper.abstract.trim()} onClick={() => void readFavorite(favorite)}>{favorite.paper.title}</Button>
+            <details className="pa-saved-actions"><summary>{t('details')}</summary><small>{t(favorite.relation)} · {favorite.seedTitle}</small>
+            <Button variant="ghost" disabled={locked || task.repair || !favorite.paper.abstract.trim() || library.papers.some(p => p.source === 'openalex' && p.sourceId === favorite.paper.id && selected.includes(p.id))} onClick={() => void readFavorite(favorite, true)}>{t('addToMatrix')}</Button>
+            <Button variant="ghost" onClick={() => { setDiscoveryOpening({ historyId: favorite.batchId }); setAdding(false); setView('discovery'); }}>{t('viewDiscovery')}</Button>
+            <a href={favorite.paper.url} target="_blank" rel="noreferrer">{t('original')}</a></details>
+          </li>)}</ul>{!library.favorites?.length && <p className="pa-muted">{t('noFavorites')}</p>}</TabsContent>
           <TabsContent value="reports" forceMount><ul className="pa-report-list">{library.reports.map(report => <li key={report.id}><Button variant="ghost" disabled={locked} onClick={() => { setError(''); void task.openReport(report.id); }}>{report.title}</Button></li>)}</ul>{!library.reports.length && <p className="pa-muted">{t('noReport')}</p>}</TabsContent>
         </Tabs>
         <footer className="pa-library-footer"><small>{t('selected')} {selected.length}/5</small><Button variant="ghost" onClick={() => { setError(''); void refresh().catch(onError); }}><Icon name="refresh"/>{t('refresh')}</Button></footer>
@@ -142,11 +170,13 @@ export default function PaperAgent() {
         <div className="pa-import-mount" hidden={!adding}><ImportPanel api={api} t={t} active={adding && info.active} onAdded={added} onError={onError} onClose={() => { setAdding(false); addTrigger.current?.querySelector('button')?.focus(); }}/></div>
         <div className="pa-stage-content" hidden={adding}>{!library.papers.length && !reading && !loading ? <section className="pa-start"><span className="pa-start-number">01</span><h1>{t('emptyLibrary')}</h1><p>{t('emptyLibraryCopy')}</p><div className="pa-actions"><Button variant="primary" onClick={() => setAdding(true)}>{t('add')}</Button><Button onClick={() => void example()}>{t('example')}</Button></div><small>{t('exampleCopy')}</small></section>
           : <Tabs value={view} onValueChange={value => { setView(value); closeEvidence(); }} className="pa-stage-tabs">
-            <div className="pa-stage-toolbar"><TabsList><TabsTrigger value="source">{t('reader')}</TabsTrigger><TabsTrigger value="report">{t('report')}</TabsTrigger><TabsTrigger value="experiments">{t('experiments')}</TabsTrigger></TabsList>
+            <div className="pa-stage-toolbar"><TabsList><TabsTrigger value="source">{t('reader')}</TabsTrigger><TabsTrigger value="discovery">{t('discover')}</TabsTrigger><TabsTrigger value="report">{t('report')}</TabsTrigger>{!!library.matrixCount && <TabsTrigger value="matrix">{t('matrix')}</TabsTrigger>}{!!task.report?.experiments?.length && <TabsTrigger value="experiments">{t('experiments')}</TabsTrigger>}</TabsList>
               {task.report && view === 'report' && <div className="pa-actions pa-export"><Button variant="ghost" onClick={() => void exportReport('markdown')}>{t('exportMarkdown')}</Button><Button variant="ghost" onClick={() => void exportReport('json')}>{t('exportJson')}</Button><Button variant="ghost" onClick={() => window.print()}>{t('print')}</Button></div>}
             </div>
-            <TabsContent value="source" forceMount><div className="pa-document-scroll" aria-busy={readingBusy}>{readingBusy && <p className="pa-loading" role="status">{t('loading')}</p>}<Reader paper={reading} busy={readingBusy} onFull={() => void full()} onExcerpt={excerpt} onDiscuss={chat ? discuss : undefined} t={t}/></div></TabsContent>
-            <TabsContent value="report" forceMount><div className="pa-report-layout" data-evidence={!!citation}><div className="pa-document-scroll"><ReportView report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div><EvidencePanel citation={citation} location={evidence} paper={citationPaper} busy={evidenceBusy} onClose={closeEvidence} onRead={() => { if (citationPaper) void read(citationPaper); }} t={t}/></div></TabsContent>
+            <TabsContent value="source" forceMount><div className="pa-document-scroll" aria-busy={readingBusy}>{readingBusy && <p className="pa-loading" role="status">{t('loading')}</p>}<Reader onMatrixAdded={async () => { await refresh(); setView('matrix'); }} api={api} pdfFocus={pdfFocus} onDiscover={discoverCurrent} paper={reading} busy={readingBusy} onFull={() => void full()} onExcerpt={excerpt} onDiscuss={chat ? discuss : undefined} t={t}/></div></TabsContent>
+            <TabsContent value="discovery" forceMount><div className="pa-document-scroll"><Discovery api={api} opening={discoveryOpening} library={library} locked={locked || task.repair} selected={selected} onRefresh={refresh} onRead={paper => read(paper)} onCompare={addToComparison} onReturn={id => { if (reading?.id === id) setView('source'); else { const paper = library.papers.find(p => p.id === id); if (paper) void read(paper); } }} t={t}/></div></TabsContent>
+            <TabsContent value="report" forceMount><div className="pa-report-layout" data-evidence={!!citation}><div className="pa-document-scroll"><ReportView report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div><EvidencePanel citation={citation} location={evidence} paper={citationPaper} busy={evidenceBusy} onClose={closeEvidence} onRead={page => { if (citationPaper) { const target = evidence?.pdf; void read(citationPaper).then(() => { if (target) setPdfFocus({ documentId: target.documentId, page: page ?? target.pages[0] }); }); } }} t={t}/></div></TabsContent>
+            <TabsContent value="matrix" forceMount><div className="pa-document-scroll"><ReadingMatrix api={api} active={view === 'matrix'} count={library.matrixCount ?? 0} papers={library.papers} onOpen={annotation => { const paper = library.papers.find(item => item.id === annotation.paperId); if (paper) void read(paper).then(() => setPdfFocus({ documentId: annotation.documentId, page: annotation.page, annotationId: annotation.id })); }} t={t}/></div></TabsContent>
             <TabsContent value="experiments" forceMount><div className="pa-document-scroll"><Experiments report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div></TabsContent>
           </Tabs>}</div>
       </main>
@@ -154,18 +184,20 @@ export default function PaperAgent() {
         <Toolbar actions={<Button variant="ghost" disabled={locked} onClick={() => { task.reset(); setQuestion(''); }}>{t('newResearch')}</Button>}><h2>{t('research')}</h2></Toolbar>
         <div className="pa-research-inputs"><span>{t('selected')} {selected.length}/5</span><ol>{selected.map(id => <li key={id}>{library.papers.find(paper => paper.id === id)?.title ?? frozen?.papers.find(paper => paper.id === id)?.title ?? id}</li>)}</ol></div>
         <label className="pa-question-label" htmlFor="paper-question">{t('question')}</label><Textarea id="paper-question" rows={5} value={question} maxLength={2000} disabled={locked} onChange={event => setQuestion(event.target.value)} placeholder={t('questionPlaceholder')}/>
+        {!agent.available && <p className="pa-muted">{t('noAgent')} <Button variant="ghost" onClick={() => void agent.refresh().catch(onError)}>{t('refresh')}</Button></p>}
+        <div className="pa-run-actions">{task.pending ? <Button variant="primary" disabled={task.busy} onClick={() => begin(true)}>{t('retryStart')}</Button> : task.working ? <Button disabled={task.busy || task.status === 'cancelling'} onClick={() => void task.cancel()}>{task.status === 'cancelling' ? t('cancelling') : t('cancel')}</Button> : <Button variant="primary" disabled={!canPrepare || !agent.available || !agentId} onClick={() => begin(true)}><Icon name="play"/>{task.busy ? t('preparing') : t('start')}</Button>}
+        </div>
+        <details className="pa-research-options"><summary>{t('researchOptions')}{agentId && ` · ${agent.agents.find(item => item.id === agentId)?.name ?? agentId}`}</summary>
         <label className="pa-checkbox-label"><Checkbox checked={verifyCode} disabled={locked} onCheckedChange={setVerifyCode}/>{t('verifyCode')}</label>
         {verifyCode && <Field label={t('boundary')}>{props => <Textarea {...props} rows={4} maxLength={4000} disabled={locked} value={verificationPlan} onChange={event => setVerificationPlan(event.target.value)} placeholder={t('boundaryPlaceholder')}/>}</Field>}
         <Select label={t('agent')} value={agentId} onChange={setAgentId} disabled={locked || !agent.available} options={agent.agents.filter(item => item.available).length ? agent.agents.filter(item => item.available).map(item => ({ value: item.id, label: item.name })) : [{ value: '', label: t('noAgentChoice') }]}/>
         {agent.workspace && <div className="pa-workspace-path"><small>{t('workspace')}</small><span title={agent.workspace}>{agent.workspace}</span></div>}
-        {!agent.available && <p className="pa-muted">{t('noAgent')} <Button variant="ghost" onClick={() => void agent.refresh().catch(onError)}>{t('refresh')}</Button></p>}
-        <div className="pa-run-actions">{task.pending ? <Button variant="primary" disabled={task.busy} onClick={() => begin(true)}>{t('retryStart')}</Button> : task.working ? <Button disabled={task.busy || task.status === 'cancelling'} onClick={() => void task.cancel()}>{task.status === 'cancelling' ? t('cancelling') : t('cancel')}</Button> : <Button variant="primary" disabled={!canPrepare || !agent.available || !agentId} onClick={() => begin(true)}><Icon name="play"/>{task.busy ? t('preparing') : t('start')}</Button>}
           {!task.working && !task.pending && <Button disabled={!canPrepare} onClick={() => begin(false)}>{t('prepare')}</Button>}
-        </div>
+        </details>
         {task.status === 'failed' && task.raw && <Feedback kind="error">{task.raw}</Feedback>}
         {!!runStatus && <p className="pa-run-status" role="status">{runStatus}{task.status === 'needs_input' && chat && <Button onClick={() => {void chat.open().catch(onError);}}>{t('openChat')}</Button>}{task.status === 'failed' && task.sessionId && <Button onClick={task.retryPoll}>{t('retry')}</Button>}</p>}
         {task.sessionId && <details className="pa-small-details"><summary>{t('session')}</summary><code>{task.sessionId}</code></details>}
-        {frozen && <div className="pa-frozen"><div className="pa-kicker">{t('prepared')}</div><small>{frozen.id.slice(0, 16)}</small><Button variant="ghost" onClick={() => downloadFile('research-prompt.txt', frozen.prompt, 'text/plain;charset=utf-8')}>{t('prompt')}</Button>
+        {frozen && <div className="pa-frozen"><details className="pa-small-details"><summary>{t('prepared')}</summary><small>{frozen.id.slice(0, 16)}</small><Button variant="ghost" onClick={() => downloadFile('research-prompt.txt', frozen.prompt, 'text/plain;charset=utf-8')}>{t('prompt')}</Button></details>
           <details className="pa-output" open={task.repair}><summary>{t('importReport')}</summary>{task.repair && <p role="status">{t('invalidReport')}</p>}<Field label={t('rawOutput')}>{props => <Textarea {...props} rows={8} value={task.raw} disabled={task.working || task.busy} maxLength={500000} onChange={event => task.setRaw(event.target.value)} placeholder={t('reportPlaceholder')}/>}</Field><Button disabled={task.working || task.busy || !task.raw.trim()} onClick={() => { setError(''); void task.saveRaw(); }}>{t('saveReport')}</Button></details>
         </div>}
         {!!library.intents.length && <details className="pa-saved-inputs"><summary>{t('savedInputs')}</summary><Select label={t('savedInputs')} value={frozen?.id ?? ''} disabled={locked} onChange={id => { if (id) void task.openIntent(id); }} options={[{ value: '', label: t('chooseInput') }, ...library.intents.map(intent => ({ value: intent.id, label: intent.question }))]}/></details>}

@@ -82,13 +82,13 @@ export function ImportPanel({ api, t, active, onAdded, onClose, onError }: { api
   </section>;
 }
 
-export function PaperList({ papers, selected, readingId, locked, onSelect, onRead, t }: { papers: Paper[]; selected: string[]; readingId: string; locked: boolean; onSelect(id: string, checked: boolean): void; onRead(paper: Paper): void; t: Translator }) {
+export function PaperList({ papers, selecting, selected, readingId, locked, onSelect, onRead, t }: { papers: Paper[]; selecting: boolean; selected: string[]; readingId: string; locked: boolean; onSelect(id: string, checked: boolean): void; onRead(paper: Paper): void; t: Translator }) {
   const [filter, setFilter] = useState('');
   const visible = papers.filter(paper => `${paper.title} ${paper.authors.join(' ')}`.toLowerCase().includes(filter.toLowerCase()));
   return <>
     <Input aria-label={t('queryFilter')} value={filter} onChange={event => setFilter(event.target.value)} placeholder={t('queryFilter')}/>
     <ul className="pa-library-list">{visible.map(paper => <li key={paper.id} data-current={readingId === paper.id}>
-      <Checkbox checked={selected.includes(paper.id)} disabled={locked || selected.length >= 5 && !selected.includes(paper.id)} aria-label={`${t('usePaper')}: ${paper.title}`} onCheckedChange={checked => onSelect(paper.id, checked)}/>
+      {selecting && <Checkbox checked={selected.includes(paper.id)} disabled={locked || selected.length >= 5 && !selected.includes(paper.id)} aria-label={`${t('usePaper')}: ${paper.title}`} onCheckedChange={checked => onSelect(paper.id, checked)}/>}
       <div><Button variant="ghost" onClick={() => onRead(paper)} aria-current={readingId === paper.id ? 'true' : undefined}><span>{paper.title}</span></Button>
         <small>{paper.source} · {t(paper.contentKind === 'abstract' ? 'abstract' : paper.contentKind === 'report' ? 'sourceReport' : 'fullText')}</small></div>
     </li>)}</ul>
