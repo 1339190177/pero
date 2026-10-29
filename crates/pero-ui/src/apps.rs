@@ -199,11 +199,15 @@ mod surface {
                             .flex_1()
                             .p(px(20.))
                             .text_color(p.color("text-muted"))
-                            .child(if self.settings_menu_open { "" } else { self.t(if cfg!(target_family = "wasm") {
-                                "apps.loading_panel"
+                            .child(if self.settings_menu_open {
+                                ""
                             } else {
-                                "apps.native_unavailable"
-                            }) }),
+                                self.t(if cfg!(target_family = "wasm") {
+                                    "apps.loading_panel"
+                                } else {
+                                    "apps.native_unavailable"
+                                })
+                            }),
                     )
                     .into_any_element();
             }

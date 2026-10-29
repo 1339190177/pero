@@ -44,7 +44,6 @@ pub enum Group {
     Ended,
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tone {
     Muted,

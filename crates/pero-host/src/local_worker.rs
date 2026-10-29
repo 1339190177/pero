@@ -327,7 +327,12 @@ fn supervise(
                 }
                 let mut snapshot = state.lock().unwrap();
                 snapshot.status = progress.status;
-                if matches!(snapshot.status,LocalWorkerStatus::NeedsAttention|LocalWorkerStatus::Unavailable) {snapshot.enabled=false;}
+                if matches!(
+                    snapshot.status,
+                    LocalWorkerStatus::NeedsAttention | LocalWorkerStatus::Unavailable
+                ) {
+                    snapshot.enabled = false;
+                }
                 snapshot.message = progress.message;
                 snapshot.run_id = progress.run_id;
                 drop(snapshot);
@@ -351,7 +356,7 @@ fn supervise(
             ) {
                 pero_runtime::local_worker::RestartPlan::Halt => {
                     snapshot.status = LocalWorkerStatus::NeedsAttention;
-                    snapshot.enabled=false;
+                    snapshot.enabled = false;
                     if snapshot.message.is_empty() {
                         snapshot.message =
                             "Worker stopped; review execution and retry explicitly".into();
