@@ -5,6 +5,39 @@ status: resolved
 
 # First-run Cloud connection and local execution
 
+## Deployed-service mismatch (2026-10-29)
+
+The user reached the local execution form against app.openpero.com and received
+an English generic setup failure in the Chinese UI. Read-only inspection found
+the active release and Docker revision still at
+`ed086f6f40bbf0b7e41880230da897f4ed0b44f8`: this source has only the Client
+Worker-list GET route, no enrollment POST and no migration 014. A healthy
+service therefore does not establish support for Desktop device enrollment.
+No authenticated registration request was sent during this inspection.
+
+The old GET-only route is expected to return HTTP 405 with a plain-text body
+for enrollment. Desktop decoded JSON before checking status, losing that reason;
+the setup controller then replaced every remote failure with the same retry
+message. Native enrollment also discarded HTTP status. Fix both boundaries to
+retain a safe typed failure, translate it in the UI, and distinguish a required
+Cloud update from authentication, scope, conflict and temporary network errors.
+Do not reflect response bodies or credentials. Verify plaintext 405 and recovery
+with the existing fixture, then roll out the matching server API and migration
+before accepting the deployed flow.
+
+The diagnostic fix passed 15 Native tests and nine actual Electron enrollment
+failure/recovery cases, including plain-text 405 in Chinese. The saved device,
+receipt and secret survive retries; the recovered registration completed an ACP
+fixture Run. The Cloud build for committed revision
+`8b55dd835587cc8c9fdbadba2eae3548f45fd032` is prepared and its server tree matches
+the previously race-tested implementation. After explicit user approval, release
+`20261029T075057Z-8b55dd83` was deployed. Active revision and binary checksum
+matched the prepared build; HTTPS health returned 200, migration 014 was present,
+both new tables were empty and a pre-deployment backup existed. The user can now
+retry the saved enrollment. No real device was registered or task dispatched by
+the deployment. Evidence is in the verification report below and the
+[deployment receipt](../fitness/task-center-deployment.md).
+
 ## Task setup recovery (2026-10-29)
 
 A queued task only explained that a Worker was required; the project task detail
@@ -62,8 +95,9 @@ Passed local verification on 2026-10-29:
   theme and generated-contract checks.
 
 See [verification and acceptance boundaries](../fitness/local-execution.md).
-No deployed Cloud was changed and no real user task was dispatched.
-Signed-release and deployed migration acceptance remain separate.
+The original checks below were local. The approved Cloud rollout above now
+verifies the deployed API revision and migration; real device enrollment, real
+user task execution and signed-release acceptance remain separate.
 
-Cloud rollout requires migration `014_worker_devices.sql` and the matching
+Cloud rollout applied migration `014_worker_devices.sql` and the matching
 Client/operator enrollment API from ADR 0010.

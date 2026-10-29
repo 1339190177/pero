@@ -52,10 +52,42 @@ execution. Unattended permission requests remain denied by the existing Worker.
 
 ## Acceptance boundary
 
-These are development L0/L1 checks using isolated fixture data. No Worker was
-registered on app.openpero.com, no deployed database was migrated, and no real
-provider/user task was executed. Cloud rollout requires migration 014 and the
-matching server endpoint. Native secure storage is implemented for macOS; other
+The execution checks are development L0/L1 checks using isolated fixture data.
+The approved Cloud rollout below separately verifies the deployed API revision
+and migration. No Worker was registered on app.openpero.com and no real
+provider/user task was executed during verification. Native secure storage is implemented for macOS; other
 native platforms report unavailable, while Electron uses the platform safeStorage
 backend. Worker execution remains Unix-only. Signed packages and physical OS
 keychain restart acceptance remain separate from compilation/fixture evidence.
+
+## Service compatibility and error recovery — 2026-10-29
+
+Read-only inspection of app.openpero.com found release/source/Docker revision
+`ed086f6f40bbf0b7e41880230da897f4ed0b44f8`, without enrollment POST or migration
+014. Its existing GET-only Worker route rejects enrollment with a plain-text
+405 response. The old Desktop decoded JSON first and hid that status behind a
+generic English error. This is a deployed-version mismatch, not invalid local
+project or directory input. No real enrollment request was made for diagnosis.
+
+Desktop and Native now preserve safe typed reasons and HTTP status, then render
+the reason using the active UI locale. HTML 404/plain-text 405 ask for a server
+update; 401 offers account reconnection; scope, conflict, invalid configuration,
+temporary service, network and malformed-response failures remain distinct.
+Raw server bodies and credentials never become public setup diagnostics.
+
+The actual Electron fixture passed nine enrollment failure cases followed by
+recovery: 404, 405, 401, 403, 409, 400, 503, a lost response after server commit,
+and invalid JSON with HTTP 200. Every retry retained the same device, request and
+secret; one registration and one ACP Run completed with 12 uploaded events and
+no renderer errors. Chinese 405 evidence:
+`test-results/local-execution/enrollment-405-zh-CN.png`. Fifteen Native flow tests
+passed, including HTTP/body classification and typed-receipt validation. The
+remote-settings Electron regression and `npm run check` also passed (507 messages
+at the final check).
+
+After explicit user approval, release `20261029T075057Z-8b55dd83` deployed the
+prepared server revision. Active revision and binary SHA matched the build,
+HTTPS health returned 200 and migration 014 plus both empty tables were verified.
+A pre-deployment backup was present. This makes the enrollment API available for
+the user's saved pending request; verification did not register a real device or
+dispatch a task. See the [deployment receipt](task-center-deployment.md).

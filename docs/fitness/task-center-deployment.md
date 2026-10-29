@@ -134,3 +134,37 @@ node tests/e2e/task-browser-live.mjs
 The optional revision checks the pinned publication source. Read the source link
 before selecting a newer revision. Screenshots, the 19 checks and the database
 baseline comparison are in `test-results/task-browser-live/` and remain ignored.
+
+## Local Worker enrollment rollout — 2026-10-29
+
+The approved server rollout activated release
+`20261029T075057Z-8b55dd83`, built from exact committed revision
+`8b55dd835587cc8c9fdbadba2eae3548f45fd032` through the existing backup and
+health-checked deployment script. The previous live revision was
+`ed086f6f40bbf0b7e41880230da897f4ed0b44f8`; its Client API did not implement the
+Desktop device-enrollment POST. No unrelated server or deployment changes were
+included in this upgrade.
+
+Observed live receipts:
+
+- `/opt/openpero/current`, its `source-revision` file and the running container's
+  OCI revision label all identify `8b55dd835587cc8c9fdbadba2eae3548f45fd032`.
+- The deployed Linux amd64 binary SHA-256 is
+  `ff32f31ae0800d2d24b73b77438407919be4e6d73d6a8b5525ed8f706922a747`, matching
+  the separately prepared, committed-source archive build.
+- The container was running with zero restarts. Public HTTPS `/healthz` returned
+  200 with database status `ok` at `2026-10-29T07:53:37Z`.
+- The normal pre-deployment database backup exists at
+  `/var/lib/openpero/backups/20261029T075057Z-8b55dd83.dump`. Existing OAuth,
+  credentials, repository bindings and deployment resources were retained.
+- Migration version 14 is recorded. `worker_devices` and
+  `worker_enrollment_receipts` both exist and each had zero rows at verification.
+  This additive migration did not enroll a device, grant project access, dispatch
+  a task or execute an Agent.
+
+The same server source tree passed the full local PostgreSQL race suite before
+rollout; the deployed artifact is a statically linked Linux build. Deployment
+acceptance here proves the matching server and migration are available. Actual
+Desktop enrollment recovery and local execution need their own user/device
+receipts; no enrollment POST, task dispatch or grant change was performed during
+this rollout verification.
