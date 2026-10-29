@@ -40,7 +40,13 @@ mod remote_connection;
 mod remote_view;
 
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod desktop_login;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
 pub mod native;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod cloud_links;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native_cloud;
 
 #[cfg(any(target_family = "wasm", feature = "native", test))]
 mod composer_state;
@@ -54,3 +60,8 @@ mod session_controls;
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod local_execution;
+
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native_secrets;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native_device;

@@ -19,6 +19,10 @@ writeFileSync(resolve(app, 'Contents/Info.plist'), `<?xml version="1.0" encoding
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>CFBundleURLTypes</key><array><dict>
+<key>CFBundleURLName</key><string>Pero Desktop</string>
+<key>CFBundleURLSchemes</key><array><string>pero</string></array>
+</dict></array>
 </dict></plist>`);
 execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', app], { stdio: 'pipe' });
 console.log(app);
