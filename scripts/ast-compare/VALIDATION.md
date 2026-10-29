@@ -1,15 +1,38 @@
 # Validated reference snapshot
 
-Updated run: 2026-10-29. Python 3.12; pinned requirements; 18 unit tests passed (no skips).
+Updated run: 2026-10-29 (Windows source-receipt refresh). Python 3.12.14; pinned requirements; 18 unit tests passed (no skips).
 
 - Official DSH: `f3803c96974ad4a94195fb97e5c637e9c2a3afe3`
-- Tested Pero: `68a18e09c2fdf2e6665aa9b0acf7eb25b3fe049d`
-- Published Pero: `ad001471c794cb5d116729b6631c7f7f4a731260`. Independently fetched from the public GitHub repository; `git rev-parse REF^{tree}` equals local tested tree `08dc01a07f2e358c108931bbfe4f1969e602d2f0`. All mapped Go source bytes were also compared directly against `git show` at this published commit. The mapping uses this fetchable ref.
+- Tested and published Pero source: [`bac3bbaf6edd66357d6972eea86e71eb65ad8f86`](https://github.com/phodal/pero/commit/bac3bbaf6edd66357d6972eea86e71eb65ad8f86). Independently fetched from the public GitHub repository into a fixed checkout; `git rev-parse HEAD^{tree}` is `efa178ec16d0d16d6812a99ee5bd1ca7019912c7`. Every mapped Go file matches both `git show` at this pin and the working source bytes. The mapping uses this fetchable source ref; only the mapping and this validation note change in the receipt-refresh commit.
 - Coverage: 17 explicitly selected callable pairs; 11 official files, 10 Go files. This is not whole-module coverage.
 - Result: **17 extracted for cross-language review; 0 unavailable**. Exit 0 means extraction only.
 - Actual parser: local extension `0.23.2+pero.export-type-star.1`, official CLI 0.25.10, ABI 14, GCC 14.2.0 on Linux. Full original Todo file now parses; its SHA256 is unchanged. No source syntax was stripped.
 - Archive SHA256: `0fdf63c35930a75885145d75ee63cb879da2d49db9bfe454bd8e60b08ba778a1`; patched grammar SHA256: `b67967d0c12de9b9a315c657826c428776877ec8a7cd604700d7f6bf4ee6929c`. Original grammar hash is pinned in `build_typescript.py`; per-machine library hash is in generated report metadata.
 - Extraction and observed landmarks do not establish semantic equivalence or passing behavioral tests.
+
+## Windows source-receipt refresh
+
+The previous mapping still recorded the `ad001471c794cb5d116729b6631c7f7f4a731260`
+source snapshot. With the pinned grammar and current source, the unchanged
+mapping reproduced **15 extracted / 2 unavailable**, exit 2. Both unavailable
+pairs, `read-physical-window` and `read-continuation`, reported
+`source_hash_mismatch` for `harness/go/fstools/workspace.go`; these were not
+TypeScript parse failures.
+
+Reviewed the file diff and both official read functions. The Windows changes
+alter workspace admission, platform dispatch, link checks and new-file
+publication outside `FormatRead`. The mapped `FormatRead` declaration and body
+are byte-for-byte unchanged from the previous pin (now lines 413–461). Its
+containing file is different, so both selectors retain their full-file hash
+checks with the new SHA256 below. The other nine mapped Go files and all eleven
+official files retain their existing hashes. No pair, landmark, parser check or
+hash check was removed; the official DSH pin remains unchanged.
+
+The refreshed mapping extracted all 17 pairs from the two fixed source
+checkouts with exit 0. All 18 parser/extractor unit tests passed without skips.
+This repairs source admission only: the intentional 16 KiB versus 50 KiB caps,
+Go JSON versus official text envelopes, and cross-language review requirement
+remain unchanged. Windows runtime acceptance is a separate CI contract.
 
 ## Selected pairs
 
@@ -48,7 +71,7 @@ Install the pinned requirements, build the local TS5 grammar and run tests as sh
 ```sh
 python scripts/ast-compare/references.py \
   --mapping scripts/ast-compare/mappings/official-dsh.json \
-  --left-root /path/to/dsh-f3803c9 --right-root /path/to/pero-ad00147 \
+  --left-root /path/to/dsh-f3803c9 --right-root /path/to/pero-bac3bba \
   --json /tmp/official-dsh.json --markdown /tmp/official-dsh.md
 ```
 
@@ -73,7 +96,7 @@ Each unique file below was independently compared byte-for-byte with `git show R
 | left | `packages/todo/tool-todo/src/index.ts` | `80559ed95b7fc9c1dc083312f187885254bf2c1498d0f7a079dad21427d24def` |
 | right | `harness/go/acp/server.go` | `722f1f137bea925688b419a50f338766987a938b6375adc6f6fa6a0fd065dd74` |
 | right | `harness/go/cmd/pero-agent-acp/coding.go` | `6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583` |
-| right | `harness/go/fstools/workspace.go` | `d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be` |
+| right | `harness/go/fstools/workspace.go` | `f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6` |
 | right | `harness/go/harness/loop.go` | `95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798` |
 | right | `harness/go/mcp/tools.go` | `d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e` |
 | right | `harness/go/providers/openai/provider_errors.go` | `20ce09a75aa29b167c5e680dd14643ebd60593a5866451f22ba12f3b198ba8ab` |

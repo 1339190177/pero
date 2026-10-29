@@ -1,6 +1,6 @@
 {
   "left_ref": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
-  "right_ref": "ad001471c794cb5d116729b6631c7f7f4a731260",
+  "right_ref": "bac3bbaf6edd66357d6972eea86e71eb65ad8f86",
   "purpose": "Official DSH is the primary behavioral reference. Explicit cross-language mappings are reviewer-supplied hypotheses, not AST equivalence assertions.",
   "pairs": [
     {
@@ -181,7 +181,7 @@
         "path": "harness/go/fstools/workspace.go",
         "language": "go",
         "symbol": "FormatRead",
-        "sha256": "d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be"
+        "sha256": "f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6"
       },
       "notes": "Official streaming scanner and Go bounded decoded-text presentation differ in implementation. Go retains 16 KiB total cap; official default is 50 KiB. Verify empty/terminal-newline/CRLF cases by regression.",
       "landmarks": [
@@ -210,7 +210,7 @@
         "path": "harness/go/fstools/workspace.go",
         "language": "go",
         "symbol": "FormatRead",
-        "sha256": "d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be"
+        "sha256": "f24afcaace3efc212eac8f765d39e055032d2115b25b37690cb28298ddd6ffd6"
       },
       "notes": "Official returns a line-numbered text envelope; Go returns a JSON ReadWindow. Compare continuation contract, not output syntax.",
       "landmarks": [
