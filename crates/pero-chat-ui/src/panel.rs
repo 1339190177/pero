@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 pub enum ChatAction {
     Command(HostCommand),
     Content(crate::artifact_read::ContentReadIntent),
-    OpenDocument { owner:String, title:String, document:pero_contracts::content_document::ContentDocument },
+    OpenDocument(pero_contracts::content_document::ContentDocument),
     ChooseWorkspace,
     ChooseContext {
         kind: Option<ContextKind>,
@@ -296,7 +296,7 @@ impl ChatPanel {
                         .and_then(|chat|chat.tools.iter_mut().find(|tool|tool.id==data.tool_call_id)) {
                         if let Some(artifact)=&mut tool.artifact {
                             let result=match data.status {
-                                CompletionStatus::Ready=>Ok(pero_contracts::content_document::ContentDocument::new(format!("artifact:{}",data.artifact_id),1,event.text.clone(),pero_contracts::content_document::ContentFormat::Json)),
+                                CompletionStatus::Ready=>Ok(pero_contracts::content_document::ContentDocument::new(pero_contracts::content_document::DocumentSource {id:format!("artifact:{}",data.artifact_id),title:tool.title.clone(),origin:pero_contracts::content_origin::ContentOrigin::Conversation {thread_id:event.thread_id.clone().unwrap_or_default()}},1,event.text.clone(),pero_contracts::content_document::ContentFormat::Json)),
                                 CompletionStatus::Error=>Err(event.text.clone()),
                             };
                             if let Some(document)=artifact.finish(&data.artifact_id,event.request_id.as_deref().unwrap_or_default(),result) {

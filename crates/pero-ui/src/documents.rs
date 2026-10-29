@@ -7,25 +7,21 @@ use pero_contracts::content_document::{ContentDocument, ContentFormat};
 
 pub(crate) struct WorkspaceDocument {
     pub item: WorkspaceItem,
-    pub title: String,
     pub view: Entity<ContentReader>,
 }
 
 impl Workbench {
     pub(crate) fn open_document(
         &mut self,
-        origin: ContentOrigin,
-        title: String,
         document: ContentDocument,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let item = WorkspaceItem::Document {
-            origin,
+            origin:document.origin.clone(),
             source: document.id.clone(),
         };
         let view = if let Some(open) = self.documents.iter_mut().find(|open| open.item == item) {
-            open.title = title;
             open.view.update(cx, |view, cx| view.replace(document, cx));
             open.view.clone()
         } else {
@@ -33,7 +29,6 @@ impl Workbench {
             let view = cx.new(|cx| ContentReader::new(document, locale, window, cx).workspace());
             self.documents.push(WorkspaceDocument {
                 item: item.clone(),
-                title,
                 view: view.clone(),
             });
             view
@@ -93,10 +88,10 @@ impl Workbench {
             .find(|open| &open.item == item)
             .map(|open| {
                 let icon = match open.view.read(cx).document.format {
-                    ContentFormat::Text => "file",
+                    ContentFormat::Text|ContentFormat::Markdown => "file",
                     _ => "file-code",
                 };
-                (open.title.clone(), icon)
+                (open.view.read(cx).document.title.clone(), icon)
             })
             .unwrap_or_else(|| (self.t("content.document").into(), "file"))
     }

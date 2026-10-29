@@ -126,7 +126,7 @@ impl Workbench {
                     serde_json::to_value(command).expect("serializable command"),
                     cx,
                 ),
-                ChatAction::OpenDocument {owner,title,document}=>this.open_document(pero_contracts::content_origin::ContentOrigin::Conversation {thread_id:owner.clone()},title.clone(),document.clone(),window,cx),
+                ChatAction::OpenDocument(document)=>this.open_document(document.clone(),window,cx),
                 ChatAction::Content(intent) => this.command(serde_json::to_value(intent).expect("content intent"), cx),
                 ChatAction::ChooseWorkspace => {
                     this.command(json!({"action":"choose_workspace"}), cx)
@@ -643,7 +643,7 @@ pub fn snapshot() -> String {
             "tab": ui.tab.legacy_index(), "events": ui.events, "workspace": ui.workspace,
         });
         value["chatVisible"] = serde_json::json!(ui.chat_visible());
-        value["documents"]=json!(ui.documents.iter().map(|open|json!({"item":open.item,"title":open.title,"reader":open.view.read(cx).snapshot(cx)})).collect::<Vec<_>>());
+        value["documents"]=json!(ui.documents.iter().map(|open|json!({"item":open.item,"title":open.view.read(cx).document.title,"reader":open.view.read(cx).snapshot(cx)})).collect::<Vec<_>>());
         value["contentTabs"] = serde_json::json!(ui.navigation.items());
         value["activeContent"] = serde_json::json!(ui.navigation.current());
         if let Some(index)=ui.navigation.current().and_then(|item|ui.navigation.items().iter().position(|candidate|candidate==item)) {
