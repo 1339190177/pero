@@ -35,6 +35,14 @@ App port; its existing scientific methods and source attribution stay in the App
   environment variables. Host shutdown, disable and uninstall clean up the
   owned backend. The trusted `PERO_APP_PYTHON` setting selects the interpreter;
   App manifests cannot choose an arbitrary command or install dependencies.
+  Host runtime settings may select one prepared shared venv through
+  `app_python.default`; `app_python.apps` provides optional App-specific overrides.
+  Selection uses the App override, shared venv, then existing Host default.
+  Explicit environments require absolute paths and disabled system-site packages,
+  and fail without interpreter fallback if unusable.
+  Python starts with ambient Python settings and user-site packages disabled.
+  Environment preparation and dependency installation remain explicit external
+  steps; see [App environment setup](../../apps/README.md#python-environments).
 - Private `apps_result` replies carry installed paths and optional backend
   URL/token only to Electron main. Main consumes every such reply rather than
   publishing it to the renderer. Public catalog events contain display metadata,

@@ -76,3 +76,40 @@ optional Python backend. There is no App process sandbox, Task/Run or Agent tool
 integration, remote App provisioning, marketplace/update service or packaged
 release acceptance. Virtual Cell's numerical results and source attribution
 require their own domain checks; UI and transport success are separate evidence.
+
+## Shared Python environment and App overrides — 2026-10-29
+
+Verified locally on macOS arm64, Python 3.14.7 and Node 26.8.1. Implementation
+source: `af94bcc` (`feat(apps): support shared Python environment with app overrides`).
+The tested development `target/debug/pero-host` SHA-256 is
+`b74b7da4315d103bc1066e41c44ab8ef99eea18cf326b29bb6b6e0da6be5f120`.
+
+- `node scripts/cargo.mjs test --offline -p pero-runtime -p pero-host`: 39 runtime
+  tests and one Host test passed, including the environment policy table and
+  existing Python/Node backend lifecycle checks.
+- `node scripts/cargo.mjs build --offline -p pero-host`: passed.
+- `node tests/contracts/apps.mjs`: passed with three Apps, two real temporary
+  venvs and the rebuilt Host. Two Apps shared `app_python.default`; the third
+  selected an `app_python.apps` override with a different version of the same
+  fixture dependency. A child launched as `python` used its parent's venv.
+  All backends retained sibling imports, disabled user-site packages, and
+  exposed the selected `sys.prefix` and `VIRTUAL_ENV` only to this test fixture.
+  Host restart loaded the persisted settings. Deleting the shared environment
+  caused explicit resolution errors for its Apps while the overridden App
+  still started. Enabling system-site packages in the override caused refusal.
+  Temporary Apps, environments and processes were cleaned up.
+- `npm run check`: TypeScript, theme, 523 bilingual messages and generated
+  contracts passed. The App wire format is unchanged; interpreter paths stay
+  in trusted Host configuration.
+
+The runtime and stdio tests need loopback listeners. Their first sandboxed run
+was denied by macOS with `Operation not permitted`; the same suites passed with
+loopback access outside that sandbox.
+
+Setup is in [App environment configuration](../../apps/README.md#python-environments).
+Apps share one default environment, with optional dedicated overrides. Without
+explicit environment settings, the existing Host interpreter policy applies.
+Environment preparation and dependency installation remain external steps.
+This verifies local dependency/process separation; Windows/Linux runtime,
+packaged Desktop, filesystem/network sandboxing and scientific acceptance were
+not verified by this change.
