@@ -20,7 +20,9 @@ const out = resolve(root, 'test-results/content-reader');
 await mkdir(out, { recursive: true });
 const sources = [
   'crates/pero-chat-ui/src/artifact_read.rs',
-  'crates/pero-chat-ui/src/content_document.rs',
+  'crates/pero-contracts/src/content_document.rs',
+  'crates/pero-ui/src/documents.rs',
+  'crates/pero-ui/src/workspace.rs',
   'crates/pero-chat-ui/src/content_reader.rs',
   'crates/pero-chat-ui/src/conversation.rs',
   'crates/pero-chat-ui/src/tool_ui.rs',
@@ -162,7 +164,15 @@ await writeFile(
 await writeFile(join(out, 'release-root.txt'), isolated + '\n');
 await run(
   process.execPath,
-  [resolve(root, 'tests/e2e/content-reader.mjs'), ...process.argv.slice(2)],
+  [
+    resolve(
+      root,
+      process.argv.includes('--workspace-documents')
+        ? 'tests/e2e/workspace-documents.mjs'
+        : 'tests/e2e/content-reader.mjs',
+    ),
+    ...process.argv.slice(2),
+  ],
   {
     env: {
       ...process.env,
