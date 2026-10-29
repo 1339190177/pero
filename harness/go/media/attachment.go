@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -138,6 +139,7 @@ type LocalAttachmentStore struct {
 	compression     chan struct{}
 	officialCodec   atomic.Pointer[officialImageCodec]
 	codecMu         sync.Mutex
+	filePublishMu   sync.Mutex
 	codecLeases     int
 }
 
@@ -397,6 +399,10 @@ func (s *LocalAttachmentStore) commit(image preparedImageAttachment) error {
 		if readErr != nil || sha256.Sum256(existing) != sha256.Sum256(image.data) {
 			return newAttachmentError("Stored attachment failed integrity verification.", "ATTACHMENT_CORRUPT", readErr)
 		}
+	}
+	// Remove the staging link before setting Windows' shared read-only attribute.
+	if err = os.Remove(temporaryName); err != nil {
+		return newAttachmentError("Unable to persist image attachment.", "ATTACHMENT_WRITE_FAILED", err)
 	}
 	if err = os.Chmod(target, 0o400); err != nil {
 		return newAttachmentError("Unable to persist image attachment.", "ATTACHMENT_WRITE_FAILED", err)
@@ -669,6 +675,12 @@ func probeImageMetadata(data []byte) (int, int, string, error) {
 }
 
 func syncDirectory(path string) error {
+	// Windows cannot flush a directory opened with os.Open. Object files are
+	// synced before publication; as in session persistence, we do not claim
+	// the additional POSIX directory-entry power-loss guarantee on Windows.
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	directory, err := os.Open(path)
 	if err != nil {
 		return err

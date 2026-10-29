@@ -59,6 +59,10 @@ func TestFileAttachmentStreamVerbatimAndConcurrentAliases(t *testing.T) {
 	if err != nil || empty.Bytes != 0 || empty.Name != "file" {
 		t.Fatalf("empty=%+v err=%v", empty, err)
 	}
+	leftovers, err := filepath.Glob(filepath.Join(store.Root(), ".file-upload-*"))
+	if err != nil || len(leftovers) != 0 {
+		t.Fatalf("successful publication leaked staging links: %v, %v", leftovers, err)
+	}
 	for _, data := range []string{"Zg", "Zh==", "Zg==\n", "%%%", " A==="} {
 		if _, err := AdmitEncodedFile(t.Context(), store, EncodedFileAttachment{Data: data}); err == nil {
 			t.Fatalf("accepted noncanonical %q", data)

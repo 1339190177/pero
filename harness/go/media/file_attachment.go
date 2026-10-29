@@ -175,17 +175,24 @@ func (s *LocalAttachmentStore) SaveFileStream(ctx context.Context, input SaveFil
 	if err := temp.Sync(); err != nil {
 		return fail(err)
 	}
-	if err := temp.Chmod(0o444); err != nil {
-		return fail(err)
-	}
 	closeAttempted = true
 	if err := temp.Close(); err != nil {
 		return fail(err)
 	}
+	// Serialize publication, not streaming, so a concurrent alias cannot make
+	// the shared inode read-only before its staging link is removed on Windows.
+	s.filePublishMu.Lock()
+	defer s.filePublishMu.Unlock()
 	hexDigest := hex.EncodeToString(digest.Sum(nil))
 	ref := harnessmodel.FileAttachmentRef{AttachmentID: "sha256:" + hexDigest, Name: FileLeafName(input.Name), Bytes: count}
 	objectPath := filepath.Join(s.root, "file-objects", hexDigest[:2], hexDigest)
 	if err := publishFileAlias(temp.Name(), objectPath, ref); err != nil {
+		return fail(err)
+	}
+	if err := os.Remove(temp.Name()); err != nil {
+		return fail(err)
+	}
+	if err := os.Chmod(objectPath, 0o444); err != nil {
 		return fail(err)
 	}
 	if err := ctx.Err(); err != nil {
@@ -202,7 +209,8 @@ func (s *LocalAttachmentStore) SaveFileStream(ctx context.Context, input SaveFil
 }
 
 // Hard-link publication never overwrites an existing object. Every collision
-// is verified, and the directory is synced before reporting a durable receipt.
+// is verified. POSIX also syncs the directory; Windows retains the synced
+// object but cannot promise directory-entry power-loss durability.
 func publishFileAlias(source, target string, ref harnessmodel.FileAttachmentRef) error {
 	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 		return err
@@ -215,12 +223,7 @@ func publishFileAlias(source, target string, ref harnessmodel.FileAttachmentRef)
 			return err
 		}
 	}
-	directory, err := os.Open(filepath.Dir(target))
-	if err != nil {
-		return err
-	}
-	defer directory.Close()
-	return directory.Sync()
+	return syncDirectory(filepath.Dir(target))
 }
 
 func verifyFileObject(path string, ref harnessmodel.FileAttachmentRef) error {

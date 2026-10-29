@@ -8,6 +8,8 @@ import (
 	"image/gif"
 	"image/png"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -145,6 +147,10 @@ func TestLocalAttachmentStoreRegeneratesCorruptRequestCacheAndClonesResults(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
+	entries, err := os.ReadDir(filepath.Join(store.Root(), "tmp"))
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("image publication leaked staging links: %v, %v", entries, err)
+	}
 	policy := ImageRequestPolicy{MaxPixels: 800, MaxBytes: 1024 * 1024}
 	variantID, err := RequestImageVariantID(ref, policy)
 	if err != nil {
@@ -156,6 +162,10 @@ func TestLocalAttachmentStoreRegeneratesCorruptRequestCacheAndClonesResults(t *t
 	}
 	first, err := store.ReadRequestImage(context.Background(), ref, policy)
 	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate corruption deliberately, including Windows read-only attributes.
+	if err := os.Chmod(path, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Remove(path); err != nil {
@@ -183,7 +193,11 @@ func TestLocalAttachmentStoreRegeneratesCorruptRequestCacheAndClonesResults(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o400 {
+	wantMode := os.FileMode(0o400)
+	if runtime.GOOS == "windows" {
+		wantMode = 0o444 // Windows exposes only the shared read-only attribute.
+	}
+	if info.Mode().Perm() != wantMode {
 		t.Fatalf("cache mode=%v", info.Mode().Perm())
 	}
 }

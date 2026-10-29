@@ -14,6 +14,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	harnessmodel "github.com/phodal/pero/harness/go/model"
 
@@ -234,14 +235,25 @@ func (s *LocalAttachmentStore) readOrCreateRequestImage(
 	if err != nil {
 		return RequestImageAttachment{}, err
 	}
-	if cached, cacheErr := os.ReadFile(path); cacheErr == nil {
+	cached, cacheErr := os.ReadFile(path)
+	if cacheErr == nil {
 		if version, valid := verifyRequestImageBytes(cached, ref, variantID, maximumWidth, maximumHeight, expectedAlpha); valid && (policy.Width == 0 || (version.Width == policy.Width && version.Height == policy.Height)) {
 			return version, nil
 		}
-	} else if !errors.Is(cacheErr, os.ErrNotExist) {
+	}
+	if !errors.Is(cacheErr, os.ErrNotExist) {
 		// An unreadable cache entry is treated like corruption and regenerated;
 		// the immutable source remains authoritative.
-		_ = os.Remove(path)
+		// This is a regenerable cache, not an immutable attachment object.
+		// Windows requires clearing its read-only attribute before removal.
+		if runtime.GOOS == "windows" {
+			if err := os.Chmod(path, 0o600); err != nil {
+				return RequestImageAttachment{}, err
+			}
+		}
+		if err := os.Remove(path); err != nil {
+			return RequestImageAttachment{}, err
+		}
 	}
 	if err := s.acquireCompression(ctx); err != nil {
 		return RequestImageAttachment{}, err
