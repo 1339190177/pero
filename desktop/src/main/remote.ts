@@ -4,7 +4,7 @@ import { DesktopLogin } from './desktop-login';
 import { safeStorage, shell } from 'electron';
 import Ajv2020 from 'ajv/dist/2020.js';
 import schema from '../../../protocol/generated/remote.schema.json';
-import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, GitHubStatus, GitHubSyncResult } from '../../../protocol/generated/remote';
+import type { Detail, RemoteState, Task, TaskSpec, TaskPage, Worker, Identity, GitHubStatus, GitHubSyncResult, EnrollWorker, WorkerCredential } from '../../../protocol/generated/remote';
 
 type Emit = (event: object) => void;
 type Mode = 'client' | 'operator';
@@ -136,6 +136,17 @@ export class RemoteAdapter {
     })();
   }
   close() { this.login.cancel(); this.closed = true; this.token = ''; clearTimeout(this.timer); }
+  localWorkerConnection() {
+    if (this.closed || !this.state.configured || !this.base) return null;
+    return { url: this.base, mode: this.clientMode ? 'client' as const : 'operator' as const, identity: this.state.identity ?? null };
+  }
+  async enrollLocalWorker(body: EnrollWorker, expected: {url:string;mode:string;owner_id:string}): Promise<WorkerCredential> {
+    await this.initialize();
+    const connection=this.localWorkerConnection();
+    if (!connection?.identity || connection.url!==expected.url || connection.mode!==expected.mode || connection.identity.id!==expected.owner_id) throw new Error('Verify the Cloud account before enabling local execution.');
+    const path = this.clientMode ? '/api/client/v1/workers' : '/api/v1/workers/enroll';
+    return checked<WorkerCredential>('WorkerCredential', await this.request(path, 'POST', body));
+  }
   get contributionIdentity() { return this.state.identity; }
   async contributionRequest(path: string, method = 'GET', body?: unknown): Promise<unknown> {
     await this.initialize();

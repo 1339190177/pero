@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, protocol, net, dialog, shell } from 'electron';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { resolve, sep, delimiter } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -9,6 +9,7 @@ import { normalizeLocale, translate, type Locale, type MessageKey } from '../../
 import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 import { DesktopApps } from './apps';
 import { DesktopContributions } from './contributions';
+import { LocalExecutionController } from './local-execution';
 
 // Register before ready so macOS cannot deliver the callback before the listener.
 // pero://connect/ completes sign-in; pero://tasks/<id> opens a Cloud task from the task square.
@@ -37,7 +38,11 @@ let host: ChildProcessWithoutNullStreams;
 let ready = false;
 let locale: Locale = 'en';
 const t = (key: MessageKey) => translate(locale, key);
-const send = (event: object) => { if (window && !window.isDestroyed()) window.webContents.send('pero:event', event); };
+let localExecution: LocalExecutionController | undefined;
+const send = (event: object) => {
+  if ((event as {kind?: string}).kind === 'remote_state') localExecution?.sync();
+  if (window && !window.isDestroyed()) window.webContents.send('pero:event', event);
+};
 const apps = new DesktopApps(request => {
   if (!ready || !host?.stdin.writable) throw new Error('The local runtime is unavailable');
   host.stdin.write(JSON.stringify(request) + '\n');
@@ -130,6 +135,10 @@ app.whenReady().then(async () => {
   });
   protocol.handle('pero-app', request => apps.serve(request));
   runtimeSettingsPath = process.env.PERO_SETTINGS_PATH || resolve(app.getPath('userData'), 'runtime-settings.json');
+  localExecution = new LocalExecutionController(resolve(app.getPath('userData'),'local-execution.json'),remote,request=>{
+    if (!ready || !host?.stdin.writable) throw new Error('The local runtime is unavailable.');
+    host.stdin.write(JSON.stringify(request)+'\n');
+  },send);
   // Local Agents must not inherit the Desktop's cloud operator/database credentials.
   const hostEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PERO_')));
   host = spawn(resolve(root, `${app.isPackaged ? 'bin' : 'target/debug'}/pero-host${process.platform === 'win32' ? '.exe' : ''}`), ['--stdio'], { cwd: app.isPackaged ? app.getPath('home') : root, stdio: 'pipe', env: {
@@ -147,6 +156,7 @@ app.whenReady().then(async () => {
   createInterface({ input: host.stdout }).on('line', (line) => {
     try {
       const message = JSON.parse(line);
+      localExecution?.accept(message);
       if (apps.accept(message)) return;
       if (contributions.accept(message)) return;
       if (message.kind === 'remote_settings_saved' || message.kind === 'remote_settings_error') {
@@ -192,11 +202,20 @@ app.whenReady().then(async () => {
     if (!r || typeof r.id !== 'string' || r.id.length > 128 || typeof r.text !== 'string' || Array.from(r.text).length > 4096 || !ready) throw new Error('Invalid probe');
     host.stdin.write(JSON.stringify({ id: r.id, text: r.text }) + '\n');
   });
-  ipcMain.handle('pero:session', (sender, command: unknown) => {
+  ipcMain.handle('pero:session', async (sender, command: unknown) => {
     trusted(sender);
     if (!ready || !command || typeof command !== 'object') throw new Error('Invalid session command');
     const action = (command as { action?: string }).action;
     const method = (command as { method?: string }).method;
+    if (action?.startsWith('local_worker_')) {
+      if (!['local_worker_init','local_worker_enroll','local_worker_resume','local_worker_disable','local_worker_skip'].includes(action)) throw new Error('Invalid local execution action');
+      await localExecution!.command(command);return;
+    }
+    if (action === 'choose_worker_workspace') {
+      const selected=await dialog.showOpenDialog(window,{properties:['openDirectory']});
+      if (!selected.canceled && selected.filePaths[0]) send({version:1,kind:'local_worker_workspace',request_id:null,text:'',data:{path:realpathSync(selected.filePaths[0])}});
+      return;
+    }
     if ((!['list_agents','workspace','new_session','prompt','cancel','permission','model','configure','authenticate','close','search_context','resolve_context','attach_files'].includes(action || '') && !['settings.workbench', 'settings.workbench.get'].includes(method || '')) || JSON.stringify(command).length > 16_000_000) throw new Error('Invalid session command');
     host.stdin.write(JSON.stringify(command) + '\n');
   });
@@ -243,4 +262,30 @@ app.whenReady().then(async () => {
   pendingDeepLink = undefined;
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { remote.close(); apps.close(); contributions.close(); rejectPreferenceWrites(); host?.stdin.end(); });
+let shuttingDown = false;
+let shutdownComplete = false;
+app.on('before-quit', quit => {
+  if (shutdownComplete) return;
+  quit.preventDefault();
+  if (shuttingDown) return;
+  shuttingDown = true;
+  localExecution?.close(); remote.close(); apps.close(); contributions.close(); rejectPreferenceWrites();
+  if (!host?.pid || host.exitCode !== null || host.signalCode !== null) {
+    shutdownComplete = true; app.quit(); return;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const finish = () => {
+    if (shutdownComplete) return;
+    clearTimeout(timer); shutdownComplete = true;
+    app.quit();
+  };
+  // EOF tells the known Host to stop its supervised Worker and Agents. Wait
+  // for observed process exit before permitting a replacement Desktop process
+  // to open the same Worker journal during a normal restart.
+  host.once('exit',finish);
+  timer = setTimeout(() => {
+    host.kill('SIGTERM');
+    timer = setTimeout(() => { host.kill('SIGKILL'); finish(); },2000);
+  },10000);
+  host.stdin.end();
+});
