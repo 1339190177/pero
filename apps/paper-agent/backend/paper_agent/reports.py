@@ -116,12 +116,73 @@ class Experiment:
 
 
 @dataclass(frozen=True)
+class MatrixColumn:
+    id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class MatrixCell:
+    paper_id: str
+    column_id: str
+    value: str
+    status: str
+    evidence: tuple[EvidenceReference, ...]
+
+
+@dataclass(frozen=True)
+class EvidenceMatrix:
+    columns: tuple[MatrixColumn, ...]
+    cells: tuple[MatrixCell, ...]
+
+    @classmethod
+    def parse(cls, value, papers):
+        value = mapping(value, 'evidence matrix')
+        columns = tuple(MatrixColumn(text(c.get('id'), 40, 'column ID'), text(c.get('label'), 100, 'column label'))
+                        for item in sequence(value.get('columns'), 8, 'matrix columns')
+                        for c in [mapping(item, 'matrix column')])
+        ids = {c.id for c in columns}
+        if not columns or len(ids) != len(columns):
+            raise Invalid('Matrix columns must have unique IDs')
+        allowed = {p.id for p in papers}
+        cells, seen = [], set()
+        for item in sequence(value.get('cells'), 40, 'matrix cells'):
+            item = mapping(item, 'matrix cell')
+            paper_id, column_id, status = item.get('paperId'), item.get('columnId'), item.get('status')
+            if paper_id not in allowed or column_id not in ids:
+                raise Invalid('Matrix cell is outside the frozen sources or columns')
+            key = (paper_id, column_id)
+            if key in seen:
+                raise Invalid('Duplicate matrix cell')
+            seen.add(key)
+            if status not in ('supported', 'missing', 'conflict'):
+                raise Invalid('Invalid matrix evidence status')
+            refs = EvidenceReference.parse_many(item.get('evidence', []), (paper_id,), papers)
+            content = item.get('value', '')
+            if status == 'missing':
+                if content != '' or refs:
+                    raise Invalid('Missing matrix cells cannot assert a value or evidence')
+            else:
+                text(content, 4000, 'matrix value')
+                if not refs or (status == 'conflict' and len({r.quote for r in refs}) < 2):
+                    raise Invalid('Matrix values need exact evidence; conflicts need two passages')
+            cells.append(MatrixCell(paper_id, column_id, content, status, refs))
+        return cls(columns, tuple(cells))
+
+    def to_dict(self):
+        return dict(columns=[dict(id=c.id, label=c.label) for c in self.columns], cells=[
+            dict(paperId=c.paper_id, columnId=c.column_id, value=c.value, status=c.status,
+                 evidence=[e.to_dict() for e in c.evidence]) for c in self.cells])
+
+
+@dataclass(frozen=True)
 class ResearchReport:
     intent_id: str
     title: str
     sections: tuple[ReportSection, ...]
     experiments: tuple[Experiment, ...]
     limitations: str
+    matrix: "EvidenceMatrix | None" = None
 
     @classmethod
     def parse(cls, value, intent):
@@ -144,7 +205,8 @@ class ResearchReport:
         title = text(value.get("title"), 200, "title")
         if len(title.encode("utf-8")) > 200:
             raise Invalid("Report title exceeds 200 UTF-8 bytes")
-        result = cls(intent.id, title, tuple(sections), experiments, text(value.get("limitations"), 8000, "limitations"))
+        matrix = EvidenceMatrix.parse(value["matrix"], intent.papers) if value.get("matrix") is not None else None
+        result = cls(intent.id, title, tuple(sections), experiments, text(value.get("limitations"), 8000, "limitations"), matrix)
         if len(canonical(result.to_dict())) > 450000:
             raise Invalid("Report exceeds 450,000 bytes")
         return result
@@ -162,7 +224,7 @@ class ResearchReport:
         return cls.parse(value, intent)
 
     def to_dict(self):
-        return dict(schema=REPORT_SCHEMA, intentId=self.intent_id, title=self.title,
+        return dict(**({"matrix": self.matrix.to_dict()} if self.matrix else {}), schema=REPORT_SCHEMA, intentId=self.intent_id, title=self.title,
                     sections=[section.to_dict() for section in self.sections],
                     experiments=[experiment.to_dict() for experiment in self.experiments],
                     limitations=self.limitations, acceptance="unverified")
@@ -182,7 +244,16 @@ class ResearchReport:
         lines = [f"# {prose(self.title)}", "", "Acceptance: unverified · experiment results: agent-reported", "",
                  f"Frozen research input: `{self.intent_id}`", ""]
         for section in self.sections:
-            lines.extend([f"## {prose(section.heading)}", "", prose(section.content), "", sources(section.paper_ids), "", quotations(section.evidence), ""])
+            lines.extend([f"## {prose(section.heading)}", "", prose(re.sub(r"\[([^\]]*)\]\(evidence:([1-9]\d*)\)",
+                lambda m: f"[{m[1]}]({next(p.url for p in intent.papers if p.id == section.evidence[int(m[2])-1].paper_id)})"
+                if int(m[2]) <= len(section.evidence) else m[1] + " [unresolved citation]", section.content)), "", sources(section.paper_ids), "", quotations(section.evidence), ""])
+        if self.matrix:
+            lines.extend(["## Evidence matrix", ""])
+            for paper in intent.papers:
+                lines.extend(["### " + prose(paper.title), ""])
+                for column in self.matrix.columns:
+                    cell = next((c for c in self.matrix.cells if c.paper_id == paper.id and c.column_id == column.id), None)
+                    lines.extend(["#### " + prose(column.label), "", (prose(cell.value) if cell and cell.value else "Missing") + " · " + (cell.status if cell else "missing"), "", quotations(cell.evidence) if cell else "", ""])
         for experiment in self.experiments:
             lines.extend([f"## {prose(experiment.title)}", "", f"Agent-reported: {experiment.status}", "", sources(experiment.paper_ids), "",
                           f"Expected: {prose(experiment.expected)}", "", f"Observed: {prose(experiment.observed)}", "",

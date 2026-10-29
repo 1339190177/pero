@@ -208,5 +208,13 @@ class ResearchInput:
             '"observed":string,"limitations":string}],"limitations":string}. '
             "Every section and experiment needs at least one source ID. Evidence quotes must be exact contiguous "
             "source passages of at most 4000 characters. Omit evidence when no exact passage supports the claim. "
+            "Use Markdown for section content, GFM tables, fenced code and $inline$ or $$block$$ math. "
+            "Inline evidence links use [label](evidence:N), with N the 1-based index in that section's evidence array. "
+            "When the question compares papers, add optional matrix: {columns:[{id,label}], "
+            "cells:[{paperId,columnId,value,status,evidence:[{paperId,quote}]}]}. "
+            "Use up to 8 columns and 40 cells. status is supported, missing or conflict. "
+            "Supported values need an exact quote from the cell's paper; conflict needs at least two passages "
+            "from that paper. Missing cells have empty value and evidence. Omitted cells mean missing. "
+            "Do not infer matrix values without evidence. "
             "Use the user's language. Acceptance stays unverified; Agent-reported results are not independent verification."
         )

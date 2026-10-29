@@ -96,6 +96,49 @@ class ResearchDocuments(unittest.TestCase):
         self.assertEqual(located["heading"], "Method")
         self.assertEqual(paper.content[located["start"]:located["end"]], ref.quote)
 
+    def test_evidence_matrix_values_and_source_boundaries(self):
+        paper = PaperSnapshot.from_reading(reading(), NOW)
+        intent = ResearchInput.prepare(request([paper]), [paper], NOW)
+        value = report_value(intent)
+        self.assertNotIn("matrix", ResearchReport.parse(value, intent).to_dict())
+        value["matrix"] = dict(columns=[dict(id="finding", label="Finding"), dict(id="data", label="Data")], cells=[
+            dict(paperId=paper.id, columnId="finding", value="Synthetic only", status="supported",
+                 evidence=[dict(paperId=paper.id, quote="Exact original evidence.")]),
+            dict(paperId=paper.id, columnId="data", value="", status="missing", evidence=[])])
+        value["sections"][0]["content"] = "Read [source](evidence:1)"
+        parsed = ResearchReport.parse(value, intent)
+        self.assertIn("[source](https://example.invalid/paper)", parsed.markdown(intent))
+        self.assertEqual(parsed.to_dict()["matrix"], value["matrix"])
+        self.assertIn("## Evidence matrix", parsed.markdown(intent))
+        self.assertIn("Exact original evidence.", parsed.markdown(intent))
+        mutations = [
+            lambda m: m["columns"].append(m["columns"][0]),
+            lambda m: m["cells"].append(m["cells"][0]),
+            lambda m: m["cells"][0].update(paperId="0" * 64),
+            lambda m: m["cells"][0].update(columnId="unknown"),
+            lambda m: m["cells"][0].update(evidence=[]),
+            lambda m: m["cells"][0].update(status="conflict"),
+            lambda m: m["cells"][0]["evidence"][0].update(quote="Invented quote"),
+            lambda m: m["cells"][1].update(value="Unsupported result"),
+            lambda m: m["cells"][1].update(value=0),
+        ]
+        for mutate in mutations:
+            invalid = copy.deepcopy(value)
+            mutate(invalid["matrix"])
+            with self.subTest(matrix=invalid["matrix"]), self.assertRaises(Invalid):
+                ResearchReport.parse(invalid, intent)
+        value["matrix"]["cells"][0].update(status="conflict", evidence=[
+            dict(paperId=paper.id, quote="Exact original evidence."),
+            dict(paperId=paper.id, quote="No experiment was performed.")])
+        self.assertEqual(ResearchReport.parse(value, intent).matrix.cells[0].status, "conflict")
+        with tempfile.TemporaryDirectory() as root:
+            store = ResearchStore(root)
+            store.save_paper(paper)
+            frozen = store.prepare(request([paper]), NOW)
+            saved = store.save_report(frozen.id, json.dumps(value), NOW)
+            self.assertEqual(store.report(saved.id), saved)
+            self.assertEqual(json.loads(store.export(saved.id, "json")["content"])["matrix"], value["matrix"])
+
     def test_experiments_and_portable_export(self):
         paper = PaperSnapshot.from_reading(reading(), NOW)
         intent = ResearchInput.prepare(request([paper], True), [paper], NOW)
