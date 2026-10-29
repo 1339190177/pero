@@ -87,6 +87,10 @@ pub struct WorkbenchPreferences {
     #[serde(default)]
     pub appearance: Appearance,
     #[serde(default)]
+    pub accent: crate::appearance::AccentColor,
+    #[serde(default)]
+    pub typography: crate::appearance::TypographyPreferences,
+    #[serde(default)]
     pub projects: Vec<ProjectBinding>,
     #[serde(default)]
     pub layout: LayoutPreferences,

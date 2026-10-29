@@ -159,6 +159,8 @@ mod tests {
         save_remote_connection(&path, Some(&connection)).unwrap();
         let preferences = pero_contracts::workbench::WorkbenchPreferences {
             appearance: pero_contracts::workbench::Appearance::Dark,
+            accent: pero_contracts::appearance::AccentColor::Blue,
+            typography: serde_json::from_str(r#"{"ui_size":18,"chat_size":20}"#).unwrap(),
             projects: vec![pero_contracts::workbench::ProjectBinding {
                 workspace: "/work/pero".into(), project_id: "pero".into(),
             }],

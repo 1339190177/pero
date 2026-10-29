@@ -275,3 +275,5 @@ mod history_tests {
         assert!(visible[1].thread_id.is_none());
     }
 }
+
+pub mod appearance;

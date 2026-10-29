@@ -4549,6 +4549,46 @@
       ],
       "additionalProperties": false
     },
+    "TypographyPreferences": {
+      "title": "TypographyPreferences",
+      "type": "object",
+      "properties": {
+        "ui_size": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 24
+        },
+        "chat_size": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "minimum": 12,
+          "maximum": 24
+        },
+        "code_size": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "minimum": 12,
+          "maximum": 24
+        }
+      },
+      "additionalProperties": false
+    },
     "UninstallApp": {
       "title": "UninstallApp",
       "type": "object",
@@ -4657,6 +4697,25 @@
       "title": "WorkbenchPreferences",
       "type": "object",
       "properties": {
+        "accent": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "teal"
+            },
+            {
+              "type": "string",
+              "const": "blue"
+            },
+            {
+              "type": "string",
+              "const": "neutral"
+            }
+          ]
+        },
+        "typography": {
+          "$ref": "#/$defs/TypographyPreferences"
+        },
         "appearance": {
           "anyOf": [
             {

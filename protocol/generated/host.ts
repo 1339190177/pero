@@ -160,12 +160,19 @@ export interface SetWorkbenchSettingsRequest {
   preferences: WorkbenchPreferences;
 }
 export interface WorkbenchPreferences {
+  accent?: "teal" | "blue" | "neutral";
+  typography?: TypographyPreferences;
   appearance: "light" | "dark" | "system";
   /**
    * @maxItems 128
    */
   projects: ProjectBinding[];
   layout?: LayoutPreferences;
+}
+export interface TypographyPreferences {
+  ui_size?: number;
+  chat_size?: number | null;
+  code_size?: number | null;
 }
 export interface ProjectBinding {
   workspace: string;
@@ -355,6 +362,9 @@ export interface ContributionPublish {
   workspace: string;
   review_token: string;
 }
+/**
+ * Read-only Desktop result-file transport. It never starts an Agent turn.
+ */
 export interface ContentDocumentEvent {
   kind: "content_document";
   version: 1;

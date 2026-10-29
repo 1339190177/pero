@@ -51,7 +51,13 @@ model LayoutPreferences {
   chat_open?: boolean = false;
   ...Closed;
 }
-model WorkbenchPreferences { appearance: "light" | "dark" | "system"; @maxItems(128) projects: ProjectBinding[]; layout?: LayoutPreferences; ...Closed }
+model TypographyPreferences {
+  @minValue(12) @maxValue(24) ui_size?: uint8;
+  @minValue(12) @maxValue(24) chat_size?: uint8 | null;
+  @minValue(12) @maxValue(24) code_size?: uint8 | null;
+  ...Closed
+}
+model WorkbenchPreferences { accent?: "teal" | "blue" | "neutral"; typography?: TypographyPreferences; appearance: "light" | "dark" | "system"; @maxItems(128) projects: ProjectBinding[]; layout?: LayoutPreferences; ...Closed }
 model GetWorkbenchSettingsRequest { method: "settings.workbench.get"; ...Closed }
 model SetWorkbenchSettingsRequest { method: "settings.workbench"; preferences: WorkbenchPreferences; ...Closed }
 
