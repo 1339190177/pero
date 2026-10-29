@@ -444,21 +444,54 @@ func TestWindowsACLAdmissionBoundaries(t *testing.T) {
 			t.Fatal("rejected hardlink admission modified a security descriptor")
 		}
 	})
-	alias := filepath.Join(t.TempDir(), "temp-junction")
+	// Windows temp paths may use an 8.3 ancestor spelling. Build the junction
+	// under the canonical parent, but keep the junction itself in runner argv:
+	// passing its resolved target would only repeat the direct-overlap test.
+	aliasParent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(aliasParent, "temp-junction")
 	windowsRoot, err := windows.GetWindowsDirectory()
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if output, err := exec.CommandContext(ctx, filepath.Join(windowsRoot, "System32", "cmd.exe"), "/d", "/c", "mklink", "/J", alias, workspace).CombinedOutput(); err != nil {
-		t.Fatalf("test-owned junction setup: %v: %s", err, output)
+	junctionOutput, err := exec.CommandContext(ctx, filepath.Join(windowsRoot, "System32", "cmd.exe"), "/d", "/c", "mklink", "/J", alias, workspace).CombinedOutput()
+	if err != nil {
+		t.Fatalf("test-owned junction setup %q -> %q: %v: %s", alias, workspace, err, junctionOutput)
 	}
 	t.Cleanup(func() {
 		if err := os.Remove(alias); err != nil && !errors.Is(err, os.ErrNotExist) {
 			t.Error(err)
 		}
 	})
+	linkName, err := windows.UTF16PtrFromString(alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attributes, err := windows.GetFileAttributes(linkName)
+	if err != nil || attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+		t.Fatalf("junction fixture is not a reparse point: %q attributes=%x err=%v; %s", alias, attributes, err, junctionOutput)
+	}
+	target, err := os.Readlink(alias)
+	if err != nil {
+		t.Fatalf("read junction target %q: %v; %s", alias, err, junctionOutput)
+	}
+	resolved, err := filepath.EvalSymlinks(alias)
+	if err != nil || resolved != workspace {
+		t.Fatalf("junction fixture does not canonically overlap: alias=%q target=%q resolved=%q workspace=%q err=%v; %s", alias, target, resolved, workspace, err, junctionOutput)
+	}
+	aliasInfo, err := os.Stat(alias)
+	if err != nil {
+		t.Fatalf("stat junction fixture %q: %v", alias, err)
+	}
+	workspaceInfo, err := os.Stat(workspace)
+	if err != nil || !os.SameFile(aliasInfo, workspaceInfo) {
+		t.Fatalf("junction target is not the owned workspace: alias=%q workspace=%q err=%v", alias, workspace, err)
+	}
+	t.Logf("verified junction overlap: %q -> %q (resolved %q)", alias, target, resolved)
 	for _, tc := range []struct{ name, temp string }{{"direct-overlap", workspace}, {"junction-overlap", alias}} {
 		t.Run(tc.name, func(t *testing.T) {
 			before := aclFixtureSecurity(t, workspace)
@@ -474,7 +507,7 @@ func TestWindowsACLAdmissionBoundaries(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 			var exited *exec.ExitError
 			if !errors.As(err, &exited) || exited.ExitCode() != windowsACLRunnerFailureExit || !strings.Contains(string(output), "temp root must be outside workspace") {
-				t.Fatalf("overlapping temp did not fail before grant: %v: %s", err, output)
+				t.Fatalf("overlapping temp %q (workspace %q) did not fail before grant: %v: %s", tc.temp, workspace, err, output)
 			}
 			if aclFixtureSecurity(t, workspace) != before {
 				t.Fatal("overlap rejection modified workspace security")

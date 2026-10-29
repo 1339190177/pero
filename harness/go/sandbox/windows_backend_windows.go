@@ -90,13 +90,13 @@ func validateWindowsWorkspace(root string) error {
 		}
 		h, err := windows.CreateFile(name, 0, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_OPEN_REPARSE_POINT|windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
 		if err != nil {
-			return err
+			return fmt.Errorf("open workspace entry %q for inspection: %w", path, err)
 		}
 		var info windows.ByHandleFileInformation
 		err = windows.GetFileInformationByHandle(h, &info)
 		closeErr := windows.CloseHandle(h)
 		if err != nil || closeErr != nil {
-			return errors.Join(err, closeErr)
+			return fmt.Errorf("inspect workspace entry %q: %w", path, errors.Join(err, closeErr))
 		}
 		if info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
 			return errors.New("Windows ACL workspace cannot contain reparse points")

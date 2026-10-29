@@ -115,11 +115,11 @@ func runWindowsACLRunner(args []string) (code uint32, resultErr error) {
 		return 0, err
 	}
 	if err := validateWindowsWorkspace(request.workspace); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("inspect workspace %q: %w", request.workspace, err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("read runner working directory: %w", err)
 	}
 	cwd, err = filepath.EvalSymlinks(cwd)
 	if err != nil || !withinWindowsPath(request.workspace, cwd) {
@@ -153,10 +153,11 @@ func runWindowsACLRunner(args []string) (code uint32, resultErr error) {
 			return 0, fmt.Errorf("create private temp: %w", err)
 		}
 		defer func() { resultErr = errors.Join(resultErr, os.RemoveAll(privateTemp)) }()
-		privateTemp, err = filepath.EvalSymlinks(privateTemp)
+		canonicalTemp, err := filepath.EvalSymlinks(privateTemp)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("resolve private temp %q: %w", privateTemp, err)
 		}
+		privateTemp = canonicalTemp
 		if withinWindowsPath(request.workspace, privateTemp) || withinWindowsPath(privateTemp, request.workspace) {
 			return 0, errors.New("private temp and workspace must be disjoint")
 		}

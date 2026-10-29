@@ -32,6 +32,12 @@ func TestWindowsACLShellCancellationCleansJobAndPrivateTemp(t *testing.T) {
 		t.Fatal(err)
 	}
 	root, privateTempRoot := t.TempDir(), t.TempDir()
+	// Windows temp paths may use RUNNER~1 while the runner resolves the long
+	// canonical form. Compare identities in the same namespace, not spellings.
+	privateTempRoot, err = filepath.EvalSymlinks(privateTempRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("TMP", privateTempRoot)
 	t.Setenv("TEMP", privateTempRoot)
 	e, err := NewLocalExecutor(LocalOptions{Shell: pwsh, CWD: root, Sandbox: &sandbox.Config{Mode: sandbox.WorkspaceWrite, Backend: sandbox.BackendWindowsACL}, Timeout: 30 * time.Second})
