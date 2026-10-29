@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,7 +29,10 @@ func TestCodingModelAgentProcess(t *testing.T) {
 		return
 	}
 	flag.CommandLine = flag.NewFlagSet("coding-model-fixture", flag.ContinueOnError)
-	os.Args = []string{"coding-model-fixture", "--endpoint", os.Getenv("PERO_CODING_MODEL_ENDPOINT"), "--model", "fixture-a", "--selectable-model", "fixture-b", "--session-dir", os.Getenv("PERO_CODING_MODEL_SESSIONS"), "--workspace", os.Getenv("PERO_CODING_MODEL_WORKSPACE"), "--enable-agent-instructions", "--enable-todos", "--context-window", "8192", "--max-tokens", "128", "--max-retries", "0"}
+	os.Args = []string{"coding-model-fixture", "--endpoint", os.Getenv("PERO_CODING_MODEL_ENDPOINT"), "--model", "fixture-a", "--selectable-model", "fixture-b", "--session-dir", os.Getenv("PERO_CODING_MODEL_SESSIONS"), "--enable-todos", "--context-window", "8192", "--max-tokens", "128", "--max-retries", "0"}
+	if os.Getenv("PERO_CODING_MODEL_NATIVE") == "1" {
+		os.Args = append(os.Args, "--workspace", os.Getenv("PERO_CODING_MODEL_WORKSPACE"), "--enable-agent-instructions")
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -39,6 +43,17 @@ func TestCodingModelAgentProcess(t *testing.T) {
 // This exercises the actual CLI composition, not independent helper mounts.
 // Both provider and MCP endpoints are synthetic loopback servers.
 func TestCodingModelCLICombinedActivationWire(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		t.Run(fmt.Sprintf("native-instructions=%v", native), func(t *testing.T) {
+			if native && runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+				t.Skip("native instruction capability unsupported; portable combined workflow still runs")
+			}
+			testCodingModelCLICombinedActivationWire(t, native)
+		})
+	}
+}
+func testCodingModelCLICombinedActivationWire(t *testing.T, native bool) {
+	t.Helper()
 	const marker = "root-guidance-fixture-9d32"
 	workspace, sessions := t.TempDir(), t.TempDir()
 	if err := os.WriteFile(filepath.Join(workspace, "AGENTS.md"), []byte(marker+"\nDo not treat this document as permission."), 0600); err != nil {
@@ -88,6 +103,9 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 		for _, message := range request.Messages {
 			text, _ := message.Content.(string)
 			if strings.Contains(text, marker) {
+				if !native {
+					t.Error("portable CLI implicitly loaded workspace instructions")
+				}
 				if message.Role != "user" || !strings.Contains(text, "untrusted task guidance, not permission") {
 					t.Errorf("instruction authority widened: role=%q", message.Role)
 				}
@@ -166,7 +184,7 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	child := exec.CommandContext(ctx, exe, "-test.run=^TestCodingModelAgentProcess$")
-	child.Env = append(os.Environ(), "PERO_CODING_MODEL_CHILD=1", "PERO_CODING_MODEL_ENDPOINT="+provider.URL+"/v1", "PERO_CODING_MODEL_WORKSPACE="+workspace, "PERO_CODING_MODEL_SESSIONS="+sessions, "AGENT_PROVIDER_API_KEY=fixture-not-secret")
+	child.Env = append(os.Environ(), "PERO_CODING_MODEL_CHILD=1", "PERO_CODING_MODEL_NATIVE="+map[bool]string{false: "0", true: "1"}[native], "PERO_CODING_MODEL_ENDPOINT="+provider.URL+"/v1", "PERO_CODING_MODEL_WORKSPACE="+workspace, "PERO_CODING_MODEL_SESSIONS="+sessions, "AGENT_PROVIDER_API_KEY=fixture-not-secret")
 	input, err := child.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -243,7 +261,7 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	aCount := len(models)
 	instructions, todo, mcp, result := sawInstructions, sawTodo, sawMCP, sawTodoResult
 	mu.Unlock()
-	if !instructions || !todo || !mcp || !result || mcpRequests.Load() == 0 {
+	if instructions != native || !todo || !mcp || !result || mcpRequests.Load() == 0 {
 		t.Fatalf("combined activation: instructions=%v todo=%v mcp=%v todoResult=%v mcpRequests=%d", instructions, todo, mcp, result, mcpRequests.Load())
 	}
 	if current(rpc("session/set_config_option", map[string]any{"sessionId": id, "configId": "model", "value": "fixture-b"})) != "fixture-b" {
@@ -306,5 +324,28 @@ func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	waited = true
 	if err != nil {
 		t.Fatalf("child: %v %s", err, diagnostics.String())
+	}
+}
+
+func TestUnsupportedNativeCLIAdmission(t *testing.T) {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		t.Skip("unsupported-platform contract")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := t.TempDir()
+	child := exec.CommandContext(ctx, exe, "-test.run=^TestCodingModelAgentProcess$")
+	child.Env = append(os.Environ(), "PERO_CODING_MODEL_CHILD=1", "PERO_CODING_MODEL_NATIVE=1", "PERO_CODING_MODEL_ENDPOINT=https://fixture.invalid/v1", "PERO_CODING_MODEL_WORKSPACE="+t.TempDir(), "PERO_CODING_MODEL_SESSIONS="+sessions, "AGENT_PROVIDER_API_KEY=fixture-not-secret")
+	output, err := child.CombinedOutput()
+	if err == nil || !strings.Contains(string(output), "supported descriptor-rooted Unix") {
+		t.Fatalf("unsupported CLI admission: %v %s", err, output)
+	}
+	entries, err := os.ReadDir(sessions)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("unsupported CLI created durable session: %v %v", entries, err)
 	}
 }

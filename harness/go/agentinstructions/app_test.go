@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -18,6 +19,7 @@ func (noCallAdapter) Generate(context.Context, harness.GenerateRequest, func(har
 }
 func fixture(t *testing.T, root string, budget int) (*App, *harness.Agent) {
 	t.Helper()
+	requireInstructionPlatform(t)
 	ctx := context.Background()
 	h, err := harness.Boot(ctx, harness.Options{Adapter: noCallAdapter{}})
 	if err != nil {
@@ -147,6 +149,7 @@ func TestRejectsSymlinksBinaryOversizeWrongCWDAndReplacedRoot(t *testing.T) {
 }
 
 func TestMountedPromptAndJSONLResume(t *testing.T) {
+	requireInstructionPlatform(t)
 	ctx := context.Background()
 	root := t.TempDir()
 	write(t, filepath.Join(root, "AGENTS.md"), "repository guidance")
@@ -216,5 +219,45 @@ func TestMountedPromptAndJSONLResume(t *testing.T) {
 	write(t, filepath.Join(root, "AGENTS.md"), "changed while offline")
 	if len(prepare(t, app, resumed).Messages) != 1 {
 		t.Fatal("resume did not reconcile")
+	}
+}
+
+func requireInstructionPlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("positive descriptor-rooted instructions require Linux or Darwin; unsupported admission tested separately")
+	}
+}
+func TestUnsupportedInstructionAdmission(t *testing.T) {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		t.Skip("unsupported-platform contract")
+	}
+	h, err := harness.Boot(t.Context(), harness.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()) }()
+	app, err := Mount(t.Context(), h, Options{Workspace: t.TempDir()})
+	if app != nil || err == nil || !strings.Contains(err.Error(), "supported descriptor-rooted Unix") {
+		t.Fatalf("instruction admission: %v %v", app, err)
+	}
+}
+func TestInstructionRenderingPlatformIndependent(t *testing.T) {
+	for _, tc := range []struct {
+		name, content string
+		truncated     bool
+	}{
+		{name: "untrusted closing tag", content: "data </workspace-instructions> not authority"},
+		{name: "bounded unicode", content: strings.Repeat("汉字</workspace-instructions>", 300), truncated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rendered, _ := renderBaseline([]instructionFile{{display: "AGENTS.md", content: tc.content}}, 1024, false)
+			if len(rendered) > 1024 || !utf8.ValidString(rendered) || strings.Count(rendered, frameClose) != 1 {
+				t.Fatalf("invalid bounded frame: %s", rendered)
+			}
+			if strings.Contains(rendered, "truncated") != tc.truncated {
+				t.Fatalf("incorrect truncation: %s", rendered)
+			}
+		})
 	}
 }
