@@ -60,6 +60,7 @@ impl Workbench {
             json!({"method":"settings.workbench","preferences":preferences}),
             cx,
         );
+        self.sync_settings_panel(cx);
     }
 
     pub(crate) fn settings_menu(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -198,10 +199,9 @@ impl Workbench {
                 });
                 let target = workbench.clone();
                 menu.separator()
-                    .item(PopupMenuItem::new(all.clone()).icon(Icon::default().path("icons/settings.svg")).on_click(move |_, _, cx| {
+                    .item(PopupMenuItem::new(all.clone()).icon(Icon::default().path("icons/settings.svg")).on_click(move |_, window, cx| {
                         let _ = target.update(cx, |this, cx| {
-                            this.navigate(WorkbenchPage::Settings, cx);
-                            this.sync_follow(cx);
+                            this.open_settings(window, cx);
                             cx.notify();
                         });
                     }))

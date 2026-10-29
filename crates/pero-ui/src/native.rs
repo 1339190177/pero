@@ -342,8 +342,8 @@ pub fn run() -> anyhow::Result<()> {
         let _ = commands.send(serde_json::json!({"action":"local_worker_init"}).to_string());
         let _ = commands.send(serde_json::json!({"method":"settings.workbench.get"}).to_string());
         let _ = commands.send(serde_json::json!({"action":"list_agents"}).to_string());
-        cx.on_window_closed(|cx, _| {
-            if cx.windows().is_empty() {
+        cx.on_window_closed(move |cx, closed| {
+            if closed == window.window_id() {
                 cx.quit();
             }
         })

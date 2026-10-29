@@ -21,7 +21,6 @@ pub(crate) enum WorkbenchPage {
     Apps,
     Insights,
     Connections,
-    Settings,
 }
 
 #[cfg(target_family = "wasm")]
@@ -37,7 +36,6 @@ impl WorkbenchPage {
             Self::Apps => 7,
             Self::Insights => 8,
             Self::Connections => 9,
-            Self::Settings => 10,
         }
     }
 }
@@ -427,11 +425,11 @@ mod tests {
                 name: "correcting background identities leaves a utility page visible",
                 actions: vec![
                     Open(shared_project.clone()),
-                    Show(WorkbenchPage::Settings),
+                    Show(WorkbenchPage::Connections),
                     ReplaceIdentity(shared_project.clone(), workspace_project.clone()),
                 ],
                 items: vec![workspace_project.clone()],
-                route: WorkspaceRoute::Page(WorkbenchPage::Settings),
+                route: WorkspaceRoute::Page(WorkbenchPage::Connections),
             },
             Case {
                 name: "reconciliation removes deleted objects and selects a surviving neighbor",
@@ -500,12 +498,12 @@ mod tests {
                 actions: vec![
                     Open(conversation.clone()),
                     Open(app.clone()),
-                    Show(WorkbenchPage::Settings),
-                    Show(WorkbenchPage::Settings),
+                    Show(WorkbenchPage::Connections),
+                    Show(WorkbenchPage::Connections),
                     Select(project.clone()),
                 ],
                 items: vec![conversation.clone(), app.clone()],
-                route: WorkspaceRoute::Page(WorkbenchPage::Settings),
+                route: WorkspaceRoute::Page(WorkbenchPage::Connections),
             },
             Case {
                 name: "closing a background app does not leave the utility page",

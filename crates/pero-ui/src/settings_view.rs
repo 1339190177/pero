@@ -1,23 +1,20 @@
-//! Settings navigation and row-based editing share the Host preference owner.
-use crate::{
-    app::{Workbench, request_locale},
-    settings_menu::PreferenceSaveState,
-    workspace::WorkbenchPage,
-};
+//! Reusable Settings content. The shell owns windows, commands and persistence.
+use crate::{settings_menu::PreferenceSaveState, workspace::WorkbenchPage};
 use gpui_kit::{
     component::{
         button::*,
         checkbox::Checkbox,
-        input::Input,
+        input::{Input, InputEvent, InputState},
         menu::{DropdownMenu, PopupMenuItem},
+        tree::{TreeItem, TreeState},
         *,
     },
     prelude::*,
     *,
 };
 use pero_contracts::{
-    appearance::{AccentColor, FontScope},
-    workbench::Appearance,
+    appearance::{AccentColor, FontScope, FontSize},
+    workbench::{Appearance, WorkbenchPreferences},
 };
 use pero_theme::{TextRole, UiAppearance};
 
@@ -57,6 +54,181 @@ impl SettingsSection {
     }
 }
 
+#[derive(Clone)]
+pub(crate) enum SettingsAction {
+    Save(WorkbenchPreferences),
+    Locale(&'static str),
+    Navigate(WorkbenchPage),
+    Close,
+}
+
+pub(crate) struct SettingsPanel {
+    pub preferences: WorkbenchPreferences,
+    pub locale: String,
+    pub preferences_status: PreferenceSaveState,
+    pub error: Option<String>,
+    section: SettingsSection,
+    navigation: Entity<TreeState>,
+    navigation_query: Option<(String, String)>,
+    search: Entity<InputState>,
+    content_scroll: ScrollHandle,
+    font_inputs: [Entity<InputState>; 3],
+    needs_sync: bool,
+    input_locale: String,
+    bounds: Bounds<Pixels>,
+    _subscriptions: Vec<Subscription>,
+}
+impl EventEmitter<SettingsAction> for SettingsPanel {}
+impl SettingsPanel {
+    pub(crate) fn new(
+        preferences: WorkbenchPreferences,
+        locale: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let search = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(pero_contracts::i18n::text(&locale, "settings.search"))
+        });
+        let font_inputs = [FontScope::Interface, FontScope::Chat, FontScope::Code].map(|scope| {
+            cx.new(|cx| {
+                InputState::new(window, cx)
+                    .default_value(u8::from(preferences.typography.effective(scope)).to_string())
+                    .validate(|value, _| value.bytes().all(|byte| byte.is_ascii_digit()))
+            })
+        });
+        let navigation = cx.new(|cx| TreeState::new(cx));
+        let mut subscriptions = vec![
+            cx.subscribe(&search, |_, _, _: &InputEvent, cx| cx.notify()),
+            cx.observe(&navigation, |this, tree, cx| {
+                let Some(selected) = tree.read(cx).selected_item() else {
+                    return;
+                };
+                let section = SettingsSection::ALL
+                    .into_iter()
+                    .find(|section| section.key() == selected.id.as_ref())
+                    .or_else(|| {
+                        (selected.id.as_ref() == "settings.appearance")
+                            .then_some(SettingsSection::Theme)
+                    });
+                if let Some(section) = section {
+                    this.section = section;
+                    let sections = this.matching_sections(cx);
+                    let query = this.search.read(cx).value();
+                    let index = if query.is_empty() {
+                        if section == SettingsSection::General {
+                            0
+                        } else {
+                            section as usize - 1
+                        }
+                    } else {
+                        sections
+                            .iter()
+                            .position(|candidate| *candidate == section)
+                            .unwrap_or(0)
+                    };
+                    this.content_scroll.scroll_to_top_of_item(index);
+                    cx.notify();
+                }
+            }),
+        ];
+        for (index, scope) in [FontScope::Interface, FontScope::Chat, FontScope::Code]
+            .into_iter()
+            .enumerate()
+        {
+            subscriptions.push(cx.subscribe(
+                &font_inputs[index],
+                move |this, input, event: &InputEvent, cx| {
+                    cx.notify();
+                    if matches!(event, InputEvent::PressEnter { .. } | InputEvent::Blur) {
+                        match input
+                            .read(cx)
+                            .value()
+                            .parse::<u8>()
+                            .ok()
+                            .and_then(|value| FontSize::try_from(value).ok())
+                        {
+                            Some(size) => {
+                                if this.error.as_deref() == Some("settings.font_size_range") {
+                                    this.error = None;
+                                    cx.notify();
+                                }
+                                if size == this.preferences.typography.effective(scope) {
+                                    return;
+                                }
+                                let mut next = this.preferences.clone();
+                                next.typography.set_size(scope, size);
+                                this.save_preferences(next, cx);
+                            }
+                            None => {
+                                this.error = Some("settings.font_size_range".into());
+                                cx.notify();
+                            }
+                        }
+                    }
+                },
+            ));
+        }
+        Self {
+            preferences,
+            locale: locale.clone(),
+            input_locale: locale,
+            bounds: Bounds::default(),
+            preferences_status: Default::default(),
+            error: None,
+            section: Default::default(),
+            navigation,
+            navigation_query: None,
+            search,
+            content_scroll: ScrollHandle::new(),
+            font_inputs,
+            needs_sync: false,
+            _subscriptions: subscriptions,
+        }
+    }
+    pub(crate) fn receive(
+        &mut self,
+        preferences: &WorkbenchPreferences,
+        locale: &str,
+        status: PreferenceSaveState,
+        error: Option<&str>,
+        cx: &mut Context<Self>,
+    ) {
+        self.needs_sync |= self.preferences.typography != preferences.typography;
+        self.preferences = preferences.clone();
+        self.locale = locale.into();
+        self.preferences_status = status;
+        self.error = error.map(str::to_owned);
+        cx.notify();
+    }
+    fn t(&self, key: &str) -> &'static str {
+        pero_contracts::i18n::text(&self.locale, key)
+    }
+    fn save_preferences(&mut self, preferences: WorkbenchPreferences, cx: &mut Context<Self>) {
+        if preferences == self.preferences {
+            return;
+        }
+        self.error = None;
+        self.preferences_status = PreferenceSaveState::Saving;
+        cx.emit(SettingsAction::Save(preferences));
+        cx.notify();
+    }
+    #[cfg(target_family = "wasm")]
+    pub(crate) fn snapshot(&self, cx: &App) -> serde_json::Value {
+        let bounds = |value: Bounds<Pixels>| {
+            serde_json::json!({
+            "x":f32::from(value.origin.x),"y":f32::from(value.origin.y),
+            "width":f32::from(value.size.width),"height":f32::from(value.size.height)})
+        };
+        serde_json::json!({"query":self.search.read(cx).value().as_ref(),"section":self.section.key(),
+            "preferences":self.preferences,"error":self.error,"bounds":bounds(self.bounds),
+            "fontInputs":self.font_inputs.iter().map(|input| {
+                let input=input.read(cx);let mut result=bounds(input.input_bounds());
+                result["value"]=serde_json::json!(input.value().as_ref());result
+            }).collect::<Vec<_>>()})
+    }
+}
+
 fn setting_row(label: &str, description: &str, control: AnyElement, cx: &App) -> Div {
     let appearance = UiAppearance::global(cx);
     div()
@@ -88,7 +260,7 @@ fn setting_row(label: &str, description: &str, control: AnyElement, cx: &App) ->
         .child(div().flex_shrink_0().child(control))
 }
 
-impl Workbench {
+impl SettingsPanel {
     fn font_settings(&self, section: SettingsSection, cx: &mut Context<Self>) -> AnyElement {
         let scope = section.scope().expect("font section");
         let preferences = self.preferences.typography;
@@ -314,12 +486,7 @@ impl Workbench {
                             PopupMenuItem::new(label)
                                 .checked(selected == value)
                                 .on_click(move |_, _, cx| {
-                                    if request_locale(value).is_err() {
-                                        let _ = target.update(cx, |this, cx| {
-                                            this.error = Some("error.preferences".into());
-                                            cx.notify();
-                                        });
-                                    }
+                                    let _ = target.update(cx, |_, cx| cx.emit(SettingsAction::Locale(value)));
                                 }),
                         )
                     },
@@ -328,10 +495,10 @@ impl Workbench {
         setting_row(self.t("menu.language"), "", control.into_any_element(), cx).into_any_element()
     }
 
-    pub(crate) fn general_settings(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn content(&self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let appearance = UiAppearance::global(cx).clone();
         let p = &appearance.palette;
-        let query = self.settings_search.read(cx).value().to_lowercase();
+        let query = self.search.read(cx).value().to_lowercase();
         let sections = SettingsSection::ALL
             .into_iter()
             .filter(|section| {
@@ -360,7 +527,7 @@ impl Workbench {
         let visible = sections
             .iter()
             .copied()
-            .filter(|section| !query.is_empty() || *section == self.settings_section)
+            .filter(|section| !query.is_empty() || *section == self.section)
             .collect::<Vec<_>>();
         let mut content = div()
             .id("settings-content")
@@ -440,7 +607,7 @@ impl Workbench {
                             .icon(Icon::default().path("icons/x.svg"))
                             .accessibility_label(self.t("settings.close"))
                             .on_click(cx.listener(|this, _, _, cx| {
-                                this.navigate(WorkbenchPage::Conversation, cx);
+                                cx.emit(SettingsAction::Close);
                                 cx.notify();
                             })),
                     ),
@@ -461,7 +628,7 @@ impl Workbench {
                             .border_color(p.border)
                             .child(
                                 div().p(px(12.)).child(
-                                    Input::new(&self.settings_search)
+                                    Input::new(&self.search)
                                         .small()
                                         .aria_label(self.t("settings.search")),
                                 ),
@@ -483,13 +650,13 @@ impl Workbench {
                                         .w_full()
                                         .justify_start()
                                         .min_h(px(appearance.typography.row_height()))
-                                        .selected(self.settings_section == section)
-                                        .toggled(self.settings_section == section)
+                                        .selected(self.section == section)
+                                        .toggled(self.section == section)
                                         .label(self.t(section.key()))
                                         .child(div().flex_1())
                                         .on_click(
                                             cx.listener(move |this, _, _, cx| {
-                                                this.settings_section = section;
+                                                this.section = section;
                                                 cx.notify();
                                             }),
                                         )
@@ -524,15 +691,7 @@ impl Workbench {
                                                         .child(div().flex_1())
                                                         .on_click(cx.listener(
                                                             move |this, _, window, cx| {
-                                                                this.navigate(page, cx);
-                                                                if page
-                                                                    == WorkbenchPage::Connections
-                                                                {
-                                                                    this.open_remote_connection(
-                                                                        window, cx,
-                                                                    );
-                                                                }
-                                                                cx.notify();
+                                                                cx.emit(SettingsAction::Navigate(page));
                                                             },
                                                         ))
                                                 }),
@@ -542,5 +701,122 @@ impl Workbench {
                     )
                     .child(content),
             )
+    }
+}
+
+impl SettingsPanel {
+    fn matching_sections(&self, cx: &App) -> Vec<SettingsSection> {
+        let query = self.search.read(cx).value().to_lowercase();
+        SettingsSection::ALL
+            .into_iter()
+            .filter(|section| {
+                query.is_empty()
+                    || format!(
+                        "{} {}",
+                        self.t(section.key()),
+                        match section {
+                            SettingsSection::Theme => format!(
+                                "{} {}",
+                                self.t("settings.appearance"),
+                                self.t("settings.accent")
+                            ),
+                            SettingsSection::General => self.t("menu.language").to_owned(),
+                            _ => format!(
+                                "{} {}",
+                                self.t("settings.font_size"),
+                                self.t("settings.font_family")
+                            ),
+                        }
+                    )
+                    .to_lowercase()
+                    .contains(&query)
+            })
+            .collect()
+    }
+
+}
+
+impl Render for SettingsPanel {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.input_locale != self.locale {
+            let placeholder = self.t("settings.search");
+            self.search.update(cx, |input, cx| {
+                input.set_placeholder(placeholder, window, cx)
+            });
+            #[cfg(not(target_family = "wasm"))]
+            window.set_window_title(self.t("settings.title"));
+            self.input_locale = self.locale.clone();
+        }
+        let query = self.search.read(cx).value().to_lowercase();
+        let navigation_query = (query.clone(), self.locale.clone());
+        if self.navigation_query.as_ref() != Some(&navigation_query) {
+            self.navigation_query = Some(navigation_query);
+            let sections = self.matching_sections(cx);
+            let mut roots = Vec::new();
+            if sections.contains(&SettingsSection::General) {
+                roots.push(TreeItem::new(
+                    SettingsSection::General.key(),
+                    self.t(SettingsSection::General.key()),
+                ));
+            }
+            let children = sections
+                .iter()
+                .copied()
+                .filter(|section| *section != SettingsSection::General)
+                .map(|section| TreeItem::new(section.key(), self.t(section.key())))
+                .collect::<Vec<_>>();
+            if !children.is_empty() {
+                roots.push(
+                    TreeItem::new("settings.appearance", self.t("settings.appearance"))
+                        .children(children)
+                        .expanded(true),
+                );
+            }
+            roots.extend(
+                crate::settings_menu::SettingsDestination::ALL
+                    .into_iter()
+                    .filter(|destination| {
+                        query.is_empty()
+                            || self
+                                .t(destination.label_key)
+                                .to_lowercase()
+                                .contains(&query)
+                    })
+                    .map(|destination| {
+                        TreeItem::new(
+                            destination.label_key,
+                            self.t(destination.label_key).trim_end_matches('…'),
+                        )
+                    }),
+            );
+            let selected = TreeItem::new(self.section.key(), "");
+            self.navigation.update(cx, |tree, cx| {
+                tree.set_items(roots, cx);
+                tree.set_selected_item(Some(&selected), cx);
+            });
+        }
+        if self.needs_sync {
+            self.needs_sync = false;
+            for (index, scope) in [FontScope::Interface, FontScope::Chat, FontScope::Code]
+                .into_iter()
+                .enumerate()
+            {
+                let value = u8::from(self.preferences.typography.effective(scope)).to_string();
+                self.font_inputs[index].update(cx, |input, cx| input.set_value(value, window, cx));
+            }
+        }
+        let appearance = UiAppearance::global(cx).clone();
+        div()
+            .id("settings-panel")
+            .on_prepaint(cx.processor(|this, bounds, _, _| this.bounds = bounds))
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(appearance.palette.surface)
+            .text_color(appearance.palette.text)
+            .text_size(appearance.text(TextRole::Body))
+            .font_weight(FontWeight::NORMAL)
+            .line_height(relative(1.4))
+            .child(self.content(window, cx))
     }
 }

@@ -253,8 +253,6 @@ impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.input_locale != self.locale {
             self.input_locale = self.locale.clone();
-            let placeholder = self.t("settings.search");
-            self.settings_search.update(cx, |input, cx| input.set_placeholder(placeholder, window, cx));
             let placeholder = self.t("sessions.search");
             self.search.update(cx, |input, cx| {
                 input.set_placeholder(placeholder, window, cx)
@@ -287,15 +285,14 @@ impl Render for Workbench {
             self.navigation.route(),
             self.tab,
             &self.preferences.layout,
-            self.settings_menu_open || self.resizing_chat,
+            self.settings_menu_open || self.resizing_chat || self.settings_panel.is_some(),
         );
         self.layout = layout;
         let sidebar_width = layout.sidebar_width;
         let chat_width = layout.chat_width;
         let dock = layout.chat == ChatPlacement::Dock;
         let narrow = layout.narrow;
-        let settings = self.navigation.page() == WorkbenchPage::Settings;
-        let has_tabs = !self.navigation.items().is_empty() && !settings;
+        let has_tabs = !self.navigation.items().is_empty();
         if !layout.app_surface_visible {
             self.sync_app_surface(None, cx);
         }
@@ -328,7 +325,7 @@ impl Render for Workbench {
             .text_color(p.text)
 
             .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
-            .when(!settings, |el| el.child(self.sidebar(sidebar_width, cx)))
+            .child(self.sidebar(sidebar_width, cx))
             .child(
                 div()
                     .flex_1()
@@ -420,10 +417,6 @@ impl Render for Workbench {
                                         .when(
                                             self.navigation.page() == WorkbenchPage::Connections,
                                             |el| el.child(self.remote_connection_view(cx)),
-                                        )
-                                        .when(
-                                            self.navigation.page() == WorkbenchPage::Settings,
-                                            |el| el.child(self.general_settings(cx)),
                                         ),
                                 )
                             })

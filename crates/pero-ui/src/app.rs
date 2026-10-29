@@ -45,8 +45,10 @@ pub(crate) struct Workbench {
     pub preferences: pero_contracts::workbench::WorkbenchPreferences,
     pub preferences_status: crate::settings_menu::PreferenceSaveState,
     pub settings_menu_open: bool,
-    pub settings_section: crate::settings_view::SettingsSection,
-    pub settings_search: Entity<InputState>,
+    pub settings_panel: Option<Entity<crate::settings_view::SettingsPanel>>,
+    #[cfg(not(target_family = "wasm"))]
+    pub settings_window: Option<AnyWindowHandle>,
+    pub settings_subscriptions: Vec<Subscription>,
     pub recent_tasks: Vec<String>,
     pub selected_project: Option<String>,
     pub project_binding: Entity<InputState>,
@@ -166,9 +168,6 @@ impl Workbench {
             }
             cx.notify();
         }));
-        let settings_search = cx.new(|cx| InputState::new(window,cx)
-            .placeholder(pero_contracts::i18n::text(&locale,"settings.search")));
-        subscriptions.push(cx.subscribe(&settings_search,|_,_,_: &InputEvent,cx|cx.notify()));
         let remote = crate::remote::RemoteState::new(window, cx);
         let local_execution = crate::local_execution::LocalExecution::new(&locale, window, cx);
         let navigation = WorkspaceNavigation::default();
@@ -197,8 +196,10 @@ impl Workbench {
             preferences,
             preferences_status: Default::default(),
             settings_menu_open: false,
-            settings_section: Default::default(),
-            settings_search,
+            settings_panel: None,
+            #[cfg(not(target_family = "wasm"))]
+            settings_window: None,
+            settings_subscriptions: Vec::new(),
             recent_tasks: Vec::new(),
             selected_project: None,
             project_binding,
@@ -497,6 +498,9 @@ impl Workbench {
                 .map(str::to_owned);
             self.record_task_selection(id);
         }
+        if matches!(event_kind.as_str(), "workbench_settings" | "settings" | "error" | "disconnected") {
+            self.sync_settings_panel(cx);
+        }
         self.apply_local_execution(window, cx);
         self.reconcile_content(window, cx);
         self.sync_follow(cx);
@@ -649,7 +653,9 @@ pub fn snapshot() -> String {
         }
         value["chatPanelWidth"] = serde_json::json!(ui.preferences.layout.chat_width());
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
-        value["settingsSearch"] = serde_json::json!(ui.settings_search.read(cx).value().to_string());
+        value["settingsOpen"] = serde_json::json!(ui.settings_panel.is_some());
+        value["settings"] = ui.settings_panel.as_ref().map(|panel| panel.read(cx).snapshot(cx)).unwrap_or_default();
+        value["settingsSearch"] = value["settings"]["query"].clone();
         value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());
         if let Some(fields) = ui.chat.read(cx).snapshot(cx).as_object() {
