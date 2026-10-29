@@ -1,5 +1,6 @@
 import { setAppearance } from './sidebar-controls.mjs';
-import { _electron as electron, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { electron } from './electron.mjs';
 import { resolve } from 'node:path';
 import { mkdir, writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

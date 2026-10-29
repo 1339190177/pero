@@ -1,5 +1,6 @@
 // Project navigation, task scope and Host-owned preferences in actual Electron.
-import { _electron as electron, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { electron, focusPage } from './electron.mjs';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile, appendFile, realpath, rm } from 'node:fs/promises';
@@ -58,7 +59,7 @@ async function launch(){
   const env={...process.env,PERO_DESKTOP_DATA_DIR:resolve(temp,'profile'),PERO_SETTINGS_PATH:settings,PERO_HISTORY_PATH:history,PERO_AGENTS_FILE:agents,PERO_LOCALE:'zh-CN',PERO_CLOUD_URL:`http://127.0.0.1:${server.address().port}`,PERO_OPERATOR_TOKEN:token};
   for(const key of ['ELECTRON_RUN_AS_NODE','PERO_CLIENT_TOKEN'])delete env[key];
   app=await electron.launch({args:[...(process.platform==='darwin'?['--use-mock-keychain']:[]),resolve(root,'desktop')],cwd:root,env});
-  page=await app.firstWindow();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
+  page=await app.firstWindow();await focusPage(page);page.on('pageerror',error=>errors.push(error.message));
   await page.waitForFunction(()=>window.peroDiagnostics && JSON.parse(window.peroDiagnostics.snapshot()).connected,undefined,{timeout:60000});
   await expect.poll(async()=>(await state()).projects?.some(project=>project.shared_id==='pero'&&project.workspace===root)).toBe(true);
   await expect.poll(async()=>(await state()).remote.state.tasks.length).toBeGreaterThanOrEqual(2);
