@@ -1,3 +1,4 @@
+import { setAppearance } from './sidebar-controls.mjs';
 // Explicit real-provider smoke check, separate from deterministic fixture acceptance.
 import { _electron as electron, expect } from '@playwright/test';
 import { resolve } from 'node:path';
@@ -14,10 +15,9 @@ try{
  await page.waitForFunction(()=>window.peroDiagnostics,undefined,{timeout:60000});
  const state=()=>page.evaluate(()=>window.peroDiagnostics?JSON.parse(window.peroDiagnostics.snapshot()):{chats:[],agents:[]});
  await expect.poll(async()=>(await state()).agents?.length||0).toBeGreaterThan(0);
- await page.mouse.click(74,267);
+ await page.mouse.click(100,28);
  await expect.poll(async()=>(await state()).navigation).toBe(0);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
- await page.mouse.click(1430,24);
  await expect.poll(async()=>(await state()).chats?.length).toBe(1);
  await page.mouse.click(1375,1030);
  await expect.poll(async()=>(await state()).chats[0].state,{timeout:60000}).toBe('idle');
@@ -31,7 +31,7 @@ try{
  for(let i=0;i<=modelIndex;i++)await page.keyboard.press('ArrowDown');
  await page.keyboard.press('Enter');
  await expect.poll(async()=>(await state()).chats[0].model).toBe('gpt-5.6-sol');
- await page.mouse.click(950,975);await page.waitForTimeout(150);
+ await page.mouse.click(950,975);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
  const cdp=await page.context().newCDPSession(page);
  await cdp.send('Input.insertText',{text:'Reply exactly PERO_DESKTOP_OK. Do not use any tools or modify files.'});
  await expect.poll(async()=>(await state()).composer).toBe('Reply exactly PERO_DESKTOP_OK. Do not use any tools or modify files.');

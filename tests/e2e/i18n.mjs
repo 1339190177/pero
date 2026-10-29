@@ -1,3 +1,4 @@
+import { setAppearance, setSidebarLocale } from './sidebar-controls.mjs';
 import { _electron as electron, expect } from '@playwright/test';
 import { resolve } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -31,7 +32,7 @@ try {
   const before = await state(page);
   await selectLocale('en');
   await expect.poll(async () => (await state(page)).locale).toBe('en');
-  await page.mouse.click(64, await page.evaluate(() => innerHeight - 30));
+  await setAppearance(page,'dark');
   await expect.poll(async () => (await state(page)).dark).toBe(true);
   await page.screenshot({ path: resolve(output, 'en-dark.png') });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 760));
@@ -47,7 +48,7 @@ try {
   await page.screenshot({ path: resolve(output, 'en.png') });
 
   // The visible sidebar switch takes the same runtime-owned preference path.
-  await page.mouse.click(28, await page.evaluate(() => innerHeight - 30));
+  await setSidebarLocale(page,'zh-CN');
   await expect.poll(async () => (await state(page)).locale).toBe('zh-CN');
   await selectLocale('en');
   await expect.poll(async () => (await state(page)).locale).toBe('en');
@@ -78,9 +79,11 @@ try {
   expect(await preview.evaluate(() => typeof window.pero)).toBe('undefined');
   await preview.evaluate(() => window.peroSetLocale('zh-CN'));
   await expect.poll(async () => (await state(preview)).locale).toBe('zh-CN');
-  await preview.mouse.click(28, await preview.evaluate(() => innerHeight - 30));
+  await setSidebarLocale(preview,'en');
   await expect.poll(async () => (await state(preview)).locale).toBe('en');
   expect((await state(preview)).labels.tasks).toBe('Tasks');
+  await setAppearance(preview, 'dark');
+  expect((await state(preview)).dark).toBe(true);
   expect(JSON.parse(await readFile(settings, 'utf8')).locale).toBe('zh-CN');
   await preview.close();
   expect(errors).toEqual([]);
