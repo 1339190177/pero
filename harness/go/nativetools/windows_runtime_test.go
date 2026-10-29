@@ -16,7 +16,7 @@ import (
 	"github.com/phodal/pero/harness/go/sandbox"
 )
 
-func TestWindowsPartialMountIsShellOnlyAndAlwaysAsks(t *testing.T) {
+func TestWindowsPartialMountKeepsFileBoundaryAndAlwaysAsks(t *testing.T) {
 	if os.Getenv("PERO_REQUIRE_WINDOWS_ACL") != "1" {
 		t.Skip("requires explicit disposable Windows ACL test authorization")
 	}
@@ -62,7 +62,11 @@ func TestWindowsPartialMountIsShellOnlyAndAlwaysAsks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(schemas) != 1 || schemas[0].Name != "shell" || !strings.Contains(schemas[0].Description, "NOT isolated") {
+	names := map[string]string{}
+	for _, schema := range schemas {
+		names[schema.Name] = schema.Description
+	}
+	if len(names) != 5 || names["read_file"] == "" || names["list_directory"] == "" || names["search_files"] == "" || !strings.Contains(names["write_file"], "create-only") || names["edit_file"] != "" || !strings.Contains(names["shell"], "NOT isolated") {
 		t.Fatalf("Windows native tools or boundary description: %+v", schemas)
 	}
 	a.Session().Append("turn/start", map[string]int{"turn": 1})
@@ -76,5 +80,41 @@ func TestWindowsPartialMountIsShellOnlyAndAlwaysAsks(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "denied.txt")); !os.IsNotExist(err) {
 		t.Fatalf("denied shell executed: %v", err)
+	}
+}
+
+func TestWindowsReadOnlyMountOmitsFileMutations(t *testing.T) {
+	pwsh, err := exec.LookPath("pwsh.exe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pwsh, err = filepath.Abs(pwsh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := harness.Boot(t.Context(), harness.Options{ApprovalPolicy: harness.ApprovalAsk})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	app, err := Mount(t.Context(), h, Options{Workspace: root, EnableShell: true, Shell: pwsh, Sandbox: &sandbox.Config{Backend: sandbox.BackendWindowsACL, Mode: sandbox.ReadOnly}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { h.Dispose(context.Background()); h.Drain(context.Background()); app.Close() }()
+	agent, err := h.Agents().Create(t.Context(), harness.AgentOptions{ID: "windows-read-only", CWD: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, err := h.Tools().SchemasForAgent(t.Context(), agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, schema := range schemas {
+		names[schema.Name] = true
+	}
+	if len(names) != 4 || !names["read_file"] || !names["list_directory"] || !names["search_files"] || !names["shell"] || names["write_file"] || names["edit_file"] {
+		t.Fatalf("read-only mutation capability leaked: %+v", names)
 	}
 }

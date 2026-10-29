@@ -167,7 +167,7 @@ func TestShellOutputBudgetRetainsTail(t *testing.T) {
 }
 
 func TestUnsupportedNativeMount(t *testing.T) {
-	if goruntime.GOOS == "linux" || goruntime.GOOS == "darwin" {
+	if goruntime.GOOS == "linux" || goruntime.GOOS == "darwin" || goruntime.GOOS == "windows" {
 		t.Skip("unsupported-platform contract")
 	}
 	h, err := harness.Boot(t.Context(), harness.Options{})

@@ -42,7 +42,15 @@ On Windows, select `--sandbox=windows-acl-read-only` or
 description and result report this partial boundary. Every invocation still
 requires approval; no strict native auto-approval descriptor is emitted.
 
-Windows mounts **only `shell`**. Descriptor-rooted file tools remain Unix-only;
-this opt-in does not silently replace them with weaker pathname operations.
-Session cwd must match the configured shell workspace and its original identity.
+Windows `--workspace` independently enables bounded `read_file`,
+`list_directory`, `search_files` and approved **create-new-only** `write_file`.
+The create-only description is exposed to the model; an existing target is always
+rejected and `edit_file` is omitted. No shell or ACL changes are required for file
+tools. Explicit root AGENTS.md loading also uses this read capability.
+
+The Windows partial sandbox adds `shell` to those file tools. Its read-only mode
+omits `write_file` as well as `edit_file`; shell remains approved and partial.
+File-tool reads/creates remain workspace-handle-confined regardless of the shell's
+unconfined-read/network limitations. Session cwd must match the configured
+workspace and its original identity.
 No Windows shell is enabled without the explicit partial sandbox selection.

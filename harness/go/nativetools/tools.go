@@ -80,16 +80,11 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 		}
 	}
 	windowsShell := runtime.GOOS == "windows" && opts.Sandbox != nil && opts.Sandbox.Backend == sandbox.BackendWindowsACL
-	var files *fstools.Workspace
-	var err error
-	workspace := opts.Workspace
-	if !windowsShell {
-		files, err = fstools.OpenWorkspace(workspace)
-		if err != nil {
-			return nil, err
-		}
-		workspace = files.Path()
+	files, err := fstools.OpenWorkspace(opts.Workspace)
+	if err != nil {
+		return nil, err
 	}
+	workspace := files.Path()
 	app = &App{files: files}
 	defer func() {
 		if resultErr != nil && files != nil {
@@ -115,11 +110,6 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 		}},
 		{"list_directory", "List up to 256 direct workspace directory entries; does not follow symlinks.", `"path":{"type":"string"}`, ``, false, func(c context.Context, a arguments) (any, error) { return files.List(c, a.Path) }},
 		{"search_files", "Find literal query text in bounded workspace files. At most 512 entries, 8 MiB text and 64 matches; symlinks skipped.", `"path":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096}`, `"query"`, false, func(c context.Context, a arguments) (any, error) { return files.Search(c, a.Path, a.Query) }},
-	}
-	if windowsShell {
-		// The descriptor-rooted file backend remains Unix-only. Do not replace it
-		// with pathname operations just to make Windows composition succeed.
-		definitions = nil
 	}
 	if opts.EnableShell {
 		if opts.Shell == "" {
@@ -157,7 +147,7 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 		description := "Run an approved foreground Bash command with a minimal environment, bounded output and timeout. NOT an OS sandbox: may access outside workspace or network. No background jobs."
 		if opts.Sandbox != nil {
 			if windowsShell {
-				description = "Run an approved bounded foreground PowerShell command with partial Windows ACL write isolation. Outside reads and network are NOT isolated. Workspace mode: " + string(opts.Sandbox.Mode) + ". Native file tools are unavailable on Windows."
+				description = "Run an approved bounded foreground PowerShell command with partial Windows ACL write isolation. Outside reads and network are NOT isolated. Workspace mode: " + string(opts.Sandbox.Mode) + ". File tools remain independently workspace-confined."
 			} else {
 				description = "Run an approved bounded foreground command in a strict native sandbox. Network denied; only declared runtime files and workspace readable. Workspace mode: " + string(opts.Sandbox.Mode)
 			}
@@ -185,6 +175,14 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 	for _, d := range definitions {
 		if opts.Sandbox != nil && opts.Sandbox.Mode == sandbox.ReadOnly && (d.name == "write_file" || d.name == "edit_file") {
 			continue
+		}
+		if !files.SupportsReplacement() {
+			if d.name == "edit_file" {
+				continue
+			}
+			if d.name == "write_file" {
+				d.description = "Create a NEW bounded UTF-8 file under the configured workspace. Windows create-only: existing files are never replaced; edit is unavailable. Parent directory must exist. Requires approval."
+			}
 		}
 		var admission func(context.Context, harness.ToolRequest) (*harness.NativeApprovalDescriptor, error)
 		if d.name == "shell" {
