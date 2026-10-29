@@ -279,7 +279,7 @@ impl Workbench {
                                         },
                                     ))
                                     .on_click(cx.listener(move |this, _, window, cx| {
-                                        this.navigation = 5;
+                                        this.navigate(WorkbenchPage::Workers, cx);
                                         if this.local_execution.setup.configuration.is_none() {
                                             this.local_execution.project_id = project_id.clone();
                                             this.local_execution.agent_id = agent_id.clone();
@@ -416,8 +416,13 @@ impl Workbench {
         let task = &detail["task"];
         let run = &detail["run"];
         let id = string(task, "id").to_string();
-        let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
-        let active = !id.is_empty() && id == selected;
+        let selected = match self.navigation.current() {
+            Some(WorkspaceItem::Task(id)) => id.as_str(),
+            _ => "",
+        };
+        let active = !id.is_empty()
+            && id == selected
+            && self.remote.data["selected_task_id"].as_str() == Some(selected);
         let events = detail["events"]
             .as_array()
             .map(Vec::as_slice)

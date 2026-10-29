@@ -3,6 +3,7 @@ use super::*;
 impl Workbench {
     pub(crate) fn remote_list(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         use crate::projects::TaskStatusFilter;
+        let owner = cx.entity().clone();
         let p = self.palettes.get(self.dark);
         let loading = self.remote.loading();
         let query = self.remote.search.read(cx).value().to_lowercase();
@@ -218,6 +219,9 @@ impl Workbench {
             });
         div()
             .id("remote-list")
+            .on_prepaint(move |_, window, cx| {
+                owner.update(cx, |this, cx| this.follow_task_pages(window, cx))
+            })
             .w_full()
             .flex_1()
             .min_w_0()
@@ -336,7 +340,7 @@ impl Workbench {
     }
 
     pub(crate) fn follow_task_pages(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.task_list_mounted(window)
+        if !self.task_list_mounted()
             || self.task_more_pending
             || self.remote.loading()
             || self.remote.data["error"].is_string()
@@ -353,8 +357,8 @@ impl Workbench {
         cx.on_next_frame(window, |this, _, cx| this.request_more_tasks(cx));
     }
 
-    fn task_list_mounted(&self, window: &Window) -> bool {
-        if self.navigation != 3
+    fn task_list_mounted(&self) -> bool {
+        if self.navigation.page() != WorkbenchPage::Tasks
             || self.project_tab != crate::projects::ProjectTab::Tasks
             || !self.remote.configured()
             || self.remote.connection.editing
@@ -364,9 +368,7 @@ impl Workbench {
         if self.remote.client() && self.remote.public_contributions {
             return false;
         }
-        let _ = window;
-        let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
-        !self.remote.creating && selected.is_empty()
+        !self.remote.creating && !matches!(self.navigation.current(), Some(WorkspaceItem::Task(_)))
     }
 
     fn task_scroll_wants_more(&self) -> bool {

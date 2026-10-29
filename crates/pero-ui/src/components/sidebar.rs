@@ -1,4 +1,5 @@
 use super::{ActionHandler, Ui, click};
+use crate::workspace::WorkbenchPage;
 use gpui_kit::{
     component::{
         button::*,
@@ -33,7 +34,7 @@ pub(crate) struct ProjectGroup {
     pub rows: Vec<RecentRow>,
 }
 pub(crate) struct SidebarProps<'a> {
-    pub navigation: usize,
+    pub navigation: WorkbenchPage,
     pub local_connected: bool,
     pub groups: Vec<ProjectGroup>,
     pub ungrouped: Vec<RecentRow>,
@@ -42,7 +43,7 @@ pub(crate) struct SidebarProps<'a> {
 #[derive(Clone)]
 pub(crate) enum SidebarAction {
     NewChat,
-    Navigate(usize),
+    Navigate(WorkbenchPage),
     OpenProject(String),
     ToggleProject(String),
     SelectSession(usize),
@@ -191,8 +192,14 @@ pub(crate) fn sidebar(
                 .child(div().flex_1())
                 .icon(Icon::default().path("icons/folder.svg"))
                 .label(ui.t("nav.projects"))
-                .toggled(matches!(props.navigation, 1 | 3))
-                .on_click(click(&on_action, SidebarAction::Navigate(1))),
+                .toggled(matches!(
+                    props.navigation,
+                    WorkbenchPage::Projects | WorkbenchPage::Tasks
+                ))
+                .on_click(click(
+                    &on_action,
+                    SidebarAction::Navigate(WorkbenchPage::Projects),
+                )),
         )
         .child(
             div()
@@ -328,8 +335,11 @@ pub(crate) fn sidebar(
                         .child(div().flex_1())
                         .icon(Icon::default().path("icons/layout-list.svg"))
                         .label(ui.t("nav.insights"))
-                        .toggled(props.navigation == 8)
-                        .on_click(click(&on_action, SidebarAction::Navigate(8))),
+                        .toggled(props.navigation == WorkbenchPage::Insights)
+                        .on_click(click(
+                            &on_action,
+                            SidebarAction::Navigate(WorkbenchPage::Insights),
+                        )),
                 )
                 .child(
                     Button::new("sidebar-apps")
@@ -340,8 +350,11 @@ pub(crate) fn sidebar(
                         .child(div().flex_1())
                         .icon(Icon::default().path("icons/file-code.svg"))
                         .label(ui.t("nav.apps"))
-                        .toggled(props.navigation == 7)
-                        .on_click(click(&on_action, SidebarAction::Navigate(7))),
+                        .toggled(props.navigation == WorkbenchPage::Apps)
+                        .on_click(click(
+                            &on_action,
+                            SidebarAction::Navigate(WorkbenchPage::Apps),
+                        )),
                 ),
         )
         .when(!props.local_connected, |el| {

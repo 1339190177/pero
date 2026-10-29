@@ -1,4 +1,5 @@
 use crate::app::Workbench;
+use crate::workspace::{ConversationTab, WorkbenchPage};
 use gpui_kit::{
     component::{button::*, input::Input, *},
     prelude::*,
@@ -115,8 +116,8 @@ impl Workbench {
                     .position(|chat| chat.id == session.thread_id)
             })
         {
-            self.navigation = 0;
-            self.focus_chat(Some(index), 4, cx);
+            self.navigate(WorkbenchPage::Conversation, cx);
+            self.focus_chat(Some(index), ConversationTab::Chat, cx);
             return;
         }
         if !self

@@ -1,5 +1,6 @@
 //! Local execution setup carries public scope only; the shell owns credentials and processes.
 use crate::app::Workbench;
+use crate::workspace::WorkbenchPage;
 use gpui_kit::{
     component::{
         button::*,
@@ -111,7 +112,7 @@ impl Workbench {
     }
 
     pub(crate) fn show_local_execution_onboarding(&self) -> bool {
-        self.navigation == 1
+        self.navigation.page() == WorkbenchPage::Projects
             && self.local_execution.received_setup
             && !self.local_execution.setup.onboarding_complete
     }
@@ -147,7 +148,7 @@ impl Workbench {
                             self.local_execution.editing = false;
                         }
                         if finishing_welcome {
-                            self.navigation = 5;
+                            self.navigate(WorkbenchPage::Workers, cx);
                         }
                         if newly_configured && self.remote.configured() {
                             self.command(json!({"action":"remote_refresh"}), cx);
@@ -354,7 +355,7 @@ impl Workbench {
                         .loading(busy).disabled(busy || !connected && !local.setup.enabled)
                         .on_click(cx.listener(|this,_,_,cx|{this.local_execution.pending=true;this.command(json!({"action":if this.local_execution.setup.enabled{"local_worker_disable"}else{"local_worker_resume"}}),cx);})))
                     .child(Button::new("local-worker-configure").ghost().label(self.t("worker.local.configure")).disabled(busy)
-                        .on_click(cx.listener(|this,_,_,cx|{this.local_execution.pending_configuration=this.local_execution.setup.configuration.clone();this.local_execution.editing=true;cx.notify();}))))))
+                        .on_click(cx.listener(|this,_,window,cx|{this.local_execution.pending_configuration=this.local_execution.setup.configuration.clone();this.apply_local_execution(window,cx);this.local_execution.editing=true;cx.notify();}))))))
             .when(first_run,|el|el.child(Button::new("local-worker-skip").ghost().label(self.t("worker.local.skip")).disabled(busy)
                 .on_click(cx.listener(|this,_,_,cx|this.command(json!({"action":"local_worker_skip"}),cx)))))
     }

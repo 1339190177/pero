@@ -1,5 +1,6 @@
 //! Cloud-owned tasks. The main-process adapter owns HTTP and credentials.
 use crate::app::Workbench;
+use crate::workspace::WorkbenchPage;
 use gpui_kit::{
     component::input::{EditorState, InputEvent, InputState},
     *,
@@ -216,7 +217,7 @@ impl Workbench {
     pub fn receive_remote(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
         if event.kind == "remote_open" {
             if !self.show_local_execution_onboarding() {
-                self.navigation = 3;
+                self.navigate(WorkbenchPage::Tasks, cx);
             }
             self.selected_project = None;
             self.project_tab = crate::projects::ProjectTab::Tasks;
@@ -261,11 +262,11 @@ impl Workbench {
         if !self.remote.seen_connection && self.remote.configured() {
             self.remote.seen_connection = true;
             if !self.show_local_execution_onboarding()
-                && self.navigation == 1
+                && self.navigation.page() == WorkbenchPage::Projects
                 && self.chat.read(cx).active_chat.is_none()
                 && self.selected_project.is_none()
             {
-                self.navigation = 3;
+                self.navigate(WorkbenchPage::Tasks, cx);
             }
             self.sync_follow(cx);
         }
@@ -281,6 +282,12 @@ impl Workbench {
         if !self.remote.loading() && self.remote.submitting {
             self.remote.submitting = false;
             if self.remote.data["error"].is_null() {
+                if self.remote.creating && self.navigation.page() == WorkbenchPage::Tasks {
+                    let id = self.remote.data["selected_task_id"]
+                        .as_str()
+                        .map(str::to_owned);
+                    self.record_task_selection(id);
+                }
                 self.remote.creating = false;
             }
         }

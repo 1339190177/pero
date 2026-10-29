@@ -8,6 +8,10 @@ use crate::{
         workspace::{self, AgentRow, WorkspaceAction},
     },
 };
+use crate::{
+    layout::{ChatPlacement, WorkspaceLayout},
+    workspace::{ConversationTab, WorkbenchPage, WorkspaceItem},
+};
 use gpui_kit::{prelude::*, *};
 use serde_json::json;
 use std::rc::Rc;
@@ -52,9 +56,9 @@ impl Workbench {
                     }
                     SidebarAction::Navigate(index) => {
                         this.chat.update(cx, |panel, _| panel.deleting_chat = None);
-                        this.navigation = *index;
+                        this.navigate(*index, cx);
                         this.sync_follow(cx);
-                        if *index == 7 {
+                        if *index == WorkbenchPage::Apps {
                             this.refresh_apps(cx);
                         }
                     }
@@ -70,8 +74,7 @@ impl Workbench {
                     }
                     SidebarAction::SelectSession(index) => {
                         this.chat.update(cx, |panel, _| panel.deleting_chat = None);
-                        this.navigation = 0;
-                        this.focus_chat(Some(*index), 4, cx);
+                        this.focus_chat(Some(*index), ConversationTab::Chat, cx);
                     }
                     SidebarAction::SelectTask(id) => {
                         this.chat.update(cx, |panel, _| panel.deleting_chat = None);
@@ -84,11 +87,16 @@ impl Workbench {
         let panel = self.chat.read(cx);
         let query = self.search.read(cx).value().to_lowercase();
         let matches = |title: &str| query.is_empty() || title.to_lowercase().contains(&query);
+        let selected_task = match self.navigation.current() {
+            Some(WorkspaceItem::Task(id)) => Some(id.as_str()),
+            _ => None,
+        };
         let session_row =
             |i: usize, chat: &pero_chat_ui::conversation::Conversation| sidebar::RecentRow {
                 label: chat.title.clone(),
                 icon: "terminal",
-                active: self.navigation == 0 && panel.active_chat == Some(i),
+                active: self.navigation.page() == WorkbenchPage::Conversation
+                    && panel.active_chat == Some(i),
                 busy: chat.busy(),
                 attention: chat.permission.is_some() || chat.error.is_some(),
                 action: SidebarAction::SelectSession(i),
@@ -131,16 +139,14 @@ impl Workbench {
                                     .recent_tasks
                                     .iter()
                                     .any(|id| Some(id.as_str()) == task["id"].as_str())
-                                    || self.remote.data["selected_task_id"].as_str()
-                                        == task["id"].as_str())
+                                    || selected_task
+                                        .is_some_and(|id| task["id"].as_str() == Some(id)))
                         })
                         .take(4)
                         .map(|task| sidebar::RecentRow {
                             label: crate::remote::string(task, "title").to_string(),
                             icon: "layout-list",
-                            active: self.navigation == 3
-                                && self.remote.data["selected_task_id"].as_str()
-                                    == task["id"].as_str(),
+                            active: selected_task.is_some_and(|id| task["id"].as_str() == Some(id)),
                             busy: matches!(
                                 phase(task),
                                 crate::cloud::Phase::Running | crate::cloud::Phase::Stopping
@@ -159,7 +165,7 @@ impl Workbench {
                     return None;
                 }
                 Some(sidebar::ProjectGroup {
-                    active: self.navigation == 3
+                    active: self.navigation.page() == WorkbenchPage::Tasks
                         && self.selected_project.as_ref() == Some(&project.key),
                     collapsed: self.collapsed_projects.contains(&project.key),
                     path: project
@@ -183,7 +189,7 @@ impl Workbench {
             self.ui(),
             width,
             SidebarProps {
-                navigation: self.navigation,
+                navigation: self.navigation.page(),
                 local_connected: self.connected,
                 groups,
                 ungrouped,
@@ -204,7 +210,7 @@ impl Workbench {
                 agent: chat.agent.clone(),
                 closed: chat.state == "closed",
             });
-        let content = if self.tab == 4 {
+        let content = if self.tab == ConversationTab::Chat {
             self.chat.clone().into_any_element()
         } else {
             let ui = self.ui();
@@ -214,7 +220,7 @@ impl Workbench {
                 .min_h_0()
                 .overflow_y_scroll()
                 .p(px(20.))
-                .when(self.tab == 3, |el| {
+                .when(self.tab == ConversationTab::Logs, |el| {
                     el.children(self.events.iter().map(|event| {
                         div()
                             .py(px(8.))
@@ -283,27 +289,6 @@ impl Workbench {
 
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let scope = self
-            .apps
-            .active
-            .as_ref()
-            .filter(|_| self.navigation == 7)
-            .map(|active| pero_contracts::AppChatScope {
-                app: active.name.clone(),
-                panel: active.panel.clone(),
-            });
-        self.chat.update(cx, |chat, cx| chat.set_scope(scope, cx));
-        self.sync_follow(cx);
-        let show_return = self
-            .chat
-            .read(cx)
-            .active_chat
-            .and_then(|i| self.chat.read(cx).chats.get(i))
-            .is_some_and(|chat| {
-                self.contribution.data["local"]["thread_id"].as_str() == Some(chat.id.as_str())
-            });
-        self.chat
-            .update(cx, |chat, _| chat.show_return_to_review = show_return);
         if self.input_locale != self.locale {
             self.input_locale = self.locale.clone();
             let placeholder = self.t("sessions.search");
@@ -319,23 +304,21 @@ impl Render for Workbench {
                 input.set_placeholder(placeholder, window, cx)
             });
         }
-        self.apply_local_execution(window, cx);
         let width: f32 = window.viewport_size().width.into();
-        let compact = width < 1150.;
-        let sidebar_width = if compact { 240. } else { 260. };
-        self.sync_content_tabs(window, cx);
-        self.sync_follow(cx);
-        let chat_width = self.chat_dock_width(width, width - sidebar_width);
-        let dock = self.chat_dock_visible();
-        let narrow = width < 1050.;
-        let has_tabs = !self.contents.items().is_empty();
-        self.follow_task_pages(window, cx);
-        if self.navigation != 7
-            || self.apps.active.is_none()
-            || self.settings_menu_open
-            || self.resizing_chat
-            || (dock && narrow)
-        {
+        let layout = WorkspaceLayout::resolve(
+            width,
+            self.navigation.route(),
+            self.tab,
+            &self.preferences.layout,
+            self.settings_menu_open || self.resizing_chat,
+        );
+        self.layout = layout;
+        let sidebar_width = layout.sidebar_width;
+        let chat_width = layout.chat_width;
+        let dock = layout.chat == ChatPlacement::Dock;
+        let narrow = layout.narrow;
+        let has_tabs = !self.navigation.items().is_empty();
+        if !layout.app_surface_visible {
             self.sync_app_surface(None);
         }
         let p = self.palettes.get(self.dark);
@@ -406,7 +389,7 @@ impl Render for Workbench {
                             .flex_1()
                             .min_h_0()
                             .flex()
-                            .when(!dock || !narrow, |el| {
+                            .when(layout.content_visible, |el| {
                                 el.child(
                                     div()
                                         .flex_1()
@@ -415,15 +398,20 @@ impl Render for Workbench {
                                         .h_full()
                                         .flex()
                                         .flex_col()
-                                        .when(self.navigation == 3, |el| {
-                                            el.child(self.project_workspace(width < 1050., cx))
-                                        })
-                                        .when(self.navigation == 0, |el| {
-                                            el.child(self.detail(window, cx))
-                                        })
-                                        .when(self.navigation == 5, |el| {
-                                            el.child(self.workers_view(cx))
-                                        })
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Tasks,
+                                            |el| {
+                                                el.child(self.project_workspace(layout.narrow, cx))
+                                            },
+                                        )
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Conversation,
+                                            |el| el.child(self.detail(window, cx)),
+                                        )
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Workers,
+                                            |el| el.child(self.workers_view(cx)),
+                                        )
                                         .when(self.show_local_execution_onboarding(), |el| {
                                             el.child(
                                                 div()
@@ -437,25 +425,29 @@ impl Render for Workbench {
                                             )
                                         })
                                         .when(
-                                            self.navigation == 1
+                                            self.navigation.page() == WorkbenchPage::Projects
                                                 && !self.show_local_execution_onboarding(),
                                             |el| el.child(self.projects_view(cx)),
                                         )
-                                        .when(self.navigation == 2, |el| {
-                                            el.child(self.environments(cx))
-                                        })
-                                        .when(self.navigation == 7, |el| {
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Agents,
+                                            |el| el.child(self.environments(cx)),
+                                        )
+                                        .when(self.navigation.page() == WorkbenchPage::Apps, |el| {
                                             el.child(self.apps_view(cx))
                                         })
-                                        .when(self.navigation == 8, |el| {
-                                            el.child(self.insights_view(cx))
-                                        })
-                                        .when(self.navigation == 9, |el| {
-                                            el.child(self.remote_connection_view(cx))
-                                        })
-                                        .when(self.navigation == 10, |el| {
-                                            el.child(self.general_settings(cx))
-                                        }),
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Insights,
+                                            |el| el.child(self.insights_view(cx)),
+                                        )
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Connections,
+                                            |el| el.child(self.remote_connection_view(cx)),
+                                        )
+                                        .when(
+                                            self.navigation.page() == WorkbenchPage::Settings,
+                                            |el| el.child(self.general_settings(cx)),
+                                        ),
                                 )
                             })
                             .when(dock, |el| {

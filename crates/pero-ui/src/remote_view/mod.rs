@@ -12,6 +12,7 @@ use crate::{
         source_context, source_label, string, task_tags,
     },
     theme::Palette,
+    workspace::{WorkbenchPage, WorkspaceItem},
 };
 use gpui_kit::{
     component::{
@@ -95,8 +96,8 @@ impl Workbench {
     }
     pub fn remote_view(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
-        let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
-        let detail_visible = self.remote.creating || !selected.is_empty();
+        let detail_visible = self.remote.creating
+            || matches!(self.navigation.current(), Some(WorkspaceItem::Task(_)));
         let configured = self.remote.configured();
         let editing = self.remote.connection.editing;
         div()
@@ -151,7 +152,7 @@ impl Workbench {
             .when(!configured && !editing,|el|el.child(div().p(px(24.)).flex().flex_col().gap(px(12.))
                 .child(div().text_color(p.color("text-muted")).child(self.t("project.connect_tasks")))
                 .child(Button::new("project-connect").outline().label(self.t("settings.connections"))
-                    .on_click(cx.listener(|this,_,window,cx|{this.navigation=9;this.open_remote_connection(window,cx);} )))))
+                    .on_click(cx.listener(|this,_,window,cx|{this.navigate(WorkbenchPage::Connections,cx);this.open_remote_connection(window,cx);} )))))
             .when(
                 configured && !editing && self.remote.public_contributions && self.remote.client(),
                 |el| el.child(self.contribution_view(narrow, cx)),

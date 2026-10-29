@@ -1,4 +1,5 @@
 //! Public human contributions reuse local ACP sessions; no Worker execution is fabricated.
+use crate::workspace::{ConversationTab, WorkbenchPage};
 use crate::{app::Workbench, remote::string};
 use gpui_kit::{
     component::{button::*, *},
@@ -53,8 +54,8 @@ impl Workbench {
                 panel.workspace = workspace;
                 index
             });
-            self.navigation = 0;
-            self.focus_chat(Some(index), 4, cx);
+            self.navigate(WorkbenchPage::Conversation, cx);
+            self.focus_chat(Some(index), ConversationTab::Chat, cx);
         }
         true
     }

@@ -1,6 +1,12 @@
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
 pub(crate) use crate::native::{request_locale, send_probe, session_command};
 use crate::theme::Palettes;
+use crate::{
+    layout::WorkspaceLayout,
+    workspace::{
+        ConversationTab, WorkbenchPage, WorkspaceItem, WorkspaceNavigation, WorkspaceRoute,
+    },
+};
 use gpui_kit::{
     component::input::{InputEvent, InputState},
     *,
@@ -16,7 +22,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_family = "wasm")]
 thread_local! {
     static APPLICATION: RefCell<Option<ApplicationHandle>> = const { RefCell::new(None) };
-    static WORKBENCH: RefCell<Option<WeakEntity<Workbench>>> = const { RefCell::new(None) };
+    static WORKBENCH: RefCell<Option<(AnyWindowHandle, WeakEntity<Workbench>)>> = const { RefCell::new(None) };
 }
 
 #[cfg(target_family = "wasm")]
@@ -48,16 +54,16 @@ pub(crate) struct Workbench {
     pub(crate) local_roadmap: crate::local_roadmap::RoadmapState,
     pub task_status: crate::projects::TaskStatusFilter,
     pub pending_project_workspace: bool,
-    pub navigation: usize,
+    pub navigation: WorkspaceNavigation,
     pub remote: crate::remote::RemoteState,
     pub local_execution: crate::local_execution::LocalExecution,
     pub contribution: crate::contributions::ContributionState,
-    pub apps: crate::apps::AppWorkspace,
+    pub apps: crate::apps::AppCatalog,
     pub app_surface: String,
-    pub contents: crate::workspace::WorkspaceTabs,
+    pub layout: WorkspaceLayout,
     pub resizing_chat: bool,
     pub chat_resize_focus: FocusHandle,
-    pub tab: usize,
+    pub tab: ConversationTab,
     pub connected: bool,
     pub pending: Option<String>,
     pub next_request: u64,
@@ -99,7 +105,11 @@ impl Workbench {
                 .placeholder(pero_contracts::i18n::text(&locale, "sessions.search"))
         });
         let mut subscriptions = subscriptions;
-        subscriptions.push(cx.observe(&chat, |_, _, cx| cx.notify()));
+        subscriptions.push(cx.observe_in(&chat, window, |this, _, window, cx| {
+            this.reconcile_content(window, cx);
+            this.sync_follow(cx);
+            cx.notify();
+        }));
         subscriptions.push(cx.subscribe(&chat, |this, _, event, cx| {
             match event {
                 ChatAction::Command(command) => this.command(
@@ -115,15 +125,16 @@ impl Workbench {
                 ),
                 ChatAction::Activated => {
                     if !this.chat_dock_visible() {
-                        this.navigation = 0;
+                        let index = this.chat.read(cx).active_chat;
+                        this.focus_chat(index, ConversationTab::Chat, cx);
                     }
-                    this.tab = 4;
+                    this.tab = ConversationTab::Chat;
                     this.error = None;
                     this.sync_follow(cx);
                 }
                 ChatAction::ReturnToReview => {
                     this.remote.public_contributions = true;
-                    this.navigation = 3;
+                    this.navigate(WorkbenchPage::Tasks, cx);
                     this.sync_follow(cx);
                 }
             }
@@ -139,13 +150,22 @@ impl Workbench {
         }));
         let remote = crate::remote::RemoteState::new(window, cx);
         let local_execution = crate::local_execution::LocalExecution::new(&locale, window, cx);
+        let navigation = WorkspaceNavigation::default();
+        let preferences = pero_contracts::workbench::WorkbenchPreferences::default();
+        let layout = WorkspaceLayout::resolve(
+            window.viewport_size().width.into(),
+            navigation.route(),
+            ConversationTab::Chat,
+            &preferences.layout,
+            false,
+        );
         Self {
             remote,
             local_execution,
             contribution: Default::default(),
-            apps: crate::apps::AppWorkspace::default(),
+            apps: crate::apps::AppCatalog::default(),
             app_surface: String::new(),
-            contents: Default::default(),
+            layout,
             resizing_chat: false,
             chat_resize_focus: cx.focus_handle().tab_stop(true),
             input,
@@ -154,7 +174,7 @@ impl Workbench {
             palettes,
             dark,
             system_dark: dark,
-            preferences: Default::default(),
+            preferences,
             preferences_status: Default::default(),
             settings_menu_open: false,
             recent_tasks: Vec::new(),
@@ -165,8 +185,8 @@ impl Workbench {
             local_roadmap: Default::default(),
             task_status: Default::default(),
             pending_project_workspace: false,
-            navigation: 1,
-            tab: 4,
+            navigation,
+            tab: ConversationTab::Chat,
             connected: false,
             pending: None,
             next_request: 0,
@@ -185,34 +205,84 @@ impl Workbench {
     }
 
     pub fn sync_follow(&mut self, cx: &mut Context<Self>) {
+        let scope = match self.navigation.current() {
+            Some(WorkspaceItem::App { name, panel }) => Some(pero_contracts::AppChatScope {
+                app: name.clone(),
+                panel: panel.clone(),
+            }),
+            Some(WorkspaceItem::Conversation(id)) => self
+                .chat
+                .read(cx)
+                .chats
+                .iter()
+                .find(|chat| &chat.id == id)
+                .and_then(|chat| chat.scope.clone()),
+            _ => None,
+        };
         let visible = self.chat_visible();
-        self.chat
-            .update(cx, |chat, cx| chat.set_visible(visible, cx));
+        let show_return = self
+            .chat
+            .read(cx)
+            .active_chat
+            .and_then(|i| self.chat.read(cx).chats.get(i))
+            .is_some_and(|chat| {
+                self.contribution.data["local"]["thread_id"].as_str() == Some(chat.id.as_str())
+            });
+        self.chat.update(cx, |chat, cx| {
+            chat.set_scope(scope, cx);
+            chat.set_visible(visible, cx);
+            chat.show_return_to_review = show_return;
+        });
     }
 
-    pub fn focus_chat(&mut self, index: Option<usize>, tab: usize, cx: &mut Context<Self>) {
+    pub(crate) fn navigate(&mut self, page: WorkbenchPage, cx: &mut Context<Self>) {
+        self.navigation.show(page);
+        self.sync_follow(cx);
+        cx.notify();
+    }
+
+    pub fn focus_chat(
+        &mut self,
+        index: Option<usize>,
+        tab: ConversationTab,
+        cx: &mut Context<Self>,
+    ) {
         self.tab = tab;
-        self.chat.update(cx, |chat, cx| {
-            chat.set_scope(None, cx);
-            chat.focus_chat(index, cx);
-        });
+        let selected = index
+            .and_then(|i| self.chat.read(cx).chats.get(i))
+            .map(|chat| (chat.id.clone(), chat.scope.clone()));
+        if let Some((id, scope)) = selected {
+            self.navigation.open(WorkspaceItem::Conversation(id));
+            self.chat.update(cx, |chat, cx| {
+                chat.set_scope(scope, cx);
+                chat.focus_chat(index, cx);
+            });
+        } else {
+            self.navigation.show(WorkbenchPage::Conversation);
+            self.chat.update(cx, |chat, cx| chat.focus_chat(None, cx));
+        }
         self.sync_follow(cx);
         cx.notify();
     }
 
     pub fn new_chat(&mut self, cx: &mut Context<Self>) {
-        self.navigation = 0;
-        self.tab = 4;
+        self.navigation.show(WorkbenchPage::Conversation);
+        self.tab = ConversationTab::Chat;
         self.error = None;
         self.chat
             .update(cx, |chat, cx| chat.new_chat_in_scope(None, cx));
-        self.sync_follow(cx);
-        cx.notify();
+        let index = self.chat.read(cx).active_chat;
+        self.focus_chat(index, ConversationTab::Chat, cx);
     }
 
     pub fn command(&mut self, value: Value, cx: &mut Context<Self>) {
+        if value["action"] == "remote_select" {
+            self.record_task_selection(value["task_id"].as_str().map(str::to_owned));
+            self.sync_follow(cx);
+        }
         if value["action"] == "choose_workspace"
-            && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings)
+            && (self.navigation.page() != WorkbenchPage::Tasks
+                || self.project_tab != crate::projects::ProjectTab::Settings)
         {
             self.pending_project_workspace = false;
         }
@@ -257,129 +327,158 @@ impl Workbench {
         cx.notify();
     }
 
-    pub(crate) fn receive(&mut self, event: HostEvent, cx: &mut Context<Self>) {
-        if self.receive_roadmap(&event, cx) {
-            return;
-        }
-        if self.receive_local_execution(&event, cx) {
-            return;
-        }
-        if self.receive_contribution(&event, cx) {
-            return;
-        }
-        if self.receive_apps(&event, cx) {
-            return;
-        }
-        if self.receive_remote(&event, cx) {
-            return;
-        }
-        let handled = self.chat.update(cx, |chat, cx| chat.receive(&event, cx));
-        if event.kind == "agents" {
-            self.workspace = event.text.clone();
-        }
-        if event.kind == "workspace" {
-            self.workspace = event.text.clone();
-            if let Ok(identity) = serde_json::from_value::<
-                pero_contracts::workbench::WorkspaceIdentity,
-            >(event.data.clone())
-            {
-                self.workspace_repositories
-                    .retain(|entry| entry.workspace != event.text);
-                if let Some(repository) = identity.repository {
-                    self.workspace_repositories.push(
-                        pero_contracts::workbench::WorkspaceRepository {
-                            workspace: event.text.clone(),
-                            repository,
-                        },
-                    );
-                }
+    pub(crate) fn receive(
+        &mut self,
+        event: HostEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let event_kind = event.kind.clone();
+        let feature_handled = self.receive_roadmap(&event, cx)
+            || self.receive_local_execution(&event, cx)
+            || self.receive_contribution(&event, cx)
+            || self.receive_apps(&event, cx)
+            || self.receive_remote(&event, cx);
+        if !feature_handled {
+            let handled = self.chat.update(cx, |chat, cx| chat.receive(&event, cx));
+            if event.kind == "agents" {
+                self.workspace = event.text.clone();
             }
-            self.reconcile_project_selection(cx);
-            if self.pending_project_workspace {
-                self.pending_project_workspace = false;
-                if let Some(id) = self
-                    .current_project(cx)
-                    .and_then(|project| project.shared_id)
-                {
-                    let mut preferences = self.preferences.clone();
-                    preferences.bind(event.text.clone(), id);
-                    self.save_preferences(preferences, cx);
-                    self.selected_project = Some(format!("workspace:{}", event.text));
-                }
-            }
-        }
-        if handled && !matches!(event.kind.as_str(), "ready" | "disconnected" | "settings") {
-            cx.notify();
-            return;
-        }
-        match event.kind.as_str() {
-            "workbench_settings" => {
-                if let Ok(preferences) = serde_json::from_value::<
-                    pero_contracts::workbench::WorkbenchPreferences,
+            if event.kind == "workspace" {
+                self.workspace = event.text.clone();
+                if let Ok(identity) = serde_json::from_value::<
+                    pero_contracts::workbench::WorkspaceIdentity,
                 >(event.data.clone())
                 {
-                    self.preferences = preferences;
-                    if self.preferences_status == crate::settings_menu::PreferenceSaveState::Saving
+                    self.workspace_repositories
+                        .retain(|entry| entry.workspace != event.text);
+                    if let Some(repository) = identity.repository {
+                        self.workspace_repositories.push(
+                            pero_contracts::workbench::WorkspaceRepository {
+                                workspace: event.text.clone(),
+                                repository,
+                            },
+                        );
+                    }
+                }
+                self.reconcile_project_selection(cx);
+                if self.pending_project_workspace {
+                    self.pending_project_workspace = false;
+                    if let Some(id) = self
+                        .current_project(cx)
+                        .and_then(|project| project.shared_id)
                     {
-                        self.preferences_status = crate::settings_menu::PreferenceSaveState::Saved;
+                        let mut preferences = self.preferences.clone();
+                        preferences.bind(event.text.clone(), id);
+                        self.save_preferences(preferences, cx);
+                        self.selected_project = Some(format!("workspace:{}", event.text));
                     }
-                    self.dark = self.preferences.appearance.dark(self.system_dark);
-                    self.palettes.apply(self.dark, cx);
-                    self.chat
-                        .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
-                    self.error = None;
                 }
             }
-            "settings" => {
-                self.locale = pero_contracts::i18n::normalize(&event.text).into();
-                gpui_kit::component::set_locale(&self.locale);
-                self.chat
-                    .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
-            }
-            "ready" => self.connected = true,
-            "disconnected" => {
-                self.connected = false;
-                self.pending = None;
-                self.chat.update(cx, |panel, cx| {
-                    for chat in &mut panel.chats {
-                        chat.pending_model = None;
+            if !handled || matches!(event.kind.as_str(), "ready" | "disconnected" | "settings") {
+                match event.kind.as_str() {
+                    "workbench_settings" => {
+                        if let Ok(preferences) = serde_json::from_value::<
+                            pero_contracts::workbench::WorkbenchPreferences,
+                        >(event.data.clone())
+                        {
+                            self.preferences = preferences;
+                            if self.preferences_status
+                                == crate::settings_menu::PreferenceSaveState::Saving
+                            {
+                                self.preferences_status =
+                                    crate::settings_menu::PreferenceSaveState::Saved;
+                            }
+                            self.dark = self.preferences.appearance.dark(self.system_dark);
+                            self.palettes.apply(self.dark, cx);
+                            self.chat.update(cx, |chat, cx| {
+                                chat.set_context(self.dark, &self.locale, cx)
+                            });
+                            self.error = None;
+                        }
                     }
-                    cx.notify();
-                });
-                self.error = Some(event.message_key.clone().unwrap_or_else(|| {
-                    if event.text.is_empty() {
-                        "error.connection".into()
-                    } else {
-                        event.text.clone()
+                    "settings" => {
+                        self.locale = pero_contracts::i18n::normalize(&event.text).into();
+                        gpui_kit::component::set_locale(&self.locale);
+                        self.chat
+                            .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
                     }
-                }));
-            }
-            "error" => {
-                if event.message_key.as_deref() == Some("error.preferences") {
-                    self.preferences_status = crate::settings_menu::PreferenceSaveState::Idle;
+                    "ready" => self.connected = true,
+                    "disconnected" => {
+                        self.connected = false;
+                        self.pending = None;
+                        self.chat.update(cx, |panel, cx| {
+                            for chat in &mut panel.chats {
+                                chat.pending_model = None;
+                            }
+                            cx.notify();
+                        });
+                        self.error = Some(event.message_key.clone().unwrap_or_else(|| {
+                            if event.text.is_empty() {
+                                "error.connection".into()
+                            } else {
+                                event.text.clone()
+                            }
+                        }));
+                    }
+                    "error" => {
+                        if event.message_key.as_deref() == Some("error.preferences") {
+                            self.preferences_status =
+                                crate::settings_menu::PreferenceSaveState::Idle;
+                        }
+                        self.error = Some(event.message_key.clone().unwrap_or_else(|| {
+                            if event.text.is_empty() {
+                                "error.connection".into()
+                            } else {
+                                event.text.clone()
+                            }
+                        }));
+                        if event.request_id == self.pending {
+                            self.pending = None;
+                        }
+                    }
+                    "echo" if event.request_id == self.pending => {
+                        self.pending = None;
+                        self.received += 1;
+                        self.last_echo = event.text.clone();
+                    }
+                    _ => {}
                 }
-                self.error = Some(event.message_key.clone().unwrap_or_else(|| {
-                    if event.text.is_empty() {
-                        "error.connection".into()
-                    } else {
-                        event.text.clone()
-                    }
-                }));
-                if event.request_id == self.pending {
-                    self.pending = None;
+                self.events.push(event);
+                if self.events.len() > 100 {
+                    self.events.remove(0);
                 }
             }
-            "echo" if event.request_id == self.pending => {
-                self.pending = None;
-                self.received += 1;
-                self.last_echo = event.text.clone();
-            }
-            _ => {}
         }
-        self.events.push(event);
-        if self.events.len() > 100 {
-            self.events.remove(0);
+        if event_kind == "replay" {
+            let index = match self.navigation.route() {
+                WorkspaceRoute::Page(WorkbenchPage::Conversation) => self.chat.read(cx).active_chat,
+                WorkspaceRoute::Content(WorkspaceItem::Conversation(id)) => self
+                    .chat
+                    .read(cx)
+                    .chats
+                    .iter()
+                    .position(|chat| &chat.id == id),
+                _ => None,
+            };
+            if let Some(index) = index {
+                self.focus_chat(Some(index), self.tab, cx);
+            }
         }
+        if event_kind == "remote_open"
+            && matches!(
+                self.navigation.route(),
+                WorkspaceRoute::Page(WorkbenchPage::Tasks)
+            )
+        {
+            let id = self.remote.data["selected_task_id"]
+                .as_str()
+                .map(str::to_owned);
+            self.record_task_selection(id);
+        }
+        self.apply_local_execution(window, cx);
+        self.reconcile_content(window, cx);
+        self.sync_follow(cx);
         cx.notify();
     }
     pub fn t(&self, key: &str) -> &'static str {
@@ -458,12 +557,13 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
             }
             gpui_kit::component::set_locale(&locale);
             palettes.apply(dark, cx);
-            gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
-                let view = cx.new(|cx| Workbench::new(palettes, dark, locale, window, cx));
-                WORKBENCH.with(|slot| *slot.borrow_mut() = Some(view.downgrade()));
-                view
-            })
-            .expect("workbench window");
+            let (window, view) =
+                gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+                    let view = cx.new(|cx| Workbench::new(palettes, dark, locale, window, cx));
+                    view
+                })
+                .expect("workbench window");
+            WORKBENCH.with(|slot| *slot.borrow_mut() = Some((window.into(), view.downgrade())));
         });
     APPLICATION.with(|slot| *slot.borrow_mut() = Some(handle));
     Ok(())
@@ -477,18 +577,20 @@ pub fn receive_host_event(json: &str) -> Result<(), JsValue> {
     if event.version != pero_contracts::PROTOCOL_VERSION {
         return Err(JsValue::from_str("Unsupported event version"));
     }
-    update(|ui, cx| ui.receive(event, cx));
+    update(|ui, window, cx| ui.receive(event, window, cx));
     Ok(())
 }
 
 #[cfg(target_family = "wasm")]
-fn update(f: impl FnOnce(&mut Workbench, &mut Context<Workbench>)) {
+fn update(f: impl FnOnce(&mut Workbench, &mut Window, &mut Context<Workbench>)) {
     APPLICATION.with(|app| {
         if let Some(app) = app.borrow().as_ref() {
             app.update(|cx| {
                 WORKBENCH.with(|view| {
-                    if let Some(view) = view.borrow().as_ref() {
-                        let _ = view.update(cx, f);
+                    if let Some((window, view)) = view.borrow().as_ref() {
+                        let _ = window.update(cx, |_, window, cx| {
+                            view.update(cx, |ui, cx| f(ui, window, cx))
+                        });
                     }
                 })
             });
@@ -501,20 +603,20 @@ fn update(f: impl FnOnce(&mut Workbench, &mut Context<Workbench>)) {
 #[wasm_bindgen]
 pub fn snapshot() -> String {
     let mut value = serde_json::json!({"ready": false});
-    update(|ui, cx| {
+    update(|ui, _, cx| {
         value = serde_json::json!({
             "ready": true, "remote": ui.remote.snapshot(cx), "contribution": ui.contribution.data, "publicContributions": ui.remote.public_contributions, "connected": ui.connected, "input": ui.input.read(cx).value().as_ref(),
             "received": ui.received, "lastEcho": ui.last_echo, "pending": ui.pending,
-            "error": ui.error, "dark": ui.dark, "navigation": ui.navigation,
+            "error": ui.error, "dark": ui.dark, "navigation": ui.navigation.page().legacy_index(),
             "preferences":ui.preferences,"selectedProject":ui.selected_project,"projectTab":ui.project_tab,"taskStatus":ui.task_status,
             "projects":ui.project_catalog(cx),"workspaceRepositories":ui.workspace_repositories,
-            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.preferences.layout.chat_open,
+            "apps": ui.apps.entries, "activeApp": ui.navigation.current().and_then(|item| match item { WorkspaceItem::App { name, panel } => Some(json!({"name":name,"panel":panel})), _ => None }), "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.preferences.layout.chat_open,
             "locale": ui.locale, "labels": { "tasks": ui.t("nav.tasks"), "send": ui.t("probe.send") },
-            "tab": ui.tab, "events": ui.events, "workspace": ui.workspace,
+            "tab": ui.tab.legacy_index(), "events": ui.events, "workspace": ui.workspace,
         });
         value["chatVisible"] = serde_json::json!(ui.chat_visible());
-        value["contentTabs"] = serde_json::json!(ui.contents.items());
-        value["activeContent"] = serde_json::json!(ui.current_content(cx));
+        value["contentTabs"] = serde_json::json!(ui.navigation.items());
+        value["activeContent"] = serde_json::json!(ui.navigation.current());
         value["chatPanelWidth"] = serde_json::json!(ui.preferences.layout.chat_width());
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
         value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
@@ -542,7 +644,7 @@ pub fn snapshot() -> String {
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn paste_image(data: &str, mime_type: &str) {
-    update(|ui, cx| {
+    update(|ui, _, cx| {
         ui.chat.update(cx, |chat, cx| {
             chat.queue_composer_image(data.to_owned(), mime_type.to_owned(), cx)
         })
@@ -552,7 +654,7 @@ pub fn paste_image(data: &str, mime_type: &str) {
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn set_system_theme(dark: bool) {
-    update(|ui, cx| {
+    update(|ui, _, cx| {
         ui.system_dark = dark;
         ui.dark = ui.preferences.appearance.dark(dark);
         ui.palettes.apply(ui.dark, cx);

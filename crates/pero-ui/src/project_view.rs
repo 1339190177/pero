@@ -3,6 +3,7 @@ use crate::{
     projects::{Project, ProjectTab},
     remote::string,
     remote_view::phase,
+    workspace::{ConversationTab, WorkbenchPage, WorkspaceItem},
 };
 use gpui_kit::{
     component::{button::*, input::Input, *},
@@ -102,16 +103,19 @@ impl Workbench {
         let Some(project) = self
             .project_catalog(cx)
             .into_iter()
-            .find(|project| project.key == key)
+            .find(|project| project.matches_key(&key))
         else {
             return;
         };
-        self.selected_project = Some(key);
+        let canonical = WorkspaceItem::Project(project.key.clone());
+        self.navigation
+            .replace_identity(&WorkspaceItem::Project(key), canonical.clone());
+        self.navigation.open(canonical);
+        self.selected_project = Some(project.key.clone());
         self.project_tab = ProjectTab::Tasks;
         self.local_roadmap.show_cloud = project.workspace.is_none();
         self.local_roadmap.selected_line = None;
         self.task_status = Default::default();
-        self.navigation = 3;
         self.remote.creating = false;
         self.remote.connection.editing = false;
         self.remote.public_contributions = false;
@@ -153,7 +157,7 @@ impl Workbench {
                     .map(|project| project.key);
             }
         }
-        self.navigation = 3;
+        self.navigation.open(WorkspaceItem::Task(id.clone()));
         self.project_tab = ProjectTab::Tasks;
         self.local_roadmap.show_cloud = true;
         self.remote.creating = false;
@@ -209,7 +213,7 @@ impl Workbench {
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.selected_project = None;
                                 this.project_tab = ProjectTab::Tasks;
-                                this.navigation = 3;
+                                this.navigate(WorkbenchPage::Tasks, cx);
                                 this.remote.connection.editing = false;
                                 this.remote.public_contributions = false;
                                 this.command(json!({"action":"remote_select","task_id":null}), cx);
@@ -427,7 +431,7 @@ impl Workbench {
                         .small()
                         .label(self.t("settings.connections"))
                         .on_click(cx.listener(|this, _, window, cx| {
-                            this.navigation = 9;
+                            this.navigate(WorkbenchPage::Connections, cx);
                             this.open_remote_connection(window, cx);
                         })),
                 ),
@@ -505,7 +509,7 @@ impl Workbench {
                         .small()
                         .label(self.t("settings.resources"))
                         .on_click(cx.listener(|this, _, _, cx| {
-                            this.navigation = 5;
+                            this.navigate(WorkbenchPage::Workers, cx);
                             this.command(json!({"action":"remote_refresh"}), cx);
                         })),
                 ),
@@ -662,8 +666,8 @@ impl Workbench {
                     .justify_start()
                     .label(format!("{} · {}", title, status))
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.navigation = 0;
-                        this.focus_chat(Some(i), 4, cx);
+                        this.navigate(WorkbenchPage::Conversation, cx);
+                        this.focus_chat(Some(i), ConversationTab::Chat, cx);
                     }))
             }))
             .children(tasks.into_iter().enumerate().map(|(i, task)| {

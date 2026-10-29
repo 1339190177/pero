@@ -1,4 +1,5 @@
 use crate::app::{Workbench, request_locale};
+use crate::workspace::WorkbenchPage;
 use gpui_kit::{
     component::{
         button::*,
@@ -99,19 +100,22 @@ impl Workbench {
                     .item(PopupMenuItem::new(connections.clone()).on_click(
                         move |_, window, cx| {
                             let _ = target.update(cx, |this, cx| {
-                                this.navigation = 9;
+                                this.navigate(WorkbenchPage::Connections, cx);
                                 this.open_remote_connection(window, cx);
                                 this.sync_follow(cx);
                             });
                         },
                     ));
-                for (label, navigation) in [(resources.clone(), 5), (agents.clone(), 2)] {
+                for (label, navigation) in [
+                    (resources.clone(), WorkbenchPage::Workers),
+                    (agents.clone(), WorkbenchPage::Agents),
+                ] {
                     let target = workbench.clone();
                     menu = menu.item(PopupMenuItem::new(label).on_click(move |_, _, cx| {
                         let _ = target.update(cx, |this, cx| {
-                            this.navigation = navigation;
+                            this.navigate(navigation, cx);
                             this.sync_follow(cx);
-                            if navigation == 5 {
+                            if navigation == WorkbenchPage::Workers {
                                 this.command(json!({"action":"remote_refresh"}), cx);
                             }
                             cx.notify();
@@ -168,7 +172,7 @@ impl Workbench {
                 menu.separator()
                     .item(PopupMenuItem::new(all.clone()).on_click(move |_, _, cx| {
                         let _ = target.update(cx, |this, cx| {
-                            this.navigation = 10;
+                            this.navigate(WorkbenchPage::Settings, cx);
                             this.sync_follow(cx);
                             cx.notify();
                         });
@@ -200,9 +204,9 @@ impl Workbench {
             .child(
                 div().flex().flex_wrap().gap(px(8.)).children(
                     [
-                        ("settings.connections", 9),
-                        ("settings.resources", 5),
-                        ("settings.agents", 2),
+                        ("settings.connections", WorkbenchPage::Connections),
+                        ("settings.resources", WorkbenchPage::Workers),
+                        ("settings.agents", WorkbenchPage::Agents),
                     ]
                     .into_iter()
                     .enumerate()
@@ -211,8 +215,8 @@ impl Workbench {
                             .outline()
                             .label(self.t(key))
                             .on_click(cx.listener(move |this, _, window, cx| {
-                                this.navigation = navigation;
-                                if navigation == 9 {
+                                this.navigate(navigation, cx);
+                                if navigation == WorkbenchPage::Connections {
                                     this.open_remote_connection(window, cx);
                                 }
                                 cx.notify();

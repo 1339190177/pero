@@ -1,4 +1,5 @@
 use super::{ActionHandler, Ui, click};
+use crate::workspace::ConversationTab;
 use gpui_kit::{
     component::{button::*, *},
     prelude::*,
@@ -12,12 +13,12 @@ pub(crate) struct SessionHeader {
 }
 pub(crate) struct TaskDetailProps {
     pub session: Option<SessionHeader>,
-    pub tab: usize,
+    pub tab: ConversationTab,
 }
 pub(crate) enum TaskDetailAction {
     NewSession,
     CloseSession,
-    SelectTab(usize),
+    SelectTab(ConversationTab),
 }
 pub(crate) fn task_detail(
     ui: Ui<'_>,
@@ -57,14 +58,20 @@ pub(crate) fn task_detail(
                         Button::new("session-logs")
                             .ghost()
                             .small()
-                            .label(ui.t(if props.tab == 3 {
+                            .label(ui.t(if props.tab == ConversationTab::Logs {
                                 "chat.session"
                             } else {
                                 "tab.logs"
                             }))
                             .on_click(click(
                                 &on_action,
-                                TaskDetailAction::SelectTab(if props.tab == 3 { 4 } else { 3 }),
+                                TaskDetailAction::SelectTab(
+                                    if props.tab == ConversationTab::Logs {
+                                        ConversationTab::Chat
+                                    } else {
+                                        ConversationTab::Logs
+                                    },
+                                ),
                             )),
                     )
                     .child(

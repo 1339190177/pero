@@ -27,52 +27,32 @@ pub(crate) struct AppSelection {
 }
 
 #[derive(Default)]
-pub(crate) struct AppWorkspace {
-    pub catalog: Vec<InstalledApp>,
-    pub active: Option<AppSelection>,
+pub(crate) struct AppCatalog {
+    pub entries: Vec<InstalledApp>,
     pub loading: bool,
     pub error: Option<String>,
     pub removing: Option<String>,
 }
 
-impl AppWorkspace {
-    /// A refreshed installation may no longer offer the currently selected panel.
-    pub fn replace_catalog(&mut self, catalog: Vec<InstalledApp>) {
-        self.catalog = catalog;
-        if let Some(active) = &self.active {
-            if !self.catalog.iter().any(|app| {
-                app.name == active.name
-                    && app.enabled
-                    && app.panels.iter().any(|panel| panel.id == active.panel)
-            }) {
-                self.active = None;
-            }
-        }
+impl AppCatalog {
+    pub fn replace_catalog(&mut self, entries: Vec<InstalledApp>) {
+        self.entries = entries;
         self.loading = false;
         self.error = None;
         self.removing = None;
     }
 
-    pub fn select(&mut self, name: &str, panel: &str) -> bool {
-        if self.catalog.iter().any(|app| {
+    pub fn contains_panel(&self, name: &str, panel: &str) -> bool {
+        self.entries.iter().any(|app| {
             app.name == name && app.enabled && app.panels.iter().any(|entry| entry.id == panel)
-        }) {
-            self.active = Some(AppSelection {
-                name: name.into(),
-                panel: panel.into(),
-            });
-            self.error = None;
-            true
-        } else {
-            false
-        }
+        })
     }
 }
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod surface {
     use super::*;
-    use crate::app::Workbench;
+    use crate::{app::Workbench, workspace::WorkspaceItem};
     use gpui_kit::{
         component::{button::*, *},
         prelude::*,
@@ -105,8 +85,11 @@ mod surface {
                     if let Ok(scope) =
                         serde_json::from_value::<pero_contracts::AppChatScope>(event.data.clone())
                     {
-                        if self.apps.select(&scope.app, &scope.panel) {
-                            self.navigation = 7;
+                        if self.apps.contains_panel(&scope.app, &scope.panel) {
+                            self.navigation.open(WorkspaceItem::App {
+                                name: scope.app.clone(),
+                                panel: scope.panel.clone(),
+                            });
                             self.set_chat_dock(true, cx);
                             self.chat
                                 .update(cx, |chat, cx| chat.set_scope(Some(scope), cx));
@@ -131,9 +114,10 @@ mod surface {
                     {
                         // Completion acknowledges this surface only. A slow backend
                         // must not reopen an App after the user left it.
-                        if self.navigation == 7
-                            && self.apps.active.as_ref().is_some_and(|active| {
-                                active.name == selection.name && active.panel == selection.panel
+                        if self.navigation.current()
+                            == Some(&WorkspaceItem::App {
+                                name: selection.name,
+                                panel: selection.panel,
                             })
                         {
                             self.apps.error = None;
@@ -150,12 +134,10 @@ mod surface {
         pub(crate) fn sync_app_surface(&mut self, bounds: Option<Bounds<Pixels>>) {
             #[cfg(target_family = "wasm")]
             {
-                let bounds = bounds.filter(|_| {
-                    self.navigation == 7 && !self.settings_menu_open && !self.resizing_chat
-                });
-                let payload = match (self.apps.active.as_ref(), bounds) {
-                    (Some(active), Some(bounds)) => {
-                        json!({"visible":true,"name":active.name,"panel":active.panel,
+                let bounds = bounds.filter(|_| self.layout.app_surface_visible);
+                let payload = match (self.navigation.current(), bounds) {
+                    (Some(WorkspaceItem::App { name, panel }), Some(bounds)) => {
+                        json!({"visible":true,"name":name,"panel":panel,
                         "left":f32::from(bounds.origin.x),"top":f32::from(bounds.origin.y),
                         "width":f32::from(bounds.size.width),"height":f32::from(bounds.size.height),
                         "dark":self.dark,"locale":self.locale})
@@ -175,7 +157,7 @@ mod surface {
         pub(crate) fn apps_view(&self, cx: &mut Context<Self>) -> AnyElement {
             let p = self.palettes.get(self.dark);
             let busy = self.apps.loading;
-            if self.apps.active.is_some() {
+            if matches!(self.navigation.current(), Some(WorkspaceItem::App { .. })) {
                 let owner = cx.entity().clone();
                 return div()
                     .on_prepaint(move |bounds, _, cx| {
@@ -186,7 +168,7 @@ mod surface {
                     .h_full()
                     .p(px(20.))
                     .text_color(p.color("text-muted"))
-                    .child(if self.settings_menu_open || self.resizing_chat {
+                    .child(if !self.layout.app_surface_visible {
                         ""
                     } else {
                         self.t(if cfg!(target_family = "wasm") {
@@ -214,10 +196,10 @@ mod surface {
                 .when_some(self.apps.error.as_ref(), |el, error| el.child(div().mb(px(12.)).p(px(10.))
                     .bg(p.color("error-bg")).text_color(p.color("error")).child(error.clone())))
                 .when(busy, |el| el.child(div().py(px(12.)).text_color(p.color("text-muted")).child(self.t("apps.loading"))))
-                .when(cfg!(target_family = "wasm") && !busy && self.apps.catalog.is_empty(), |el| el.child(div().py(px(32.)).flex().flex_col().gap(px(8.))
+                .when(cfg!(target_family = "wasm") && !busy && self.apps.entries.is_empty(), |el| el.child(div().py(px(32.)).flex().flex_col().gap(px(8.))
                     .child(div().font_weight(FontWeight::SEMIBOLD).child(self.t("apps.empty")))
                     .child(div().text_color(p.color("text-muted")).child(self.t("apps.empty_hint")))))
-                .children(self.apps.catalog.iter().enumerate().map(|(index, app)| {
+                .children(self.apps.entries.iter().enumerate().map(|(index, app)| {
                     let name = app.name.clone();
                     let toggle_name = name.clone();
                     let remove_name = name.clone();
@@ -239,9 +221,7 @@ mod surface {
                                 Button::new(("app-open", index * 100 + panel_index)).outline().small().label(label)
                                     .disabled(busy || !enabled || !cfg!(target_family = "wasm"))
                                     .on_click(cx.listener(move |this, _, _, cx| {
-                                        if this.apps.select(&app_name, &panel_name) {
-                                            this.command(json!({"action":"apps_open","name":app_name,"panel":panel_name}), cx);
-                                        }
+                                        this.open_app(app_name.clone(), panel_name.clone(), cx);
                                         cx.notify();
                                     }))
                             }))
@@ -277,7 +257,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn selected_panel_follows_installation_availability() {
+    fn installed_panel_availability_follows_catalog() {
         for (enabled, panel_exists, expected) in [
             (true, true, true),
             (false, true, false),
@@ -299,14 +279,13 @@ mod tests {
                     vec![]
                 },
             };
-            let mut workspace = AppWorkspace::default();
+            let mut workspace = AppCatalog::default();
             workspace.replace_catalog(vec![app(true, true)]);
-            assert!(workspace.select("cell", "main"));
+            assert!(workspace.contains_panel("cell", "main"));
             workspace.replace_catalog(vec![app(enabled, panel_exists)]);
-            assert_eq!(workspace.active.is_some(), expected);
-            assert_eq!(workspace.select("cell", "main"), expected);
+            assert_eq!(workspace.contains_panel("cell", "main"), expected);
             workspace.replace_catalog(vec![]);
-            assert!(workspace.active.is_none());
+            assert!(!workspace.contains_panel("cell", "main"));
         }
     }
 }
