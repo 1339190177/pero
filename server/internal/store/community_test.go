@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -287,5 +289,249 @@ func TestCommunityListsImportsOnlyFromPublicRepositories(t *testing.T) {
 				t.Fatalf("reviewed text replaced by sync: %+v %v", listed, err)
 			}
 		})
+	}
+}
+
+func TestPublicTaskGrouping(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		tasks []PublicTask
+		want  []string
+	}{
+		{name: "empty"},
+		{
+			name: "document title is not a functional domain",
+			tasks: []PublicTask{
+				{ID: "a", Project: "p", Roadmap: true, Headings: []string{"Roadmap", "Agent", "会话"}},
+				{ID: "b", Project: "p", Roadmap: true, Headings: []string{"ROADMAP", "M1"}},
+				{ID: "c", Project: "p", Roadmap: true, Headings: []string{"Roadmap"}},
+			},
+			want: []string{"p/Agent", "p/Agent/会话", "p/Agent/会话#a", "p/M1", "p/M1#b", "p/Roadmap", "p/Roadmap#c"},
+		},
+		{
+			name: "domain feature and published task hierarchy",
+			tasks: []PublicTask{
+				{ID: "child", ParentID: "parent", Project: "p", Roadmap: true, Headings: []string{"Agent", "会话"}},
+				{ID: "parent", Project: "p", Roadmap: true, Headings: []string{"Agent", "会话"}},
+				{ID: "tools", Project: "p", Roadmap: true, Headings: []string{"Agent", "工具"}},
+				{ID: "next", Project: "p", Roadmap: true, Headings: []string{"Agent", "会话"}},
+			},
+			want: []string{"p/Agent", "p/Agent/会话", "p/Agent/会话#parent", "p/Agent/会话#parent#child", "p/Agent/会话#next", "p/Agent/工具", "p/Agent/工具#tools"},
+		},
+		{
+			name: "same feature labels remain in their domain and project",
+			tasks: []PublicTask{
+				{ID: "a", Project: "p", Roadmap: true, Headings: []string{"Agent", "管理"}},
+				{ID: "b", Project: "p", Roadmap: true, Headings: []string{"App", "管理"}},
+				{ID: "c", Project: "q", Roadmap: true, Headings: []string{"Agent", "管理"}},
+			},
+			want: []string{"p/Agent", "p/Agent/管理", "p/Agent/管理#a", "p/App", "p/App/管理", "p/App/管理#b", "q/Agent", "q/Agent/管理", "q/Agent/管理#c"},
+		},
+		{
+			name: "unpublished or other feature parents do not create executable nodes",
+			tasks: []PublicTask{
+				{ID: "orphan", ParentID: "hidden", Project: "p", Roadmap: true, Headings: []string{"Agent", "会话"}},
+				{ID: "child", ParentID: "parent", Project: "p", Roadmap: true, Headings: []string{"Agent", "会话"}},
+				{ID: "parent", Project: "p", Roadmap: true, Headings: []string{"Agent", "工具"}},
+			},
+			want: []string{"p/Agent", "p/Agent/会话", "p/Agent/会话#orphan", "p/Agent/会话#child", "p/Agent/工具", "p/Agent/工具#parent"},
+		},
+		{
+			name: "direct domain tasks and deeper headings",
+			tasks: []PublicTask{
+				{ID: "a", Project: "p", Roadmap: true, Headings: []string{"Agent"}},
+				{ID: "b", Project: "p", Roadmap: true, Headings: []string{"Agent", "工具", "MCP"}},
+			},
+			want: []string{"p/Agent", "p/Agent#a", "p/Agent/工具", "p/Agent/工具/MCP", "p/Agent/工具/MCP#b"},
+		},
+		{
+			name: "ordinary and unheaded Roadmap keep fallback categories",
+			tasks: []PublicTask{
+				{ID: "a", Project: "p", Title: "Keep. Reviewed title", Headings: []string{"private source"}},
+				{ID: "b", Project: "p", Roadmap: true},
+			},
+			want: []string{"p/其他任务", "p/其他任务#a", "p/Roadmap", "p/Roadmap#b"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			groups := GroupPublicTasks(test.tasks)
+			var got []string
+			var visitTask func(*PublicTaskTree, string)
+			visitTask = func(task *PublicTaskTree, path string) {
+				path += "#" + task.ID
+				got = append(got, path)
+				for _, child := range task.Children {
+					visitTask(child, path)
+				}
+			}
+			var visitGroup func(*PublicTaskGroup, string)
+			visitGroup = func(group *PublicTaskGroup, path string) {
+				path += "/" + group.Category
+				got = append(got, path)
+				for _, task := range group.Tasks {
+					visitTask(task, path)
+				}
+				for _, child := range group.Children {
+					visitGroup(child, path)
+				}
+			}
+			for i := range groups {
+				visitGroup(&groups[i], groups[i].Project)
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("outline: %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPublicTaskBrief(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		task PublicTask
+		want PublicTaskBrief
+	}{
+		{
+			name: "Roadmap work scope and completion check",
+			task: PublicTask{Roadmap: true, Title: "会话搜索. 为历史添加搜索", Description: "会话搜索. 按关键字搜索历史；验收：重启后仍可找到匹配会话。"},
+			want: PublicTaskBrief{Scope: "按关键字搜索历史", Acceptance: "重启后仍可找到匹配会话。"},
+		},
+		{
+			name: "short Roadmap title and legacy description",
+			task: PublicTask{Roadmap: true, Title: "会话搜索", Description: "按关键字搜索历史。"},
+			want: PublicTaskBrief{Scope: "按关键字搜索历史。"},
+		},
+		{
+			name: "only exact redundant title prefix is removed",
+			task: PublicTask{Roadmap: true, Title: "会话搜索", Description: "搜索. 保留原始说明；验收：显示结果。"},
+			want: PublicTaskBrief{Scope: "搜索. 保留原始说明", Acceptance: "显示结果。"},
+		},
+		{
+			name: "reviewed ordinary description remains untouched",
+			task: PublicTask{Title: "会话搜索", Description: "会话搜索. 原始说明；验收：保留审核过的内容。"},
+			want: PublicTaskBrief{Scope: "会话搜索. 原始说明；验收：保留审核过的内容。"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.task.Brief(); got != test.want {
+				t.Fatalf("brief: %+v, want %+v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPublicTaskPhases(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		task PublicTask
+		want PublicTaskPhase
+	}{
+		{"draft is available", PublicTask{State: "draft"}, PublicTaskAvailable},
+		{"claim is active", PublicTask{State: "reserved"}, PublicTaskActive},
+		{"queued is active", PublicTask{State: "queued"}, PublicTaskActive},
+		{"running is active", PublicTask{State: "running"}, PublicTaskActive},
+		{"cancel pending is active", PublicTask{State: "cancel_requested"}, PublicTaskActive},
+		{"PR needs review", PublicTask{State: "submitted"}, PublicTaskReview},
+		{"success needs review", PublicTask{State: "succeeded"}, PublicTaskReview},
+		{"accepted overrides source closure", PublicTask{Accepted: true, SourceClosed: true, SourceChanged: true, State: "succeeded"}, PublicTaskAccepted},
+		{"source closure overrides execution", PublicTask{SourceClosed: true, State: "running"}, PublicTaskClosed},
+		{"closed state", PublicTask{State: "closed"}, PublicTaskClosed},
+		{"closure overrides source changes", PublicTask{SourceClosed: true, SourceChanged: true, State: "draft"}, PublicTaskClosed},
+		{"changed draft needs attention", PublicTask{SourceChanged: true, State: "draft"}, PublicTaskAttention},
+		{"changed execution needs attention", PublicTask{SourceChanged: true, State: "running"}, PublicTaskAttention},
+		{"failed", PublicTask{State: "failed"}, PublicTaskAttention},
+		{"cancelled", PublicTask{State: "cancelled"}, PublicTaskAttention},
+		{"reconcile", PublicTask{State: "reconcile"}, PublicTaskAttention},
+		{"revoked", PublicTask{State: "revoked"}, PublicTaskAttention},
+		{"changed state", PublicTask{State: "source_changed"}, PublicTaskAttention},
+		{"unknown state", PublicTask{State: "future-state"}, PublicTaskAttention},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.task.Phase(); got != test.want {
+				t.Fatalf("phase %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPublicRoadmapOutline(t *testing.T) {
+	s, _ := integrationStore(t)
+	ctx := context.Background()
+	config, snapshot := roadmapFixture()
+	snapshot.Items[0].Title = "Parent. Full parent goal"
+	snapshot.Items[0].Text = "Parent. Full parent goal"
+	snapshot.Items[1].Text = "Child. Full child goal"
+	snapshot.Items[1].Depth = 1
+	if err := s.BindGitHubRepository(ctx, config, snapshot.RepositoryID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SyncRoadmap(ctx, config, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	tasks, more, err := s.CommunityTasks(ctx, 0)
+	if err != nil || more || len(tasks) != 3 {
+		t.Fatalf("outline tasks: %+v %v", tasks, err)
+	}
+	parent, child := tasks[0], tasks[1]
+	if parent.DisplayTitle() != "Parent" || child.ParentID != parent.ID || child.Headings[0] != "Plan" {
+		t.Fatalf("outline lost: %+v", tasks)
+	}
+	groups := GroupPublicTasks(tasks)
+	if len(groups) != 2 || len(groups[0].Tasks) != 1 || len(groups[0].Tasks[0].Children) != 1 || groups[0].Tasks[0].Children[0].ID != child.ID {
+		t.Fatalf("tree hierarchy lost: %+v", groups)
+	}
+	snapshot.Items[0].Line, snapshot.Items[1].Line, snapshot.Items[2].Line = 50, 51, 52
+	for line := 1; line < 50; line++ {
+		snapshot.Items = append(snapshot.Items, RoadmapItem{ID: fmt.Sprintf("filler-%d", line), Title: fmt.Sprintf("Earlier %d", line), Text: "Earlier goal", Line: line, Headings: []string{"Plan"}})
+	}
+	if _, err = s.SyncRoadmap(ctx, config, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	next, more, err := s.CommunityTasks(ctx, 50)
+	if err != nil || more || len(next) != 2 || next[0].ID != child.ID || next[0].ParentID != parent.ID {
+		t.Fatalf("cross-page hierarchy: %+v %v", next, err)
+	}
+	outline, err := s.CommunityTaskOutline(ctx)
+	if err != nil || len(outline) != 52 || outline[49].ID != parent.ID || outline[50].ID != child.ID || outline[50].ParentID != parent.ID || !outline[51].SourceClosed {
+		t.Fatalf("complete source outline: %+v %v", outline, err)
+	}
+	// A complete new snapshot removes the earlier filler goals. History still
+	// contains them, but they must not inflate the current panorama.
+	snapshot.Items = snapshot.Items[:3]
+	if _, err = s.SyncRoadmap(ctx, config, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	privateConfig, privateSnapshot := roadmapFixture()
+	privateConfig.Repo = "private"
+	privateSnapshot.Repository, privateSnapshot.RepositoryID = "acme/private", "private-200"
+	if err = s.BindGitHubRepository(ctx, privateConfig, privateSnapshot.RepositoryID, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.SyncRoadmap(ctx, privateConfig, privateSnapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CreateTask(ctx, testSpec(config.ProjectID), ""); err != nil {
+		t.Fatal(err)
+	}
+	outline, err = s.CommunityTaskOutline(ctx)
+	if err != nil || len(outline) != 3 || outline[0].ID != parent.ID || outline[1].ID != child.ID || !outline[2].SourceClosed {
+		t.Fatalf("removed/private/unpublished tasks entered outline: %+v %v", outline, err)
+	}
+	if _, more, err = s.CommunityTasks(ctx, 0); err != nil || !more {
+		t.Fatalf("legacy paginated history changed: more=%v err=%v", more, err)
+	}
+	if _, err = s.pool.Exec(ctx, `DELETE FROM community_tasks WHERE task_id=$1`, parent.ID); err != nil {
+		t.Fatal(err)
+	}
+	child, err = s.CommunityTask(ctx, child.ID)
+	if err != nil || child.ParentID != "" {
+		t.Fatalf("unpublished parent exposed: %+v %v", child, err)
+	}
+	if err = s.BindGitHubRepository(ctx, config, snapshot.RepositoryID, true); err != nil {
+		t.Fatal(err)
+	}
+	child, err = s.CommunityTask(ctx, child.ID)
+	if err != nil || child.Roadmap || len(child.Headings) != 0 {
+		t.Fatalf("private source context exposed: %+v %v", child, err)
 	}
 }

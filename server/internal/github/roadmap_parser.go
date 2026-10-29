@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/phodal/pero/server/internal/store"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -115,9 +117,7 @@ func ParseRoadmap(source []byte) RoadmapParse {
 			body = strings.Replace(body, annotation, "", 1)
 		}
 		item.Text = strings.TrimSpace(body)
-		item.Title, _, _ = strings.Cut(item.Text, "\n")
-		item.Title, _, _ = strings.Cut(item.Title, ". ")
-		item.Title = strings.TrimSpace(item.Title)
+		item.Title = store.RoadmapGoal(item.Text).Title()
 		item.Tags = roadmapTaskTags(node, source)
 		if !text(item.Title, 240) || !text(item.Text, 64000) || len(item.Tags) > 64 {
 			reject(fmt.Sprintf("line %d has an empty or oversized checklist goal", item.Line))

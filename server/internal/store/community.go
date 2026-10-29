@@ -21,10 +21,144 @@ type CommunitySession struct {
 }
 type PublicTask struct {
 	ID, Title, Description, Project, SourceURL, State, RunID, Contributor string
+	Headings                                                              []string
+	ParentID                                                              string
+	Roadmap                                                               bool
 	ContributorID                                                         int64
 	Accepted                                                              bool
 	SourceClosed, SourceChanged                                           bool
 }
+
+// PublicTaskPhase is a browsing category, not an execution or acceptance state.
+type PublicTaskPhase string
+
+const (
+	PublicTaskAvailable PublicTaskPhase = "available"
+	PublicTaskActive    PublicTaskPhase = "active"
+	PublicTaskReview    PublicTaskPhase = "review"
+	PublicTaskAccepted  PublicTaskPhase = "accepted"
+	PublicTaskClosed    PublicTaskPhase = "closed"
+	PublicTaskAttention PublicTaskPhase = "attention"
+)
+
+func (task PublicTask) Phase() PublicTaskPhase {
+	if task.Accepted {
+		return PublicTaskAccepted
+	}
+	if task.SourceClosed || task.State == "closed" {
+		return PublicTaskClosed
+	}
+	if task.SourceChanged {
+		return PublicTaskAttention
+	}
+	switch task.State {
+	case "draft":
+		return PublicTaskAvailable
+	case "reserved", "queued", "running", "cancel_requested":
+		return PublicTaskActive
+	case "submitted", "succeeded":
+		return PublicTaskReview
+	default:
+		return PublicTaskAttention
+	}
+}
+
+// PublicTaskGroup organizes visible tasks without creating executable categories.
+type PublicTaskGroup struct {
+	Project, Category string
+	Children          []*PublicTaskGroup
+	Tasks             []*PublicTaskTree
+}
+
+// PublicTaskTree links the visible task nodes.
+type PublicTaskTree struct {
+	PublicTask
+	Children []*PublicTaskTree
+}
+
+func (task PublicTask) DisplayTitle() string {
+	if task.Roadmap {
+		return RoadmapGoal(task.Title).Title()
+	}
+	return task.Title
+}
+
+// PublicTaskBrief separates a Roadmap task's work scope from its completion check.
+type PublicTaskBrief struct {
+	Scope, Acceptance string
+}
+
+func (task PublicTask) Brief() PublicTaskBrief {
+	if !task.Roadmap {
+		return PublicTaskBrief{Scope: task.Description}
+	}
+	description := strings.TrimPrefix(task.Description, task.DisplayTitle()+". ")
+	scope, acceptance, _ := strings.Cut(description, "验收：")
+	return PublicTaskBrief{Scope: strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(scope), "；")), Acceptance: strings.TrimSpace(acceptance)}
+}
+
+func GroupPublicTasks(tasks []PublicTask) []PublicTaskGroup {
+	roots := []*PublicTaskGroup{}
+	byRoot := map[[2]string]*PublicTaskGroup{}
+	allGroups := []*PublicTaskGroup{}
+	for _, task := range tasks {
+		headings := []string{"其他任务"}
+		if task.Roadmap {
+			headings = task.Headings
+			if len(headings) > 1 && strings.EqualFold(headings[0], "Roadmap") {
+				headings = headings[1:]
+			}
+			if len(headings) == 0 {
+				headings = []string{"Roadmap"}
+			}
+		}
+		key := [2]string{task.Project, headings[0]}
+		group := byRoot[key]
+		if group == nil {
+			group = &PublicTaskGroup{Project: task.Project, Category: headings[0]}
+			byRoot[key] = group
+			roots = append(roots, group)
+			allGroups = append(allGroups, group)
+		}
+		for _, heading := range headings[1:] {
+			var child *PublicTaskGroup
+			for _, candidate := range group.Children {
+				if candidate.Category == heading {
+					child = candidate
+					break
+				}
+			}
+			if child == nil {
+				child = &PublicTaskGroup{Project: task.Project, Category: heading}
+				group.Children = append(group.Children, child)
+				allGroups = append(allGroups, child)
+			}
+			group = child
+		}
+		group.Tasks = append(group.Tasks, &PublicTaskTree{PublicTask: task})
+	}
+	for _, group := range allGroups {
+		nodes := group.Tasks
+		byID := make(map[string]*PublicTaskTree, len(nodes))
+		for _, node := range nodes {
+			byID[node.ID] = node
+		}
+		group.Tasks = nil
+		for _, node := range nodes {
+			if parent := byID[node.ParentID]; node.ParentID != "" && parent != nil {
+				parent.Children = append(parent.Children, node)
+			} else {
+				group.Tasks = append(group.Tasks, node)
+			}
+		}
+	}
+	groups := make([]PublicTaskGroup, 0, len(roots))
+	for _, root := range roots {
+		groups = append(groups, *root)
+	}
+	return groups
+}
+
 type CommunityRank struct {
 	Login  string
 	Points int64
@@ -163,13 +297,19 @@ const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.sour
   WHEN r.status='succeeded' AND EXISTS(SELECT 1 FROM community_points a JOIN community_points v ON v.reverses=a.id WHERE a.run_id=r.id) THEN 'revoked'
   ELSE COALESCE(r.status,'draft') END,
  COALESCE(r.id,''),COALESCE(credited.login,u.login,owner.login,''),COALESCE(u.id,owner.id,0),
- award.id IS NOT NULL,source.closed,source.changed
+ award.id IS NOT NULL,source.closed,source.changed,
+ CASE WHEN public_repo.private=false THEN COALESCE(roadmap.latest->'headings',t.spec->'source'->'headings','[]'::jsonb) ELSE '[]'::jsonb END,
+ COALESCE(parent.task_id,''),
+ COALESCE(public_repo.private=false AND t.spec->'source'->>'kind'='roadmap',false)
  FROM community_tasks p
  JOIN tasks t ON t.id=p.task_id
  LEFT JOIN github_issues github ON github.task_id=t.id
  LEFT JOIN roadmap_items roadmap ON roadmap.task_id=t.id
+ LEFT JOIN github_repositories public_repo ON public_repo.project_id=p.project AND public_repo.name=lower(COALESCE(roadmap.latest->>'repository',t.spec->'source'->>'repository',''))
+ LEFT JOIN community_tasks parent ON parent.task_id=t.spec->>'parent_task_id' AND parent.project=p.project AND public_repo.private=false
  CROSS JOIN LATERAL (
   SELECT COALESCE(roadmap.latest->>'state',github.latest->>'state',t.spec->'source'->>'state','') IN ('closed','missing') AS closed,
+   COALESCE(roadmap.latest->>'state',github.latest->>'state',t.spec->'source'->>'state','')='missing' AS missing,
    COALESCE(COALESCE(roadmap.latest->>'revision',github.revision)<>t.spec->'source'->>'revision',false) AS changed
  ) source
  LEFT JOIN runs r ON r.id=t.current_run_id
@@ -182,16 +322,18 @@ const publicTaskQuery = `SELECT p.task_id,p.title,p.description,p.project,p.sour
  ) award ON true
  LEFT JOIN community_users credited ON credited.id=award.user_id`
 
+const publicTaskOrder = ` ORDER BY p.project,COALESCE(public_repo.name,''),COALESCE(roadmap.latest->>'path',''),COALESCE((roadmap.latest->>'line')::int,0),p.published_at DESC,p.task_id`
+
 func scanPublic(row pgx.Row) (PublicTask, error) {
 	var t PublicTask
-	err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Project, &t.SourceURL, &t.State, &t.RunID, &t.Contributor, &t.ContributorID, &t.Accepted, &t.SourceClosed, &t.SourceChanged)
+	err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Project, &t.SourceURL, &t.State, &t.RunID, &t.Contributor, &t.ContributorID, &t.Accepted, &t.SourceClosed, &t.SourceChanged, &t.Headings, &t.ParentID, &t.Roadmap)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
 	return t, err
 }
 func (s *Store) CommunityTasks(ctx context.Context, offset int) ([]PublicTask, bool, error) {
-	rows, err := s.pool.Query(ctx, publicTaskQuery+` ORDER BY p.published_at DESC,p.task_id LIMIT 51 OFFSET $1`, offset)
+	rows, err := s.pool.Query(ctx, publicTaskQuery+publicTaskOrder+` LIMIT 51 OFFSET $1`, offset)
 	if err != nil {
 		return nil, false, err
 	}
@@ -210,6 +352,27 @@ func (s *Store) CommunityTasks(ctx context.Context, offset int) ([]PublicTask, b
 	}
 	return out, more, rows.Err()
 }
+
+// CommunityTaskOutline returns the complete current public source set for tree
+// navigation and panorama counts. Removed sources remain available to history
+// and administration through the existing paginated list and detail methods.
+func (s *Store) CommunityTaskOutline(ctx context.Context) ([]PublicTask, error) {
+	rows, err := s.pool.Query(ctx, publicTaskQuery+` WHERE NOT source.missing`+publicTaskOrder)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	tasks := []PublicTask{}
+	for rows.Next() {
+		task, err := scanPublic(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
+}
+
 func (s *Store) CommunityTask(ctx context.Context, id string) (PublicTask, error) {
 	return scanPublic(s.pool.QueryRow(ctx, publicTaskQuery+` WHERE p.task_id=$1`, id))
 }
