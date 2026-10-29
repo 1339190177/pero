@@ -64,7 +64,7 @@ does not fall back to a global adapter. Run
 `node_modules/.bin/codex login` for the installed CLI's supported login flow.
 
 Optional adapters live in ignored `agents.local.json`, or a path supplied with
-`PERO_AGENTS_FILE`. Start with [agents.example.json](../agents.example.json).
+`PERO_AGENTS_FILE`.
 An entry with an existing ID replaces that built-in entry. `model` is optional;
 omit it to retain the Agent's default. Configuration values and credentials are
 kept in the native process, never sent in the public Agent list.
