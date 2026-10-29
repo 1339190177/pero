@@ -1,6 +1,7 @@
 import { setAppearance, openSettings } from './sidebar-controls.mjs';
 // Real Electron, real Host installation and real Virtual Cell Python computation.
-import { _electron as electron, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { electron } from './electron.mjs';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';

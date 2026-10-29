@@ -1,5 +1,6 @@
 // Local ROADMAP and ACP execution remain available while Cloud is unresponsive.
-import { _electron as electron, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { electron, focusPage } from './electron.mjs';
 import { createServer } from 'node:http';
 import { mkdir, mkdtemp, readFile, writeFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -35,7 +36,7 @@ try{
   const env={...process.env,PERO_DESKTOP_DATA_DIR:resolve(temp,'profile'),PERO_SETTINGS_PATH:settings,PERO_HISTORY_PATH:resolve(temp,'history.jsonl'),PERO_LOCALE:'zh-CN',PERO_AGENTS_FILE:agents,PERO_CLOUD_URL:`http://127.0.0.1:${server.address().port}`,PERO_OPERATOR_TOKEN:'local-roadmap-fixture'};
   delete env.ELECTRON_RUN_AS_NODE;delete env.PERO_CLIENT_TOKEN;
   app=await electron.launch({args:[...(process.platform==='darwin'?['--use-mock-keychain']:[]),resolve(root,'desktop')],cwd:root,env});
-  page=await app.firstWindow();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
+  page=await app.firstWindow();await focusPage(page);page.on('pageerror',error=>errors.push(error.message));
   await page.waitForFunction(()=>window.peroDiagnostics && JSON.parse(window.peroDiagnostics.snapshot()).localRoadmap?.data?.items?.length>100,undefined,{timeout:60000});
   await page.waitForFunction(()=>!document.getElementById('loading'));
   await expect.poll(()=>requests.length).toBeGreaterThan(0);
@@ -63,7 +64,7 @@ try{
   expect((await state()).chats).toHaveLength(0);
   await page.mouse.click(875,249);await expect.poll(async()=>(await state()).localRoadmap.selected_line).toBe(null);await frame();
   await page.mouse.click(1415,239);await frame();
-  await page.bringToFront();await page.mouse.click(500,239);await page.keyboard.type('Child');await expect.poll(async()=>(await state()).remote.search).toBe('Child');await capture('02-search');
+  await focusPage(page);await page.mouse.click(500,239);await page.keyboard.type('Child');await expect.poll(async()=>(await state()).remote.search).toBe('Child');await capture('02-search');
   await page.mouse.click(500,290);
   await expect.poll(async()=>(await state()).localRoadmap.selected_line).toBe(6);
   await capture('02-filtered-child');

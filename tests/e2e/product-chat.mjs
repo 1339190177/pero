@@ -1,5 +1,6 @@
 // Real Electron, the standalone Chat Wasm and a bounded ACP fixture; no model login.
-import { _electron as electron, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { electron } from './electron.mjs';
 import { build } from 'esbuild';
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
