@@ -1,12 +1,12 @@
 //! Native Cloud session with platform-owned credential persistence.
-#[path="native_cloud_storage.rs"]
+#[path = "native_cloud_storage.rs"]
 mod storage;
-pub(crate) use storage::CloudAccount;
 use crate::cloud_links::{self, idempotency_key};
 use crate::desktop_login::{self, Attempt, CALLBACK_ERROR, DEFAULT_ORIGIN};
 use pero_contracts::HostEvent;
 use serde_json::{Value, json};
 use std::time::{Duration, SystemTime};
+pub(crate) use storage::{CloudAccount, EnrollmentFailure};
 
 const EXCHANGE_ERROR: &str = "GitHub sign-in could not complete. Start GitHub sign-in again.";
 const UNSUPPORTED: &str = "This native preview cannot do that yet.";
@@ -300,7 +300,9 @@ impl CloudSession {
         self.tag.clear();
         self.clear_lists();
         self.reload();
-        if self.error.is_none() { self.persist_connection(); }
+        if self.error.is_none() {
+            self.persist_connection();
+        }
     }
 
     fn select(&mut self, value: &Value) {

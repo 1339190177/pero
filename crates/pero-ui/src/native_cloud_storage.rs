@@ -10,6 +10,84 @@ pub(crate) struct CloudAccount {
     pub owner_id: String,
     pub client_mode: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EnrollmentFailureKind {
+    ServerUnsupported,
+    Reauthenticate,
+    PermissionDenied,
+    EnrollmentConflict,
+    InvalidConfiguration,
+    ServerUnavailable,
+    Network,
+    InvalidResponse,
+    SetupFailed,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EnrollmentFailure {
+    pub kind: EnrollmentFailureKind,
+    pub status: Option<u16>,
+}
+impl EnrollmentFailure {
+    fn new(kind: EnrollmentFailureKind, status: Option<u16>) -> Self {
+        Self { kind, status }
+    }
+    fn http(status: u16) -> Self {
+        use EnrollmentFailureKind::*;
+        let kind = match status {
+            404 | 405 => ServerUnsupported,
+            401 => Reauthenticate,
+            403 => PermissionDenied,
+            409 => EnrollmentConflict,
+            400 | 422 => InvalidConfiguration,
+            408 | 429 | 500..=599 => ServerUnavailable,
+            _ => SetupFailed,
+        };
+        Self {
+            kind,
+            status: Some(status),
+        }
+    }
+    pub fn key(&self) -> &'static str {
+        use EnrollmentFailureKind::*;
+        match self.kind {
+            ServerUnsupported => "worker.local.error.server_unsupported",
+            Reauthenticate => "worker.local.error.reauthenticate",
+            PermissionDenied => "worker.local.error.permission_denied",
+            EnrollmentConflict => "worker.local.error.enrollment_conflict",
+            InvalidConfiguration => "worker.local.error.invalid_configuration",
+            ServerUnavailable => "worker.local.error.server_unavailable",
+            Network => "worker.local.error.network",
+            InvalidResponse => "worker.local.error.invalid_response",
+            SetupFailed => "worker.local.error.setup_failed",
+        }
+    }
+}
+impl std::fmt::Display for EnrollmentFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use EnrollmentFailureKind::*;
+        f.write_str(match self.kind {
+            ServerUnsupported=>"This Cloud server does not support local Worker enrollment. Update the server or connect to a compatible server.",
+            Reauthenticate=>"Your Cloud sign-in has expired. Sign in again, then retry local execution setup.",
+            PermissionDenied=>"This account cannot enroll a Worker for the selected project. Check project access.",
+            EnrollmentConflict=>"This device enrollment conflicts with the saved request. Review the device configuration and retry.",
+            InvalidConfiguration=>"The server rejected this device configuration. Check the project, workspace and Agent.",
+            ServerUnavailable=>"The Cloud server is temporarily unavailable. Retry local execution setup.",
+            Network=>"Could not reach the Cloud server. Check the connection and retry.",
+            InvalidResponse=>"The Cloud server returned an invalid enrollment response. Retry or update the server.",
+            SetupFailed=>"Local execution setup could not complete. Retry or check the Cloud server.",
+        })
+    }
+}
+#[derive(Deserialize)]
+pub(crate) struct WorkerEnrollment {
+    pub worker: EnrolledWorker,
+    pub token: String,
+}
+#[derive(Deserialize)]
+pub(crate) struct EnrolledWorker {
+    pub id: String,
+}
+
 #[derive(Deserialize, Serialize)]
 struct SavedConnection {
     url: String,
@@ -75,16 +153,51 @@ impl CloudSession {
     pub(crate) fn has_connection(&self) -> bool {
         self.configured()
     }
-    pub(crate) fn enroll_local_worker(&self, body: &Value) -> Result<Value, String> {
+    pub(crate) fn enroll_local_worker(
+        &self,
+        body: &Value,
+    ) -> Result<WorkerEnrollment, EnrollmentFailure> {
         if self.device_account().is_none() {
-            return Err("Connect your Cloud account before enabling local execution.".into());
+            return Err(EnrollmentFailure::new(
+                EnrollmentFailureKind::Reauthenticate,
+                None,
+            ));
         }
         let path = if self.client_mode {
             "/api/client/v1/workers"
         } else {
             "/api/v1/workers/enroll"
         };
-        self.post(path, body)
+        let response = self
+            .http
+            .post(format!("{}{path}", self.base))
+            .bearer_auth(&self.token)
+            .header("Idempotency-Key", idempotency_key())
+            .json(body)
+            .send()
+            .map_err(|_| EnrollmentFailure::new(EnrollmentFailureKind::Network, None))?;
+        let status = response.status().as_u16();
+        if !(200..300).contains(&status) {
+            return Err(EnrollmentFailure::http(status));
+        }
+        let invalid =
+            || EnrollmentFailure::new(EnrollmentFailureKind::InvalidResponse, Some(status));
+        let bytes = read_body(response, 65536).map_err(|_| invalid())?;
+        let receipt: WorkerEnrollment = serde_json::from_slice(&bytes).map_err(|_| invalid())?;
+        if receipt.worker.id.is_empty()
+            || receipt.worker.id.len() > 128
+            || !receipt
+                .worker
+                .id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-_".contains(&byte))
+            || receipt.token.is_empty()
+            || receipt.token.len() > 512
+            || receipt.token.chars().any(char::is_control)
+        {
+            return Err(invalid());
+        }
+        Ok(receipt)
     }
 }
 
@@ -105,6 +218,14 @@ impl CloudSession {
     pub(crate) fn http_fixture(
         requests: usize,
         mut response: impl FnMut(usize, &str) -> Option<Value> + Send + 'static,
+    ) -> (Self, std::thread::JoinHandle<Vec<Value>>) {
+        Self::http_raw_fixture(requests, move |index, path| {
+            response(index, path).map(|body| (200, "application/json", body.to_string()))
+        })
+    }
+    pub(crate) fn http_raw_fixture(
+        requests: usize,
+        mut response: impl FnMut(usize, &str) -> Option<(u16, &'static str, String)> + Send + 'static,
     ) -> (Self, std::thread::JoinHandle<Vec<Value>>) {
         use std::{
             io::{BufRead, BufReader, Read, Write},
@@ -160,9 +281,8 @@ impl CloudSession {
                 } else {
                     serde_json::from_slice::<Value>(&body).unwrap()
                 });
-                if let Some(body) = response(bodies.len() - 1, &route) {
-                    let body = body.to_string();
-                    write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
+                if let Some((status, content_type, body)) = response(bodies.len() - 1, &route) {
+                    write!(stream,"HTTP/1.1 {status} Fixture\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).unwrap();
                 }
             }
             bodies
@@ -216,5 +336,77 @@ mod tests {
         let vault = restored.vault.take().unwrap();
         assert!(vault.load::<SavedConnection>().unwrap().is_none());
         assert!(!CloudSession::load_vault(vault).has_connection());
+    }
+    #[test]
+    fn enrollment_http_failures_have_safe_typed_recovery_reasons() {
+        use EnrollmentFailureKind::*;
+        for (status, kind) in [
+            (404, ServerUnsupported),
+            (405, ServerUnsupported),
+            (401, Reauthenticate),
+            (403, PermissionDenied),
+            (409, EnrollmentConflict),
+            (400, InvalidConfiguration),
+            (422, InvalidConfiguration),
+            (408, ServerUnavailable),
+            (429, ServerUnavailable),
+            (500, ServerUnavailable),
+            (503, ServerUnavailable),
+            (418, SetupFailed),
+        ] {
+            let error = EnrollmentFailure::http(status);
+            assert_eq!(error.kind, kind);
+            assert_eq!(error.status, Some(status));
+            assert!(error.key().starts_with("worker.local.error."));
+        }
+    }
+    #[test]
+    fn enrollment_status_is_preserved_before_parsing_an_html_or_plain_error_body() {
+        let (cloud, server) = CloudSession::http_raw_fixture(2, |index, path| {
+            assert_eq!(path, "/api/client/v1/workers");
+            Some(if index == 0 {
+                (
+                    404,
+                    "text/html",
+                    "<html>private-server-body client-fixture-token</html>".into(),
+                )
+            } else {
+                (
+                    405,
+                    "text/plain",
+                    "private-server-body worker-fixture-private".into(),
+                )
+            })
+        });
+        for status in [404, 405] {
+            let error = cloud.enroll_local_worker(&json!({})).err().unwrap();
+            assert_eq!(error.key(), "worker.local.error.server_unsupported");
+            assert_eq!(error.status, Some(status));
+            assert!(!error.to_string().contains("private-server-body"));
+            assert!(!error.to_string().contains("fixture-token"));
+            assert!(!error.to_string().contains("worker-fixture-private"));
+        }
+        server.join().unwrap();
+    }
+    #[test]
+    fn successful_http_with_invalid_enrollment_data_is_a_protocol_failure() {
+        let (cloud, server) = CloudSession::http_raw_fixture(2, |index, _| {
+            Some((
+                200,
+                "application/json",
+                if index == 0 {
+                    "not-json private-server-body".into()
+                } else {
+                    json!({"worker":{"id":"valid-id"},"token":"bad\ncredential"}).to_string()
+                },
+            ))
+        });
+        for _ in 0..2 {
+            let error = cloud.enroll_local_worker(&json!({})).err().unwrap();
+            assert_eq!(error.key(), "worker.local.error.invalid_response");
+            assert_eq!(error.status, Some(200));
+            assert!(!error.to_string().contains("private-server-body"));
+        }
+        server.join().unwrap();
     }
 }

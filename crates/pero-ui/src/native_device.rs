@@ -1,6 +1,6 @@
 //! Native first-run enrollment. The shell stores credentials; Host owns processes.
 use crate::{
-    native_cloud::{CloudAccount, CloudSession},
+    native_cloud::{CloudAccount, CloudSession, EnrollmentFailure},
     native_secrets::SecretStore,
 };
 use pero_contracts::{
@@ -94,11 +94,72 @@ fn random_id() -> String {
     data.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+#[derive(Debug)]
+enum SetupFailure {
+    Local(String),
+    StorageUnavailable(String),
+    StorageFailed(String),
+    AccountChanged(String),
+    StopRequired(String),
+    InvalidConfiguration(String),
+    Reauthenticate(String),
+    Enrollment(EnrollmentFailure),
+}
+impl From<String> for SetupFailure {
+    fn from(error: String) -> Self {
+        Self::Local(error)
+    }
+}
+impl From<&str> for SetupFailure {
+    fn from(error: &str) -> Self {
+        Self::Local(error.into())
+    }
+}
+impl From<EnrollmentFailure> for SetupFailure {
+    fn from(error: EnrollmentFailure) -> Self {
+        Self::Enrollment(error)
+    }
+}
+impl std::fmt::Display for SetupFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Local(error)
+            | Self::StorageUnavailable(error)
+            | Self::StorageFailed(error)
+            | Self::AccountChanged(error)
+            | Self::StopRequired(error)
+            | Self::InvalidConfiguration(error)
+            | Self::Reauthenticate(error) => f.write_str(error),
+            Self::Enrollment(error) => std::fmt::Display::fmt(error, f),
+        }
+    }
+}
+impl SetupFailure {
+    fn key(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::Local(_) => "worker.local.error.setup_failed",
+            Self::StorageUnavailable(_) => "worker.local.error.storage_unavailable",
+            Self::StorageFailed(_) => "worker.local.error.storage_failed",
+            Self::AccountChanged(_) => "worker.local.error.account_changed",
+            Self::StopRequired(_) => "worker.local.error.stop_required",
+            Self::InvalidConfiguration(_) => "worker.local.error.invalid_configuration",
+            Self::Reauthenticate(_) => "worker.local.error.reauthenticate",
+            Self::Enrollment(error) => error.key(),
+        })
+    }
+    fn status(&self) -> Option<u16> {
+        match self {
+            Self::Enrollment(error) => error.status,
+            _ => None,
+        }
+    }
+}
+
 pub(crate) struct NativeDevice {
     store: SecretStore,
     record: DeviceRecord,
     started: bool,
-    error: Option<String>,
+    error: Option<SetupFailure>,
     load_failed: bool,
 }
 pub(crate) struct DeviceOutcome {
@@ -120,15 +181,17 @@ impl NativeDevice {
             record,
             started: false,
             load_failed: error.is_some(),
-            error,
+            error: error.map(SetupFailure::StorageUnavailable),
         }
     }
-    fn save(&self) -> Result<(), String> {
-        self.store.save(&self.record)
+    fn save(&self) -> Result<(), SetupFailure> {
+        self.store
+            .save(&self.record)
+            .map_err(SetupFailure::StorageFailed)
     }
     pub fn event(&self, cloud: &CloudSession) -> HostEvent {
         let mut event = HostEvent::new("local_worker_setup", None, String::new());
-        event.data = json!({"onboarding_complete":self.record.onboarding_complete,"enabled":self.record.enabled,"has_connection":cloud.has_connection(),"error":self.error,"configuration":self.summary()});
+        event.data = json!({"onboarding_complete":self.record.onboarding_complete,"enabled":self.record.enabled,"has_connection":cloud.has_connection(),"error":self.error.as_ref().map(ToString::to_string),"error_key":self.error.as_ref().and_then(SetupFailure::key),"error_status":self.error.as_ref().and_then(SetupFailure::status),"configuration":self.summary()});
         event
     }
     fn summary(&self) -> Option<LocalWorkerSummary> {
@@ -152,7 +215,7 @@ impl NativeDevice {
     pub fn needs_attention(&mut self, cloud: &CloudSession) -> HostEvent {
         self.record.enabled = false;
         self.started = false;
-        self.error = self.save().err();
+        self.error = self.save().err().map(Into::into);
         self.event(cloud)
     }
     pub fn command_failed(&mut self, cloud: &CloudSession) -> HostEvent {
@@ -160,27 +223,27 @@ impl NativeDevice {
         self.started = false;
         let message = "Local Host is unavailable. Restart Pero, then resume local execution.";
         self.error = Some(match self.save() {
-            Ok(()) => message.into(),
-            Err(error) => format!("{message} {error}"),
+            Ok(()) => SetupFailure::Local(message.into()),
+            Err(error) => SetupFailure::Local(format!("{message} {error}")),
         });
         self.event(cloud)
     }
-    fn start(&mut self, account: &CloudAccount) -> Result<Option<Value>, String> {
+    fn start(&mut self, account: &CloudAccount) -> Result<Option<Value>, SetupFailure> {
         if self.record.account.as_ref() != Some(account) {
-            return Err(
+            return Err(SetupFailure::AccountChanged(
                 "This local Worker belongs to another Cloud account. Configure this device again."
                     .into(),
-            );
+            ));
         }
         if self.started {
             return Ok(None);
         }
-        let worker = self
-            .record
-            .worker
-            .as_ref()
-            .ok_or("Complete local execution setup first.")?;
-        worker.validate().map_err(str::to_string)?;
+        let worker = self.record.worker.as_ref().ok_or_else(|| {
+            SetupFailure::InvalidConfiguration("Complete local execution setup first.".into())
+        })?;
+        worker
+            .validate()
+            .map_err(|error| SetupFailure::InvalidConfiguration(error.into()))?;
         self.started = true;
         Ok(Some(
             json!({"action":"local_worker_start","request_id":random_id(),"worker":worker}),
@@ -195,7 +258,7 @@ impl NativeDevice {
             let stop = disconnect || self.started;
             self.started = false;
             self.error = if different_account {
-                Some("This local Worker belongs to another Cloud account. Sign in to its original account or configure this device again.".into())
+                Some(SetupFailure::AccountChanged("This local Worker belongs to another Cloud account. Sign in to its original account or configure this device again.".into()))
             } else {
                 None
             };
@@ -210,7 +273,7 @@ impl NativeDevice {
                         command
                     }
                     Err(error) => {
-                        self.error = Some(error);
+                        self.error = Some(error.into());
                         None
                     }
                 })
@@ -231,7 +294,7 @@ impl NativeDevice {
                 }
                 Ok(None) => self.load_failed = false,
                 Err(error) => {
-                    self.error = Some(error);
+                    self.error = Some(SetupFailure::StorageUnavailable(error));
                     return DeviceOutcome {
                         event: self.event(cloud),
                         command: None,
@@ -244,7 +307,7 @@ impl NativeDevice {
         let command = match result {
             Ok(command) => command,
             Err(error) => {
-                self.error = Some(error);
+                self.error = Some(error.into());
                 None
             }
         };
@@ -253,14 +316,18 @@ impl NativeDevice {
             command,
         }
     }
-    fn apply(&mut self, value: &Value, cloud: &CloudSession) -> Result<Option<Value>, String> {
+    fn apply(
+        &mut self,
+        value: &Value,
+        cloud: &CloudSession,
+    ) -> Result<Option<Value>, SetupFailure> {
         let request: DeviceCommand = serde_json::from_value(value.clone())
             .map_err(|_| "Invalid local execution request.")?;
         match request {
             DeviceCommand::Init => {
                 if self.record.enabled {
                     if let Some(account) = cloud.device_account() {
-                        return self.start(&account);
+                        return self.start(&account).map_err(Into::into);
                     }
                 }
                 Ok(Some(
@@ -275,15 +342,15 @@ impl NativeDevice {
             DeviceCommand::Disable => {
                 self.record.enabled = false;
                 self.started = false;
-                self.error = self.save().err();
+                self.error = self.save().err().map(Into::into);
                 Ok(Some(
                     json!({"action":"local_worker_stop","request_id":random_id()}),
                 ))
             }
             DeviceCommand::Resume => {
-                let account = cloud
-                    .device_account()
-                    .ok_or("Sign in before resuming local execution.")?;
+                let account = cloud.device_account().ok_or_else(|| {
+                    SetupFailure::Reauthenticate("Sign in before resuming local execution.".into())
+                })?;
                 // Validate account and the complete saved Worker before changing enabled state.
                 let command = self.start(&account)?;
                 self.record.enabled = true;
@@ -291,7 +358,7 @@ impl NativeDevice {
                 if let Err(error) = self.save() {
                     self.record.enabled = false;
                     self.started = false;
-                    return Err(error);
+                    return Err(error.into());
                 }
                 Ok(command)
             }
@@ -303,7 +370,9 @@ impl NativeDevice {
                 agent_id,
             } => {
                 if self.record.enabled {
-                    return Err("Stop local execution before changing its scope.".into());
+                    return Err(SetupFailure::StopRequired(
+                        "Stop local execution before changing its scope.".into(),
+                    ));
                 }
                 let mut form = DeviceForm {
                     name,
@@ -312,14 +381,17 @@ impl NativeDevice {
                     path,
                     agent_id,
                 };
-                form.validate()?;
+                form.validate()
+                    .map_err(SetupFailure::InvalidConfiguration)?;
                 form.path = std::fs::canonicalize(&form.path)
-                    .map_err(|_| "Local directory is unavailable")?
+                    .map_err(|_| {
+                        SetupFailure::InvalidConfiguration("Local directory is unavailable".into())
+                    })?
                     .to_string_lossy()
                     .into();
-                let account = cloud
-                    .device_account()
-                    .ok_or("Sign in before enabling local execution.")?;
+                let account = cloud.device_account().ok_or_else(|| {
+                    SetupFailure::Reauthenticate("Sign in before enabling local execution.".into())
+                })?;
                 if self.record.account.as_ref() != Some(&account)
                     || self.record.form.as_ref() != Some(&form)
                     || self.record.request_id.is_empty()
@@ -333,15 +405,8 @@ impl NativeDevice {
                 // The recoverable enrollment secret is durable BEFORE the Cloud mutation.
                 self.save()?;
                 let response=cloud.enroll_local_worker(&json!({"device_id":self.record.device_id,"request_id":self.record.request_id,"name":form.name,"projects":[form.project_id],"capabilities":[{"project_id":form.project_id,"workspace_key":form.workspace_key,"agent_id":form.agent_id}],"enrollment_secret":self.record.enrollment_secret}))?;
-                let id = response["worker"]["id"]
-                    .as_str()
-                    .ok_or("Invalid Worker enrollment response")?
-                    .to_string();
-                let token = response["token"]
-                    .as_str()
-                    .filter(|token| !token.is_empty() && token.len() <= 512)
-                    .ok_or("Invalid Worker credential")?
-                    .to_string();
+                let id = response.worker.id;
+                let token = response.token;
                 let worker = LocalWorkerConfig {
                     id,
                     name: form.name,
@@ -354,13 +419,15 @@ impl NativeDevice {
                         agent_ids: vec![form.agent_id],
                     }],
                 };
-                worker.validate().map_err(str::to_string)?;
+                worker
+                    .validate()
+                    .map_err(|error| SetupFailure::InvalidConfiguration(error.into()))?;
                 self.record.worker = Some(worker);
                 self.record.enabled = true;
                 self.record.onboarding_complete = true;
                 self.started = false;
                 self.save()?;
-                self.start(&account)
+                self.start(&account).map_err(Into::into)
             }
         }
     }
@@ -490,7 +557,10 @@ mod tests {
         });
         let mut device = NativeDevice::load(SecretStore::memory(), false);
         let command = json!({"action":"local_worker_enroll","name":"Device","project_id":"project","workspace_key":"workspace","path":std::env::temp_dir(),"agent_id":"fixture"});
-        assert!(device.command(&command, &cloud).command.is_none());
+        let lost = device.command(&command, &cloud);
+        assert!(lost.command.is_none());
+        assert_eq!(lost.event.data["error_key"], "worker.local.error.network");
+        assert!(lost.event.data["error_status"].is_null());
         let request = device.record.request_id.clone();
         let secret = device.record.enrollment_secret.clone();
         assert!(!request.is_empty());
@@ -504,6 +574,8 @@ mod tests {
         assert_eq!(bodies[0]["enrollment_secret"], secret);
         assert_eq!(bodies[1]["enrollment_secret"], secret);
         assert_eq!(result.event.data["enabled"], true);
+        assert!(result.event.data["error_key"].is_null());
+        assert!(result.event.data["error_status"].is_null());
         assert!(!result.event.data.to_string().contains(&secret));
         assert!(
             !result
@@ -562,5 +634,33 @@ mod tests {
         device.command(&json!({"action":"local_worker_disable"}), &cloud);
         let mut restored = NativeDevice::load(device.store, false);
         assert!(restored.synchronize(&cloud, false).command.is_none());
+    }
+    #[test]
+    fn enrollment_failure_metadata_reaches_setup_without_exposing_the_response_body() {
+        let (cloud, server) = CloudSession::http_raw_fixture(1, |_, _| {
+            Some((
+                403,
+                "text/html",
+                "<html>private-body worker-fixture-private</html>".into(),
+            ))
+        });
+        let mut device = NativeDevice::load(SecretStore::memory(), false);
+        let result=device.command(&json!({"action":"local_worker_enroll","name":"Device","project_id":"project","workspace_key":"workspace","path":std::env::temp_dir(),"agent_id":"fixture"}),&cloud);
+        assert!(result.command.is_none());
+        assert_eq!(
+            result.event.data["error_key"],
+            "worker.local.error.permission_denied"
+        );
+        assert_eq!(result.event.data["error_status"], 403);
+        assert_eq!(result.event.data["enabled"], false);
+        assert!(!result.event.data.to_string().contains("private-body"));
+        assert!(
+            !result
+                .event
+                .data
+                .to_string()
+                .contains("worker-fixture-private")
+        );
+        server.join().unwrap();
     }
 }
