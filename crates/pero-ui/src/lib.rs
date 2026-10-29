@@ -22,6 +22,8 @@ mod project_view;
 mod projects;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod settings_menu;
+#[cfg(any(target_family = "wasm", feature = "native"))]
+mod settings_view;
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod contributions;

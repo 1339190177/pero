@@ -77,7 +77,7 @@ impl Workbench {
             .ghost()
             .small()
             .w_full()
-            .h(px(W::ROW))
+            .h(px(pero_theme::UiAppearance::global(cx).typography.row_height()))
             .justify_start()
             .icon(Icon::default().path("icons/settings.svg"))
             .label(if identity.is_empty() {
@@ -188,89 +188,4 @@ impl Workbench {
             })
     }
 
-    pub(crate) fn general_settings(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
-        div()
-            .flex_1()
-            .min_w_0()
-            .p(px(24.))
-            .flex()
-            .flex_col()
-            .gap(px(20.))
-            .child(
-                div()
-                    .text_size(px(24.))
-                    .font_weight(FontWeight::BOLD)
-                    .child(self.t("settings.title")),
-            )
-            .child(
-                div().flex().flex_wrap().gap(px(8.)).children(
-                    [
-                        ("settings.connections", WorkbenchPage::Connections),
-                        ("settings.resources", WorkbenchPage::Workers),
-                        ("settings.agents", WorkbenchPage::Agents),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, (key, navigation))| {
-                        Button::new(("general-settings", i))
-                            .outline()
-                            .label(self.t(key))
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.navigate(navigation, cx);
-                                if navigation == WorkbenchPage::Connections {
-                                    this.open_remote_connection(window, cx);
-                                }
-                                cx.notify();
-                            }))
-                    }),
-                ),
-            )
-            .child(
-                div()
-                    .border_t_1()
-                    .border_color(p.color("border"))
-                    .pt(px(16.))
-                    .child(self.t("settings.appearance"))
-                    .child(
-                        div().mt(px(10.)).flex().flex_wrap().gap(px(8.)).children(
-                            [Appearance::Light, Appearance::Dark, Appearance::System]
-                                .into_iter()
-                                .enumerate()
-                                .map(|(i, mode)| {
-                                    Button::new(("appearance-choice", i))
-                                        .outline()
-                                        .label(self.t(mode.label_key()))
-                                        .toggled(self.preferences.appearance == mode)
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            let mut next = this.preferences.clone();
-                                            next.appearance = mode;
-                                            this.save_preferences(next, cx);
-                                        }))
-                                }),
-                        ),
-                    ),
-            )
-            .child(
-                div().child(self.t("menu.language")).child(
-                    div().mt(px(10.)).flex().gap(px(8.)).children(
-                        [("zh-CN", "简体中文"), ("en", "English")]
-                            .into_iter()
-                            .enumerate()
-                            .map(|(i, (locale, label))| {
-                                Button::new(("language-choice", i))
-                                    .outline()
-                                    .label(label)
-                                    .toggled(self.locale == locale)
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        if request_locale(locale).is_err() {
-                                            this.error = Some("error.preferences".into());
-                                            cx.notify();
-                                        }
-                                    }))
-                            }),
-                    ),
-                ),
-            )
-    }
 }

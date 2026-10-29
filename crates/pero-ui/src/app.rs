@@ -41,11 +41,12 @@ pub(crate) struct Workbench {
     pub locale: String,
     pub input_locale: String,
     pub palettes: Palettes,
-    pub dark: bool,
     pub system_dark: bool,
     pub preferences: pero_contracts::workbench::WorkbenchPreferences,
     pub preferences_status: crate::settings_menu::PreferenceSaveState,
     pub settings_menu_open: bool,
+    pub settings_section: crate::settings_view::SettingsSection,
+    pub settings_search: Entity<InputState>,
     pub recent_tasks: Vec<String>,
     pub selected_project: Option<String>,
     pub project_binding: Entity<InputState>,
@@ -78,7 +79,7 @@ pub(crate) struct Workbench {
     pub task_scroll: ScrollHandle,
     /// A further task page was requested and its result has not arrived yet.
     pub task_more_pending: bool,
-    _subscriptions: Vec<Subscription>,
+    pub(crate) _subscriptions: Vec<Subscription>,
 }
 
 impl Workbench {
@@ -99,7 +100,7 @@ impl Workbench {
             }
             cx.notify();
         })];
-        let chat = cx.new(|cx| ChatPanel::new(palettes.clone(), dark, locale.clone(), window, cx));
+        let chat = cx.new(|cx| ChatPanel::new(locale.clone(), window, cx));
         let search = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder(pero_contracts::i18n::text(&locale, "sessions.search"))
@@ -158,6 +159,9 @@ impl Workbench {
             }
             cx.notify();
         }));
+        let settings_search = cx.new(|cx| InputState::new(window,cx)
+            .placeholder(pero_contracts::i18n::text(&locale,"settings.search")));
+        subscriptions.push(cx.subscribe(&settings_search,|_,_,_: &InputEvent,cx|cx.notify()));
         let remote = crate::remote::RemoteState::new(window, cx);
         let local_execution = crate::local_execution::LocalExecution::new(&locale, window, cx);
         let navigation = WorkspaceNavigation::default();
@@ -182,11 +186,12 @@ impl Workbench {
             input_locale: String::new(),
             locale,
             palettes,
-            dark,
             system_dark: dark,
             preferences,
             preferences_status: Default::default(),
             settings_menu_open: false,
+            settings_section: Default::default(),
+            settings_search,
             recent_tasks: Vec::new(),
             selected_project: None,
             project_binding,
@@ -400,11 +405,7 @@ impl Workbench {
                                 self.preferences_status =
                                     crate::settings_menu::PreferenceSaveState::Saved;
                             }
-                            self.dark = self.preferences.appearance.dark(self.system_dark);
-                            self.palettes.apply(self.dark, cx);
-                            self.chat.update(cx, |chat, cx| {
-                                chat.set_context(self.dark, &self.locale, cx)
-                            });
+                            self.install_appearance(cx);
                             self.error = None;
                         }
                     }
@@ -412,7 +413,7 @@ impl Workbench {
                         self.locale = pero_contracts::i18n::normalize(&event.text).into();
                         gpui_kit::component::set_locale(&self.locale);
                         self.chat
-                            .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
+                            .update(cx, |chat, cx| chat.set_locale(&self.locale, cx));
                     }
                     "ready" => self.connected = true,
                     "disconnected" => {
@@ -492,6 +493,9 @@ impl Workbench {
         self.sync_follow(cx);
         cx.notify();
     }
+    pub(crate) fn install_appearance(&mut self, cx: &mut Context<Self>) {
+        pero_theme::ResolvedAppearance::resolve(&self.preferences, self.system_dark, &self.palettes).install(cx);
+    }
     pub fn t(&self, key: &str) -> &'static str {
         pero_contracts::i18n::text(&self.locale, key)
     }
@@ -567,7 +571,7 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
                 ]);
             }
             gpui_kit::component::set_locale(&locale);
-            palettes.apply(dark, cx);
+            pero_theme::ResolvedAppearance::resolve(&Default::default(), dark, &palettes).install(cx);
             let (window, view) =
                 gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
                     let view = cx.new(|cx| Workbench::new(palettes, dark, locale, window, cx));
@@ -618,8 +622,8 @@ pub fn snapshot() -> String {
         value = serde_json::json!({
             "ready": true, "remote": ui.remote.snapshot(cx), "contribution": ui.contribution.data, "publicContributions": ui.remote.public_contributions, "connected": ui.connected, "input": ui.input.read(cx).value().as_ref(),
             "received": ui.received, "lastEcho": ui.last_echo, "pending": ui.pending,
-            "error": ui.error, "dark": ui.dark, "navigation": ui.navigation.page().legacy_index(),
-            "preferences":ui.preferences,"selectedProject":ui.selected_project,"projectTab":ui.project_tab,"taskStatus":ui.task_status,
+            "error": ui.error, "dark": pero_theme::UiAppearance::global(cx).dark, "navigation": ui.navigation.page().legacy_index(),
+            "appearance": appearance_snapshot(cx), "preferences":ui.preferences,"selectedProject":ui.selected_project,"projectTab":ui.project_tab,"taskStatus":ui.task_status,
             "projects":ui.project_catalog(cx),"workspaceRepositories":ui.workspace_repositories,
             "apps": ui.apps.entries, "activeApp": ui.navigation.current().and_then(|item| match item { WorkspaceItem::App { name, panel } => Some(json!({"name":name,"panel":panel})), _ => None }), "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.preferences.layout.chat_open,
             "locale": ui.locale, "labels": { "tasks": ui.t("nav.tasks"), "send": ui.t("probe.send") },
@@ -630,6 +634,7 @@ pub fn snapshot() -> String {
         value["activeContent"] = serde_json::json!(ui.navigation.current());
         value["chatPanelWidth"] = serde_json::json!(ui.preferences.layout.chat_width());
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
+        value["settingsSearch"] = serde_json::json!(ui.settings_search.read(cx).value().to_string());
         value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());
         if let Some(fields) = ui.chat.read(cx).snapshot(cx).as_object() {
@@ -667,10 +672,12 @@ pub fn paste_image(data: &str, mime_type: &str) {
 pub fn set_system_theme(dark: bool) {
     update(|ui, _, cx| {
         ui.system_dark = dark;
-        ui.dark = ui.preferences.appearance.dark(dark);
-        ui.palettes.apply(ui.dark, cx);
-        ui.chat
-            .update(cx, |chat, cx| chat.set_context(ui.dark, &ui.locale, cx));
+        ui.install_appearance(cx);
         cx.notify();
     });
+}
+
+#[cfg(target_family = "wasm")]
+fn appearance_snapshot(cx: &App) -> serde_json::Value {
+    serde_json::to_value(pero_theme::UiAppearance::global(cx)).expect("serializable appearance")
 }

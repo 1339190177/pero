@@ -131,7 +131,7 @@ mod surface {
         }
 
         /// The Web surface uses the content slot's actual GPUI layout bounds.
-        pub(crate) fn sync_app_surface(&mut self, bounds: Option<Bounds<Pixels>>) {
+        pub(crate) fn sync_app_surface(&mut self, bounds: Option<Bounds<Pixels>>, cx: &App) {
             #[cfg(target_family = "wasm")]
             {
                 let bounds = bounds.filter(|_| self.layout.app_surface_visible);
@@ -140,9 +140,9 @@ mod surface {
                         json!({"visible":true,"name":name,"panel":panel,
                         "left":f32::from(bounds.origin.x),"top":f32::from(bounds.origin.y),
                         "width":f32::from(bounds.size.width),"height":f32::from(bounds.size.height),
-                        "dark":self.dark,"locale":self.locale})
+                        "dark":pero_theme::UiAppearance::global(cx).dark,"appearance":pero_theme::UiAppearance::global(cx),"locale":self.locale})
                     }
-                    _ => json!({"visible":false,"dark":self.dark,"locale":self.locale}),
+                    _ => json!({"visible":false,"dark":pero_theme::UiAppearance::global(cx).dark,"appearance":pero_theme::UiAppearance::global(cx),"locale":self.locale}),
                 }
                 .to_string();
                 if self.app_surface != payload {
@@ -151,23 +151,23 @@ mod surface {
                 }
             }
             #[cfg(not(target_family = "wasm"))]
-            let _ = bounds;
+            let _ = (bounds, cx);
         }
 
         pub(crate) fn apps_view(&self, cx: &mut Context<Self>) -> AnyElement {
-            let p = self.palettes.get(self.dark);
+            let p = &pero_theme::UiAppearance::global(cx).palette.clone();
             let busy = self.apps.loading;
             if matches!(self.navigation.current(), Some(WorkspaceItem::App { .. })) {
                 let owner = cx.entity().clone();
                 return div()
                     .on_prepaint(move |bounds, _, cx| {
-                        owner.update(cx, |this, _| this.sync_app_surface(Some(bounds)))
+                        owner.update(cx, |this, cx| this.sync_app_surface(Some(bounds), cx))
                     })
                     .flex_1()
                     .min_w_0()
                     .h_full()
                     .p(px(20.))
-                    .text_color(p.color("text-muted"))
+                    .text_color(p.text_muted)
                     .child(if !self.layout.app_surface_visible {
                         ""
                     } else {
@@ -181,7 +181,7 @@ mod surface {
             }
             div().id("apps-library").flex_1().min_w_0().h_full().overflow_y_scroll().p(px(20.))
                 .child(div().flex().items_center().gap(px(10.)).mb(px(16.))
-                    .child(div().text_size(px(22.)).font_weight(FontWeight::SEMIBOLD).child(self.t("nav.apps")))
+                    .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title)).font_weight(FontWeight::SEMIBOLD).child(self.t("nav.apps")))
                     .child(div().flex_1())
                     .child(Button::new("apps-refresh").outline().small().label(self.t("apps.refresh")).disabled(busy || !cfg!(target_family = "wasm"))
                         .on_click(cx.listener(|this, _, _, cx| this.refresh_apps(cx))))
@@ -191,28 +191,28 @@ mod surface {
                             this.apps.error = None;
                             this.command(json!({"action":"apps_install"}), cx);
                         }))))
-                .when(!cfg!(target_family = "wasm"), |el| el.child(div().mb(px(12.)).text_color(p.color("text-muted"))
+                .when(!cfg!(target_family = "wasm"), |el| el.child(div().mb(px(12.)).text_color(p.text_muted)
                     .child(self.t("apps.native_unavailable"))))
                 .when_some(self.apps.error.as_ref(), |el, error| el.child(div().mb(px(12.)).p(px(10.))
-                    .bg(p.color("error-bg")).text_color(p.color("error")).child(error.clone())))
-                .when(busy, |el| el.child(div().py(px(12.)).text_color(p.color("text-muted")).child(self.t("apps.loading"))))
+                    .bg(p.error_bg).text_color(p.error).child(error.clone())))
+                .when(busy, |el| el.child(div().py(px(12.)).text_color(p.text_muted).child(self.t("apps.loading"))))
                 .when(cfg!(target_family = "wasm") && !busy && self.apps.entries.is_empty(), |el| el.child(div().py(px(32.)).flex().flex_col().gap(px(8.))
                     .child(div().font_weight(FontWeight::SEMIBOLD).child(self.t("apps.empty")))
-                    .child(div().text_color(p.color("text-muted")).child(self.t("apps.empty_hint")))))
+                    .child(div().text_color(p.text_muted).child(self.t("apps.empty_hint")))))
                 .children(self.apps.entries.iter().enumerate().map(|(index, app)| {
                     let name = app.name.clone();
                     let toggle_name = name.clone();
                     let remove_name = name.clone();
                     let confirming = self.apps.removing.as_deref() == Some(name.as_str());
                     let enabled = app.enabled;
-                    div().py(px(14.)).border_b_1().border_color(p.color("border"))
+                    div().py(px(14.)).border_b_1().border_color(p.border)
                         .child(div().flex().items_center().gap(px(10.))
                             .child(div().flex_1().min_w_0().flex().flex_col().gap(px(5.))
                                 .child(div().flex().items_center().gap(px(8.))
                                     .child(div().font_weight(FontWeight::SEMIBOLD).child(app.display_name.clone()))
-                                    .child(div().text_size(px(12.)).text_color(p.color("text-muted")).child(app.version.clone())))
-                                .child(div().text_color(p.color("text-muted")).whitespace_normal().child(app.description.clone())))
-                            .child(div().text_size(px(12.)).text_color(p.color("text-muted"))
+                                    .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).text_color(p.text_muted).child(app.version.clone())))
+                                .child(div().text_color(p.text_muted).whitespace_normal().child(app.description.clone())))
+                            .child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).text_color(p.text_muted)
                                 .child(self.t(if enabled { "apps.enabled" } else { "apps.disabled" })))
                             .children(app.panels.iter().enumerate().map(|(panel_index, panel)| {
                                 let app_name = name.clone();
@@ -238,7 +238,7 @@ mod surface {
                         .when(confirming, |el| {
                             let name = name.clone();
                             el.child(div().mt(px(10.)).flex().items_center().gap(px(10.))
-                                .child(div().flex_1().text_color(p.color("warning")).child(self.t("apps.remove_hint")))
+                                .child(div().flex_1().text_color(p.warning).child(self.t("apps.remove_hint")))
                                 .child(Button::new(("app-remove-cancel", index)).outline().small().label(self.t("apps.cancel"))
                                     .on_click(cx.listener(|this, _, _, cx| { this.apps.removing = None; cx.notify(); })))
                                 .child(Button::new(("app-remove-confirm", index)).outline().small().label(self.t("apps.confirm_remove"))

@@ -12,19 +12,19 @@ use crate::{
     workspace::{ConversationTab, WorkbenchPage, WorkspaceItem},
 };
 use gpui_kit::{prelude::*, *};
-use serde_json::json;
 use std::rc::Rc;
 
 impl Workbench {
-    fn ui(&self) -> Ui<'_> {
+    fn ui<'a>(&'a self, cx: &'a App) -> Ui<'a> {
         Ui {
-            palette: self.palettes.get(self.dark),
+            palette: &pero_theme::UiAppearance::global(cx).palette,
+            typography: pero_theme::UiAppearance::global(cx).typography,
             locale: &self.locale,
         }
     }
 
     pub fn icon(&self, name: &str) -> Svg {
-        self.ui().icon(name)
+        pero_chat_ui::assets::UiIcon::named(name).element().size(px(19.)).flex_shrink_0()
     }
 
     fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -184,8 +184,9 @@ impl Workbench {
             .filter(|(_, chat)| chat.workspace.is_empty() && matches(&chat.title))
             .map(|(i, chat)| session_row(i, chat))
             .collect();
+        let settings = self.settings_menu(cx).into_any_element();
         sidebar::sidebar(
-            self.ui(),
+            self.ui(cx),
             width,
             SidebarProps {
                 navigation: self.navigation.page(),
@@ -194,16 +195,16 @@ impl Workbench {
                 ungrouped,
                 search: &self.search,
             },
-            self.settings_menu(cx).into_any_element(),
+            settings,
             on_action,
         )
     }
 
-    fn detail(&self, _window: &mut Window, _cx: &mut Context<Self>) -> AnyElement {
+    fn detail(&self, _window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         if self.tab == ConversationTab::Chat {
             return self.chat.clone().into_any_element();
         }
-        let ui = self.ui();
+        let ui = self.ui(cx);
         div()
             .id("detail-content")
             .flex_1()
@@ -214,7 +215,7 @@ impl Workbench {
                 div()
                     .py(px(8.))
                     .border_b_1()
-                    .border_color(ui.palette.color("border"))
+                    .border_color(ui.palette.border)
                     .child(self.event_text(event))
             }))
             .into_any_element()
@@ -242,7 +243,7 @@ impl Workbench {
                 available: agent.available,
             })
             .collect();
-        workspace::environments(self.ui(), &agents, self.workspace_actions(cx))
+        { let actions = self.workspace_actions(cx); workspace::environments(self.ui(cx), &agents, actions) }
     }
 }
 
@@ -250,6 +251,8 @@ impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.input_locale != self.locale {
             self.input_locale = self.locale.clone();
+            let placeholder = self.t("settings.search");
+            self.settings_search.update(cx, |input, cx| input.set_placeholder(placeholder, window, cx));
             let placeholder = self.t("sessions.search");
             self.search.update(cx, |input, cx| {
                 input.set_placeholder(placeholder, window, cx)
@@ -276,11 +279,12 @@ impl Render for Workbench {
         let chat_width = layout.chat_width;
         let dock = layout.chat == ChatPlacement::Dock;
         let narrow = layout.narrow;
-        let has_tabs = !self.navigation.items().is_empty();
+        let settings = self.navigation.page() == WorkbenchPage::Settings;
+        let has_tabs = !self.navigation.items().is_empty() && !settings;
         if !layout.app_surface_visible {
-            self.sync_app_surface(None);
+            self.sync_app_surface(None, cx);
         }
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("workbench")
             .on_key_down(
@@ -306,11 +310,11 @@ impl Render for Workbench {
             )
             .size_full()
             .flex()
-            .bg(p.color("surface"))
-            .text_color(p.color("text"))
-            .font_family("Noto Sans CJK SC")
-            .text_size(px(14.))
-            .child(self.sidebar(sidebar_width, cx))
+            .bg(p.surface)
+            .text_color(p.text)
+
+            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
+            .when(!settings, |el| el.child(self.sidebar(sidebar_width, cx)))
             .child(
                 div()
                     .flex_1()
@@ -326,8 +330,8 @@ impl Render for Workbench {
                                 .role(Role::Alert)
                                 .px(px(20.))
                                 .py(px(10.))
-                                .bg(p.color("error-bg"))
-                                .text_color(p.color("error"))
+                                .bg(p.error_bg)
+                                .text_color(p.error)
                                 .child(
                                     self.error
                                         .as_deref()

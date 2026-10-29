@@ -255,7 +255,8 @@ pub fn run() -> anyhow::Result<()> {
             .expect("native catalog fonts");
         gpui_kit::init(cx);
         gpui_kit::component::set_locale(&locale);
-        palettes.apply(false, cx);
+        let system_dark = matches!(cx.window_appearance(), WindowAppearance::Dark | WindowAppearance::VibrantDark);
+        pero_theme::ResolvedAppearance::resolve(&Default::default(), system_dark, &palettes).install(cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
                 None,
@@ -268,8 +269,12 @@ pub fn run() -> anyhow::Result<()> {
         let (window, view) = gpui_kit::open_window(options, cx, move |window, cx| {
             window.set_window_title("Pero Native Preview — local sessions");
             cx.new(|cx| {
-                let mut view = Workbench::new(palettes, false, locale, window, cx);
+                let mut view = Workbench::new(palettes, system_dark, locale, window, cx);
                 view.navigation.show(WorkbenchPage::Conversation);
+                view._subscriptions.push(cx.observe_window_appearance(window, |view, window, cx| {
+                    view.system_dark = matches!(window.appearance(), WindowAppearance::Dark | WindowAppearance::VibrantDark);
+                    view.install_appearance(cx);
+                }));
                 view
             })
         })
