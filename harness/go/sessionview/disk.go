@@ -68,7 +68,6 @@ func (h *History) Save(path string, extra json.RawMessage) error {
 			return err
 		}
 	}
-	previousCheckpoint := h.checkpoint
 	state, err := h.projector.checkpoint()
 	if err != nil {
 		return err
@@ -188,9 +187,9 @@ func (h *History) Save(path string, extra json.RawMessage) error {
 	h.streamSnapshot = snapshot
 	h.weight = int64(len(h.metas)*diskMetaSize + len(snapshot))
 	h.projector = nil
-	if previousCheckpoint != "" && previousCheckpoint != h.checkpoint {
-		_ = os.Remove(filepath.Join(h.diskDir, previousCheckpoint))
-	}
+	// Previously opened histories may still need the old checkpoint for lazy
+	// continuation. Like immutable blobs, checkpoints live until the cache
+	// owner removes the cache directory; publishing an index cannot reclaim them.
 	return nil
 }
 
