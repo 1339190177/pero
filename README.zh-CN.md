@@ -36,15 +36,15 @@
 
 | 范围 | 当前状态 | Roadmap |
 | --- | --- | --- |
-| Desktop 与 Agent 会话 | ACP 对话、工具结果展示、审批界面、历史和工作区已实现 | [M0](ROADMAP.md) |
-| 任务与 Worker | 分派、租约、取消和恢复已实现；Linux 真实 Provider 验收待完成 | [M1](ROADMAP.md) |
-| GitHub 与贡献 | 来源导入、认领和本机编码已实现；真实 GitHub PR 发布待验收 | [M2](ROADMAP.md) |
-| App 与产品 | Virtual Cell 本地运行和 macOS 开发包已验证；Agent 工具和任务接线待完成 | [App 与产品](ROADMAP.md#app插件与产品) |
-| 项目、知识与团队 | 项目 journal、记忆、Pages 和团队同步规划中 | [项目与团队](ROADMAP.md) |
-| Playbook、插件与连接器 | 方法编排、多 Agent 团队和 MCP 接入规划中 | [方法与连接器](ROADMAP.md) |
-| 可信交付 | 产物版本、独立验证和接受决定规划中 | [M3](ROADMAP.md) |
-| 执行环境 | 环境模板、Use 生命周期、隔离和资源匹配规划中 | [M4](ROADMAP.md) |
-| Web 与移动工作台 | 共享工作台客户端规划中；现有 Web 页面为演示或任务浏览入口 | [多端客户端](ROADMAP.md) |
+| Desktop 与 Agent 会话 | ACP 对话、工具结果展示、审批界面、历史和工作区已实现 | [会话与 Agent](ROADMAP.md#会话与-agent) |
+| 任务与 Worker | 分派、租约、取消和恢复已实现；Linux 真实 Provider 验收待完成 | [任务分派](ROADMAP.md#任务与贡献) |
+| GitHub 与贡献 | 来源导入、认领和本机编码已实现；真实 GitHub PR 发布待验收 | [代码贡献](ROADMAP.md#认领与代码贡献) |
+| App 与产品 | Virtual Cell 本地运行和 macOS 开发包已验证；Agent 工具和任务接线待完成 | [App 与产品](ROADMAP.md#app-与产品) |
+| 项目、知识与团队 | 项目 journal、记忆、Pages 和团队同步规划中 | [项目与团队](ROADMAP.md#项目与团队) |
+| Playbook、插件与连接器 | 方法编排、多 Agent 团队和 MCP 接入规划中 | [自动化与方法](ROADMAP.md#自动化与方法) |
+| 可信交付 | 产物版本、独立验证和接受决定规划中 | [验证与发布](ROADMAP.md#验证与发布) |
+| 执行环境 | 环境模板、Use 生命周期、隔离和资源匹配规划中 | [环境与部署](ROADMAP.md#环境与部署) |
+| Web 与移动工作台 | 共享工作台客户端规划中；现有 Web 页面为演示或任务浏览入口 | [多端客户端](ROADMAP.md#web-与移动端) |
 
 ## 工作方式
 

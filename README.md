@@ -36,15 +36,15 @@ The longer-term goal is to connect these Apps with agents, collaborators and com
 
 | Area | Current status | Roadmap |
 | --- | --- | --- |
-| Desktop & Agent sessions | ACP conversations, tool results, approval UI, history and workspaces implemented | [M0](ROADMAP.md) |
-| Tasks & Workers | Dispatch, leases, cancellation and recovery implemented; Linux real-provider acceptance pending | [M1](ROADMAP.md) |
-| GitHub & contributions | Intake, claims and local coding implemented; real GitHub PR publication acceptance pending | [M2](ROADMAP.md) |
-| Apps & products | Virtual Cell runs locally and in a macOS development package; Agent tools and task integration pending | [Apps & products](ROADMAP.md#app插件与产品) |
-| Projects, knowledge & teams | Project journals, memory, Pages and team sync planned | [Projects & teams](ROADMAP.md) |
-| Playbooks, plugins & connectors | Method orchestration, multi-agent teams and MCP integrations planned | [Methods & connectors](ROADMAP.md) |
-| Trusted delivery | Artifact versions, independent verification and acceptance decisions planned | [M3](ROADMAP.md) |
-| Execution environments | Environment templates, Use lifecycle, isolation and resource matching planned | [M4](ROADMAP.md) |
-| Web & mobile workbench | Shared workbench clients planned; current Web pages are demos or task browsing | [Clients](ROADMAP.md) |
+| Desktop & Agent sessions | ACP conversations, tool results, approval UI, history and workspaces implemented | [Sessions](ROADMAP.md#会话与-agent) |
+| Tasks & Workers | Dispatch, leases, cancellation and recovery implemented; Linux real-provider acceptance pending | [Tasks](ROADMAP.md#任务与贡献) |
+| GitHub & contributions | Intake, claims and local coding implemented; real GitHub PR publication acceptance pending | [Contributions](ROADMAP.md#认领与代码贡献) |
+| Apps & products | Virtual Cell runs locally and in a macOS development package; Agent tools and task integration pending | [Apps & products](ROADMAP.md#app-与产品) |
+| Projects, knowledge & teams | Project journals, memory, Pages and team sync planned | [Projects & teams](ROADMAP.md#项目与团队) |
+| Playbooks, plugins & connectors | Method orchestration, multi-agent teams and MCP integrations planned | [Methods](ROADMAP.md#自动化与方法) |
+| Trusted delivery | Artifact versions, independent verification and acceptance decisions planned | [Verification](ROADMAP.md#验证与发布) |
+| Execution environments | Environment templates, Use lifecycle, isolation and resource matching planned | [Environments](ROADMAP.md#环境与部署) |
+| Web & mobile workbench | Shared workbench clients planned; current Web pages are demos or task browsing | [Clients](ROADMAP.md#web-与移动端) |
 
 ## How it works
 

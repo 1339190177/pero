@@ -50,3 +50,37 @@ Actual Electron must configure the connector, restart, display Issues and
 ROADMAP Tasks, and preserve project scope and credential boundaries. A separate
 opt-in run reads `phodal/pero` from GitHub and compares its imported checklist
 with the pinned repository content. Viewing Tasks never dispatches them.
+
+## Public task browser
+
+The public board loads the complete current published task outline, excluding
+removed sources. Tree and panorama share this one snapshot, search, phase filter,
+category selection and inspected task. The existing paginated administration and
+historical task routes retain their behavior. A phase is a browsing category;
+source closure and accepted work remain separate.
+
+Roadmap headings define a functional domain → feature → task hierarchy. A
+conventional document title `Roadmap` is omitted from browsing, while the original
+source context and identity stay intact. No parallel category registry is added.
+The default scope excludes accepted and source-closed work. Domain roots open to
+collapsed feature folders with matching-task counts; choosing a domain reveals
+its tasks. Completed work remains available through the state filter.
+
+The category rail and panorama use the same domains. Search includes feature
+paths, scope and acceptance, revealing all ancestors. Category counts follow the
+current search and state scope. Clearing filters restores the unfinished scope
+and previous branch expansion. Panorama presents each domain's features and
+returns to the corresponding tree branch when selected.
+
+Branch expansion and inspection are separate. Arrow keys navigate the full
+hierarchy; Enter opens one inline scope, acceptance check and source/Desktop
+actions, while Escape closes it. No task detail navigation is required. URL
+parameters preserve filters and view; only a currently matching selection adds
+a task hash, so a hidden selection cannot erase a search on reload.
+
+Only published tasks and public repository headings enter the outline. Private
+publications retain reviewed text. `store.RoadmapGoal` owns short-title parsing;
+the public brief omits a redundant matching title prefix and separates an explicit
+`验收：` check without changing the stored goal. Without JavaScript the same HTML remains a readable native disclosure list.
+No task-inspection navigation, new execution state or client-side claim authority
+is introduced by either view.
