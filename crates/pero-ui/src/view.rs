@@ -4,7 +4,6 @@ use crate::{
     components::{
         ActionHandler, Ui,
         sidebar::{self, DeleteAffordance, SidebarAction, SidebarProps},
-        task_detail::{self, SessionHeader, TaskDetailAction, TaskDetailProps},
         workspace::{self, AgentRow, WorkspaceAction},
     },
 };
@@ -200,65 +199,25 @@ impl Workbench {
         )
     }
 
-    fn detail(&self, _window: &mut Window, cx: &mut Context<Self>) -> Div {
-        let panel = self.chat.read(cx);
-        let session = panel
-            .active_chat
-            .and_then(|i| panel.chats.get(i))
-            .map(|chat| SessionHeader {
-                title: chat.title.clone(),
-                agent: chat.agent.clone(),
-                closed: chat.state == "closed",
-            });
-        let content = if self.tab == ConversationTab::Chat {
-            self.chat.clone().into_any_element()
-        } else {
-            let ui = self.ui();
-            div()
-                .id("detail-content")
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scroll()
-                .p(px(20.))
-                .when(self.tab == ConversationTab::Logs, |el| {
-                    el.children(self.events.iter().map(|event| {
-                        div()
-                            .py(px(8.))
-                            .border_b_1()
-                            .border_color(ui.palette.color("border"))
-                            .child(self.event_text(event))
-                    }))
-                })
-                .into_any_element()
-        };
-        let on_action = Rc::new(cx.listener(
-            |this, action: &TaskDetailAction, _, cx| match action {
-                TaskDetailAction::NewSession => this.new_chat(cx),
-                TaskDetailAction::CloseSession => {
-                    let panel = this.chat.read(cx);
-                    if let Some(id) = panel
-                        .active_chat
-                        .and_then(|i| panel.chats.get(i))
-                        .map(|chat| chat.id.clone())
-                    {
-                        this.command(json!({"action":"close","thread_id":id}), cx);
-                    }
-                }
-                TaskDetailAction::SelectTab(tab) => {
-                    let active = this.chat.read(cx).active_chat;
-                    this.focus_chat(active, *tab, cx);
-                }
-            },
-        ));
-        task_detail::task_detail(
-            self.ui(),
-            TaskDetailProps {
-                session,
-                tab: self.tab,
-            },
-            content,
-            on_action,
-        )
+    fn detail(&self, _window: &mut Window, _cx: &mut Context<Self>) -> AnyElement {
+        if self.tab == ConversationTab::Chat {
+            return self.chat.clone().into_any_element();
+        }
+        let ui = self.ui();
+        div()
+            .id("detail-content")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .p(px(20.))
+            .children(self.events.iter().map(|event| {
+                div()
+                    .py(px(8.))
+                    .border_b_1()
+                    .border_color(ui.palette.color("border"))
+                    .child(self.event_text(event))
+            }))
+            .into_any_element()
     }
 
     fn workspace_actions(&self, cx: &mut Context<Self>) -> ActionHandler<WorkspaceAction> {

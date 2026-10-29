@@ -1,6 +1,5 @@
 //! Stateless Workbench components. State and Host commands remain in the owner.
 pub(super) mod sidebar;
-pub(super) mod task_detail;
 pub(super) mod workspace;
 use crate::theme::Palette;
 use gpui_kit::{prelude::*, *};
