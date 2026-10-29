@@ -3,7 +3,10 @@ use pero_contracts::{
     context::{ContextKind, ContextReference},
 };
 use pero_runtime::acp::{self, AgentConfig, SessionCommand, SessionHandle};
+use pero_runtime::apps::agent::AppSessionBinding;
 use pero_runtime::context::ContextSources;
+#[path = "app_agent.rs"]
+mod app_agent;
 use std::{
     collections::HashMap,
     io::Write,
@@ -20,6 +23,7 @@ pub struct Manager {
     sessions: HashMap<String, SessionHandle>,
     tx: Sender<HostEvent>,
     history: Arc<Mutex<Vec<HostEvent>>>,
+    app_bindings: HashMap<String, AppSessionBinding>,
 }
 impl Manager {
     pub fn new(root: PathBuf) -> Self {
@@ -33,6 +37,17 @@ impl Manager {
             .take(5000)
             .filter_map(|line| serde_json::from_str::<HostEvent>(line).ok())
             .collect::<Vec<_>>();
+        let app_bindings = stored
+            .iter()
+            .filter_map(|event| {
+                if event.kind != "session_created" {
+                    return None;
+                }
+                let binding: AppSessionBinding =
+                    serde_json::from_value(event.data.get("appBinding")?.clone()).ok()?;
+                Some((event.thread_id.clone()?, binding))
+            })
+            .collect();
         let history = Arc::new(Mutex::new(stored.into_iter().rev().collect::<Vec<_>>()));
         let saved = history.clone();
         if let Some(parent) = history_file.parent() {
@@ -96,6 +111,7 @@ impl Manager {
             sessions: HashMap::new(),
             tx,
             history,
+            app_bindings,
         }
     }
     fn visible_history(&self) -> Vec<HostEvent> {
@@ -129,6 +145,10 @@ impl Manager {
                 return;
             }
         };
+        self.command(command);
+    }
+
+    fn command(&mut self, command: HostCommand) {
         match command {
             HostCommand::LoadRoadmap => self.publish_roadmap(),
             HostCommand::ListAgents => {
@@ -246,57 +266,10 @@ impl Manager {
                 agent_id,
                 scope,
             } => {
-                if scope.as_ref().is_some_and(|scope| !scope.valid()) {
-                    let mut event = HostEvent::new(
-                        "session_error",
-                        None,
-                        "Invalid App conversation scope".into(),
-                    );
+                if let Err(error) = self.create_session(thread_id.clone(), &agent_id, None, scope) {
+                    let mut event = HostEvent::new("session_error", None, error);
                     event.thread_id = Some(thread_id);
                     let _ = self.tx.send(event);
-                    return;
-                }
-                self.sessions.retain(|_, session| !session.tx.is_closed());
-                if thread_id.is_empty()
-                    || thread_id.len() > 128
-                    || self.sessions.len() >= 16
-                    || self.sessions.contains_key(&thread_id)
-                {
-                    let mut e = HostEvent::new(
-                        "session_error",
-                        None,
-                        "Session exists or limit reached".into(),
-                    );
-                    e.thread_id = Some(thread_id);
-                    let _ = self.tx.send(e);
-                    return;
-                }
-                if let Some(agent) = self
-                    .agents
-                    .iter()
-                    .find(|a| a.id == agent_id && a.available())
-                {
-                    let mut event = HostEvent::new("session_created", None, String::new());
-                    event.thread_id = Some(thread_id.clone());
-                    event.data = serde_json::json!({"agent":agent.id,"workspace":self.workspace});
-                    if let Some(scope) = scope {
-                        event.data["scope"] = serde_json::json!(scope);
-                    }
-                    let _ = self.tx.send(event);
-                    self.sessions.insert(
-                        thread_id.clone(),
-                        acp::start(
-                            agent.clone(),
-                            self.workspace.clone(),
-                            thread_id,
-                            self.tx.clone(),
-                        ),
-                    );
-                } else {
-                    let mut e =
-                        HostEvent::new("session_error", None, "Agent is not installed".into());
-                    e.thread_id = Some(thread_id);
-                    let _ = self.tx.send(e);
                 }
             }
             HostCommand::Permission {

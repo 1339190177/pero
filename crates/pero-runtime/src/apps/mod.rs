@@ -1,4 +1,5 @@
 //! Local App packages and the single owner of their installed state and backends.
+pub mod agent;
 mod definition;
 mod process;
 mod python;
@@ -101,6 +102,24 @@ impl AppStore {
             .values()
             .map(|app| app.definition.summary(app.enabled))
             .collect()
+    }
+
+    pub fn require_agent(&self, name: &AppName) -> Result<(), String> {
+        let app = self.installed.get(name).ok_or("App is not installed")?;
+        if !app.enabled
+            || !app
+                .definition
+                .permissions
+                .host
+                .iter()
+                .any(|grant| grant == "agent")
+        {
+            return Err(
+                "Enable this App with its declared agent permission before starting research"
+                    .into(),
+            );
+        }
+        Ok(())
     }
 
     /// Trusted composition-root catalog. Seed once; uninstall is durable across

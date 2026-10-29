@@ -125,10 +125,10 @@ impl AppDefinition {
         {
             return Err("Invalid App version, displayName or description".into());
         }
-        // This first surface exposes only the App's own backend. Adding Host grants
-        // requires a corresponding operation at the owning Host boundary.
-        if !value.permissions.host.is_empty() {
-            return Err("This Host does not support App host permissions yet".into());
+        if value.permissions.host.iter().any(|grant| grant != "agent")
+            || value.permissions.host.len() > 1
+        {
+            return Err("This Host supports only the App agent permission".into());
         }
         if value.contributes.panels.len() != 1 {
             return Err("This Host requires exactly one App panel".into());
@@ -186,6 +186,7 @@ mod tests {
             ("name", serde_json::json!("-cell"), false),
             ("displayName", serde_json::json!(" "), false),
             ("permissions", serde_json::json!({"host":["shell"]}), false),
+            ("permissions", serde_json::json!({"host":["agent"]}), true),
             (
                 "backend",
                 serde_json::json!({"type":"python","entry":"../server.py"}),
