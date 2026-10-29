@@ -1156,7 +1156,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "dd19b76fe724370983aaa299e5e63d36ed1eba552eb656e583d29f47ef4a1c66",
+      "sha256": "d8f64ea9251798142188ef4fe7256681b9415947d53b4680a6b98cbd890f3803",
       "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     },
     {
@@ -1196,7 +1196,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-      "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a",
+      "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967",
       "change": "new synthetic subprocess regression for combined root AGENTS/todo/MCP/model/compaction/stream composition; no live-provider calls"
     },
     {
@@ -1206,6 +1206,16 @@
       "change": "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
       "source_path": "go/harness/acp/server.go",
       "source_blob_sha1": "3d268e23af503d0933bdc2cc2c269462f6071318"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/windows_files_test.go",
+      "sha256": "3191d528ff46edcc2bd2b6f0cfafeaa8e5f64f2fc3d1c021ed0b3d881eb289e3",
+      "change": "new required native Windows built-CLI temp-file contracts; synthetic loopback provider only"
+    },
+    {
+      "destination": "cmd/pero-agent-acp/windows_runtime_test.go",
+      "sha256": "2801f8ac0c21204929f5e6160a098749c91e5adf967b3658818444984c5aaa53",
+      "change": "new required native Windows built-CLI temp-file contracts; synthetic loopback provider only"
     }
   ],
   "removed_files": [
@@ -1243,7 +1253,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-        "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a"
+        "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967"
       }
     ]
   },
@@ -1257,7 +1267,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
-        "sha256": "f49bd4d31b2fc61e4e941d9a9b95244bf12927422962f1fc5a5e9236056bd76a"
+        "sha256": "f249efe1dbcd982a1064becb2b31c9ff5355dfc4d3fbeab4a8e0f7674da28967"
       },
       {
         "destination": "config/explicit_environment_test.go",
@@ -1285,11 +1295,11 @@
       },
       {
         "destination": "nativetools/tools.go",
-        "sha256": "4b55fe981418607f4aa5236f0dff1cd5b4d635cffb47d33c8600faf89d234251"
+        "sha256": "98e6c60b700ccda11b9680a51f2b752ccbe8bf606f6a5dac2fc88d2e69e1697f"
       },
       {
         "destination": "nativetools/tools_test.go",
-        "sha256": "18790f6a7490e5fba8ba72ee8619a159c60ea1963afac0f913c5a598faa0f0cb"
+        "sha256": "d748f7cd03b297f403ae23dd3acaccc9ae65a481ca453ad60fbf1640463505ea"
       },
       {
         "destination": "providers/openai/adapter_test.go",
@@ -1354,7 +1364,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/main.go",
-        "sha256": "dd19b76fe724370983aaa299e5e63d36ed1eba552eb656e583d29f47ef4a1c66"
+        "sha256": "d8f64ea9251798142188ef4fe7256681b9415947d53b4680a6b98cbd890f3803"
       },
       {
         "destination": "harness/mcp.go",
@@ -1415,7 +1425,7 @@
       },
       {
         "destination": "fstools/workspace_test.go",
-        "sha256": "87b4c4815f6adc960f12171464894cf4aecc9bcd2300084d14a44e1bdabb74a5"
+        "sha256": "fe33d776a60085729f0c73a666b9ba83fabd6b5b24c15460dc70eab40894712b"
       },
       {
         "destination": "media/attachment.go",
@@ -1439,7 +1449,7 @@
       },
       {
         "destination": "nativetools/tools_test.go",
-        "sha256": "18790f6a7490e5fba8ba72ee8619a159c60ea1963afac0f913c5a598faa0f0cb"
+        "sha256": "d748f7cd03b297f403ae23dd3acaccc9ae65a481ca453ad60fbf1640463505ea"
       },
       {
         "destination": "sandbox/strict.go",
@@ -1451,7 +1461,7 @@
       },
       {
         "destination": "shell/local_test.go",
-        "sha256": "47b724809c6df94ff5b5dd903e403bcf5ad04fcac8eb9265bd1a64defcd35ce9"
+        "sha256": "38c862954c5a9c37523676bc9f2e8678a7d884eb8f6ed3645213c09dd8925680"
       },
       {
         "destination": "skills/catalog_test.go",

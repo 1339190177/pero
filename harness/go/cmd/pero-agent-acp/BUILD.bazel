@@ -43,6 +43,7 @@ go_test(
         "models_test.go",
         "sandbox_options_test.go",
         "subagents_test.go",
+        "windows_files_test.go",
         "windows_runtime_test.go",
     ],
     embed = [":pero-agent-acp_lib"],

@@ -45,7 +45,7 @@ func TestCodingModelAgentProcess(t *testing.T) {
 func TestCodingModelCLICombinedActivationWire(t *testing.T) {
 	for _, native := range []bool{false, true} {
 		t.Run(fmt.Sprintf("native-instructions=%v", native), func(t *testing.T) {
-			if native && runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+			if native && runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 				t.Skip("native instruction capability unsupported; portable combined workflow still runs")
 			}
 			testCodingModelCLICombinedActivationWire(t, native)
@@ -328,7 +328,7 @@ func testCodingModelCLICombinedActivationWire(t *testing.T, native bool) {
 }
 
 func TestUnsupportedNativeCLIAdmission(t *testing.T) {
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		t.Skip("unsupported-platform contract")
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)

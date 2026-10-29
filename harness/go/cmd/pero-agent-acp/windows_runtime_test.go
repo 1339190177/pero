@@ -78,8 +78,12 @@ func TestWindowsACLCLIProcessApprovalAndWriteBoundary(t *testing.T) {
 			http.Error(w, "bad fixture request", 400)
 			return
 		}
-		if len(request.Tools) != 1 || request.Tools[0].Function.Name != "shell" || !strings.Contains(request.Tools[0].Function.Description, "NOT isolated") {
-			t.Errorf("CLI must expose only the accurately labeled partial shell: %+v", request.Tools)
+		names := map[string]string{}
+		for _, tool := range request.Tools {
+			names[tool.Function.Name] = tool.Function.Description
+		}
+		if len(names) != 5 || names["read_file"] == "" || names["list_directory"] == "" || names["search_files"] == "" || !strings.Contains(names["write_file"], "create-only") || !strings.Contains(names["shell"], "NOT isolated") {
+			t.Errorf("CLI must expose bounded files and the accurately labeled partial shell: %+v", request.Tools)
 		}
 		mu.Lock()
 		stage := calls

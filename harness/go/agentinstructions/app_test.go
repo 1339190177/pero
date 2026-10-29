@@ -225,11 +225,11 @@ func TestMountedPromptAndJSONLResume(t *testing.T) {
 func requireInstructionPlatform(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
-		t.Skip("positive descriptor-rooted instructions require Linux or Darwin; unsupported admission tested separately")
+		t.Skip("Unix instruction mutation fixtures; Windows instructions use the required native CLI contract")
 	}
 }
 func TestUnsupportedInstructionAdmission(t *testing.T) {
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		t.Skip("unsupported-platform contract")
 	}
 	h, err := harness.Boot(t.Context(), harness.Options{})
