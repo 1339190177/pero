@@ -42,7 +42,7 @@ pub struct AppStore {
 impl AppStore {
     pub fn open(root: PathBuf) -> Result<Self, String> {
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
-        let root = fs::canonicalize(root).map_err(|error| error.to_string())?;
+        let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
         let data = root
             .parent()
             .ok_or("App root needs a parent directory")?
@@ -146,7 +146,7 @@ impl AppStore {
         {
             return Err("App installation source cannot be a symlink".into());
         }
-        let source = fs::canonicalize(source).map_err(|error| error.to_string())?;
+        let source = dunce::canonicalize(source).map_err(|error| error.to_string())?;
         if source.starts_with(&self.root) || self.root.starts_with(&source) {
             return Err("App source and managed installation root must be separate".into());
         }

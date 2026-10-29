@@ -78,6 +78,20 @@ pub fn registry(root: &Path) -> Result<Vec<AgentConfig>, String> {
             mcp_servers: vec![],
         },
     ];
+    // Packaged adapters use Electron's Node runtime directly on every OS.
+    // In particular, Windows CreateProcess does not execute npm .cmd shims.
+    if let Some(node) = std::env::var_os("PERO_ADAPTER_NODE") {
+        for (id, script, key, cli) in [
+            ("codex", "codex-acp.mjs", "CODEX_PATH", "codex"),
+            ("claude", "claude-agent-acp.mjs", "CLAUDE_CODE_EXECUTABLE", "claude"),
+        ] {
+            let agent = agents.iter_mut().find(|agent| agent.id == id).unwrap();
+            agent.command = node.to_string_lossy().into_owned();
+            agent.args = vec![agent_root.join("adapters").join(script).to_string_lossy().into_owned()];
+            agent.env.insert("ELECTRON_RUN_AS_NODE".into(), "1".into());
+            agent.env.insert(key.into(), std::env::var(key).unwrap_or_else(|_| cli.into()));
+        }
+    }
     let file = std::env::var_os("PERO_AGENTS_FILE")
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join("agents.local.json"));

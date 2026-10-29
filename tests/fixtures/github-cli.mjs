@@ -8,7 +8,10 @@ const fork = process.env.CONTRIBUTION_FIXTURE_FORK;
 if (!base || !fork) throw new Error('GitHub fixture requires an explicit isolated environment');
 appendFileSync(base + '.calls', JSON.stringify(args) + '\n');
 const out = text => process.stdout.write(text + '\n');
-if (args[0] === '--version') out('gh contribution-fixture');
+if (args[0] === '--version') {
+  if (existsSync(base + '.missing')) process.exit(1);
+  out('gh contribution-fixture');
+}
 else if (args[0] === 'auth' && args[1] === 'status') {
   if (existsSync(base + '.unauthenticated')) process.exit(1);
   out('Authenticated fixture account');

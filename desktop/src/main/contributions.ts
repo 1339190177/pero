@@ -125,7 +125,7 @@ export class DesktopContributions {
     if (this.state.loading) return;
     const command = input as { action?: string; task_id?: string; agent_id?: string };
     const action = command?.action;
-    if (!action || !['refresh', 'more', 'select', 'claim', 'release', 'start', 'review', 'publish', 'submit', 'source', 'open_pr', 'open_session'].map(value => `remote_contribution_${value}`).includes(action)) throw new Error('Invalid contribution action');
+    if (!action || !['refresh', 'more', 'select', 'claim', 'release', 'start', 'review', 'publish', 'submit', 'source', 'open_pr', 'open_session', 'gh_help'].map(value => `remote_contribution_${value}`).includes(action)) throw new Error('Invalid contribution action');
     const task_id = command.task_id || this.state.selected_task_id;
     if (!['remote_contribution_refresh', 'remote_contribution_more'].includes(action) && (!task_id || !/^[\w-]+$/.test(task_id))) throw new Error('Select a public task first.');
     this.state.loading = true; this.state.error = null; this.publish();
@@ -174,7 +174,8 @@ export class DesktopContributions {
             Object.assign(previous, local); this.state.local = previous;
             if (operation === 'publish') await this.submit(detail, previous);
           }
-        } else if (action === 'remote_contribution_source') await shell.openExternal(this.state.detail.source_url);
+        } else if (action === 'remote_contribution_gh_help') await shell.openExternal('https://cli.github.com/');
+        else if (action === 'remote_contribution_source') await shell.openExternal(this.state.detail.source_url);
         else if (action === 'remote_contribution_open_pr') {
           const url = this.state.detail.pull_request?.url || this.state.local?.pr_url;
           if (url) await shell.openExternal(url);

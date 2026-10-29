@@ -19,18 +19,18 @@
   document.documentElement.style.colorScheme = theme;
 })();
 </script>
-<meta content="OpenPero 做分布式 Agent 协作，面向 AI4S 与研发，连接业务专家、开源贡献者与计算环境。围绕课题组织方法、数据与算力，让研究者、AI 与计算环境共同完成可复核的工作。" name="description"/>
+<meta content="把科研脚本和模型做成可以单独使用的 App，再把任务交给合作者、AI 和合适的计算环境。输入、方法和结果保持可追溯。" name="description"/>
 <link rel="canonical" href="https://phodal.github.io/pero/"/>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="OpenPero"/>
 <meta property="og:locale" content="zh_CN"/>
 <meta property="og:url" content="https://phodal.github.io/pero/"/>
-<meta property="og:title" content="OpenPero — 分布式 Agent 协作"/>
-<meta property="og:description" content="OpenPero 做分布式 Agent 协作，面向 AI4S 与研发，连接业务专家、开源贡献者与计算环境。围绕课题组织方法、数据与算力，让研究者、AI 与计算环境共同完成可复核的工作。"/>
+<meta property="og:title" content="OpenPero — 可组合的科研应用与分布式协作"/>
+<meta property="og:description" content="把科研脚本和模型做成可以单独使用的 App，再把任务交给合作者、AI 和合适的计算环境。输入、方法和结果保持可追溯。"/>
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="OpenPero — 分布式 Agent 协作"/>
-<meta name="twitter:description" content="OpenPero 做分布式 Agent 协作，面向 AI4S 与研发，连接业务专家、开源贡献者与计算环境。围绕课题组织方法、数据与算力，让研究者、AI 与计算环境共同完成可复核的工作。"/>
-<title>OpenPero — 分布式 Agent 协作</title>
+<meta name="twitter:title" content="OpenPero — 可组合的科研应用与分布式协作"/>
+<meta name="twitter:description" content="把科研脚本和模型做成可以单独使用的 App，再把任务交给合作者、AI 和合适的计算环境。输入、方法和结果保持可追溯。"/>
+<title>OpenPero — 可组合的科研应用与分布式协作</title>
 <!--
     OpenPero static website prototype / 2026-10
     Brand: Deep Space Blue × Spectral Teal.
@@ -168,6 +168,15 @@ SOFTWARE.
     .principles p { margin:0; color:var(--slate); font-size:15px; line-height:1.75; }
     .demo-intro { margin:8px 0 22px; }
     .demo-intro h2 { font-size:clamp(28px,3vw,40px); max-width:14em; margin:0; }
+    .demo-intro > p { margin:12px 0 0; max-width:40em; color:var(--slate); font-size:15px; line-height:1.75; }
+    .apps-chapter { padding:64px 0 72px; border-top:1px solid var(--line); }
+    .task-lead { margin-bottom:56px; }
+    .task-lead h2 { font-size:clamp(28px,3vw,40px); line-height:1.35; margin:0 0 12px; max-width:16em; }
+    .task-lead > p { margin:0 0 20px; max-width:40em; color:var(--slate); font-size:15px; line-height:1.75; }
+    .task-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px 24px; margin:0; padding:0; list-style:none; }
+    .task-facts li { margin:0; padding-top:12px; border-top:1px solid var(--line); font-size:14px; line-height:1.6; }
+    .task-facts span { display:block; margin-bottom:4px; color:var(--slate); font-size:12px; }
+    .apps-chapter .lab-section { padding-top:48px; }
     .studio-header { align-items:flex-start; flex-wrap:wrap; }
     .studio-header>div:first-child { flex-direction:column; align-items:flex-start; flex:1 1 16em; min-width:0; }
     .studio-header h2 { font-size:22px; line-height:1.35; letter-spacing:-.03em; margin:0; }
@@ -175,7 +184,8 @@ SOFTWARE.
     .task-status { display:flex; flex-direction:column; align-items:flex-end; gap:2px; margin:2px 0 0 auto; font-size:12px; line-height:1.4; color:var(--slate); }
     .task-status span:first-child { color:var(--navy); font-weight:650; }
     html[lang="en"] .cover h1 { font-size:clamp(42px,4.6vw,68px); letter-spacing:-.03em; max-width:12em; }
-    .principles + .collaboration-section { padding-top:12px; border-top:0; background:var(--canvas); }
+    .principles + .collaboration-section { padding-top:56px; border-top:0; background:var(--canvas); }
+    @media(max-width:700px) { .task-facts { grid-template-columns:1fr; } .apps-chapter { padding:48px 0 56px; } }
     .cover + .runtime-section { padding-top:40px; padding-bottom:28px; }
     .cover + .runtime-section .runtime-head { margin-bottom:16px; }
     .cover + .runtime-section .architecture-map { margin-top:0; }
@@ -580,7 +590,8 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 .runtime-head { align-items:center; }
 .runtime-head #architecture-title { font-size:clamp(28px,3.2vw,40px); font-weight:600; letter-spacing:0; line-height:1.45; color:var(--navy); text-wrap:balance; margin:0; }
 .runtime-head .tag { color:var(--slate); background:var(--white); border-color:var(--line); }
-.architecture-note { color:var(--arch-muted); font-size:12px; line-height:1.8; }
+.architecture-note { color:var(--arch-muted); font-size:12px; line-height:1.8; margin:0; }
+.architecture-note + .text-link { margin:4px 0 8px; font-size:13px; }
 .architecture-map { --arch-gap:16px; margin:20px 0 12px; padding:24px; border:1px solid var(--arch-border); background:var(--arch-surface); border-radius:6px; }
 .architecture-map figcaption { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:24px; }
 .architecture-map figcaption strong { font-size:14px; }
@@ -632,6 +643,10 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   .architecture-results > div + div::before { content:"↓"; left:50%; top:calc(-1 * var(--arch-gap)); height:var(--arch-gap); transform:translateX(-50%); }
   .architecture-stack > div { grid-template-columns:1fr; gap:4px; }
 }
+
+/* One configuration surface for entry, compute and coordinator deployment. */
+.architecture-options .architecture-deployment{display:block;margin:0 0 20px}.architecture-options .architecture-deployment p{margin:10px 0 4px}.architecture-options .architecture-stack{margin:24px 0 0;border-top:1px solid var(--arch-border)}.architecture-options .architecture-stack>div{grid-template-columns:140px minmax(0,1fr);gap:12px;padding:12px 0}.architecture-options .architecture-stack dt{font-size:11px}.architecture-options .architecture-stack dd{font-size:12px}
+@media(max-width:700px){.architecture-options .architecture-stack>div{grid-template-columns:1fr;gap:4px}}
 
 /* Three bands share one gradient, with a brighter ramp on dark surfaces. */
 .brand { gap:10px; font-weight:650; letter-spacing:-.04em; }
@@ -773,7 +788,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <header class="header">
 <div class="shell nav">
 <a aria-label="OpenPero 首页" class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg class="brand-symbol"><use href="#i-openpero"></use></svg></span><span class="brand-wordmark">OpenPero</span></a>
-<nav aria-label="主要导航" class="nav-links" id="nav-links"><a href="#runtime">协作架构</a><a href="#collaborate">任务协作</a><a href="#collaborate">分子探索</a><a href="#open">参与共建</a></nav>
+<nav aria-label="主要导航" class="nav-links" id="nav-links"><a href="#architecture">架构</a><a href="#distributed">分布式</a><a href="#tasks">任务</a><a href="#apps">应用</a></nav>
 <div class="header-tools">
 <a class="icon-btn" href="en/" hreflang="en" lang="en" aria-label="English" title="English"><svg class="icon" aria-hidden="true"><use href="#i-world"></use></svg></a>
 <button aria-label="切换配色" title="切换配色" aria-pressed="false" class="icon-btn" id="theme-toggle" type="button"><svg class="icon theme-icon theme-icon-sun" aria-hidden="true"><use href="#i-sun"></use></svg><svg class="icon theme-icon theme-icon-moon" aria-hidden="true"><use href="#i-moon"></use></svg></button>
@@ -787,9 +802,9 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <section class="cover" id="top">
 <div class="shell cover-layout">
 <div>
-<h1>分布式 Agent 协作</h1>
-<p class="cover-copy">面向科学研究，把课题、方法与算力放在一起。从一个研究问题出发，把任务交给合作者、AI 和合适的计算环境。</p>
-<div class="cover-actions"><a class="btn btn-primary" href="#collaborate">体验一次任务协作</a><a class="btn btn-ghost" href="https://github.com/phodal/pero/releases" target="_blank" rel="noopener noreferrer">下载 macOS 开发版</a><a class="btn btn-ghost" href="#runtime">协作架构</a></div>
+<h1>可组合的科研应用<br/>与分布式协作</h1>
+<p class="cover-copy">科研工作常常从脚本或模型演示开始。Pero 把它做成可以单独打开的 App，再把任务交给合作者、AI 和合适的计算环境。输入、方法和结果留在同一份记录里。</p>
+<div class="cover-actions"><a class="btn btn-primary" href="#distributed">体验一次协作</a><a class="btn btn-ghost" href="#apps">打开 Virtual Cell</a><a class="btn btn-ghost" href="https://github.com/phodal/pero/releases" target="_blank" rel="noopener noreferrer">下载 macOS 开发版</a></div>
 <details class="download-details"><summary>macOS arm64 · 安装要求</summary><p>适用于 Apple Silicon。贡献代码需本机 Git、已安装并登录的编码 CLI，以及已登录的 GitHub CLI（gh auth login）。开发版尚未公证。</p><a href="https://github.com/phodal/pero/blob/master/desktop/README.md" target="_blank" rel="noopener noreferrer">安装与贡献说明 ↗</a></details>
 </div>
 <ol class="cover-roles" aria-label="谁来做">
@@ -800,7 +815,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </div>
 </section>
 
-<section class="runtime-section shell" id="runtime">
+<section class="runtime-section shell" id="architecture">
 <div class="runtime-head"><h2 id="architecture-title">从问题，到可以接续的结果。</h2><span class="tag">目标架构 · 建设中</span></div>
 <figure class="architecture-map" aria-labelledby="architecture-title">
 <div class="architecture-sources">
@@ -816,7 +831,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <div class="architecture-edge"><span>认领与分发</span></div>
 <div class="architecture-workers">
 <article><div class="architecture-node-title"><svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg><h3>合作者</h3></div><p>方法与复现</p></article>
-<article><div class="architecture-node-title"><svg class="icon" aria-hidden="true"><use href="#i-terminal-2"></use></svg><h3>Agent Worker</h3></div><p>代码与工具</p></article>
+<article><div class="architecture-node-title"><svg class="icon" aria-hidden="true"><use href="#i-terminal-2"></use></svg><h3>Agent</h3></div><p>代码与工具</p></article>
 <article><div class="architecture-node-title"><svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg><h3>计算节点</h3></div><p>模型与实验</p></article>
 </div>
 <div class="architecture-edge"><span>提交产物与记录</span></div>
@@ -826,18 +841,10 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 <div><h3>纳入项目</h3><p>成果 · 记录 · 下一步</p></div>
 </div>
 </figure>
-<p class="architecture-note">目标架构，尚未上线；运行、验证与接受分别记录。</p>
-<section class="runtime-content architecture-technical" aria-labelledby="architecture-tech-title"><h3 class="runtime-content-title" id="architecture-tech-title">技术与部署</h3>
-<dl class="architecture-stack">
-<div><dt>Desktop / Web</dt><dd>Electron → GPUI Web / WASM（gpui-kit / Zed）→ 受限桥接 → Rust Host</dd></div>
-<div><dt>Host / Agent</dt><dd>Rust Runtime → ACP Rust SDK → Coding Agent；Host 管理工作区、权限与执行。</dd></div>
-<div><dt>Coordinator / Worker</dt><dd>Go 管理任务、节点与租约；Worker 主动连接，ACP 用于 Host 与 Agent 通信。</dd></div>
-<div><dt>Result / Review</dt><dd>固定产物版本 → 独立验证 → 人工接受 → 授权发布</dd></div>
-</dl>
-<div class="architecture-deployment"><div aria-label="协调服务部署形态" class="deployment-switch" role="group"><button aria-pressed="true" data-deployment="self">自部署</button><button aria-pressed="false" data-deployment="hosted">托管 Cloud · 规划</button></div><p id="deployment-description" aria-live="polite">自部署协调服务，连接受信任的执行节点。</p><button class="text-link" data-dialog="roadmap">查看规划</button></div>
-</section>
-<section class="runtime-content architecture-options" aria-labelledby="runtime-options-title"><h3 class="runtime-content-title" id="runtime-options-title">入口与执行位置</h3><div class="runtime-builder">
-<div class="runtime-select"><span class="control-label">01 / 从哪里工作</span><div aria-label="选择预期使用入口" class="choice-group" role="group"><button aria-pressed="true" class="choice" data-entry="web"><svg class="icon"><use href="#i-world"></use></svg>Web</button><button aria-pressed="false" class="choice" data-entry="desktop"><svg class="icon"><use href="#i-device-desktop"></use></svg>Desktop</button></div><span class="control-label">02 / 工作在哪里执行</span><div aria-label="选择预期执行位置" class="choice-group" role="group"><button aria-pressed="true" class="choice" data-worker="local"><svg class="icon"><use href="#i-terminal-2"></use></svg>本机运行</button><button aria-pressed="false" class="choice" data-worker="remote"><svg class="icon"><use href="#i-server"></use></svg>远程计算</button></div><p class="runtime-disclaimer">产品形态设计。此处用于解释入口与执行位置的关系；本页示例只在浏览器本地计算。</p></div>
+<p class="architecture-note">这是正在建设的协作方式。计算可以留在自己的电脑、实验室或云端。算完、核对和决定接受，分开记录。</p>
+<button class="text-link" data-dialog="roadmap">查看规划</button>
+<section class="runtime-content architecture-options" aria-labelledby="runtime-options-title"><h3 class="runtime-content-title" id="runtime-options-title">从哪里进入，在哪里计算。</h3><div class="runtime-builder">
+<div class="runtime-select"><span class="control-label">01 / 从哪里工作</span><div aria-label="选择预期使用入口" class="choice-group" role="group"><button aria-pressed="true" class="choice" data-entry="web"><svg class="icon"><use href="#i-world"></use></svg>Web</button><button aria-pressed="false" class="choice" data-entry="desktop"><svg class="icon"><use href="#i-device-desktop"></use></svg>Desktop</button></div><span class="control-label">02 / 工作在哪里执行</span><div aria-label="选择预期执行位置" class="choice-group" role="group"><button aria-pressed="true" class="choice" data-worker="local"><svg class="icon"><use href="#i-terminal-2"></use></svg>本机运行</button><button aria-pressed="false" class="choice" data-worker="remote"><svg class="icon"><use href="#i-server"></use></svg>远程计算</button></div><p class="runtime-disclaimer">这里说明从哪里进入、在哪里计算。本页示例都在浏览器里运行。</p></div>
 <div aria-live="polite" class="runtime-result"><div class="runtime-route"><div class="runtime-node" id="entry-node"></div><svg class="icon"><use href="#i-arrow-right"></use></svg><div class="runtime-node" id="worker-node"></div></div><h3 id="runtime-title"></h3><p id="runtime-description"></p><div class="runtime-points" id="runtime-points"></div></div>
 </div></section>
 </section>
@@ -851,12 +858,13 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </div>
 </section>
 
-<section class="collaboration-section" id="collaborate"><div class="shell">
-<div class="demo-intro cell-intro"><p class="lab-small">MOLECULAR EXPLORER / A SMALL START</p><h2>从一个分子，<br/>看见科学的另一面。</h2><p>选一个熟悉的分子，拖动看看它的结构。从一个小问题，开始一次探索。</p></div>
-<div class="cell-showcase"><iframe id="molecule-viewer" title="三维分子交互示例" src="assets/molecule-viewer.html" loading="lazy"></iframe></div>
-
-
-<details class="research-details" open><summary>进一步了解：研究任务如何协作</summary><div class="studio">
+<section class="collaboration-section" id="distributed"><div class="shell">
+<div class="demo-intro">
+<p class="lab-small">DISTRIBUTED</p>
+<h2>同一份任务，交给合适的人与计算。</h2>
+<p>合作者写方法，Agent 准备下一步，计算留在数据所在的地方。下面用 Virtual Cell 的一个问题，走完提出、分发、复核，再写回项目。</p>
+</div>
+<div class="studio">
 <div class="studio-header"><div><h2>单基因扰动，能预测双基因组合吗？</h2><p>Virtual Cell · 固定留出组合，比较三种预测基线。</p></div><p class="task-status"><span id="hero-task-count">待拆分</span><span id="hero-progress">等待你确认</span></p><button class="quiet-button" id="reset-collaboration" type="button">重置演示 ↺</button></div>
 <div aria-label="协作进度" class="studio-steps"><span class="current" data-phase="0"><b>1</b>提出工作</span><i></i><span data-phase="1"><b>2</b>确认与分发</span><i></i><span data-phase="2"><b>3</b>运行与复核</span><i></i><span data-phase="4"><b>4</b>回到项目</span></div>
 <div class="studio-grid">
@@ -870,12 +878,12 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </article>
 <article class="studio-column execution-column">
 <div class="column-label"><span>02 / 让工作接起来</span><span>COORDINATE</span></div>
-<div class="coordinator-title"><span class="coordinator-mark">P</span><div><strong>OpenPero 协调层</strong><small>任务依赖 · 执行位置 · 验收条件</small></div><span class="tag" id="coordinator-status">待确认</span></div>
-<div class="task-item" id="task-baseline"><div class="task-number">01</div><div class="task-info"><strong>复跑对照基线</strong><small>control · 本机 Worker</small><span class="task-state" id="state-baseline">等待任务草稿</span></div><span class="micro-tag" id="hero-t1">本机 Worker</span><span class="task-indicator" id="indicator-baseline">○</span></div>
-<div class="task-item" id="task-compare"><div class="task-number">02</div><div class="task-info"><strong>比较预测方法</strong><small>train_mean / additive · 路由示意</small><label class="route-label" for="execution-route">选择执行位置</label><select id="execution-route"><option value="lab">实验室 Worker · 模拟</option><option value="local">本机 Worker · 路由模拟</option><option value="cloud">托管 Cloud · 规划模拟</option></select><span class="task-state" id="state-compare">与基线任务可并行</span></div><span class="micro-tag" id="hero-t2">远程节点 · 示意</span><span class="task-indicator" id="indicator-compare">○</span></div>
+<div class="coordinator-title"><span class="coordinator-mark">P</span><div><strong>任务协调</strong><small>任务依赖 · 执行位置 · 验收条件</small></div><span class="tag" id="coordinator-status">待确认</span></div>
+<div class="task-item" id="task-baseline"><div class="task-number">01</div><div class="task-info"><strong>复跑对照基线</strong><small>control · 本机</small><span class="task-state" id="state-baseline">等待任务草稿</span></div><span class="micro-tag" id="hero-t1">本机</span><span class="task-indicator" id="indicator-baseline">○</span></div>
+<div class="task-item" id="task-compare"><div class="task-number">02</div><div class="task-info"><strong>比较预测方法</strong><small>train_mean / additive · 执行位置示意</small><label class="route-label" for="execution-route">选择执行位置</label><select id="execution-route"><option value="lab">实验室计算 · 示意</option><option value="local">本机计算 · 示意</option><option value="cloud">云端计算 · 规划</option></select><span class="task-state" id="state-compare">与基线任务可并行</span></div><span class="micro-tag" id="hero-t2">实验室 · 示意</span><span class="task-indicator" id="indicator-compare">○</span></div>
 <div class="task-item" id="task-review"><div class="task-number">03</div><div class="task-info"><strong>独立复核结果</strong><small>依赖 01 + 02 · 贡献者认领</small><span class="task-state" id="state-review">计算完成后可认领</span></div><span class="micro-tag" id="hero-t3">开放认领</span><span class="task-indicator" id="indicator-review">○</span></div>
 <button class="btn btn-primary dispatch-button" id="advance-collaboration">整理成任务草稿 <span>→</span></button><button class="cancel-dispatch" hidden="" id="cancel-collaboration">取消本次演示运行</button>
-<p class="micro-copy">这三个角色均由当前页面模拟；不会启动远程进程。</p>
+<p class="micro-copy">这一步只在本页演示，不会连到别的计算机。</p>
 </article>
 <article class="studio-column result-column">
 <div class="column-label"><span>03 / 成果回到课题</span><span>REVIEW</span></div>
@@ -886,8 +894,25 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </div>
 <div class="studio-log"><span class="log-label">ACTIVITY</span><span aria-live="polite" id="latest-event" role="status">示例 Issue 已准备好。先把目标整理成任务。</span><button class="text-link" id="view-activity">查看过程 ↗</button></div>
 </div>
-<div class="demo-bottom-note"><a data-open-lab="" href="#lab">打开 Virtual Cell 实验台，检查逐基因预测 ↗</a></div>
-</details></div></section><details class="research-details shell" id="benchmark-details" open><summary>查看扰动评估示例</summary><section class="lab-section shell" id="lab"><header class="lab-head"><p class="lab-small">VIRTUAL CELL / AI FOR SCIENCE</p><h2>从扰动预测，到可以检查的证据。</h2><p class="lab-intro">基于 Virtual Cell App 的合成数据与评估定义。用已知单扰动预测未见双扰动组合，再用留出观测核对。这里可独立重跑，不会覆盖上方协作记录。</p></header><div class="lab-content"><div class="workbench-wrap" id="workspace" tabindex="-1">
+<div class="demo-bottom-note"><a href="#apps">同一个问题，到 App 里自己跑一遍 ↗</a></div>
+</div></section>
+
+<section class="apps-chapter" id="tasks">
+<div class="shell task-lead">
+<p class="lab-small">TASKS</p>
+<h2>一项任务，先固定输入和检查。</h2>
+<p>上面演示的就是这样一项任务。交给人或计算之前，先写清数据、方法和怎样才算做完。执行完成，还不等于结论被接受。</p>
+<ul class="task-facts">
+<li><span>输入</span>合成表达矩阵，划分固定</li>
+<li><span>方法</span>三种预测基线</li>
+<li><span>检查</span>五个测试组合上的误差</li>
+</ul>
+</div>
+<div class="shell" id="apps">
+<div class="demo-intro cell-intro"><p class="lab-small">APPS · VIRTUAL CELL</p><h2>从一个分子，<br/>看见科学的另一面。</h2><p>Virtual Cell 是第一个 App。先看一个熟悉的分子，再把这项任务跑成可以检查的结果。</p></div>
+<div class="cell-showcase"><iframe id="molecule-viewer" title="三维分子交互示例" src="assets/molecule-viewer.html" loading="lazy"></iframe></div>
+</div>
+<section class="lab-section shell" id="lab"><header class="lab-head"><p class="lab-small">VIRTUAL CELL / AI FOR SCIENCE</p><h2>从扰动预测，到可以检查的证据。</h2><p class="lab-intro">基于 Virtual Cell App 的合成数据与评估定义。用已知单扰动预测未见双扰动组合，再用留出观测核对。这里可独立重跑，不会覆盖上方协作记录。</p></header><div class="lab-content"><div class="workbench-wrap" id="workspace" tabindex="-1">
 <div class="workbench-label"><span>VIRTUAL CELL / 合成数据</span><span>INTERACTIVE DEMO</span></div>
 <div class="workbench">
 <div class="workbench-body">
@@ -928,18 +953,19 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
 </div>
 <div class="demo-scope">合成数据 · 非盲评估 · 未训练 AI 模型。建议为预设示例；刷新后重置。</div>
 <div aria-live="polite" class="sr-only" id="run-announcement"></div>
-</div></div></section></details>
+</div></div></section>
+</section>
 
 <section class="open-section contribution-section" id="open"><div class="shell">
 <div class="section-kicker"><span class="n">04 —</span> BUILT TOGETHER, ONE CONTRIBUTION AT A TIME</div>
 <div class="contribution-heading"><div><h2>从一个小任务，<br/>参与一个大课题。</h2><p class="section-copy">贡献代码，也贡献方法与复核。<br/>一份清楚的输入、一项独立的交付，就是开始。</p></div><div aria-label="选择贡献方式" class="contribution-tabs" role="group"><button aria-pressed="true" data-contribution="build">共建 OpenPero</button><button aria-pressed="false" data-contribution="research">参与研究</button><button aria-pressed="false" data-contribution="worker">接入执行节点</button></div></div>
 <div class="contribution-grid" id="contribution-grid"></div>
 <div class="contribution-foot"><span>这里提供可编辑的 Issue 模板，下载不会向 GitHub 发布。</span><button class="text-link" id="download-all-issues">下载当前组 Issue 模板 ↗</button></div>
-<div class="open-contract"><div><strong>代码开放，工作也可以被接续。</strong><p>任务定义、方法、产物和验收依据，都应当可以检查、导出与复用。</p></div><span>OPEN WEB + DESKTOP<br/>OPTIONAL HOSTED COORDINATION</span></div>
+<div class="open-contract"><div><strong>代码开放，工作也可以被接续。</strong><p>任务定义、方法、产物和验收依据，都应当可以检查、导出与复用。</p></div><span>网页与桌面<br/>计算留在数据旁边</span></div>
 </div></section>
 
 </main>
-<footer class="footer"><div class="shell"><div class="footer-top"><a aria-label="回到 OpenPero 首页" class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg class="brand-symbol"><use href="#i-openpero"></use></svg></span><span class="brand-wordmark">OpenPero</span></a><div class="footer-links"><a href="#collaborate">任务协作</a><a href="#runtime">协作架构</a><a href="#open">参与共建</a><a href="https://app.openpero.com" target="_blank" rel="noopener noreferrer">线上任务中心</a><button data-dialog="about">演示边界</button></div></div><div class="footer-bottom"><p>本页计算与协作示例仅在浏览器本地运行，刷新后重置，不会启动真实 Agent、分派任务或提交 PR。实际贡献请使用 Desktop 开发版或线上任务中心。</p><span>OPENPERO.COM / 2026</span></div></div></footer>
+<footer class="footer"><div class="shell"><div class="footer-top"><a aria-label="回到 OpenPero 首页" class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><svg class="brand-symbol"><use href="#i-openpero"></use></svg></span><span class="brand-wordmark">OpenPero</span></a><div class="footer-links"><a href="#architecture">架构</a><a href="#distributed">分布式</a><a href="#tasks">任务</a><a href="#apps">应用</a><a href="#open">参与共建</a><a href="https://app.openpero.com" target="_blank" rel="noopener noreferrer">线上任务中心</a><button data-dialog="about">演示边界</button></div></div><div class="footer-bottom"><p>本页计算与协作示例仅在浏览器本地运行，刷新后重置，不会启动真实 Agent、分派任务或提交 PR。实际贡献请使用 Desktop 开发版或线上任务中心。</p><span>OPENPERO.COM / 2026</span></div></div></footer>
 <dialog aria-labelledby="dialog-title" id="detail-dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button aria-label="关闭对话框" class="dialog-close"><svg class="icon"><use href="#i-x"></use></svg></button></div><div class="dialog-body" id="dialog-body"></div></dialog>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 <noscript><p style="padding:20px;text-align:center">启用 JavaScript 后可运行本地扰动评估。页面内容和导航可直接阅读。</p></noscript>
@@ -979,8 +1005,6 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   function sync() {
     frame.contentWindow.postMessage({type:'pero:app:context',context:{locale:document.documentElement.lang === 'en' ? 'en' : 'zh-CN',dark:document.documentElement.getAttribute('data-theme') === 'dark',active:true}}, location.origin);
   }
-  document.querySelectorAll('[data-open-lab]').forEach(function(link){link.addEventListener('click',function(){document.getElementById('benchmark-details').open=true;});});
-  if(location.hash === '#lab')document.getElementById('benchmark-details').open=true;
   new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   frame.addEventListener('load',sync);
   window.addEventListener('message',function(event){if(event.source === frame.contentWindow && event.data?.type === 'pero:app:ready')sync();});
@@ -1134,12 +1158,12 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
       $$('.choice[data-entry]').forEach(function(button){button.setAttribute('aria-pressed',button.dataset.entry===state.entry);});
       $$('.choice[data-worker]').forEach(function(button){button.setAttribute('aria-pressed',button.dataset.worker===state.worker);});
       $('#entry-node').innerHTML=icon(state.entry==='web'?'world':'device-desktop')+(state.entry==='web'?'Web':'Desktop');
-      $('#worker-node').innerHTML=icon(state.worker==='local'?'terminal-2':'server')+(state.worker==='local'?'Local Worker':'Remote Worker');
+      $('#worker-node').innerHTML=icon(state.worker==='local'?'terminal-2':'server')+tr(state.worker==='local'?'本机':'远程');
       const modes={
-        'web-local':[tr('轻量入口，本地研究环境。'),tr('通过浏览器连接本地运行服务，查看项目、发起分析与比较结果。浏览器是界面，本地 Worker 承担文件和工具访问。'),[tr('浏览器界面'),tr('本地运行服务'),tr('统一研究记录')]],
-        'web-remote':[tr('打开项目，连接远程计算。'),tr('从 Web 进入项目，由远程 Worker 执行任务。适合实验室服务器与共享计算资源，也为持续运行和结果审阅保留空间。'),[tr('远程任务'),tr('共享算力'),tr('异步查看结果')]],
-        'desktop-local':[tr('熟悉的桌面，身边的工具。'),tr('通过桌面工作台连接本机文件、研究环境与专业软件。让日常分析与项目记录留在同一个工作上下文中。'),[tr('本地文件'),tr('专业工具'),tr('项目上下文')]],
-        'desktop-remote':[tr('本地组织研究，远程推进实验。'),tr('桌面保留交互与本地材料，远程 Worker 承担长任务和更重的计算。入口与执行位置可以独立选择。'),[tr('本地交互'),tr('长任务执行'),tr('一致的研究对象')]]
+        'web-local':[tr('轻量入口，本地研究环境。'),tr('通过浏览器查看项目、发起分析和比较结果。文件和工具留在你的电脑上。'),[tr('浏览器界面'),tr('本机计算'),tr('同一份研究记录')]],
+        'web-remote':[tr('打开项目，连接远程计算。'),tr('从网页打开项目，计算放在实验室或共享的机器上。可以稍后再来看结果。'),[tr('远程计算'),tr('共享算力'),tr('稍后查看结果')]],
+        'desktop-local':[tr('熟悉的桌面，身边的工具。'),tr('通过桌面使用本机文件、研究环境和专业软件。分析和项目记录留在一起。'),[tr('本地文件'),tr('专业工具'),tr('项目上下文')]],
+        'desktop-remote':[tr('本地组织研究，远程推进实验。'),tr('在桌面整理材料，更久、更重的计算放到别的机器上。'),[tr('本地交互'),tr('长任务执行'),tr('一致的研究对象')]]
       }[state.entry+'-'+state.worker];
       $('#runtime-title').textContent=modes[0];$('#runtime-description').textContent=modes[1];
       $('#runtime-points').innerHTML=modes[2].map(function(label){return '<span>'+icon('check')+label+'</span>';}).join('');
@@ -1160,7 +1184,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
       inputs:{title:tr('Virtual Cell · 数据与划分'),body:para('输入来自仓库内 Virtual Cell App 的 synthetic.json。A–F 与 G6–G11 均为合成特征名，不代表真实基因实验。')+pre({source:inputs.dataset.source,scale:inputs.dataset.scale,genes:inputs.dataset.genes,split:inputs.split})},
       sources:{title:tr('来源与适用范围'),body:para('本页复用 apps/virtual-cell/examples/synthetic.json，以及 App 的三种基线与 ΔMSE 评估定义。没有调用 Python 后端。')+para('Virtual Cell App 还提供 PBMC 参考图谱、机制仿真和体数据查看。本页只展示扰动评估，没有把这些不同来源的数据拼成一个实验。')+'<p><a href="https://github.com/phodal/pero/tree/main/apps/virtual-cell" target="_blank" rel="noopener noreferrer">Virtual Cell App ↗</a></p>'+para('测试读数在浏览器中可见，因此这是非盲流程演示。低误差不构成生物学验证或模型泛化证据。')},
       about:{title:tr('关于这个可复跑的示例'),body:para('本页可切换基线、查看测试组合、导出全部预测与误差。所有数据与状态均在浏览器本地；刷新后重置。')+para('GitHub、Agent、协作者、远程执行与验收角色均为界面模拟。没有训练 AI 模型，没有接通 App 后端或科学验证服务。')},
-      roadmap:{title:tr('可选的 Cloud，围绕真实研究需求。'),body:para('Cloud 的核心方向是持续任务协调。协调服务可自部署或托管，计算由本地、实验室或云端节点承担。托管 Cloud 仍在规划。')}
+      roadmap:{title:tr('计算留在数据旁边。'),body:para('计算可以留在个人电脑、实验室或云端，协调也可以自己部署。托管服务仍在规划。')}
     };
     if(name==='data')contents.data={title:tr('全部测试组合 · 逐基因数据'),body:para('指标覆盖全部测试组合；切换图中的组合不会改变分母。')+'<div class="table-scroll"><table class="data-table"><thead><tr><th>Combination</th><th>Gene</th><th>Observed Δ</th><th>Predicted Δ</th><th>Squared error</th></tr></thead><tbody>'+r.rows.map(row=>r.genes.map((gene,g)=>'<tr><td>'+row.id+'</td><td>'+gene+'</td><td>'+fmt(row.observed[g])+'</td><td>'+fmt(row.predicted[g])+'</td><td>'+fmt(row.squaredError[g])+'</td></tr>').join('')).join('')+'</tbody></table></div><button class="btn btn-primary" data-export="csv">'+tr('下载 CSV 数据')+'</button>'};
     const content=contents[name];if(!content)return;$('#dialog-title').textContent=content.title;$('#dialog-body').innerHTML=content.body;if(!$('#detail-dialog').open)$('#detail-dialog').showModal();
@@ -1239,7 +1263,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   function bundle(){return {schema:'openpero-distributed-demo/0.1',exportedAt:new Date().toISOString(),scope:'Local browser prototype. No remote execution, real identities, GitHub events, persistent service or scientific claims.',task:taskContract(),inputs:model.inputs(),routing:{simulated:true,selected:state.route,actual:'current browser JavaScript'},state:{phase:state.phase,reviewer_claimed:state.claimed,benchmark_reviewed:state.reviewed,accepted_into_page_project:state.accepted,persistent:false},results:state.runs.map((r,i)=>({id:'run-'+String(i+1).padStart(3,'0'),actual_executor:'current browser',check_passed:resultCheck(r),...r})),events:state.log};}
   function markTask(name,status,label){const card=$('#task-'+name);card.classList.remove('running','done');if(status)card.classList.add(status);$('#state-'+name).textContent=label;$('#indicator-'+name).textContent=status==='done'?'✓':status==='running'?'◌':'○';}
   function updateSteps(){ $$('.studio-steps [data-phase]').forEach(el=>{const p=Number(el.dataset.phase);el.classList.toggle('current',p===state.phase||(p===2&&state.phase===3));el.classList.toggle('complete',p<state.phase && !(p===2&&state.phase===3));}); }
-  function renderHero(){ $('#hero-task-count').textContent=state.phase?'3':tr('待拆分');$('#hero-progress').textContent=state.accepted?tr('成果已纳入本页项目'):state.reviewed?tr('复核完成，等待审阅'):state.runs.length===3?tr('计算完成，等待复核'):state.busy?tr('任务执行中'):state.phase?tr('任务已准备'):tr('等待你确认');$('#hero-t1').textContent=state.runs.length?tr('计算完成'):tr('本机 Worker');$('#hero-t2').textContent=state.runs.length===3?tr('对照完成'):state.route==='cloud'?tr('Cloud · 规划示意'):state.route==='local'?tr('本机 Worker'):tr('远程节点 · 示意');$('#hero-t3').textContent=state.accepted?tr('已纳入项目'):state.reviewed?tr('已复核'):state.claimed?tr('你已认领'):tr('开放认领');}
+  function renderHero(){ $('#hero-task-count').textContent=state.phase?'3':tr('待拆分');$('#hero-progress').textContent=state.accepted?tr('成果已纳入本页项目'):state.reviewed?tr('复核完成，等待审阅'):state.runs.length===3?tr('计算完成，等待复核'):state.busy?tr('任务执行中'):state.phase?tr('任务已准备'):tr('等待你确认');$('#hero-t1').textContent=state.runs.length?tr('计算完成'):tr('本机');$('#hero-t2').textContent=state.runs.length===3?tr('对照完成'):state.route==='cloud'?tr('云端计算 · 规划'):state.route==='local'?tr('本机计算 · 示意'):tr('实验室 · 示意');$('#hero-t3').textContent=state.accepted?tr('已纳入项目'):state.reviewed?tr('已复核'):state.claimed?tr('你已认领'):tr('开放认领');}
   function renderSource(){const src=SOURCES[state.source];$('#source-caption').textContent=src.caption;$('#source-title').textContent=src.title;$('#source-description').textContent=src.text;$('#source-footnote').textContent=src.note;$$('[data-source]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.source===state.source));b.disabled=state.busy;});}
   function renderResults(){
     const has=state.runs.length===3;$('#result-empty').hidden=has;$('#result-ready').hidden=!has;
@@ -1254,7 +1278,7 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
   function prepare(){state.phase=1;state.tasks=taskContract().tasks;markTask('baseline','',tr('任务已准备 · 无依赖'));markTask('compare','',tr('任务已准备 · 可与 01 并行'));markTask('review','',tr('等待 01 与 02 的运行记录'));event(tr('已整理为 3 项任务，固定了输入、方法与验收条件。等待你的执行确认。'));render();}
   function dispatch(){
     if(!model||typeof model.run!=='function'){toast(tr('计算模块未能加载。请重新打开完整 HTML 文件。'));return;}
-    state.phase=2;state.busy=true;state.runs=[];state.reviewed=false;state.claimed=false;state.accepted=false;const epoch=++state.epoch;markTask('baseline','running',tr('浏览器计算中 · 模拟本机节点'));markTask('compare','running',tr('浏览器计算中 · 模拟 {route} 节点',{route:state.route}));event(tr('已授权本页计算。两个执行位置仅为路由演示，不连接外部节点。'));render();
+    state.phase=2;state.busy=true;state.runs=[];state.reviewed=false;state.claimed=false;state.accepted=false;const epoch=++state.epoch;markTask('baseline','running',tr('本页计算中 · 当作本机'));markTask('compare','running',tr('本页计算中 · 当作{route}',{route:state.route==='cloud'?tr('云端'):state.route==='local'?tr('本机'):tr('实验室')}));event(tr('已在本页开始计算。执行位置只是示意，没有连到外部计算机。'));render();
     setTimeout(()=>{if(epoch!==state.epoch)return;try{state.runs=[model.run({method:'control'})];markTask('baseline','done',tr('5 / 5 测试组合 · 对照基线完成'));event(tr('任务 01 已完成：基线与运行记录已返回。'));renderHero();}catch(err){fail(err);}},350);
     setTimeout(()=>{if(epoch!==state.epoch)return;try{state.runs.push(model.run({method:'train_mean'}),model.run({method:'additive'}));markTask('compare','done',tr('两种方法已完成 · 全部测试组合已返回'));event(tr('任务 02 已完成：预测与误差已返回。开始检查覆盖与数据完整性。'));renderHero();}catch(err){fail(err);}},750);
     setTimeout(()=>{if(epoch!==state.epoch)return;state.busy=false;if(state.runs.length!==3||!state.runs.every(resultCheck)){fail(new Error(tr('结果未通过完整性检查。')));return;}state.phase=3;markTask('review','',tr('评估覆盖完整 · 等待贡献者认领'));event(tr('3 种基线均返回完整评估。现在需要复核，不会自动接受研究结论。'));render();},1100);
@@ -1303,7 +1327,6 @@ select:focus-visible{outline:3px solid var(--teal);outline-offset:4px}
     if(b.dataset.source&&!state.busy){if(state.source!==b.dataset.source){if(state.runs.length){toast(tr('已切换示例来源，上一轮结果已重置。'));}reset(b.dataset.source);}}
     if(b.dataset.contribution){state.contribution=b.dataset.contribution;renderContributions();}
     if(b.dataset.deployment){$$('[data-deployment]').forEach(el=>el.setAttribute('aria-pressed',String(el===b)));$('#deployment-description').textContent=b.dataset.deployment==='self'?tr('自部署协调服务，连接受信任的执行节点。'):tr('托管协调服务仍在规划。即使服务在线，离线节点也不会继续计算。');}
-    if(b.hasAttribute('data-open-lab')) requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
     if(b.dataset.templateIndex!==undefined)openTemplate(Number(b.dataset.templateIndex));
     const action=b.dataset.collabAction;if(!action)return;
     if(action==='close')dialog.close();

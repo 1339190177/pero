@@ -29,7 +29,7 @@ try {
     if (child.exitCode !== null || Date.now() > deadline) throw new Error(`Fixture failed: ${logs}`);
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  const { url, task, worker, workerToken, changed_task, closed_task } = JSON.parse(readFileSync(metadata, 'utf8'));
+  const { url, task, worker, workerToken, changed_task, closed_task, roadmap_parent, roadmap_child, roadmap_later } = JSON.parse(readFileSync(metadata, 'utf8'));
   browser = await chromium.launch({ headless: true, ...(process.env.PERO_CHROMIUM_PATH ? { executablePath: process.env.PERO_CHROMIUM_PATH } : {}) });
   const admin = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
   const member = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
@@ -144,6 +144,46 @@ try {
     await expect(mp.getByRole('button', { name: '认领并执行' })).toHaveCount(0);
     assert.ok(!(await mp.locator('body').innerText()).includes('PRIVATE_REVISED_SOURCE_GOAL'));
   }
+  for (const [id, title, description] of [
+    [roadmap_parent, '远程任务. 管理任务执行与恢复。', '管理任务执行与恢复。'],
+    [roadmap_child, '断线恢复. 继续原来的任务。', '继续原来的任务。'],
+    [roadmap_later, '实验数据. 导入与检查数据。', '导入与检查数据。'],
+  ]) {
+    await ap.goto(`${url}/community/admin`);
+    await ap.getByLabel('已有任务').fill(id);
+    await ap.getByLabel('公开标题').fill(title);
+    await ap.getByLabel('公开任务说明与验收要求').fill(description);
+    await ap.getByRole('button', { name: '发布到任务广场' }).click();
+  }
+  await mp.setViewportSize({ width: 1280, height: 900 });
+  await mp.emulateMedia({ colorScheme: 'light' });
+  await mp.goto(`${url}/tasks`);
+  const parent = mp.locator(`#task-${roadmap_parent}`);
+  const childTask = mp.locator(`#task-${roadmap_child}`);
+  await expect(parent.locator(':scope > .node-line .node-select')).toHaveText('远程任务');
+  await expect(childTask.locator(':scope > .node-line')).toBeHidden();
+  await parent.locator(':scope > .node-line .branch-toggle').click();
+  await expect(childTask.locator(':scope > .node-line')).toBeVisible();
+  await expect(parent.locator(':scope > .node-info')).not.toHaveAttribute('open');
+  await mp.screenshot({ path: resolve(output, 'roadmap-groups-light.png') });
+  await childTask.locator(':scope > .node-line .node-select').click();
+  await expect(childTask.locator(':scope > .node-info')).toHaveAttribute('open');
+  await expect(childTask.locator(':scope > .node-info')).toContainText('继续原来的任务。');
+  await expect(childTask.getByRole('link', { name: '在 Pero Desktop 中打开' })).toHaveAttribute('href', `pero://tasks/${roadmap_child}`);
+  assert.equal(new URL(mp.url()).pathname, '/tasks', 'inspection stays in the tree');
+  await mp.screenshot({ path: resolve(output, 'roadmap-inline-light.png') });
+  await parent.locator(':scope > .node-line .branch-toggle').click();
+  await mp.getByRole('searchbox', { name: '搜索任务' }).fill('断线恢复');
+  await expect(childTask.locator(':scope > .node-line')).toBeVisible();
+  await expect(parent).toHaveClass(/context-node/);
+  await mp.getByRole('searchbox', { name: '搜索任务' }).fill('');
+  await expect(childTask.locator(':scope > .node-line')).toBeHidden();
+  await mp.emulateMedia({ colorScheme: 'dark' });
+  await mp.setViewportSize({ width: 390, height: 844 });
+  await parent.locator(':scope > .node-line .branch-toggle').click();
+  await expect(childTask.locator(':scope > .node-line')).toBeVisible();
+  assert.ok(await mp.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'roadmap overflow on mobile');
+  await mp.screenshot({ path: resolve(output, 'roadmap-groups-mobile-dark.png') });
   await mp.goto(`${url}/tasks/missing`);
   await expect(mp.getByRole('alert')).toContainText('未找到');
   await mp.screenshot({ path: resolve(output, 'error-mobile-dark.png') });
@@ -154,7 +194,7 @@ try {
   await expect(mp.getByRole('alert')).toContainText('服务暂时不可用');
   await mp.getByRole('link', { name: '返回任务广场' }).click();
   assert.deepEqual(errors, []);
-  writeFileSync(resolve(output, 'verification.json'), JSON.stringify({ result: 'passed', cases: ['empty', 'keyboard-focus', 'loading-feedback', 'login-error', 'publish', 'oauth-fixture', 'worker-disabled', 'worker-binding', 'claim', 'running', 'success-without-points', 'accept', 'weekly/all', 'revoke', 'history', '404-recovery', '503-recovery', 'light/dark', '390px-no-page-overflow', 'changed-source-blocked', 'closed-source-blocked'], provider: 'local OAuth and Worker protocol fixtures; no real GitHub or Agent execution' }, null, 2));
+  writeFileSync(resolve(output, 'verification.json'), JSON.stringify({ result: 'passed', cases: ['empty', 'keyboard-focus', 'loading-feedback', 'login-error', 'publish', 'oauth-fixture', 'worker-disabled', 'worker-binding', 'claim', 'running', 'success-without-points', 'accept', 'weekly/all', 'revoke', 'history', '404-recovery', '503-recovery', 'light/dark', '390px-no-page-overflow', 'changed-source-blocked', 'closed-source-blocked', 'roadmap-groups', 'short-titles', 'nested-task-tree', 'inline-description-no-navigation', 'keyboard-collapse'], provider: 'local OAuth and Worker protocol fixtures; no real GitHub or Agent execution' }, null, 2));
   console.log(`Community browser checks passed. Screenshots: ${output}`);
   succeeded = true;
 } finally {

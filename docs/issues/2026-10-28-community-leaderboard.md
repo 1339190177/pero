@@ -74,3 +74,35 @@ latest GitHub source state while preserving frozen execution inputs. The combine
 Go race suite and 21 Chromium scenarios passed, including changed/closed sources.
 GitHub issue remains open pending public delivery; no push or deployment was
 performed in this task.
+
+## Roadmap outline follow-up (2026-10-29)
+
+The public projection omitted heading paths and parent references, so published
+Roadmap items appeared as an unordered flat table even though intake retained
+those relationships. Earlier imported titles also included the whole description.
+
+The public board now uses the complete current published outline rather than
+one 50-item page. Removed sources stay in history but leave the current browser.
+ROADMAP now owns a functional domain → feature → task hierarchy rather than
+milestone navigation. It has 12 domains, 48 feature groups and 252 tasks: 219
+unfinished and the original 33 checked items. Eight broad entries were split
+into 37 bounded tasks, with observable checks for every unfinished entry. Both
+READMEs link to the new functional sections.
+
+Tree and panorama share search, state/category filters and the selected task.
+The default excludes accepted and source-closed tasks; feature folders start
+collapsed. Domain selection and search reveal tasks and their ancestors. Scope
+and acceptance appear inline with Desktop/source actions. Panorama presents
+functional domains and features, with drill-down into the same tree. Counts
+follow query and state scope; reset restores the unfinished default. No
+inspection route change is required, and source closure is not acceptance.
+
+Local `go test -race ./...` passed with isolated PostgreSQL. The existing community
+browser suite passed contribution and source-state regressions. The dedicated
+`tests/e2e/task-browser.mjs` passed against all 252 Roadmap tasks and 12 domains,
+including defaults, domain/feature/task keyboard navigation, shared filters,
+acceptance-text search, panorama feature drill-down, inline inspection, URL
+restoration after filtering out a selection, and 390px dark/no-JS rendering.
+Screenshots and verification JSON are under `test-results/task-browser/`.
+Production deployment and acceptance are recorded separately in
+[Task Center deployment](../fitness/task-center-deployment.md).

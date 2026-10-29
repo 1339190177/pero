@@ -10,6 +10,11 @@ checkbox in an explicitly configured ROADMAP. The `auto` path tries
 path is also supported. Existing repositories without this setting keep their
 Issue-only behavior.
 
+This repository keeps its checklist in root `ROADMAP.md`. Each item uses
+`- [ ] Title. Description.`: the first `. ` separates the short Task title from
+its description, while the full item remains the execution goal. Items without
+that separator retain their original first-line title.
+
 Headings retain group context. Nested checkbox items bind to a parent Task.
 Issue labels and ROADMAP hashtags become tags. A checked item is a closed source,
 not an accepted Run. ROADMAP intake creates drafts and never authorizes automatic
@@ -17,7 +22,8 @@ execution. The same project-scoped Task/Run and ownership rules apply.
 
 Source identity is separate from source revision. Explicit `<!-- pero:id:... -->`
 markers retain identity across wording or location changes. Fallback identity
-uses checklist context and text; ambiguous items produce an incomplete-source
+uses checklist context and title; description-only edits retain identity.
+Ambiguous items produce an incomplete-source
 result. A complete snapshot can mark removed items missing. A partial fetch or
 parse cannot close previously observed work. Claimed or executed goals remain
 frozen, with current metadata exposed separately as `latest_source`.
@@ -44,3 +50,37 @@ Actual Electron must configure the connector, restart, display Issues and
 ROADMAP Tasks, and preserve project scope and credential boundaries. A separate
 opt-in run reads `phodal/pero` from GitHub and compares its imported checklist
 with the pinned repository content. Viewing Tasks never dispatches them.
+
+## Public task browser
+
+The public board loads the complete current published task outline, excluding
+removed sources. Tree and panorama share this one snapshot, search, phase filter,
+category selection and inspected task. The existing paginated administration and
+historical task routes retain their behavior. A phase is a browsing category;
+source closure and accepted work remain separate.
+
+Roadmap headings define a functional domain → feature → task hierarchy. A
+conventional document title `Roadmap` is omitted from browsing, while the original
+source context and identity stay intact. No parallel category registry is added.
+The default scope excludes accepted and source-closed work. Domain roots open to
+collapsed feature folders with matching-task counts; choosing a domain reveals
+its tasks. Completed work remains available through the state filter.
+
+The category rail and panorama use the same domains. Search includes feature
+paths, scope and acceptance, revealing all ancestors. Category counts follow the
+current search and state scope. Clearing filters restores the unfinished scope
+and previous branch expansion. Panorama presents each domain's features and
+returns to the corresponding tree branch when selected.
+
+Branch expansion and inspection are separate. Arrow keys navigate the full
+hierarchy; Enter opens one inline scope, acceptance check and source/Desktop
+actions, while Escape closes it. No task detail navigation is required. URL
+parameters preserve filters and view; only a currently matching selection adds
+a task hash, so a hidden selection cannot erase a search on reload.
+
+Only published tasks and public repository headings enter the outline. Private
+publications retain reviewed text. `store.RoadmapGoal` owns short-title parsing;
+the public brief omits a redundant matching title prefix and separates an explicit
+`验收：` check without changing the stored goal. Without JavaScript the same HTML remains a readable native disclosure list.
+No task-inspection navigation, new execution state or client-side claim authority
+is introduced by either view.

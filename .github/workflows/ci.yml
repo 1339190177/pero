@@ -224,6 +224,8 @@ jobs:
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       # Outside this repo. A checkout inside it is absorbed by the Cargo workspace.
       - name: Checkout gpui-kit
@@ -257,6 +259,8 @@ jobs:
 
       - name: Font-tool environment recovery tests
         run: node --test scripts/build/fonttools.test.mjs
+      - name: Resolve pinned local GPUI packages
+        run: node scripts/cargo.mjs check -p pero-contracts
 
       - name: Build
         run: npm run build

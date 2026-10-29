@@ -53,6 +53,7 @@ HTML iframe。`apps/virtual-cell` 是首个接入实例，`packages/app-sdk` 提
 
 ```text
 pero/
+├── ROADMAP.md
 ├── crates/
 │   ├── pero-contracts/
 │   ├── pero-host/      # stdio JSONL Host
@@ -73,7 +74,6 @@ pero/
 ├── tests/
 └── docs/
     ├── ARCHITECTURE.md
-    ├── ROADMAP.md
     ├── adr/
     ├── fitness/
     ├── issues/
@@ -144,8 +144,8 @@ Swift / Rust 只在确有原生能力需求时引入。列入按需语言不代�
 ## 跨进程协议与数据
 
 - 以版本化契约描述 Task、执行尝试、产物、验证和接受决定；Cloud、Harness、Python App 与界面共享协议，不共享内部状态实现。
-- 界面与协调服务采用 HTTP API / SSE；远程执行通过 Host 主动建立的认证通道接入，传输可选 HTTPS / WSS，具体协议仍需定义。ACP 用于 Agent 后端接入，MCP 用于工具接入；两者均不替代 Cloud 与 Host 间的执行授权协议。
-- PostgreSQL 拟保存协调服务状态，对象存储拟保存提交包、日志与报告；这是下图中的存储方案，Pero 尚未实现对应服务。
+- 当前界面通过 HTTP API 与轮询读取协调服务，Worker 主动连接并携带执行租约；可续接 SSE 与统一 Host 接入仍待实现。ACP 用于 Agent 后端接入，MCP 工具接入仍在规划中；两者均不替代协调服务与执行端之间的授权协议。
+- PostgreSQL 已保存 Task、Run、Worker 与来源记录；完整 Project journal、知识同步和用于提交包、日志与报告的对象存储仍在规划中。
 - 输入、方法、环境和产物绑定具体版本。运行成功、独立验证与研究结果接受分别记录；重要外部写入按权限执行，效果未知时先对账，避免直接重放。
 
 ## Daemon、环境与首版服务拓扑
@@ -230,7 +230,7 @@ Python 方法环境按 recipe 和依赖版本准备，科学数据按获准引�
 
 ## 执行不变量
 
-这些规则约束所有实现，不随里程碑变化。实现和验证它们的任务写在 [ROADMAP](ROADMAP.md)。
+这些规则约束所有实现，不随里程碑变化。实现和验证它们的任务写在 [ROADMAP](../ROADMAP.md)。
 
 - **客户端不内嵌 Agent 运行时。** 模型凭据、工具、审批和持久历史留在 Host。多个桌面壳共用同一个 Host 权威。
 - **授权在 Host 与协调服务的调用边界执行。** 动态求解保持在既定的数据范围、写入目标、预算和审批之内。一次 Run 的执行身份归 Host。

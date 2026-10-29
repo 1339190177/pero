@@ -39,6 +39,9 @@ and verify its Git blob digest before parsing. Private repositories additionally
 need Contents read permission. A failed/partial read never closes missing tasks.
 
 Each Markdown checkbox becomes one Task, including checked items (closed source).
+Write checklist items as `- [ ] Title. Description.`; the first `. ` separates
+the short title, and the full text remains the execution goal. Description edits
+keep the same identity. Items without a separator keep their first-line title.
 Heading paths define groups; nested checkboxes retain `parent_task_id`, source
 parent identity and depth. Inline `#tags` outside code become tags, and Issue
 labels become tags. No heading names or status labels are invented as tags.

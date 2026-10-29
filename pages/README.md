@@ -17,8 +17,9 @@ optimized conformers or AI predictions. Rotation is pointer- and keyboard-driven
 there is no automatic animation. The viewer uses the existing pinned Three.js
 dependency from Virtual Cell without changing the App.
 
-The research workflow and perturbation benchmark are expanded by default and
-can be collapsed. The benchmark embeds
+The page follows the README: Architecture, then Distributed collaboration,
+then Tasks, then Apps. The collaboration studio and the perturbation
+benchmark are shown directly. The benchmark embeds
 `apps/virtual-cell/examples/synthetic.json` and mirrors the App's control,
 training-mean and empirical additive definitions. Its predictions use training
 conditions only; all five frozen test combinations contribute to the reported

@@ -35,3 +35,25 @@ dispatch, GitHub OAuth/deep links, encrypted credentials, embedded App panels,
 signed portable distribution and other operating systems are not accepted here.
 Real Claude, Grok, physical IME and native permission/tool execution also remain
 unverified. A successful Codex text reply does not establish those capabilities.
+
+## Fresh build, 2026-10-29
+
+Rebuilt from `2571af3692d830d39dd9dab9bbf383785062519a` with the pinned GPUI
+snapshot `ec89cfc36404667b7947aeb3d40b1c2859d729dd`. Native release compilation,
+arm64 inspection and deep strict ad-hoc signature verification passed.
+
+The executable is 27,983,520 bytes. Its dynamic dependencies include AppKit,
+CoreText and Metal; the window uses the native GPUI path. This measurement
+excludes the checkout-owned Host, ACP adapters and model CLI dependencies.
+
+Computer-use verification opened the actual `Pero Native.app`, inspected the
+rendered window and editable composer, created a local session and connected
+Codex ACP. The UI showed Host ready and advertised `6.1 Sol`. The test session
+was ended without sending a model prompt. The real reply reported above belongs
+to the earlier 2026-10-28 trial, not this fresh connection check.
+
+Local evidence is `test-results/native-preview/result.json` and `connected.png`.
+The development bundle is `target/native/Pero Native.app` in the release
+worktree. It still references that checkout and its adapters, so the worktree
+must remain available. It is not added to the portable Electron/Virtual Cell
+release assets, and the cloud/Web App limits above still apply.

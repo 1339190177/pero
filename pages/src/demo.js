@@ -75,12 +75,12 @@
       $$('.choice[data-entry]').forEach(function(button){button.setAttribute('aria-pressed',button.dataset.entry===state.entry);});
       $$('.choice[data-worker]').forEach(function(button){button.setAttribute('aria-pressed',button.dataset.worker===state.worker);});
       $('#entry-node').innerHTML=icon(state.entry==='web'?'world':'device-desktop')+(state.entry==='web'?'Web':'Desktop');
-      $('#worker-node').innerHTML=icon(state.worker==='local'?'terminal-2':'server')+(state.worker==='local'?'Local Worker':'Remote Worker');
+      $('#worker-node').innerHTML=icon(state.worker==='local'?'terminal-2':'server')+tr(state.worker==='local'?'本机':'远程');
       const modes={
-        'web-local':[tr('轻量入口，本地研究环境。'),tr('通过浏览器连接本地运行服务，查看项目、发起分析与比较结果。浏览器是界面，本地 Worker 承担文件和工具访问。'),[tr('浏览器界面'),tr('本地运行服务'),tr('统一研究记录')]],
-        'web-remote':[tr('打开项目，连接远程计算。'),tr('从 Web 进入项目，由远程 Worker 执行任务。适合实验室服务器与共享计算资源，也为持续运行和结果审阅保留空间。'),[tr('远程任务'),tr('共享算力'),tr('异步查看结果')]],
-        'desktop-local':[tr('熟悉的桌面，身边的工具。'),tr('通过桌面工作台连接本机文件、研究环境与专业软件。让日常分析与项目记录留在同一个工作上下文中。'),[tr('本地文件'),tr('专业工具'),tr('项目上下文')]],
-        'desktop-remote':[tr('本地组织研究，远程推进实验。'),tr('桌面保留交互与本地材料，远程 Worker 承担长任务和更重的计算。入口与执行位置可以独立选择。'),[tr('本地交互'),tr('长任务执行'),tr('一致的研究对象')]]
+        'web-local':[tr('轻量入口，本地研究环境。'),tr('通过浏览器查看项目、发起分析和比较结果。文件和工具留在你的电脑上。'),[tr('浏览器界面'),tr('本机计算'),tr('同一份研究记录')]],
+        'web-remote':[tr('打开项目，连接远程计算。'),tr('从网页打开项目，计算放在实验室或共享的机器上。可以稍后再来看结果。'),[tr('远程计算'),tr('共享算力'),tr('稍后查看结果')]],
+        'desktop-local':[tr('熟悉的桌面，身边的工具。'),tr('通过桌面使用本机文件、研究环境和专业软件。分析和项目记录留在一起。'),[tr('本地文件'),tr('专业工具'),tr('项目上下文')]],
+        'desktop-remote':[tr('本地组织研究，远程推进实验。'),tr('在桌面整理材料，更久、更重的计算放到别的机器上。'),[tr('本地交互'),tr('长任务执行'),tr('一致的研究对象')]]
       }[state.entry+'-'+state.worker];
       $('#runtime-title').textContent=modes[0];$('#runtime-description').textContent=modes[1];
       $('#runtime-points').innerHTML=modes[2].map(function(label){return '<span>'+icon('check')+label+'</span>';}).join('');
@@ -101,7 +101,7 @@
       inputs:{title:tr('Virtual Cell · 数据与划分'),body:para('输入来自仓库内 Virtual Cell App 的 synthetic.json。A–F 与 G6–G11 均为合成特征名，不代表真实基因实验。')+pre({source:inputs.dataset.source,scale:inputs.dataset.scale,genes:inputs.dataset.genes,split:inputs.split})},
       sources:{title:tr('来源与适用范围'),body:para('本页复用 apps/virtual-cell/examples/synthetic.json，以及 App 的三种基线与 ΔMSE 评估定义。没有调用 Python 后端。')+para('Virtual Cell App 还提供 PBMC 参考图谱、机制仿真和体数据查看。本页只展示扰动评估，没有把这些不同来源的数据拼成一个实验。')+'<p><a href="https://github.com/phodal/pero/tree/main/apps/virtual-cell" target="_blank" rel="noopener noreferrer">Virtual Cell App ↗</a></p>'+para('测试读数在浏览器中可见，因此这是非盲流程演示。低误差不构成生物学验证或模型泛化证据。')},
       about:{title:tr('关于这个可复跑的示例'),body:para('本页可切换基线、查看测试组合、导出全部预测与误差。所有数据与状态均在浏览器本地；刷新后重置。')+para('GitHub、Agent、协作者、远程执行与验收角色均为界面模拟。没有训练 AI 模型，没有接通 App 后端或科学验证服务。')},
-      roadmap:{title:tr('可选的 Cloud，围绕真实研究需求。'),body:para('Cloud 的核心方向是持续任务协调。协调服务可自部署或托管，计算由本地、实验室或云端节点承担。托管 Cloud 仍在规划。')}
+      roadmap:{title:tr('计算留在数据旁边。'),body:para('计算可以留在个人电脑、实验室或云端，协调也可以自己部署。托管服务仍在规划。')}
     };
     if(name==='data')contents.data={title:tr('全部测试组合 · 逐基因数据'),body:para('指标覆盖全部测试组合；切换图中的组合不会改变分母。')+'<div class="table-scroll"><table class="data-table"><thead><tr><th>Combination</th><th>Gene</th><th>Observed Δ</th><th>Predicted Δ</th><th>Squared error</th></tr></thead><tbody>'+r.rows.map(row=>r.genes.map((gene,g)=>'<tr><td>'+row.id+'</td><td>'+gene+'</td><td>'+fmt(row.observed[g])+'</td><td>'+fmt(row.predicted[g])+'</td><td>'+fmt(row.squaredError[g])+'</td></tr>').join('')).join('')+'</tbody></table></div><button class="btn btn-primary" data-export="csv">'+tr('下载 CSV 数据')+'</button>'};
     const content=contents[name];if(!content)return;$('#dialog-title').textContent=content.title;$('#dialog-body').innerHTML=content.body;if(!$('#detail-dialog').open)$('#detail-dialog').showModal();

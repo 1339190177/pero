@@ -4756,6 +4756,7 @@ name = "pero-runtime"
 version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
+ "dunce",
  "libc",
  "pero-contracts",
  "serde",

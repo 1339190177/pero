@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	source "github.com/phodal/pero/server/internal/github"
 	"github.com/phodal/pero/server/internal/httpapi"
 	"github.com/phodal/pero/server/internal/store"
 )
@@ -322,7 +323,33 @@ func TestCommunityBrowserFixture(t *testing.T) {
 		t.Skip("browser fixture is opt-in")
 	}
 	f := communityHTTP(t)
-	metadataFields := communitySourceCases(t, f)
+	metadataFields := map[string]string{}
+	if path := os.Getenv("PERO_TASK_BROWSER_SOURCE"); path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed := source.ParseRoadmap(data)
+		if parsed.Partial {
+			t.Fatal(parsed.Errors)
+		}
+		config := store.GitHubRepository{ProjectID: "pero", Owner: "acme", Repo: "roadmap", WorkspaceKey: "private", AgentID: "fixture", Acceptance: "Review evidence"}
+		if err := f.db.BindGitHubRepository(context.Background(), config, "900", false); err != nil {
+			t.Fatal(err)
+		}
+		snapshot := store.RoadmapSnapshot{RepositoryID: "900", Repository: "acme/roadmap", Path: "ROADMAP.md", CommitSHA: strings.Repeat("a", 40), BlobSHA: strings.Repeat("b", 40)}
+		for _, item := range parsed.Items {
+			snapshot.Items = append(snapshot.Items, store.RoadmapItem{ID: item.ID, ParentID: item.ParentID, Title: item.Title, Text: item.Text, Checked: item.Checked, Line: item.Line, Headings: item.Headings, Tags: item.Tags})
+		}
+		if _, err := f.db.SyncRoadmap(context.Background(), config, snapshot); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		metadataFields = communitySourceCases(t, f)
+		for key, value := range communityRoadmapCases(t, f) {
+			metadataFields[key] = value
+		}
+	}
 	metadataFields["url"], metadataFields["task"], metadataFields["worker"], metadataFields["workerToken"] = f.app.URL, f.taskID, f.workerID, f.workerToken
 	metadata, _ := json.Marshal(metadataFields)
 	if err := os.WriteFile(file, metadata, 0600); err != nil {
@@ -341,5 +368,58 @@ func TestCommunityBrowserFixture(t *testing.T) {
 				return
 			}
 		}
+	}
+}
+
+// This source starts unpublished so the browser can still verify the empty board.
+func communityRoadmapCases(t *testing.T, f *fixture) map[string]string {
+	t.Helper()
+	ctx := context.Background()
+	config := store.GitHubRepository{ProjectID: "pero", Owner: "acme", Repo: "roadmap", WorkspaceKey: "private", AgentID: "fixture", Acceptance: "Review evidence"}
+	if err := f.db.BindGitHubRepository(ctx, config, "900", true); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := store.RoadmapSnapshot{RepositoryID: "900", Repository: "acme/roadmap", Path: "ROADMAP.md", CommitSHA: strings.Repeat("a", 40), BlobSHA: strings.Repeat("b", 40), Items: []store.RoadmapItem{
+		{ID: "parent", Title: "远程任务. 管理任务执行与恢复。", Text: "远程任务. 管理任务执行与恢复。", Line: 3, Headings: []string{"Roadmap", "M1 · 远程分派"}},
+		{ID: "child", ParentID: "parent", Depth: 1, Title: "断线恢复. 继续原来的任务。", Text: "断线恢复. 继续原来的任务。", Line: 4, Headings: []string{"Roadmap", "M1 · 远程分派"}},
+		{ID: "later", Title: "实验数据. 导入与检查数据。", Text: "实验数据. 导入与检查数据。", Line: 7, Headings: []string{"Roadmap", "科研应用"}},
+	}}
+	if _, err := f.db.SyncRoadmap(ctx, config, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.BindGitHubRepository(ctx, config, "900", false); err != nil {
+		t.Fatal(err)
+	}
+	page, err := f.db.Tasks(ctx, "", 50, store.TaskFilter{SourceKind: "roadmap"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[string]string{}
+	for _, task := range page.Tasks {
+		ids["roadmap_"+task.Source.ItemID] = task.ID
+	}
+	return ids
+}
+
+func TestPublicRoadmapNavigation(t *testing.T) {
+	f := communityHTTP(t)
+	ids := communityRoadmapCases(t, f)
+	for key, id := range ids {
+		title, goal := "远程任务. 管理任务执行与恢复。", "管理任务执行与恢复。"
+		if key == "roadmap_child" {
+			title = "断线恢复. 继续原来的任务。"
+			goal = "继续原来的任务。"
+		}
+		if key == "roadmap_later" {
+			title = "实验数据. 导入与检查数据。"
+			goal = "导入与检查数据。"
+		}
+		if err := f.db.CommunityPublish(context.Background(), id, title, goal, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	status, body := fetch(t, f.app.Client(), "GET", f.app.URL+"/tasks", "", nil)
+	if status != 200 || !strings.Contains(body, `data-category="M1 · 远程分派"`) || !strings.Contains(body, `>断线恢复</button>`) || !strings.Contains(body, "继续原来的任务。") || strings.Contains(body, `href="/tasks/`+ids["roadmap_child"]+`"`) {
+		t.Fatalf("inline tree: %d %s", status, body)
 	}
 }

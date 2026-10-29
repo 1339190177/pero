@@ -78,6 +78,20 @@ acceptance is independent from packaging and UI verification.
 
 See [product verification](../fitness/products.md) for observed trial results.
 
+## Native release distributions
+
+The release workflow builds Pero on macOS arm64, Windows x64 and Linux x64 in
+parallel. Virtual Cell is a separate macOS arm64 matrix entry, using the existing
+Product builder with a pinned, checksum-verified standalone Python tree. It does
+not build the GPUI workbench or include Agent adapters. Runtime acquisition lives
+in the release shell; Product validation and staging remain unchanged.
+
+All native jobs must pass package verification and actual Electron launch before
+one publication job collects the archives, build metadata and checksums and makes
+the prerelease visible. Windows uses a portable ZIP, Linux a portable tar.gz and
+macOS the existing ad-hoc-signed DMG. This configuration is not evidence of native
+Windows/Linux acceptance; see [release verification](../fitness/release-products.md).
+
 ## External App artifacts
 
 An App owner may build an `AppBundle` outside this repository. Its explicit file

@@ -357,7 +357,7 @@
   "apps.cancel": "Cancel",
   "apps.confirm_remove": "Remove app",
   "apps.invalid_catalog": "Could not read the app catalog. Refresh to retry.",
-  "contribution.choose_parent": "Choose where to save the contribution repository",
+  "contribution.choose_parent": "Choose a save folder — Pero will clone the repository",
   "contribution.title": "Public contributions",
   "contribution.remote_tasks": "Remote tasks",
   "contribution.loading": "Working…",
@@ -375,12 +375,12 @@
   "contribution.continue": "Open coding session",
   "contribution.review": "Review changes",
   "contribution.agent": "Coding Agent",
-  "contribution.setup": "Choose a save location. Pero prepares a separate repository and task branch. Install and sign in to your coding CLI first; GitHub identity login does not authenticate the model.",
+  "contribution.setup": "No clone needed: choose a save folder and Pero clones the repository and creates a task branch. Install and sign in to a coding CLI before starting. GitHub CLI (gh) is only needed when publishing a PR.",
   "contribution.agent_running": "Agent is working. Return to the coding session to view progress or stop it.",
   "contribution.review_title": "Changes to publish",
   "contribution.no_changes": "No changes to publish.",
-  "contribution.gh_missing": "Install GitHub CLI (gh), run gh auth login, then review again. GitHub Desktop sign-in does not grant repository write access.",
-  "contribution.gh_auth": "Run gh auth login in a terminal, then review again to enable PR creation.",
+  "contribution.gh_missing": "To publish a PR, install GitHub CLI (gh), then run gh auth login --hostname github.com --git-protocol https in any terminal folder. You do not need to clone the repository. Return here and check changes again.",
+  "contribution.gh_auth": "Run gh auth login --hostname github.com --git-protocol https in any terminal folder, then check changes again. Pero GitHub sign-in is for task identity; gh authorizes fork, push and PR creation.",
   "contribution.publish_help": "This action commits the reviewed changes, pushes the contribution branch and creates a draft PR. The task remains pending review.",
   "contribution.publish": "Commit, push and create draft PR",
   "contribution.pr_saved": "PR linked to this task. Awaiting maintainer review.",
@@ -388,5 +388,6 @@
   "contribution.open_pr": "Open pull request",
   "contribution.retry_submit": "Retry linking PR",
   "contribution.return_review": "Back to contribution · review changes",
-  "contribution.source": "View source"
+  "contribution.source": "View source",
+  "contribution.gh_help": "GitHub CLI setup"
 }

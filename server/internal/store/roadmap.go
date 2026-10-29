@@ -11,6 +11,15 @@ import (
 	"strings"
 )
 
+// RoadmapGoal is the readable checklist text, separate from source identity.
+type RoadmapGoal string
+
+func (goal RoadmapGoal) Title() string {
+	line, _, _ := strings.Cut(string(goal), "\n")
+	title, _, _ := strings.Cut(line, ". ")
+	return strings.TrimSpace(title)
+}
+
 type RoadmapItem struct {
 	ID, ParentID, Title, Text string
 	Checked                   bool

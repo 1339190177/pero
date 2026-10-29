@@ -12,6 +12,7 @@ const output = resolve(root, realAgent ? 'test-results/contribution-real' : 'tes
 rmSync(output, { recursive: true, force: true }); mkdirSync(output, { recursive: true });
 const metadata = join(scratch, 'fixture.json');
 const githubState = join(scratch, 'github');
+writeFileSync(githubState + '.unauthenticated', 'not signed in');
 const bare = join(scratch, 'upstream.git'), fork = join(scratch, 'fork.git');
 const seed = join(scratch, 'seed'), parent = join(scratch, 'workspaces'), bin = join(scratch, 'bin');
 for (const path of [seed, parent, bin]) mkdirSync(path);
@@ -94,6 +95,22 @@ try {
   expect(git(['branch', '--show-current'], workspace)).toBe(`codex/pero-${task}`);
   expect(git(['status', '--porcelain'], seed)).toBe('');
   await capture('03-agent-edited');
+  expect(snapshot.contribution.local.gh_available).toBe(true);
+  expect(snapshot.contribution.local.gh_authenticated).toBe(false);
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('remote-tasks').click());
+  await expect.poll(async () => (await state()).navigation).toBe(3);
+  await capture('03-gh-login-before-review');
+  await command({ action: 'remote_contribution_gh_help', task_id: task });
+  expect(await app.evaluate(() => globalThis.contributionLoginURL)).toBe('https://cli.github.com/');
+  writeFileSync(githubState + '.missing', 'not installed');
+  await command({ action: 'remote_contribution_review', task_id: task });
+  expect((await state()).contribution.local.gh_available).toBe(false);
+  await capture('03-gh-install');
+  rmSync(githubState + '.missing');
+  await command({ action: 'remote_contribution_review', task_id: task });
+  expect((await state()).contribution.local.gh_authenticated).toBe(false);
+  await capture('03-gh-login');
+  rmSync(githubState + '.unauthenticated');
   await command({ action: 'remote_contribution_review', task_id: task });
   snapshot = await state();
   expect(snapshot.contribution.local.diff).toContain('CONTRIBUTOR.md');
@@ -138,7 +155,7 @@ try {
   expect(errors).toEqual([]);
   writeFileSync(resolve(output, 'result.json'), JSON.stringify({ result: 'passed', mode: packaged ? 'packaged' : 'development',
     provider: realAgent ? 'Authenticated Codex ACP with actual tools' : 'ACP file-writing fixture', github: 'CLI fixture with real local Git push', projects: [],
-    cases: ['new GitHub identity', 'public discovery', 'private goal excluded', 'canvas claim and start controls', 'dedicated clone and branch', 'actual ACP file write', 'actual diff', 'stale review rejected', 'real Git commit and push', 'registration error recovery', 'draft PR evidence registered', 'idempotent registration', 'Chinese dark narrow layout'],
+    cases: ['new GitHub identity', 'public discovery', 'private goal excluded', 'canvas claim and start controls', 'dedicated clone and branch without prior checkout', 'gh setup before review', 'gh installation and login recovery', 'official gh help link', 'actual ACP file write', 'actual diff', 'stale review rejected', 'real Git commit and push', 'registration error recovery', 'draft PR evidence registered', 'idempotent registration', 'Chinese dark narrow layout'],
     evidence, errors }, null, 2));
   console.log('Contributor flow acceptance passed: new identity → public task → local ACP edit → Git diff → pushed commit → registered draft PR fixture');
 } catch (error) {
