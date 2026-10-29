@@ -37,6 +37,7 @@
     "test:apps:contracts": "node tests/contracts/apps.mjs",
     "test:local-execution": "node tests/e2e/local-execution.mjs",
     "test:composer": "node tests/e2e/composer.mjs",
+    "test:ime": "node tests/e2e/ime.mjs",
     "test:e2e": "node tests/e2e/desktop.mjs",
     "test:e2e:real": "node tests/e2e/real-session.mjs",
     "test:remote": "node tests/e2e/remote.mjs",
