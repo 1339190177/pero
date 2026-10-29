@@ -37,25 +37,34 @@ edit prediction. The feature list below remains the acceptance checklist.
   automatically. The separate allow-all selector is outside this batch.
 - [x] Native real Copilot reply, acknowledged mode/effort changes and menu
   keyboard behavior: [batch 1 evidence](../fitness/zed-composer-batch-1.md).
-- [ ] Dark/narrow inspection and Electron fixture regression. These remain
-  separate from the native real-provider evidence.
+- [x] Electron fixture inspection of dark/narrow controls and composer flows:
+  [batch 2 evidence](../fitness/zed-composer-batch-2.md). Native/real-provider
+  acceptance remains separate.
 
 ## Batch 2: context and editing
 
-- [ ] Shared typed context references and frozen per-turn content; preserve draft
-  text, permit removing references, and never send merely by selecting context.
-- [ ] Files/directories: workspace picker/search and explicit recursive bounds.
-- [ ] Symbols: actual indexed definitions/ranges; grep hits do not establish
-  symbol resolution. Bind references to source identity and version.
-- [ ] Threads: references to selected persisted conversation content.
-- [ ] Skills: Agent-advertised skills and slash commands, separate from local
-  package discovery. Use actual Agent capabilities.
-- [ ] Images: picker and paste, native ACP image content with size/type limits,
-  and visible unsupported-capability state.
-- [ ] Selection: selected ranges from an actual editor, disabled when absent.
-- [ ] Branch diff: explicit base, pinned diff snapshot and Git failure recovery.
-- [ ] `@`/`/` completion, keyboard/focus behavior, multiline input, IME, attachment
-  presentation and native/Web parity, including errors and cancellation.
+- [x] Shared typed context references and frozen content, with distinct snapshot
+  identity; preserve drafts, remove references and never send on selection.
+- [x] Files/directories: workspace search, OS picker and explicit recursive bounds.
+- [x] Symbols: actual Tree-sitter definitions/ranges for Rust, Go, Python,
+  JavaScript and TypeScript/TSX, bound to source identity/version.
+- [x] Threads: selected persisted conversation content.
+- [x] Skills: locally discovered project/global packages are explicitly separate
+  from actual Agent-advertised slash commands; no installation claim is inferred.
+- [x] Images: picker and paste, native ACP content, type/size bounds, and visible
+  unsupported-capability recovery without clearing the draft.
+- [x] Selection availability: disabled while there is no source editor exposing
+  actual selected ranges. Host supports explicitly supplied source ranges.
+- [x] Branch diff: explicit base, frozen snapshot and visible Git errors.
+- [x] Shared `@`/`/` completion, keyboard navigation, multiline input, native token
+  editing/undo, attachment labels, cancellation/stale query handling and UI states.
+- [x] Icons identify context sources; left controls hold context and permissions,
+  right controls hold ACP identity, model and thought level. Connected Agent
+  identity is fixed; modes and permissions share one compact menu. Advertised
+  Off/None thought levels are selectable. Placeholder exposes `@` and `/`.
+- [x] Development Electron fixture acceptance: [batch 2 evidence](../fitness/zed-composer-batch-2.md).
+- [ ] Physical IME, native clipboard on all target platforms and real-provider
+  context acceptance. Chat switching currently resets caret and undo history.
 
 ## Batch 3: Copilot Chat model provider
 

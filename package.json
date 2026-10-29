@@ -31,6 +31,7 @@
     "test:contracts": "npm run build:host && node tests/contracts/host.mjs",
     "test:apps": "node tests/e2e/apps.mjs",
     "test:apps:contracts": "node tests/contracts/apps.mjs",
+    "test:composer": "node tests/e2e/composer.mjs",
     "test:e2e": "node tests/e2e/desktop.mjs",
     "test:e2e:real": "node tests/e2e/real-session.mjs",
     "test:remote": "node tests/e2e/remote.mjs",
@@ -45,7 +46,8 @@
     "test:deployment": "node tests/e2e/deployment.mjs",
     "build:product": "node scripts/build/product.mjs",
     "test:product": "node --test packages/product/*.test.ts scripts/build/app-bundle.test.mjs",
-    "test:product:e2e": "node tests/e2e/product.mjs"
+    "test:product:e2e": "node tests/e2e/product.mjs",
+    "test:sidebar": "node tests/e2e/sidebar.mjs"
   },
   "devDependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.98.0",
