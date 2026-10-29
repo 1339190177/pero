@@ -15,10 +15,14 @@ Python 3.10+ and the pinned official Tree-sitter bindings/grammars:
 ```sh
 python3 -m venv scripts/ast-compare/.venv
 scripts/ast-compare/.venv/bin/pip install -r scripts/ast-compare/requirements.txt
+npm ci --prefix scripts/ast-compare
+scripts/ast-compare/.venv/bin/python scripts/ast-compare/build_typescript.py \
+  --cli scripts/ast-compare/node_modules/.bin/tree-sitter
 scripts/ast-compare/.venv/bin/python -m unittest discover -s scripts/ast-compare -v
 ```
 
-Use the corresponding `.venv/Scripts/python.exe` on Windows. This is an optional
+Use WSL for the extended grammar on Windows; native Windows can use the stock
+parser via `.venv/Scripts/python.exe` with its documented coverage gap. This is an optional
 analysis dependency, not a dependency of the Go runtime or the root application.
 The tested interpreter was Python 3.12. Source projects need no dependencies
 installed. Parser versions are included in every report.
@@ -160,15 +164,50 @@ exit 1 means differences/review items; exit 2 means parser errors or ambiguity.
 Even exit 0 does not prove equivalent behavior. Source compilation, tests,
 side effects, configuration and runtime wiring remain separate checks.
 
-## Current grammar coverage
+## TypeScript 5 grammar extension
 
-The 17-pair official mapping at DSH `f3803c9` extracts 15 pairs with the pinned
-grammars. Two Todo pairs share a source file containing TypeScript 5
-`export type *`, which the official published TypeScript grammar 0.23.2 does not
-parse. Its current official generated grammar also lacks that form. The complete
-source is left unchanged, those pairs report `parse_error`, and the run exits 2.
-This is a parser-coverage gap, not a Todo behavior failure or a successful check.
-A compatible official grammar release can be adopted with explicit version and
-regression updates; do not strip unsupported syntax to obtain a green report.
+The official published TypeScript grammar 0.23.2 cannot parse `export type *`.
+This tool has a deliberately small **local grammar extension**, version
+`0.23.2+pero.export-type-star.1`; it is not an upstream release. It adds one
+`export_statement` alternative for `export type * from ...` and
+`export type * as Ns from ...`, with a required module source. Every other rule
+is unchanged. The actual C parser is regenerated; project source is never
+stripped, masked, rewritten or parsed in isolated fragments.
+
+`build_typescript.py` downloads the official npm 0.23.2 archive (the PyPI sdist
+omits structured grammar), checks its pinned SHA256, extracts only the required
+source/license files, checks the original grammar hash, extends the structured
+rule, runs official Tree-sitter CLI 0.25.10 with ABI 14, and builds a shared
+library using `cc`. The npm lockfile pins generator package integrity. The CLI
+package installs its matching official platform binary. `--archive PATH` allows
+an already downloaded, hash-verified tarball; `--cc PATH` selects the compiler.
+
+First use needs Python, Node/npm, a C compiler, and network access to the npm
+registry and official CLI release download. Generation/compilation is a one-time
+local setup step (seconds on the validated Linux machine). The build supports
+Linux/macOS; Linux was tested, macOS was not. Windows users should use WSL.
+Generated parser C, binaries, source archive, upstream MIT license, and build
+receipt stay in ignored `.grammar/`; no bulky vendoring is required. Removing
+that directory reverts to stock grammar, explicitly reported as version 0.23.2;
+then the two Todo mappings again fail and extension tests are explicitly skipped.
+Run the build step before claiming full coverage.
+
+Reports include extension identity, archive/original/patched grammar hashes,
+generator/compiler versions, ABI and actual library SHA256. The loader checks
+the local library against its receipt before use. This is local reproducibility
+metadata, not an external attestation. Rebuild after moving machines or changing
+the parser version. A source/hash change fails closed and requires reviewing
+the extension. Remove the extension when a compatible upstream release is
+adopted, retaining its valid/invalid syntax regressions.
+
+All 17 selected mappings now parse with the extension, including the complete
+unmodified official Todo file. Malformed exports and malformed surrounding
+functions still produce ERROR/MISSING failures. Extraction success is still
+cross-language review, not semantic equivalence or a passing behavior test.
+
+Primary specifications: [TypeScript 5 type-only star exports](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#support-for-export-type-),
+[Tree-sitter structured grammar generation](https://tree-sitter.github.io/tree-sitter/cli/generate.html).
+The official repository's [pending support proposal](https://github.com/tree-sitter/tree-sitter-typescript/pull/360)
+is context only; no unmerged fork code is installed.
 
 See [validated snapshot and source receipts](VALIDATION.md) for the actual selected-pair run and reproduction details.

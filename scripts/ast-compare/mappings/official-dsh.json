@@ -1,6 +1,6 @@
 {
   "left_ref": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
-  "right_ref": "75657810bf99932564e0b56634f4598e604a5b8c",
+  "right_ref": "ad001471c794cb5d116729b6631c7f7f4a731260",
   "purpose": "Official DSH is the primary behavioral reference. Explicit cross-language mappings are reviewer-supplied hypotheses, not AST equivalence assertions.",
   "pairs": [
     {
@@ -336,9 +336,9 @@
         "path": "harness/go/session/persistence.go",
         "language": "go",
         "symbol": "scanPersistedLine",
-        "sha256": "22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702"
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
       },
-      "notes": "Known intentional difference: official scans a committed prefix and records torn-tail metadata; current Go rejects an unterminated record without changing bytes. This is fail-closed protection, not automatic recovery parity.",
+      "notes": "Default rejects unterminated records. Explicit complete-tail recovery validates full session under writer lease, preserves exclusive backup, and restores only the delimiter. Unlike official fragment recovery, incomplete JSON is never discarded or truncated.",
       "landmarks": [
         {
           "id": "tail-boundary",
@@ -365,9 +365,9 @@
         "path": "harness/go/session/persistence.go",
         "language": "go",
         "symbol": "JSONLSessionPersistence.Attach",
-        "sha256": "22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702"
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
       },
-      "notes": "Known capability difference: official repairs/truncates and rewrites recovered tail under a lease; Go admission rejects torn logs under its existing writer lease. No crash-exactly-once claim.",
+      "notes": "Default rejects unterminated records. Explicit complete-tail recovery validates full session under writer lease, preserves exclusive backup, and restores only the delimiter. Unlike official fragment recovery, incomplete JSON is never discarded or truncated.",
       "landmarks": [
         {
           "id": "writer-lease",
@@ -501,7 +501,7 @@
         "path": "harness/go/mcp/tools.go",
         "language": "go",
         "symbol": "ListTools",
-        "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc"
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
       },
       "notes": "A server without tools capability need not implement tools/list. A capabilities guard should precede discovery.",
       "landmarks": [
@@ -519,7 +519,7 @@
     },
     {
       "id": "mcp-structured-output-gap",
-      "label": "Canonical MCP structured content gap",
+      "label": "Canonical MCP structured result integration",
       "left": {
         "path": "packages/mcp/mcp-client/src/tools.ts",
         "language": "typescript",
@@ -530,9 +530,9 @@
         "path": "harness/go/mcp/tools.go",
         "language": "go",
         "symbol": "fromMCPResult",
-        "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc"
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
       },
-      "notes": "Known unimplemented integration: official retains canonical content+structuredContent/output schema; Go primarily projects text/media and only serializes structuredContent if no content. This pair deliberately exposes a capability gap rather than marking it equivalent.",
+      "notes": "Canonical value and supported output schema now flow through the existing tool registry. Existing Go text/image projection is retained; this does not claim complete official rich-attachment/PTC rendering parity.",
       "landmarks": [
         {
           "id": "structured-content",

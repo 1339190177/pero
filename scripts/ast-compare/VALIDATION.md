@@ -1,13 +1,14 @@
 # Validated reference snapshot
 
-Run: 2026-10-28. Python 3.12; pinned requirements; 15 unit tests passed.
+Updated run: 2026-10-29. Python 3.12; pinned requirements; 18 unit tests passed (no skips).
 
 - Official DSH: `f3803c96974ad4a94195fb97e5c637e9c2a3afe3`
-- Tested Pero: `73085a72ae6f32a32a3ab478c5aae98745869249`
-- Published Pero: `75657810bf99932564e0b56634f4598e604a5b8c`. Independently fetched from the public GitHub repository; `git rev-parse REF^{tree}` equals local tested tree `a0ba010b7fc8391e2743b364b1a9d43272dcb269`. All mapped Go source bytes were also compared directly against `git show` at this published commit. The mapping uses this fetchable ref.
+- Tested Pero: `68a18e09c2fdf2e6665aa9b0acf7eb25b3fe049d`
+- Published Pero: `ad001471c794cb5d116729b6631c7f7f4a731260`. Independently fetched from the public GitHub repository; `git rev-parse REF^{tree}` equals local tested tree `08dc01a07f2e358c108931bbfe4f1969e602d2f0`. All mapped Go source bytes were also compared directly against `git show` at this published commit. The mapping uses this fetchable ref.
 - Coverage: 17 explicitly selected callable pairs; 11 official files, 10 Go files. This is not whole-module coverage.
-- Result: **15 extracted for cross-language review; 2 unavailable**. Exit 2 is expected.
-- Both Todo selections fail whole-file parsing at official `packages/todo/tool-todo/src/index.ts:20` (`export type *` unsupported by TypeScript grammar 0.23.2). No source syntax was stripped.
+- Result: **17 extracted for cross-language review; 0 unavailable**. Exit 0 means extraction only.
+- Actual parser: local extension `0.23.2+pero.export-type-star.1`, official CLI 0.25.10, ABI 14, GCC 14.2.0 on Linux. Full original Todo file now parses; its SHA256 is unchanged. No source syntax was stripped.
+- Archive SHA256: `0fdf63c35930a75885145d75ee63cb879da2d49db9bfe454bd8e60b08ba778a1`; patched grammar SHA256: `b67967d0c12de9b9a315c657826c428776877ec8a7cd604700d7f6bf4ee6929c`. Original grammar hash is pinned in `build_typescript.py`; per-machine library hash is in generated report metadata.
 - Extraction and observed landmarks do not establish semantic equivalence or passing behavioral tests.
 
 ## Selected pairs
@@ -27,12 +28,12 @@ Run: 2026-10-28. Python 3.12; pinned requirements; 15 unit tests passed.
 | `session-torn-tail` | cross_language_review_required |
 | `session-tail-recovery` | cross_language_review_required |
 | `storage-migration-marker` | cross_language_review_required |
-| `todos-normalization` | unavailable |
-| `todos-composition` | unavailable |
+| `todos-normalization` | cross_language_review_required |
+| `todos-composition` | cross_language_review_required |
 | `mcp-tool-capability` | cross_language_review_required |
 | `mcp-structured-output-gap` | cross_language_review_required |
 
-## Before/after evidence
+## Historical before/after evidence (stock grammar)
 
 Compared against initial Pero `d258dacfefe72534f74337f59a7948f0e68e064e`:
 - Go declaration mode: 3 added, 35 modified, 3410 unchanged, 16 ambiguous identities; valid parsing, exit 2. Platform alternatives and repeated declarations are not arbitrarily paired.
@@ -42,12 +43,12 @@ Compared against initial Pero `d258dacfefe72534f74337f59a7948f0e68e064e`:
 
 ## Reproduction
 
-Install the pinned requirements and run tests as shown in README. With the exact source checkouts:
+Install the pinned requirements, build the local TS5 grammar and run tests as shown in README. Without that build the stock grammar retains its two explicit parse failures. With the exact source checkouts:
 
 ```sh
 python scripts/ast-compare/references.py \
   --mapping scripts/ast-compare/mappings/official-dsh.json \
-  --left-root /path/to/dsh-f3803c9 --right-root /path/to/pero-7565781 \
+  --left-root /path/to/dsh-f3803c9 --right-root /path/to/pero-ad00147 \
   --json /tmp/official-dsh.json --markdown /tmp/official-dsh.md
 ```
 
@@ -74,9 +75,9 @@ Each unique file below was independently compared byte-for-byte with `git show R
 | right | `harness/go/cmd/pero-agent-acp/coding.go` | `6898a4178c921c7683991e735c369554978162b610de0237b1728b07ab53c583` |
 | right | `harness/go/fstools/workspace.go` | `d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be` |
 | right | `harness/go/harness/loop.go` | `95113ee77a8856acf39b64319cb1db92cabc2799e8e1581796885e6daa64d798` |
-| right | `harness/go/mcp/tools.go` | `943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc` |
+| right | `harness/go/mcp/tools.go` | `d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e` |
 | right | `harness/go/providers/openai/provider_errors.go` | `20ce09a75aa29b167c5e680dd14643ebd60593a5866451f22ba12f3b198ba8ab` |
 | right | `harness/go/providers/openai/stream.go` | `2cecfaf622dcebbb5400207ddeadd95d2b24ed3c9ece466d82fa8d42288aae8f` |
-| right | `harness/go/session/persistence.go` | `22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702` |
+| right | `harness/go/session/persistence.go` | `99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf` |
 | right | `harness/go/storage/json_units.go` | `f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52` |
 | right | `harness/go/todos/normalization.go` | `df8da35d86358b0d8e5a9be8226c1b17cef340d3c4a4da34b0337ed84ed26d09` |
