@@ -28,3 +28,21 @@ when the owning session is cancelled or retired, as its existing safety contract
 The CLI default approval is `ask`; existing unattended Rust Worker rejection
 policy is unchanged. Without `--workspace`, the old ACP-only/no-builtins mode
 remains available. Tools use the existing real agent registry and lifecycle.
+
+## Explicit sandbox selections
+
+`--sandbox=strict-read-only` and `--sandbox=strict-workspace-write` retain the
+Linux/macOS read-and-network isolation requirement with explicit runtime mounts.
+They never fall back to Windows ACL confinement.
+
+On Windows, select `--sandbox=windows-acl-read-only` or
+`--sandbox=windows-acl-workspace-write`, provide `--workspace`, `--enable-shell`,
+`--approval=ask` and an absolute `--shell` path to `pwsh.exe`. Do not provide
+`--sandbox-runtime`: Windows ACL does **not** isolate reads or network. The tool
+description and result report this partial boundary. Every invocation still
+requires approval; no strict native auto-approval descriptor is emitted.
+
+Windows mounts **only `shell`**. Descriptor-rooted file tools remain Unix-only;
+this opt-in does not silently replace them with weaker pathname operations.
+Session cwd must match the configured shell workspace and its original identity.
+No Windows shell is enabled without the explicit partial sandbox selection.

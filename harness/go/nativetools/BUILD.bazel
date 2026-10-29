@@ -18,6 +18,7 @@ go_test(
     srcs = [
         "sandbox_test.go",
         "tools_test.go",
+        "windows_runtime_test.go",
     ],
     embed = [":nativetools"],
     deps = [

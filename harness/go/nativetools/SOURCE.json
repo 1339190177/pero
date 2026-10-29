@@ -15,5 +15,6 @@
     "App.CheckCWD exposes existing workspace authority check for early ACP admission; no new policy or permission grant.",
     "Opt-in strict shell composition and read-only mutation refusal reuse sandbox policy; shell-only approval descriptor is created by trusted registration, after confinement admission checks.",
     "Preserve the shell collector trailing-output contract when applying the smaller JSON result budget."
-  ]
+  ],
+  "windows_partial_adaptation": "Explicit Windows ACL presets register only approved PowerShell shell, not unsupported descriptor-rooted file tools. No strict NativeApprovalDescriptor is emitted for partial confinement; session cwd uses the shell workspace identity."
 }

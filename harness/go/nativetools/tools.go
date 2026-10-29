@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"time"
 	"unicode/utf8"
 
@@ -23,10 +24,13 @@ type Options struct {
 	EnableShell bool
 	Shell       string
 }
-type App struct{ files *fstools.Workspace }
+type App struct {
+	files *fstools.Workspace
+	shell *shell.LocalExecutor
+}
 
 func (a *App) Close() error {
-	if a == nil {
+	if a == nil || a.files == nil {
 		return nil
 	}
 	return a.files.Close()
@@ -35,10 +39,16 @@ func (a *App) Close() error {
 // CheckCWD reuses the launch-time workspace authority for early ACP admission.
 // Tool bodies still recheck it before execution to catch later changes.
 func (a *App) CheckCWD(cwd string) error {
-	if a == nil || a.files == nil {
+	if a == nil {
 		return errors.New("native workspace is unavailable")
 	}
-	return a.files.CheckCWD(cwd)
+	if a.files != nil {
+		return a.files.CheckCWD(cwd)
+	}
+	if a.shell != nil {
+		return a.shell.CheckCWD(cwd)
+	}
+	return errors.New("native workspace is unavailable")
 }
 
 type arguments struct {
@@ -60,7 +70,7 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 	}
 	if opts.Sandbox != nil {
 		if !opts.EnableShell {
-			return nil, errors.New("strict sandbox requires enabled shell")
+			return nil, errors.New("sandbox requires enabled shell")
 		}
 		copyConfig := *opts.Sandbox
 		copyConfig.RuntimePaths = append([]string(nil), opts.Sandbox.RuntimePaths...)
@@ -69,13 +79,20 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 			return nil, err
 		}
 	}
-	files, err := fstools.OpenWorkspace(opts.Workspace)
-	if err != nil {
-		return nil, err
+	windowsShell := runtime.GOOS == "windows" && opts.Sandbox != nil && opts.Sandbox.Backend == sandbox.BackendWindowsACL
+	var files *fstools.Workspace
+	var err error
+	workspace := opts.Workspace
+	if !windowsShell {
+		files, err = fstools.OpenWorkspace(workspace)
+		if err != nil {
+			return nil, err
+		}
+		workspace = files.Path()
 	}
 	app = &App{files: files}
 	defer func() {
-		if resultErr != nil {
+		if resultErr != nil && files != nil {
 			_ = files.Close()
 		}
 	}()
@@ -99,48 +116,61 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 		{"list_directory", "List up to 256 direct workspace directory entries; does not follow symlinks.", `"path":{"type":"string"}`, ``, false, func(c context.Context, a arguments) (any, error) { return files.List(c, a.Path) }},
 		{"search_files", "Find literal query text in bounded workspace files. At most 512 entries, 8 MiB text and 64 matches; symlinks skipped.", `"path":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096}`, `"query"`, false, func(c context.Context, a arguments) (any, error) { return files.Search(c, a.Path, a.Query) }},
 	}
+	if windowsShell {
+		// The descriptor-rooted file backend remains Unix-only. Do not replace it
+		// with pathname operations just to make Windows composition succeed.
+		definitions = nil
+	}
 	if opts.EnableShell {
 		if opts.Shell == "" {
+			if windowsShell {
+				return nil, errors.New("Windows shell requires an explicit absolute --shell path to pwsh.exe")
+			}
 			opts.Shell = "/bin/bash"
 		}
-		executor, e := shell.NewLocalExecutor(shell.LocalOptions{Sandbox: opts.Sandbox, Shell: opts.Shell, CWD: files.Path(), Timeout: 30 * time.Second, MaxTimeout: 120 * time.Second, MaxOutputBytes: 16 << 10, Grace: 200 * time.Millisecond, BaseEnv: []string{"PATH=/usr/bin:/bin", "LANG=C.UTF-8"}})
+		executor, e := shell.NewLocalExecutor(shell.LocalOptions{Sandbox: opts.Sandbox, Shell: opts.Shell, CWD: workspace, Timeout: 30 * time.Second, MaxTimeout: 120 * time.Second, MaxOutputBytes: 16 << 10, Grace: 200 * time.Millisecond, BaseEnv: []string{"PATH=/usr/bin:/bin", "LANG=C.UTF-8"}})
 		if e != nil {
 			return nil, e
 		}
-		if opts.Sandbox != nil {
+		app.shell = executor
+		if opts.Sandbox != nil && opts.Sandbox.Backend != sandbox.BackendWindowsACL {
 			shellAdmission = func(c context.Context, request harness.ToolRequest) (*harness.NativeApprovalDescriptor, error) {
 				if request.Agent == nil {
 					return nil, errors.New("native shell admission requires agent")
 				}
-				if err := files.CheckCWD(request.Agent.Session().WorkingDirectory()); err != nil {
+				if err := app.CheckCWD(request.Agent.Session().WorkingDirectory()); err != nil {
 					return nil, err
 				}
 				var a arguments
 				if err := json.Unmarshal(request.Arguments, &a); err != nil {
 					return nil, err
 				}
-				if _, err := executor.Resolve(shell.ExecRequest{Command: a.Command, Workdir: files.Path(), Timeout: time.Duration(a.TimeoutMS) * time.Millisecond}); err != nil {
+				if _, err := executor.Resolve(shell.ExecRequest{Command: a.Command, Workdir: workspace, Timeout: time.Duration(a.TimeoutMS) * time.Millisecond}); err != nil {
 					return nil, err
 				}
 				if err := executor.CheckConfinement(c); err != nil {
 					return nil, err
 				}
-				return &harness.NativeApprovalDescriptor{Version: 1, Operation: "shell", Workspace: files.Path(), SandboxMode: string(opts.Sandbox.Mode), Enforcement: "required", Network: "deny"}, nil
+				return &harness.NativeApprovalDescriptor{Version: 1, Operation: "shell", Workspace: workspace, SandboxMode: string(opts.Sandbox.Mode), Enforcement: "required", Network: "deny"}, nil
 			}
 		}
 		description := "Run an approved foreground Bash command with a minimal environment, bounded output and timeout. NOT an OS sandbox: may access outside workspace or network. No background jobs."
 		if opts.Sandbox != nil {
-			description = "Run an approved bounded foreground command in a strict native sandbox. Network denied; only declared runtime files and workspace readable. Workspace mode: " + string(opts.Sandbox.Mode)
+			if windowsShell {
+				description = "Run an approved bounded foreground PowerShell command with partial Windows ACL write isolation. Outside reads and network are NOT isolated. Workspace mode: " + string(opts.Sandbox.Mode) + ". Native file tools are unavailable on Windows."
+			} else {
+				description = "Run an approved bounded foreground command in a strict native sandbox. Network denied; only declared runtime files and workspace readable. Workspace mode: " + string(opts.Sandbox.Mode)
+			}
 		}
 		definitions = append(definitions, struct {
 			name, description, properties, required string
 			approval                                bool
 			run                                     func(context.Context, arguments) (any, error)
 		}{"shell", description, `"command":{"type":"string","minLength":1,"maxLength":16384},"timeout_ms":{"type":"integer","minimum":1,"maximum":120000}`, `"command"`, true, func(c context.Context, a arguments) (any, error) {
-			if e := files.CheckCWD(files.Path()); e != nil {
+			if e := app.CheckCWD(workspace); e != nil {
 				return nil, e
 			}
-			spec, e := executor.Resolve(shell.ExecRequest{Command: a.Command, Workdir: files.Path(), Timeout: time.Duration(a.TimeoutMS) * time.Millisecond})
+			spec, e := executor.Resolve(shell.ExecRequest{Command: a.Command, Workdir: workspace, Timeout: time.Duration(a.TimeoutMS) * time.Millisecond})
 			if e != nil {
 				return nil, e
 			}
@@ -165,7 +195,7 @@ func Mount(ctx context.Context, h *harness.Harness, opts Options) (app *App, res
 			if request.Agent == nil {
 				return harness.ToolResult{}, errors.New("native tools require an agent")
 			}
-			if e := files.CheckCWD(request.Agent.Session().WorkingDirectory()); e != nil {
+			if e := app.CheckCWD(request.Agent.Session().WorkingDirectory()); e != nil {
 				return harness.ToolResult{}, e
 			}
 			var a arguments
