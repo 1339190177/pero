@@ -126,10 +126,10 @@ app.whenReady().then(async () => {
     const url = new URL(request.url);
     const directory = resolve(root, 'web/dist');
     const file = resolve(directory, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
-    if (url.host !== 'workbench' || !file.startsWith(directory + sep)) return new Response('Not found', { status: 404 });
+    if (!['workbench', 'chat'].includes(url.host) || !file.startsWith(directory + sep)) return new Response('Not found', { status: 404 });
     return net.fetch(pathToFileURL(file).href).then((response) => {
       const headers = new Headers(response.headers);
-      headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src pero-app:; object-src 'none'");
+      headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src pero-app: pero://chat; object-src 'none'");
       return new Response(response.body, { status: response.status, headers });
     });
   });
