@@ -1,4 +1,7 @@
 {
+  "content.open_workspace": "在工作区打开",
+  "content.document": "文档",
+  "content.unavailable": "此文档已不可用。",
   "content.load_failed": "无法读取完整结果，请重试。",
   "content.retry_load": "重新打开结果",
   "content.find": "查找",

@@ -1,4 +1,7 @@
 {
+  "content.open_workspace": "Open in workspace",
+  "content.document": "Document",
+  "content.unavailable": "This document is no longer available.",
   "content.load_failed": "Could not read the complete result. Try again.",
   "content.retry_load": "Retry opening result",
   "content.find": "Find",

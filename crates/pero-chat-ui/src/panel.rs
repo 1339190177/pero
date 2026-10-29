@@ -19,6 +19,7 @@ use std::collections::{HashMap, HashSet};
 pub enum ChatAction {
     Command(HostCommand),
     Content(crate::artifact_read::ContentReadIntent),
+    OpenDocument { owner:String, title:String, document:pero_contracts::content_document::ContentDocument },
     ChooseWorkspace,
     ChooseContext {
         kind: Option<ContextKind>,
@@ -62,6 +63,7 @@ pub struct ChatPanel {
     pub composer_state: ComposerState,
     pub expanded_tools: HashSet<String>,
     pub show_return_to_review: bool,
+    pub can_open_documents: bool,
     pub(crate) pending_prompts: Vec<ComposerInsertion>,
     pub scope: Option<pero_contracts::AppChatScope>,
     pub(crate) scope_selection: HashMap<Option<pero_contracts::AppChatScope>, String>,
@@ -127,6 +129,7 @@ impl ChatPanel {
             composer_state: ComposerState::default(),
             expanded_tools: HashSet::new(),
             show_return_to_review: false,
+            can_open_documents: false,
             pending_prompts: vec![],
             scope: None,
             scope_selection: HashMap::new(),

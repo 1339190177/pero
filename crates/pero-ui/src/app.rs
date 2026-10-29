@@ -109,7 +109,7 @@ impl Workbench {
             }
             cx.notify();
         })];
-        let chat = cx.new(|cx| ChatPanel::new(locale.clone(), window, cx));
+        let chat = cx.new(|cx| {let mut panel=ChatPanel::new(locale.clone(),window,cx);panel.can_open_documents=true;panel});
         let search = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder(pero_contracts::i18n::text(&locale, "sessions.search"))
@@ -120,12 +120,13 @@ impl Workbench {
             this.sync_follow(cx);
             cx.notify();
         }));
-        subscriptions.push(cx.subscribe(&chat, |this, _, event, cx| {
+        subscriptions.push(cx.subscribe_in(&chat, window, |this, _, event, window, cx| {
             match event {
                 ChatAction::Command(command) => this.command(
                     serde_json::to_value(command).expect("serializable command"),
                     cx,
                 ),
+                ChatAction::OpenDocument {owner,title,document}=>this.open_document(owner.clone(),title.clone(),document.clone(),window,cx),
                 ChatAction::Content(intent) => this.command(serde_json::to_value(intent).expect("content intent"), cx),
                 ChatAction::ChooseWorkspace => {
                     this.command(json!({"action":"choose_workspace"}), cx)
