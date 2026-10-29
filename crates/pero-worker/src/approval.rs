@@ -234,6 +234,9 @@ mod tests {
             .unwrap()
             .join(format!("approval-fixture-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&root).unwrap();
+        // Trusted paths must use the platform's canonical spelling, including
+        // the verbatim drive prefix returned by canonicalize on Windows.
+        let root = root.canonicalize().unwrap();
         let binary = root.join("native");
         let bytes = b"\x7fELFsynthetic-not-executed";
         std::fs::write(&binary, bytes).unwrap();
@@ -248,7 +251,7 @@ mod tests {
             json!({"id":"native","name":"test","command":binary,"args":[],"env":{}}),
         )
         .unwrap();
-        assert!(p.validate(&agent, &[]).is_ok());
+        p.validate(&agent, &[]).unwrap();
         assert!(p.validate(&agent, std::slice::from_ref(&root)).is_err());
         let mut changed = agent.clone();
         changed.args.push("untrusted".into());
