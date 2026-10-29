@@ -1,4 +1,6 @@
-import { cargoArgs } from './lib/cargo.mjs';
+import { cargoArgs, ensureGpuiLock } from './lib/cargo.mjs';
 import { run } from './lib/run.mjs';
 
-await run('cargo', cargoArgs(process.argv.slice(2)));
+const args = process.argv.slice(2);
+if (args.includes('--locked')) await ensureGpuiLock();
+await run('cargo', cargoArgs(args));
