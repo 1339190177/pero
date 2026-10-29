@@ -29,11 +29,13 @@ await writeFile(history,[event('session_created','',{agent:'fixture',workspace:r
 const agents=resolve(temp,'agents.json');
 await writeFile(agents,JSON.stringify([{id:'fixture',name:'ACP fixture',command:process.execPath,args:[resolve(root,'tests/fixtures/acp-agent.mjs')]}]));
 const requests=[];
+const mutations=[];
 let holdDetail, holdList, releaseDetail, releaseList, detailWaiting=false, listWaiting=false;
 const server=createServer(async(request,response)=>{
   response.setHeader('Content-Type','application/json');
   if(request.headers.authorization!==`Bearer ${token}`){response.writeHead(401);response.end(JSON.stringify({error:'Unauthorized fixture'}));return;}
   const url=new URL(request.url,'http://127.0.0.1');requests.push(url.pathname+url.search);
+  if(request.method==='POST')mutations.push(url.pathname);
   const path=url.pathname.replace(/^\/api\/(?:client\/)?v1/,'');
   if(path==='/tasks' && holdList){listWaiting=true;await holdList;}
   if(path==='/tasks/task_1' && holdDetail){detailWaiting=true;await holdDetail;}
@@ -93,6 +95,24 @@ try{
   await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
   await capture('03-back-loading');
   releaseList();holdList=undefined;
+  await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
+  // A queued task leads to the existing explicit device setup, with its own
+  // project/workspace/Agent; browsing setup must not enroll or dispatch.
+  tasks[0].state='queued';
+  await page.mouse.click(500,326);
+  await expect.poll(async()=>(await state()).remote.state.detail?.task?.state).toBe('queued');
+  await frames();
+  await capture('03-queued-local-execution');
+  await page.mouse.click(350,432);
+  await expect.poll(async()=>(await state()).navigation).toBe(5);
+  expect((await state()).localExecution).toMatchObject({editing:true,project_id:'pero',workspace_key:'default',path:root,agent_id:'fixture',setup:{enabled:false}});
+  await capture('03-task-device-setup');
+  expect(mutations).toEqual([]);
+  await page.mouse.click(100,218);
+  await expect.poll(async()=>(await state()).navigation).toBe(3);
+  await frames();
+  await page.mouse.click(335,156);
+  await expect.poll(async()=>(await state()).remote.state.selected_task_id).toBe(null);
   await expect.poll(async()=>(await state()).remote.state.loading).toBe(false);
   await frames();
   await page.mouse.click(100,111);
@@ -219,7 +239,7 @@ try{
   expect((await state()).projects.find(project=>project.workspace===homonym).shared_id).toBe(null);
   expect((await state()).projects.filter(project=>project.shared_id==='pero')).toHaveLength(1);
   await capture('13-distinct-repository-homonym');
-  console.log('Passed: inferred repository grouping without saved bindings, distinct-owner homonym, stable detail/back during held HTTP responses, project task scope, Insights, settings keyboard/submenus, language/appearance persistence, system theme, save-error recovery, new chat, light/dark/narrow.');
+  console.log('Passed: inferred repository grouping without saved bindings, distinct-owner homonym, stable detail/back during held HTTP responses, queued task device setup without enrollment/dispatch, project task scope, Insights, settings keyboard/submenus, language/appearance persistence, system theme, save-error recovery, new chat, light/dark/narrow.');
   await writeFile(resolve(out,'state.json'),JSON.stringify(await state(),null,2));
   expect(errors).toEqual([]);
 } catch(error){

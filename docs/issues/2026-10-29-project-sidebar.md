@@ -22,9 +22,11 @@ Reproduced in actual Electron by holding the task-detail HTTP response: after
 opening task_1, the visible snapshot reverted to the list (`selected_task_id:
 null`). The regression also holds the list response after Back to ensure the
 detail does not return while waiting. After the fix, the full actual Electron
-sidebar suite passed, including both held-response cases, project scope, restart,
-light/dark and narrow windows. Screenshots are in `test-results/sidebar/03-task-loading.png`,
-`03-back-loading.png`. TypeScript/theme/locale/contracts checks, 14 UI unit
+sidebar suite passed, including both held-response cases, queued-task device
+setup without enrollment/dispatch, project scope, restart, light/dark and narrow
+windows. Screenshots are in `test-results/sidebar/03-task-loading.png`,
+`03-back-loading.png`, `03-queued-local-execution.png` and
+`03-task-device-setup.png`. TypeScript/theme/locale/contracts checks, 14 UI unit
 tests, the native UI check and Wasm/Web/Desktop development builds passed.
 The running user Desktop must restart to load the changed main-process adapter.
 
