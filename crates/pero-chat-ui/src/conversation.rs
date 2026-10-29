@@ -104,8 +104,7 @@ pub struct Tool {
 }
 
 impl Tool {
-    /// Collapsed and inactive tools retain protocol data only. Creating the
-    /// document here avoids parsing large output the reader has not opened.
+    /// Materialize Markdown on first disclosure; retain reading state thereafter.
     pub fn set_body_open(&mut self, open: bool, cx: &mut App) {
         if open {
             if self.document.is_none() && self.view.is_none() {

@@ -10,7 +10,22 @@ date: 2026-10-29
 
 结论：沿用 Zed 的所有权与生命周期设计，在 Pero 已有 GPUI Kit、App SDK 和 Host 上实现。一个来源版本派生用户阅读视图与模型输出；折叠、表格化、格式化和模型限额分别处理。完整参考其逻辑，不意味着引入整个 Zed 编辑器依赖图。
 
-本次只提交研究与实现约束。下文的新类型、结构化阅读器、产物读取工具及性能目标均为**拟实现**；没有新 UI 或 Data Agent 已接入的声明。性能是否达标必须由实际 Electron/GPUI Wasm 和 App iframe 的同条件测量决定，目前没有“性能最好”的对比证据。
+研究初版只提交实现约束。后续实现与实际测量单独记录在 [Content reader 验证](../fitness/content-reader.md)；下文路线是完成定义，不代表所有能力均已接入。性能是否达标必须由实际 Electron/GPUI Wasm 和 App iframe 的同条件测量决定，目前没有“性能最好”的跨产品对比证据。
+
+## 实施校正：恢复内容视图主线
+
+2026-10-29 用户再次明确，优先保证功能与使用流程对齐。此前实现只完成了 Chat 阅读器的一部分，就推进了步骤 5–6 的 JSON 输出预算和文件读取；步骤 4 的 App 消费链路仍未完成。这是实施顺序偏移，不能以局部 JSON 能力替代完整内容视图交付。
+
+| 主线 | 当前状态 | 接下来的验收对象 |
+| --- | --- | --- |
+| 工作区 Item 与生命周期 | 已有会话/App 导航，补上活动标签显现与稳定身份 | 文档、代码、数据及嵌入内容的打开、切换、恢复、关闭与焦点路由 |
+| Editor 与 Markdown | Chat 有保留渲染和来源阅读器 | 普通代码/文档也能使用完整来源视图；查找、折叠、选择与来源定位逐项对齐 |
+| WebView 与嵌入式 App | 已有受管 iframe | App 内消费同一来源契约；MCP Apps 的资源发现、标准桥接和生命周期单独补齐 |
+| 图标与内容识别 | 已有共享图标资源 | 由内容类型和工作区操作使用统一图标入口，覆盖主题与交互状态 |
+| JSON 与数据投影 | Chat 中已有基础阅读与表格投影 | 作为上述视图系统的一种内容消费方式；数据集与图表不能只靠 JSON 字符串展示 |
+| 输出预算与文件读取 | Desktop 已有局部能力 | 随完整用户工作流验收，不继续作为视图重构的中心 |
+
+实施优先级恢复为：工作区内容生命周期 → Editor/Markdown/WebView 使用链路 → App 消费验收 → 内容专用投影 → 输出预算与性能优化。当前阅读器验证仅证明已列出的局部操作，未完成的主线仍按下文步骤逐项交付。
 
 ## 1. 研究基线与已有能力
 
@@ -324,7 +339,7 @@ Data Agent 应以领域 App + 现有 Host 会话/执行边界接入。数据获�
 
 ## 9. 实现顺序与完成定义
 
-按单一关注点提交；每步完成后保留可运行路径，不一次迁移所有工具/App。以下均待实现，步骤 0 的独立问题沿用已有 incident。
+按单一关注点提交；每步完成后保留可运行路径，不一次迁移所有工具/App。具体实施范围与未完成项由上述验证记录维护，步骤 0 的独立问题沿用已有 incident。
 
 | 步骤 | 有界交付 | 完成条件 |
 | --- | --- | --- |
@@ -379,3 +394,23 @@ Data Agent 应以领域 App + 现有 Host 会话/执行边界接入。数据获�
 [Z20]: https://github.com/zed-industries/zed/blob/37faef81f74fc1bb08be9939c4cffc8ede6ced2f/crates/workspace/src/dock.rs#L36
 [K1]: https://github.com/longbridge/gpui-kit/blob/ec89cfc36404667b7947aeb3d40b1c2859d729dd/crates/component/src/input/editor.rs#L83
 [K2]: https://github.com/longbridge/gpui-kit/blob/ec89cfc36404667b7947aeb3d40b1c2859d729dd/crates/base/src/input/editor/mod.rs#L1
+
+## 11. MCP Apps：采用标准桥接，不能推定 Zed 已支持
+
+2026-10-29 核对 [Zed 官方 MCP 文档](https://zed.dev/docs/ai/mcp)：公开列出的能力是 Tools 和 Prompts；本文固定版本中，`crates/`、`docs/` 和 workspace manifest 未检索到 `ui://`、`ui/initialize`、`ui.resourceUri` 或 MCP Apps Host 路径。结论限定为该版本源码与当前公开声明，不能将其普通 MCP 支持或 ACP resource 内容转换当成 MCP Apps 兼容证据。
+
+[MCP Apps 标准](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)及 [官方 SDK 概览](https://apps.extensions.modelcontextprotocol.io/api/documents/Overview.html)定义的是另一条完整链路：
+
+1. Host 协商 `io.modelcontextprotocol/ui` 能力。Server 的工具通过 `_meta.ui.resourceUri` 关联 `ui://` HTML 资源；旧的扁平 metadata 兼容按对应协议版本处理。
+2. Host 使用 `resources/read` 取得资源，验证 MIME 与资源元数据，在隔离 iframe 中加载。嵌入 HTML 只是中间一步，还需要标准通信与生命周期。
+3. View 发起 `ui/initialize`；Host 回应能力、主题、容器等上下文，初始化完成后发送 tool-input/tool-result 通知。
+4. View 通过 JSON-RPC over `postMessage` 调用 Host 桥接的工具、请求界面变化或更新模型上下文。Host 继续拥有工具授权和会话绑定。
+5. Host 在卸载时执行 resource teardown，并按资源身份复用模板；组件可支持 inline、fullscreen、pip 等模式，实际可用模式以 Host 声明为准。
+
+Pero 现有 App iframe、主题/语言和 Host 生命周期是可复用的基础，但它们没有实现 MCP Apps 协商、资源解析、`AppBridge` 或上述 `ui/*` 协议。未来可复用受管显示 slot，在 Host/MCP adapter 处补上标准桥接；外部 MCP HTML 的来源与资源策略应按标准实现，不能直接视为已经安装的本地 App。
+
+未来 MCP App surface 的身份需要绑定 server、resource URI、tool call 和 conversation；它与已安装 App 的 `name/panel` 是不同来源，不能通过伪造 AppCatalog 项目复用授权。ACP 转交的外部 Agent 是否保留 MCP 工具的 UI metadata、是否允许 Host 读取对应资源，也必须单独接线；当前 ACP 文本结果不能重建丢失的 UI 声明。
+
+对 Data Agent，优先采用“模型获摘要与 dataset 引用，View 通过 app 可见工具分页读取数据，用户选中范围时才更新模型上下文”的路径。`structuredContent` 的存在本身不能证明数据不会进入模型上下文；Host 必须明确控制结果路由和上下文选择。完整行集、图表状态和每次滚动操作不应自动变成新的模型输入。
+
+当前 `content_read` 是普通 MCP 工具的文件读取基础，不等于 MCP Apps 支持。当前先以完整来源阅读和用户操作的功能等价为验收门槛，再优化性能与输出体积；MCP Apps Host 属于后续明确的兼容能力，实施时直接评估官方 SDK 的 `AppBridge`/`App`，不另造一套相似的 RPC 协议。

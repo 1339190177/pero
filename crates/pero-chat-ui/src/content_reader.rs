@@ -90,7 +90,7 @@ impl ContentReader {
             "source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
-            "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len()})}),
+            "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len(),"current":s.matcher.current()})}),
             "foldable":self.editor.as_ref().map(|e|e.read(cx).display_map().is_fold_candidate(0)),
             "cursor":self.editor.as_ref().map(|e|e.read(cx).cursor_position()),
             "folds":self.editor.as_ref().map(|e|e.read(cx).display_map().folded_ranges().len()),
