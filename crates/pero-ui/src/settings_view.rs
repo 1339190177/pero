@@ -229,23 +229,43 @@ impl SettingsPanel {
     }
 }
 
-fn setting_row(label: &str, description: &str, control: AnyElement, cx: &App) -> Div {
+fn selection_button(id: &'static str, label: &'static str, name: &'static str, cx: &App) -> Button {
+    let appearance = UiAppearance::global(cx);
+    Button::new(id)
+        .outline()
+        .small()
+        .min_w(px(92.))
+        .h(px(appearance.typography.control_height()))
+        .bg(appearance.palette.surface_muted)
+        .border_color(appearance.palette.border)
+        .label(label)
+        .accessibility_label(name)
+}
+
+fn setting_row(
+    label: &str,
+    description: &str,
+    control: AnyElement,
+    divider: bool,
+    cx: &App,
+) -> Div {
     let appearance = UiAppearance::global(cx);
     div()
         .min_w_0()
-        .py(px(18.))
+        .py(px(12.))
         .flex()
         .items_center()
         .gap(px(20.))
-        .border_b(px(0.5))
-        .border_color(appearance.palette.border)
+        .when(divider, |el| {
+            el.border_b(px(0.5)).border_color(appearance.palette.border)
+        })
         .child(
             div()
                 .flex_1()
                 .min_w_0()
                 .flex()
                 .flex_col()
-                .gap(px(5.))
+                .gap(px(3.))
                 .child(label.to_owned())
                 .when(!description.is_empty(), |el| {
                     el.child(
@@ -261,134 +281,116 @@ fn setting_row(label: &str, description: &str, control: AnyElement, cx: &App) ->
 }
 
 impl SettingsPanel {
-    fn font_settings(&self, section: SettingsSection, cx: &mut Context<Self>) -> AnyElement {
+    fn font_settings(
+        &self,
+        section: SettingsSection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let scope = section.scope().expect("font section");
-        let preferences = self.preferences.typography;
-        let size = u8::from(preferences.effective(scope));
-        let inherited = preferences.selected(scope).is_none();
-        let appearance = UiAppearance::global(cx).clone();
-        let row_height = appearance.typography.control_height();
+        let inherited = self.preferences.typography.selected(scope).is_none();
         let saving = self.preferences_status == PreferenceSaveState::Saving;
-        let stepper = div()
+        let appearance = UiAppearance::global(cx).clone();
+        let index = match scope {
+            FontScope::Interface => 0,
+            FontScope::Chat => 1,
+            FontScope::Code => 2,
+        };
+        let control = div()
             .flex()
             .items_center()
-            .border_1()
-            .border_color(appearance.palette.input_border)
-            .rounded(px(4.))
-            .overflow_hidden()
-            .child(
-                Button::new("font-decrease")
-                    .ghost()
-                    .small()
-                    .label("−")
-                    .accessibility_label(self.t("settings.decrease_font"))
-                    .w(px(row_height))
-                    .h(px(row_height))
-                    .disabled(size == 12 || saving)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        let mut next = this.preferences.clone();
-                        next.typography.adjust(scope, -1);
-                        this.save_preferences(next, cx);
-                    })),
-            )
-            .child(
-                div()
-                    .min_w(px(48.))
-                    .px(px(8.))
-                    .text_center()
-                    .child(size.to_string()),
-            )
-            .child(
-                Button::new("font-increase")
-                    .ghost()
-                    .small()
-                    .label("+")
-                    .accessibility_label(self.t("settings.increase_font"))
-                    .w(px(row_height))
-                    .h(px(row_height))
-                    .disabled(size == 24 || saving)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        let mut next = this.preferences.clone();
-                        next.typography.adjust(scope, 1);
-                        this.save_preferences(next, cx);
-                    })),
-            );
-        let family = if scope == FontScope::Code {
-            "JetBrains Mono"
-        } else {
-            self.t("settings.system_font")
-        };
-        let description = self.t(match scope {
-            FontScope::Interface => "settings.interface_font_hint",
-            FontScope::Chat => "settings.chat_font_hint",
-            FontScope::Code => "settings.code_font_hint",
-        });
-        div()
-            .flex()
-            .flex_col()
-            .child(setting_row(
-                self.t("settings.font_family"),
-                "",
-                div()
-                    .text_color(appearance.palette.text_muted)
-                    .child(family.to_owned())
-                    .into_any_element(),
-                cx,
-            ))
+            .gap(px(12.))
             .when(scope != FontScope::Interface, |el| {
-                el.child(setting_row(
-                    self.t("settings.inherit_ui"),
-                    "",
+                el.child(
                     Checkbox::new("font-inherit")
+                        .small()
+                        .label(self.t("settings.inherit_ui"))
                         .checked(inherited)
                         .disabled(saving)
-                        .accessibility_label(self.t("settings.inherit_ui"))
                         .on_click(cx.listener(move |this, checked: &bool, _, cx| {
                             let mut next = this.preferences.clone();
                             next.typography.inherit(scope, *checked);
                             this.save_preferences(next, cx);
-                        }))
-                        .into_any_element(),
-                    cx,
-                ))
+                        })),
+                )
             })
-            .child(setting_row(
-                self.t("settings.font_size"),
-                description,
-                stepper.into_any_element(),
-                cx,
-            ))
             .child(
                 div()
-                    .pt(px(24.))
+                    .id("font-size-field")
                     .flex()
-                    .flex_col()
-                    .gap(px(12.))
+                    .items_center()
+                    .w(px(124.))
+                    .rounded(px(3.))
+                    .bg(UiAppearance::global(cx).palette.surface_muted)
+                    .border_1()
+                    .border_color(
+                        if self.font_inputs[index]
+                            .read(cx)
+                            .focus_handle(cx)
+                            .is_focused(window)
+                        {
+                            appearance.palette.focus
+                        } else {
+                            appearance.palette.border
+                        },
+                    )
+                    .h(px(appearance.typography.control_height()))
                     .child(
-                        div()
-                            .text_size(appearance.text(TextRole::Caption))
-                            .text_color(appearance.palette.text_muted)
-                            .child(self.t("settings.preview")),
+                        Button::new("decrease-font")
+                            .ghost()
+                            .small()
+                            .w(px(26.))
+                            .h_full()
+                            .icon(IconName::Minus)
+                            .disabled(saving)
+                            .accessibility_label(self.t("settings.decrease_font"))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let mut next = this.preferences.clone();
+                                next.typography.adjust(scope, -1);
+                                this.save_preferences(next, cx);
+                            })),
                     )
                     .child(
-                        div()
-                            .p(px(16.))
-                            .bg(appearance.palette.bg)
-                            .rounded(px(4.))
-                            .text_size(px(size.into()))
-                            .line_height(relative(1.6))
-                            .when(scope == FontScope::Code, |el| {
-                                el.font_family("JetBrains Mono")
-                            })
-                            .whitespace_normal()
-                            .child(if scope == FontScope::Code {
-                                "let result = project.run();".to_owned()
-                            } else {
-                                self.t("settings.preview_text").to_owned()
-                            }),
+                        Input::new(&self.font_inputs[index])
+                            .appearance(false)
+                            .small()
+                            .w(px(70.))
+                            .text_align(TextAlign::Center)
+                            .disabled(saving)
+                            .aria_label(format!(
+                                "{} {}",
+                                self.t(section.key()),
+                                self.t("settings.font_size")
+                            )),
+                    )
+                    .child(
+                        Button::new("increase-font")
+                            .ghost()
+                            .small()
+                            .w(px(26.))
+                            .h_full()
+                            .icon(IconName::Plus)
+                            .disabled(saving)
+                            .accessibility_label(self.t("settings.increase_font"))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let mut next = this.preferences.clone();
+                                next.typography.adjust(scope, 1);
+                                this.save_preferences(next, cx);
+                            })),
                     ),
-            )
-            .into_any_element()
+            );
+        setting_row(
+            self.t("settings.font_size"),
+            self.t(match scope {
+                FontScope::Interface => "settings.interface_font_hint",
+                FontScope::Chat => "settings.chat_font_hint",
+                FontScope::Code => "settings.code_font_hint",
+            }),
+            control.into_any_element(),
+            false,
+            cx,
+        )
+        .into_any_element()
     }
 
     fn theme_settings(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -396,56 +398,56 @@ impl SettingsPanel {
         let selected = self.preferences.appearance;
         let choices = [Appearance::System, Appearance::Light, Appearance::Dark]
             .map(|mode| (mode, self.t(mode.label_key()).to_owned()));
-        let mode = Button::new("appearance-mode")
-            .outline()
-            .small()
-            .min_w(px(144.))
-            .label(self.t(selected.label_key()))
-            .accessibility_label(self.t("settings.appearance"))
-            .dropdown_menu(move |menu, _, _| {
-                choices.iter().fold(menu, |menu, (choice, label)| {
-                    let target = target.clone();
-                    let choice = *choice;
-                    menu.item(
-                        PopupMenuItem::new(label.clone())
-                            .checked(selected == choice)
-                            .on_click(move |_, _, cx| {
-                                let _ = target.update(cx, |this, cx| {
-                                    let mut next = this.preferences.clone();
-                                    next.appearance = choice;
-                                    this.save_preferences(next, cx);
-                                });
-                            }),
-                    )
-                })
-            });
+        let mode = selection_button(
+            "appearance-mode",
+            self.t(selected.label_key()),
+            self.t("settings.appearance"),
+            cx,
+        )
+        .dropdown_menu(move |menu, _, _| {
+            choices.iter().fold(menu, |menu, (choice, label)| {
+                let target = target.clone();
+                let choice = *choice;
+                menu.item(
+                    PopupMenuItem::new(label.clone())
+                        .checked(selected == choice)
+                        .on_click(move |_, _, cx| {
+                            let _ = target.update(cx, |this, cx| {
+                                let mut next = this.preferences.clone();
+                                next.appearance = choice;
+                                this.save_preferences(next, cx);
+                            });
+                        }),
+                )
+            })
+        });
         let target = cx.entity().downgrade();
         let selected = self.preferences.accent;
         let choices = [AccentColor::Teal, AccentColor::Blue, AccentColor::Neutral]
             .map(|accent| (accent, self.t(accent.label_key()).to_owned()));
-        let accent = Button::new("appearance-accent")
-            .outline()
-            .small()
-            .min_w(px(144.))
-            .label(self.t(selected.label_key()))
-            .accessibility_label(self.t("settings.accent"))
-            .dropdown_menu(move |menu, _, _| {
-                choices.iter().fold(menu, |menu, (choice, label)| {
-                    let target = target.clone();
-                    let choice = *choice;
-                    menu.item(
-                        PopupMenuItem::new(label.clone())
-                            .checked(selected == choice)
-                            .on_click(move |_, _, cx| {
-                                let _ = target.update(cx, |this, cx| {
-                                    let mut next = this.preferences.clone();
-                                    next.accent = choice;
-                                    this.save_preferences(next, cx);
-                                });
-                            }),
-                    )
-                })
-            });
+        let accent = selection_button(
+            "appearance-accent",
+            self.t(selected.label_key()),
+            self.t("settings.accent"),
+            cx,
+        )
+        .dropdown_menu(move |menu, _, _| {
+            choices.iter().fold(menu, |menu, (choice, label)| {
+                let target = target.clone();
+                let choice = *choice;
+                menu.item(
+                    PopupMenuItem::new(label.clone())
+                        .checked(selected == choice)
+                        .on_click(move |_, _, cx| {
+                            let _ = target.update(cx, |this, cx| {
+                                let mut next = this.preferences.clone();
+                                next.accent = choice;
+                                this.save_preferences(next, cx);
+                            });
+                        }),
+                )
+            })
+        });
         div()
             .flex()
             .flex_col()
@@ -453,12 +455,14 @@ impl SettingsPanel {
                 self.t("settings.appearance"),
                 "",
                 mode.into_any_element(),
+                true,
                 cx,
             ))
             .child(setting_row(
                 self.t("settings.accent"),
                 "",
                 accent.into_any_element(),
+                false,
                 cx,
             ))
             .into_any_element()
@@ -467,244 +471,42 @@ impl SettingsPanel {
     fn language_settings(&self, cx: &mut Context<Self>) -> AnyElement {
         let selected = self.locale.clone();
         let target = cx.entity().downgrade();
-        let control = Button::new("settings-language")
-            .outline()
-            .small()
-            .min_w(px(144.))
-            .label(if selected == "en" {
+        let control = selection_button(
+            "settings-language",
+            if selected == "en" {
                 "English"
             } else {
                 "简体中文"
-            })
-            .accessibility_label(self.t("menu.language"))
-            .dropdown_menu(move |menu, _, _| {
-                [("zh-CN", "简体中文"), ("en", "English")].into_iter().fold(
-                    menu,
-                    |menu, (value, label)| {
-                        let target = target.clone();
-                        menu.item(
-                            PopupMenuItem::new(label)
-                                .checked(selected == value)
-                                .on_click(move |_, _, cx| {
-                                    let _ = target.update(cx, |_, cx| cx.emit(SettingsAction::Locale(value)));
-                                }),
-                        )
-                    },
-                )
-            });
-        setting_row(self.t("menu.language"), "", control.into_any_element(), cx).into_any_element()
+            },
+            self.t("menu.language"),
+            cx,
+        )
+        .dropdown_menu(move |menu, _, _| {
+            [("zh-CN", "简体中文"), ("en", "English")].into_iter().fold(
+                menu,
+                |menu, (value, label)| {
+                    let target = target.clone();
+                    menu.item(
+                        PopupMenuItem::new(label)
+                            .checked(selected == value)
+                            .on_click(move |_, _, cx| {
+                                let _ = target
+                                    .update(cx, |_, cx| cx.emit(SettingsAction::Locale(value)));
+                            }),
+                    )
+                },
+            )
+        });
+        setting_row(
+            self.t("menu.language"),
+            "",
+            control.into_any_element(),
+            false,
+            cx,
+        )
+        .into_any_element()
     }
 
-    fn content(&self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let appearance = UiAppearance::global(cx).clone();
-        let p = &appearance.palette;
-        let query = self.search.read(cx).value().to_lowercase();
-        let sections = SettingsSection::ALL
-            .into_iter()
-            .filter(|section| {
-                query.is_empty()
-                    || format!(
-                        "{} {}",
-                        self.t(section.key()),
-                        match section {
-                            SettingsSection::Theme => format!(
-                                "{} {}",
-                                self.t("settings.appearance"),
-                                self.t("settings.accent")
-                            ),
-                            SettingsSection::General => self.t("menu.language").to_owned(),
-                            _ => format!(
-                                "{} {}",
-                                self.t("settings.font_size"),
-                                self.t("settings.font_family")
-                            ),
-                        }
-                    )
-                    .to_lowercase()
-                    .contains(&query)
-            })
-            .collect::<Vec<_>>();
-        let visible = sections
-            .iter()
-            .copied()
-            .filter(|section| !query.is_empty() || *section == self.section)
-            .collect::<Vec<_>>();
-        let mut content = div()
-            .id("settings-content")
-            .flex_1()
-            .min_w_0()
-            .min_h_0()
-            .overflow_y_scroll()
-            .px(px(28.))
-            .py(px(24.));
-        for section in visible.iter().copied() {
-            let body = match section {
-                SettingsSection::Theme => self.theme_settings(cx),
-                SettingsSection::General => self.language_settings(cx),
-                _ => self.font_settings(section, cx),
-            };
-            content = content.child(
-                div()
-                    .id(("settings-page", section as usize))
-                    .mb(px(28.))
-                    .child(
-                        div()
-                            .pb(px(12.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_size(appearance.text(TextRole::Heading))
-                            .child(self.t(section.key())),
-                    )
-                    .child(body),
-            );
-        }
-        if visible.is_empty() {
-            content = content.child(
-                div()
-                    .id("settings-empty")
-                    .text_color(p.text_muted)
-                    .child(self.t("settings.no_results")),
-            );
-        }
-        div()
-            .flex_1()
-            .min_w_0()
-            .min_h_0()
-            .flex()
-            .flex_col()
-            .child(
-                div()
-                    .h(px(52.))
-                    .px(px(20.))
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .border_b(px(0.5))
-                    .border_color(p.border)
-                    .child(
-                        div()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(self.t("settings.title")),
-                    )
-                    .child(div().flex_1())
-                    .when(self.preferences_status != PreferenceSaveState::Idle, |el| {
-                        el.child(
-                            div()
-                                .text_size(appearance.text(TextRole::Caption))
-                                .text_color(p.text_muted)
-                                .child(self.t(
-                                    if self.preferences_status == PreferenceSaveState::Saving {
-                                        "settings.saving"
-                                    } else {
-                                        "settings.saved"
-                                    },
-                                )),
-                        )
-                    })
-                    .child(
-                        Button::new("settings-close")
-                            .ghost()
-                            .small()
-                            .icon(Icon::default().path("icons/x.svg"))
-                            .accessibility_label(self.t("settings.close"))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                cx.emit(SettingsAction::Close);
-                                cx.notify();
-                            })),
-                    ),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .flex()
-                    .child(
-                        div()
-                            .w(px(204.))
-                            .flex_shrink_0()
-                            .flex()
-                            .flex_col()
-                            .bg(p.bg)
-                            .border_r(px(0.5))
-                            .border_color(p.border)
-                            .child(
-                                div().p(px(12.)).child(
-                                    Input::new(&self.search)
-                                        .small()
-                                        .aria_label(self.t("settings.search")),
-                                ),
-                            )
-                            .child(
-                                div()
-                                    .id("settings-navigation")
-                                    .flex_1()
-                                    .overflow_y_scroll()
-                                    .px(px(8.))
-                                    .py(px(4.))
-                                    .children(sections.into_iter().map(|section| {
-                                        Button::new(SharedString::from(format!(
-                                            "settings-section-{}",
-                                            section.key()
-                                        )))
-                                        .ghost()
-                                        .small()
-                                        .w_full()
-                                        .justify_start()
-                                        .min_h(px(appearance.typography.row_height()))
-                                        .selected(self.section == section)
-                                        .toggled(self.section == section)
-                                        .label(self.t(section.key()))
-                                        .child(div().flex_1())
-                                        .on_click(
-                                            cx.listener(move |this, _, _, cx| {
-                                                this.section = section;
-                                                cx.notify();
-                                            }),
-                                        )
-                                    }))
-                                    .child(
-                                        div()
-                                            .mt(px(16.))
-                                            .pt(px(8.))
-                                            .border_t(px(0.5))
-                                            .border_color(p.border)
-                                            .children(
-                                                [
-                                                    (
-                                                        "settings.connections",
-                                                        WorkbenchPage::Connections,
-                                                    ),
-                                                    ("settings.resources", WorkbenchPage::Workers),
-                                                    ("settings.agents", WorkbenchPage::Agents),
-                                                ]
-                                                .into_iter()
-                                                .enumerate()
-                                                .map(|(i, (key, page))| {
-                                                    Button::new(("settings-destination", i))
-                                                        .ghost()
-                                                        .small()
-                                                        .w_full()
-                                                        .justify_start()
-                                                        .min_h(px(appearance
-                                                            .typography
-                                                            .row_height()))
-                                                        .label(self.t(key))
-                                                        .child(div().flex_1())
-                                                        .on_click(cx.listener(
-                                                            move |this, _, window, cx| {
-                                                                cx.emit(SettingsAction::Navigate(page));
-                                                            },
-                                                        ))
-                                                }),
-                                            ),
-                                    ),
-                            ),
-                    )
-                    .child(content),
-            )
-    }
-}
-
-impl SettingsPanel {
     fn matching_sections(&self, cx: &App) -> Vec<SettingsSection> {
         let query = self.search.read(cx).value().to_lowercase();
         SettingsSection::ALL
@@ -734,6 +536,276 @@ impl SettingsPanel {
             .collect()
     }
 
+    fn content(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let appearance = UiAppearance::global(cx).clone();
+        let p = appearance.palette.clone();
+        let query = self.search.read(cx).value().to_lowercase();
+        let sections = self.matching_sections(cx);
+        let visible = sections
+            .iter()
+            .copied()
+            .filter(|section| {
+                !query.is_empty()
+                    || (*section == SettingsSection::General)
+                        == (self.section == SettingsSection::General)
+            })
+            .collect::<Vec<_>>();
+        let mut content = div()
+            .id("settings-content")
+            .flex_1()
+            .min_w_0()
+            .min_h_0()
+            .overflow_y_scroll()
+            .track_scroll(&self.content_scroll)
+            .px(px(24.))
+            .pt(px(12.))
+            .pb(px(24.));
+        for section in visible.iter().copied() {
+            let body = match section {
+                SettingsSection::Theme => self.theme_settings(cx),
+                SettingsSection::General => self.language_settings(cx),
+                _ => self.font_settings(section, window, cx),
+            };
+            content = content.child(
+                div()
+                    .id(("settings-page", section as usize))
+                    .mb(px(20.))
+                    .child(
+                        div()
+                            .id("section-heading")
+                            .role(Role::Heading)
+                            .aria_level(2)
+                            .aria_label(self.t(section.key()))
+                            .pb(px(6.))
+                            .border_b(px(0.5))
+                            .border_color(p.border)
+                            .text_size(appearance.text(TextRole::Caption))
+                            .text_color(p.text_muted)
+                            .child(self.t(section.key())),
+                    )
+                    .child(body),
+            );
+        }
+        if visible.is_empty()
+            && !crate::settings_menu::SettingsDestination::ALL
+                .into_iter()
+                .any(|destination| {
+                    self.t(destination.label_key)
+                        .to_lowercase()
+                        .contains(&query)
+                })
+        {
+            content = content.child(
+                div()
+                    .id("settings-empty")
+                    .text_color(p.text_muted)
+                    .child(self.t("settings.no_results")),
+            );
+        }
+        let navigation = self.navigation.clone();
+        let owner = cx.entity().downgrade();
+        let row_height = 28. * appearance.typography.ui / 14.;
+        div()
+            .flex_1()
+            .min_w_0()
+            .min_h_0()
+            .flex()
+            .child(
+                div()
+                    .w(px(220.))
+                    .flex_shrink_0()
+                    .flex()
+                    .flex_col()
+                    .bg(p.bg)
+                    .border_r(px(0.5))
+                    .border_color(p.border)
+                    .child(
+                        div().p(px(12.)).child(
+                            Input::new(&self.search)
+                                .small()
+                                .aria_label(self.t("settings.search")),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .id("settings-navigation")
+                            .flex_1()
+                            .min_h_0()
+                            .px(px(8.))
+                            .capture_action(cx.listener(
+                                |this, _: &gpui_kit::base::actions::Confirm, _, cx| {
+                                    let destination = this
+                                        .navigation
+                                        .read(cx)
+                                        .selected_item()
+                                        .and_then(|selected| {
+                                            crate::settings_menu::SettingsDestination::ALL
+                                                .into_iter()
+                                                .find(|destination| {
+                                                    destination.label_key == selected.id.as_ref()
+                                                })
+                                        });
+                                    if let Some(destination) = destination {
+                                        cx.emit(SettingsAction::Navigate(destination.page));
+                                    } else {
+                                        cx.propagate();
+                                    }
+                                },
+                            ))
+                            .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+                                navigation.update(cx, |tree, cx| tree.focus(window, cx));
+                            })
+                            .child(
+                                gpui_kit::base::Tree::new(&self.navigation)
+                                    .size_full()
+                                    .list_style(StyleRefinement::default().size_full())
+                                    .item(move |_, entry, state, _, _| {
+                                        let destination =
+                                            crate::settings_menu::SettingsDestination::ALL
+                                                .into_iter()
+                                                .find(|destination| {
+                                                    destination.label_key
+                                                        == entry.item().id.as_ref()
+                                                });
+                                        let owner = owner.clone();
+                                        div()
+                                            .id("settings-nav-row")
+                                            .when_some(destination, |el, destination| {
+                                                el.on_click(move |_, _, cx| {
+                                                    let _ = owner.update(cx, |_, cx| {
+                                                        cx.emit(SettingsAction::Navigate(
+                                                            destination.page,
+                                                        ))
+                                                    });
+                                                })
+                                            })
+                                            .h(px(row_height))
+                                            .px(px(6.))
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(6.))
+                                            .rounded(px(3.))
+                                            .text_color(if state.is_selected() {
+                                                p.text
+                                            } else {
+                                                p.text_muted
+                                            })
+                                            .when(state.is_selected(), |el| el.bg(p.surface_muted))
+                                            .hover(|el| el.bg(p.surface_muted))
+                                            .child(
+                                                div()
+                                                    .w(px(if entry.depth() > 0 {
+                                                        22.
+                                                    } else {
+                                                        14.
+                                                    }))
+                                                    .h_full()
+                                                    .flex_shrink_0()
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .when(entry.depth() > 0, |el| {
+                                                        el.child(
+                                                            div().w(px(0.5)).h_full().bg(p.border),
+                                                        )
+                                                    })
+                                                    .when(entry.is_folder(), |el| {
+                                                        el.child(
+                                                            Icon::new(if entry.is_expanded() {
+                                                                IconName::ChevronDown
+                                                            } else {
+                                                                IconName::ChevronRight
+                                                            })
+                                                            .size(px(12.)),
+                                                        )
+                                                    }),
+                                            )
+                                            .child(
+                                                div()
+                                                    .flex_1()
+                                                    .min_w_0()
+                                                    .text_ellipsis()
+                                                    .child(entry.item().label.clone()),
+                                            )
+                                            .into_any_element()
+                                    }),
+                            ),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .min_h_0()
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .min_h(px(40.))
+                            .flex_shrink_0()
+                            .px(px(24.))
+                            .flex()
+                            .items_center()
+                            .gap(px(12.))
+                            .child(div().font_weight(FontWeight::MEDIUM).child(self.t(
+                                if self.section == SettingsSection::General {
+                                    "settings.general"
+                                } else {
+                                    "settings.appearance"
+                                },
+                            )))
+                            .child(div().flex_1())
+                            .when(self.preferences_status != PreferenceSaveState::Idle, |el| {
+                                el.child(
+                                    div()
+                                        .text_size(appearance.text(TextRole::Caption))
+                                        .text_color(p.text_muted)
+                                        .child(self.t(
+                                            if self.preferences_status
+                                                == PreferenceSaveState::Saving
+                                            {
+                                                "settings.saving"
+                                            } else {
+                                                "settings.saved"
+                                            },
+                                        )),
+                                )
+                            })
+                            .when(cfg!(target_family = "wasm"), |el| {
+                                el.child(
+                                    Button::new("settings-close")
+                                        .ghost()
+                                        .small()
+                                        .icon(Icon::default().path("icons/x.svg"))
+                                        .accessibility_label(self.t("settings.close"))
+                                        .on_click(cx.listener(|_, _, _, cx| {
+                                            cx.emit(SettingsAction::Close)
+                                        })),
+                                )
+                            }),
+                    )
+                    .when_some(self.error.clone(), |el, error| {
+                        el.child(
+                            div()
+                                .id("settings-error")
+                                .role(Role::Alert)
+                                .px(px(24.))
+                                .py(px(8.))
+                                .bg(p.error_bg)
+                                .text_color(p.error)
+                                .child(
+                                    if error.starts_with("settings.") || error.starts_with("error.")
+                                    {
+                                        self.t(&error).to_owned()
+                                    } else {
+                                        error
+                                    },
+                                ),
+                        )
+                    })
+                    .child(content),
+            )
+    }
 }
 
 impl Render for SettingsPanel {

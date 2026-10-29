@@ -9,9 +9,9 @@ use gpui_kit::{
     prelude::*,
     *,
 };
+use pero_chat_ui::theme::WorkbenchStyle as W;
 use pero_contracts::workbench::{Appearance, WorkbenchPreferences};
 use serde_json::json;
-use pero_chat_ui::theme::WorkbenchStyle as W;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -80,9 +80,8 @@ impl Workbench {
             .trim_start_matches("http://")
             .trim_end_matches('/')
             .to_string();
-        let connections = t("settings.connections");
-        let resources = t("settings.resources");
-        let agents = t("settings.agents");
+        let destinations =
+            SettingsDestination::ALL.map(|destination| (destination, t(destination.label_key)));
         let all = t("settings.all");
         let appearance = format!(
             "{} · {}",
@@ -104,7 +103,9 @@ impl Workbench {
             .ghost()
             .small()
             .w_full()
-            .h(px(pero_theme::UiAppearance::global(cx).typography.row_height()))
+            .h(px(pero_theme::UiAppearance::global(cx)
+                .typography
+                .row_height()))
             .justify_start()
             .icon(Icon::default().path("icons/settings.svg"))
             .label(if identity.is_empty() {
@@ -123,33 +124,27 @@ impl Workbench {
                 if !host.is_empty() {
                     menu = menu.item(PopupMenuItem::label(host.clone()));
                 }
-                let target = workbench.clone();
-                menu = menu
-                    .separator()
-                    .item(PopupMenuItem::new(connections.clone()).icon(Icon::default().path("icons/external-link.svg")).on_click(
-                        move |_, window, cx| {
-                            let _ = target.update(cx, |this, cx| {
-                                this.navigate(WorkbenchPage::Connections, cx);
-                                this.open_remote_connection(window, cx);
-                                this.sync_follow(cx);
-                            });
-                        },
-                    ));
-                for (label, navigation) in [
-                    (resources.clone(), WorkbenchPage::Workers),
-                    (agents.clone(), WorkbenchPage::Agents),
-                ] {
+                menu = menu.separator();
+                for (destination, label) in &destinations {
                     let target = workbench.clone();
-                    menu = menu.item(PopupMenuItem::new(label).on_click(move |_, _, cx| {
-                        let _ = target.update(cx, |this, cx| {
-                            this.navigate(navigation, cx);
-                            this.sync_follow(cx);
-                            if navigation == WorkbenchPage::Workers {
-                                this.command(json!({"action":"remote_refresh"}), cx);
-                            }
-                            cx.notify();
-                        });
-                    }));
+                    let page = destination.page;
+                    menu = menu.item(
+                        PopupMenuItem::new(label.clone())
+                            .icon(Icon::default().path(format!("icons/{}.svg", destination.icon)))
+                            .on_click(move |_, window, cx| {
+                                let _ = target.update(cx, |this, cx| {
+                                    this.navigate(page, cx);
+                                    if page == WorkbenchPage::Connections {
+                                        this.open_remote_connection(window, cx);
+                                    }
+                                    if page == WorkbenchPage::Workers {
+                                        this.command(json!({"action":"remote_refresh"}), cx);
+                                    }
+                                    this.sync_follow(cx);
+                                    cx.notify();
+                                });
+                            }),
+                    );
                 }
                 let target = workbench.clone();
                 let saved = preferences.clone();
@@ -198,13 +193,16 @@ impl Workbench {
                     )
                 });
                 let target = workbench.clone();
-                menu.separator()
-                    .item(PopupMenuItem::new(all.clone()).icon(Icon::default().path("icons/settings.svg")).on_click(move |_, window, cx| {
-                        let _ = target.update(cx, |this, cx| {
-                            this.open_settings(window, cx);
-                            cx.notify();
-                        });
-                    }))
+                menu.separator().item(
+                    PopupMenuItem::new(all.clone())
+                        .icon(Icon::default().path("icons/settings.svg"))
+                        .on_click(move |_, window, cx| {
+                            let _ = target.update(cx, |this, cx| {
+                                this.open_settings(window, cx);
+                                cx.notify();
+                            });
+                        }),
+                )
             })
             .on_open_change(move |open, _, cx| {
                 let _ = menu_owner.update(cx, |this, cx| {
@@ -213,5 +211,4 @@ impl Workbench {
                 });
             })
     }
-
 }
