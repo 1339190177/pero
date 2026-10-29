@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ContentRead, JsonSource } from './content-source.ts';
+import { ContentRead, JsonSource } from '../../../packages/content-source/index.ts';
 import { ContentArtifacts } from './content-artifacts.ts';
 import { DesktopAppUse } from './app-use-mcp.ts';
 

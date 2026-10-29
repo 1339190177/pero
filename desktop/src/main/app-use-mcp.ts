@@ -8,7 +8,7 @@ import { PreparedAppWrite, parseAppWrite, type AppWriteDefinition } from './app-
 import { AppInputs } from './app-inputs.ts';
 import type { ContextReference } from '../../../protocol/generated/host';
 import { ContentArtifacts } from './content-artifacts.ts';
-import { ContentRead } from './content-source.ts';
+import { ContentRead } from '../../../packages/content-source/index.ts';
 import { AppChatContext } from './app-chat-context.ts';
 import { AppUse, type AppUsePorts, type AppUseEvent } from './app-use.ts';
 import { APP_USE_ACTIONS, APP_USE_VERBS, AppUseError } from './app-use-task.ts';

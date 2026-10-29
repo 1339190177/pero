@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { JsonSource, ContentRead, OutputSelection } from './content-source.ts';
+import {
+  JsonSource,
+  ContentRead,
+  OutputSelection,
+  ContentChunk,
+} from '../../../packages/content-source/index.ts';
 
 /** Host-owned result files, scoped to the actual calling conversation. */
 export class ContentArtifacts {
@@ -28,17 +33,13 @@ export class ContentArtifacts {
     const file = await open(path, 'r');
     try {
       const { size } = await file.stat();
-      const selection =
+      const pointer =
         request.selection.kind === 'pointer'
           ? JsonSource.stored(await readFile(path, 'utf8')).pointer(
               request.selection.pointer,
             )
-          : {
-              start: request.selection.start,
-              end: request.selection.end ?? size,
-            };
-      if (selection.start > size || selection.end > size)
-        throw new Error('The byte range exceeds the artifact');
+          : undefined;
+      const selection = request.range(size, pointer);
       const buffer = Buffer.alloc(
         Math.min(request.limit, selection.end - selection.start),
       );
@@ -48,48 +49,12 @@ export class ContentArtifacts {
         buffer.length,
         selection.start,
       );
-      let start = 0,
-        end = bytesRead;
-      // Report actual UTF-8 boundaries, allowing the client to resume exactly.
-      while (start < end && (buffer[start] & 0xc0) === 0x80) start++;
-      {
-        let boundary = end - 1;
-        while (boundary >= start && (buffer[boundary] & 0xc0) === 0x80)
-          boundary--;
-        if (boundary >= start) {
-          const c = buffer[boundary],
-            width = c < 0x80 ? 1 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : 4;
-          if (boundary + width > end) {
-            if (selection.start + end === selection.end)
-              throw new Error(
-                'endByte splits a UTF-8 character; use a JSON Pointer or a complete byte boundary',
-              );
-            end = boundary;
-          }
-        }
-      }
-      const endByte = selection.start + end;
-      return {
-        artifact: {
-          id: request.id,
-          bytes: size,
-          mediaType: 'application/json',
-        },
-        startByte: selection.start + start,
-        endByte,
-        selectionEndByte: selection.end,
-        text: buffer.subarray(start, end).toString('utf8'),
-        truncated: endByte < selection.end,
-        nextRead:
-          endByte < selection.end
-            ? {
-                id: request.id,
-                startByte: endByte,
-                endByte: selection.end,
-                maxBytes: request.limit,
-              }
-            : null,
-      };
+      return new ContentChunk(
+        { id: request.id, bytes: size, mediaType: 'application/json' },
+        selection,
+        buffer.subarray(0, bytesRead),
+        request.limit,
+      );
     } finally {
       await file.close();
     }
