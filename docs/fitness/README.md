@@ -33,7 +33,10 @@ not configured. Setup and invocation instructions live in [Bazel quality gates](
 
 `npm run test:e2e:real` is opt-in. It uses the local Codex login and sends one real model request. `npm run test:remote` is also opt-in: it needs `PERO_TEST_DATABASE_URL` and runs Electron, Go, PostgreSQL, and `pero-worker` together.
 
-Run Electron suites one at a time; they take native input focus. Chromium IME automation checks composition events. It does not certify a physical macOS input method, a signed package, or real tool execution. The ordinary fixture agent emits scripted ACP output without executing commands. Its explicit contribution scenario writes a file only in the disposable prepared checkout; the real-provider contribution mode uses actual Codex tools.
+Run Electron suites one at a time. They use hidden real Electron windows by default;
+`PERO_TEST_HEADED=1` opts into foreground acceptance. Linux still requires X11/Xvfb;
+the CI desktop job runs workbench and tool-call suites in a separate Xvfb display.
+See [background test setup](../../tests/README.md#后台桌面测试). Chromium IME automation checks composition events. It does not certify a physical macOS input method, a signed package, or real tool execution. The ordinary fixture agent emits scripted ACP output without executing commands. Its explicit contribution scenario writes a file only in the disposable prepared checkout; the real-provider contribution mode uses actual Codex tools.
 
 Connector screenshots/results are in `test-results/connector/fixture/` and
 `test-results/connector/live/`; saved-connection evidence is in

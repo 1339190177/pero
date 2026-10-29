@@ -90,7 +90,10 @@ npm run test:e2e
 npm run test:e2e:real
 ```
 
-Run desktop tests sequentially because they control native input focus.
+Desktop E2E uses hidden Electron windows by default while retaining the real
+preload/IPC, GPUI and Host. Set `PERO_TEST_HEADED=1` for explicit foreground
+acceptance. Run suites sequentially; Linux still needs X11/Xvfb. Background
+launch details and the isolated-display command are in [tests/README.md](../tests/README.md#后台桌面测试).
 See [provider verification](../docs/fitness/acp-provider-verification.md) for
 actual Codex/Claude replies and the outstanding Grok authentication check.
 
