@@ -163,7 +163,7 @@ pub struct Conversation {
     pub draft_references:
         std::collections::HashMap<String, pero_contracts::context::ContextReference>,
     pub permission: Option<Value>,
-    pub auth_methods: Vec<Value>,
+    pub auth_methods: Vec<crate::authentication::AuthenticationMethod>,
     pub models: Vec<(String, String)>,
     pub model: String,
     pub pending_model: Option<String>,

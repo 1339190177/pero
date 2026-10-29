@@ -512,20 +512,14 @@ impl ChatPanel {
                         &event.data,
                     )
                     .unwrap_or_default();
-                chat.auth_methods = event.data["authMethods"]
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_default()
+                chat.auth_methods = serde_json::from_value(event.data["authMethods"].clone()).unwrap_or_default()
             }
             "session_authenticated" => {
                 chat.state = SessionState::Idle;
                 chat.error = None;
             }
             "session_auth_required" | "session_auth_error" => {
-                chat.auth_methods = event.data["authMethods"]
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_else(|| chat.auth_methods.clone());
+                if let Ok(methods) = serde_json::from_value(event.data["authMethods"].clone()) { chat.auth_methods = methods; }
                 chat.error = Some(event.text.clone());
                 chat.state = SessionState::AuthRequired;
             }
@@ -670,14 +664,23 @@ impl ChatPanel {
                     }
                 }))
                 .when(busy,|el|el.child(div().text_color(p.color("text-muted")).child(self.t(if chat.is_some_and(|c|c.state==SessionState::Connecting){"chat.preparing"}else{"chat.thinking"}))))
-                .when(chat.and_then(|c|c.error.as_ref()).is_some(),|el|el.child(div().p(px(14.)).bg(p.color("error-bg")).text_color(p.color("error")).rounded(px(6.)).child(chat.and_then(|c|c.error.clone()).unwrap_or_default()))))
-            .children(chat.filter(|c|c.state == SessionState::AuthRequired).into_iter().map(|chat|{
+                .when(chat.is_some_and(|c|c.error.is_some() && c.state!=SessionState::AuthRequired),|el|el.child(div().p(px(14.)).bg(p.color("error-bg")).text_color(p.color("error")).rounded(px(6.)).child(chat.and_then(|c|c.error.clone()).unwrap_or_default()))))
+            .children(chat.filter(|c|c.state==SessionState::AuthRequired).into_iter().map(|chat|{
                 div().mx(px(16.)).mb(px(10.)).p(px(12.)).bg(p.color("warning-bg")).rounded(px(4.))
                     .child(div().font_weight(FontWeight::BOLD).child(self.t("chat.signin")))
+                    .when_some(chat.error.clone(),|el,error|el.child(div().mt(px(4.)).text_size(px(12.)).child(error)))
                     .child(div().mt(px(8.)).flex().gap(px(8.)).children(chat.auth_methods.iter().enumerate().map(|(i,method)|{
-                        let method_id=method["id"].as_str().unwrap_or_default().to_string();let thread=chat.id.clone();let interactive=method["type"].as_str()==Some("terminal");
-                        Button::new(("auth-method",i)).outline().small().label(if interactive{format!("{} · {}",method["name"].as_str().unwrap_or("Login"),self.t("chat.terminal_login"))}else{method["name"].as_str().unwrap_or("Login").to_string()}).disabled(interactive)
-                            .on_click(cx.listener(move|this,_,_,cx|this.command(json!({"action":"authenticate","thread_id":thread,"method_id":method_id}),cx)))
+                        let method_id=method.id.clone();let thread=chat.id.clone();let interactive=method.kind.as_deref()==Some("terminal");
+                        let command=method.terminal_command();
+                        div().flex().flex_col().gap(px(8.))
+                            .when_some(command,|el,command|el
+                                .child(self.t("chat.login_in_terminal"))
+                                .child(div().font_family("monospace").child(command)))
+                            .when(command.is_none() && !method.description.is_empty(),|el|el.child(method.description.clone()))
+                            .child(Button::new(("auth-method",i)).outline().small()
+                                .label(if command.is_some(){self.t("chat.login_complete").to_string()}else if interactive{self.t("chat.terminal_login").to_string()}else{method.name.clone()})
+                                .disabled(interactive && command.is_none())
+                                .on_click(cx.listener(move|this,_,_,cx|this.command(json!({"action":"authenticate","thread_id":thread,"method_id":method_id}),cx))))
                     })))
             }))
             .children(chat.and_then(|c|c.permission.as_ref()).into_iter().map(|permission|{

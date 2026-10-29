@@ -35,3 +35,4 @@ pub use conversation::{AgentChoice, Conversation};
 pub mod usage;
 
 pub mod session_state;
+pub mod authentication;

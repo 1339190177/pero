@@ -142,6 +142,8 @@
   "overview.sample_footer": "执行环境：团队 Linux · 示例记录，尚未接入真实任务服务",
   "overview.description": "重复取消订单时保持幂等，并补充边界测试。",
   "chat.install_agent": "请安装 ACP Agent，然后重启 Pero。",
+  "chat.login_in_terminal": "请先在终端登录，再回到这里继续。",
+  "chat.login_complete": "已登录，继续",
   "chat.preparing": "正在准备 Agent…",
   "chat.retry": "重试",
   "chat.connect": "连接",
