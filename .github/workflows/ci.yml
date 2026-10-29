@@ -83,6 +83,92 @@ jobs:
         working-directory: server
         run: go test -race ./...
 
+  harness:
+    name: Harness Go contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      - name: Harness race tests
+        working-directory: harness/go
+        run: go test -race -count=1 ./...
+      - name: Harness vet and build
+        working-directory: harness/go
+        run: |
+          go vet ./...
+          go build ./cmd/pero-agent-acp
+
+  harness-bazel:
+    name: Standalone harness Bazel contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: harness/go
+    steps:
+      - uses: actions/checkout@v7
+      - uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-version: 1.x
+          bazelisk-cache: true
+          repository-cache: true
+      - name: Verify generated build declarations
+        run: bazel run --lockfile_mode=error //:gazelle -- -mode=diff
+      - name: Build standalone agent
+        run: bazel build --lockfile_mode=error //cmd/pero-agent-acp
+      - name: Test standalone contracts with race detector
+        run: bazel test --lockfile_mode=error --@rules_go//go/config:race=true //...
+
+  strict-sandbox:
+    name: Positive Linux strict sandbox contract
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GOWORK: "off"
+      PERO_REQUIRE_STRICT_SANDBOX: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: harness/go/go.sum
+      - name: Install supported sandbox backend
+        run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - name: Require positive isolation contract
+        working-directory: harness/go
+        run: go test -count=1 -v ./sandbox -run '^TestNativeRuntime$'
+
+  ast:
+    name: Official DSH AST comparison contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pinned AST parsers
+        run: python -m pip install -r scripts/ast-compare/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Build pinned TypeScript grammar
+        run: |
+          npm ci --prefix scripts/ast-compare
+          python scripts/ast-compare/build_typescript.py --cli scripts/ast-compare/node_modules/.bin/tree-sitter
+      - name: Test AST contracts
+        run: python -m unittest discover -s scripts/ast-compare -v
+
   desktop:
     name: Build, check, and Rust tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -154,6 +240,9 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Font-tool environment recovery tests
+        run: node --test scripts/build/fonttools.test.mjs
 
       - name: Build
         run: npm run build

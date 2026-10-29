@@ -58,10 +58,17 @@ func TestUnsupportedFailsClosed(t *testing.T) {
 	}
 }
 func TestNativeRuntime(t *testing.T) {
+	required := os.Getenv("PERO_REQUIRE_STRICT_SANDBOX") == "1"
 	if runtime.GOOS != "linux" {
+		if required {
+			t.Fatal("strict sandbox positive fixture requires Linux")
+		}
 		t.Skip("Linux runtime validation; Darwin profile fixture only")
 	}
 	if _, e := os.Stat("/usr/bin/bwrap"); e != nil {
+		if required {
+			t.Fatal("required /usr/bin/bwrap absent")
+		}
 		t.Skip("UNSUPPORTED: /usr/bin/bwrap absent")
 	}
 	work := t.TempDir()
@@ -74,6 +81,9 @@ func TestNativeRuntime(t *testing.T) {
 		var u *UnavailableError
 		if !errors.As(err, &u) {
 			t.Fatal(err)
+		}
+		if required {
+			t.Fatalf("required strict sandbox unavailable: %v", err)
 		}
 		t.Skipf("UNSUPPORTED runtime: %v; candidate command not launched", err)
 	}
