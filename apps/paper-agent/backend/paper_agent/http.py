@@ -9,6 +9,9 @@ from urllib.parse import parse_qs, urlsplit
 from .literature import LiteratureClient
 from .model import Invalid, PaperSnapshot, ResearchRequest, canonical, mapping
 from .reports import EvidenceReference
+from .discovery import DiscoveryQuery, DiscoveryBatch
+from .pdf import PdfAnnotation
+from .pdf_files import PdfFiles
 
 MAX_BODY = 1024 * 1024
 
@@ -17,8 +20,9 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def handler(store, secret, literature=None, now=utc_now):
+def handler(store, secret, literature=None, now=utc_now, pdf_files=None):
     literature = literature if literature is not None else LiteratureClient()
+    pdf_files = pdf_files if pdf_files is not None else PdfFiles()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -26,8 +30,11 @@ def handler(store, secret, literature=None, now=utc_now):
 
         def reply(self, status, value):
             body = canonical(value)
+            self.binary(status, body, 'application/json; charset=utf-8')
+
+        def binary(self, status, body, mime):
             self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Type", mime)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -57,6 +64,22 @@ def handler(store, secret, literature=None, now=utc_now):
                 parsed = urlsplit(self.path)
                 path = parsed.path
                 if self.command == "GET":
+                    if path == '/api/matrix':
+                        return self.reply(200, dict(cells=store.reading_matrix()))
+                    if path == '/api/pdf':
+                        document = store.paper_pdf(parse_qs(parsed.query).get('paperId', [''])[0])
+                        return self.reply(200, dict(document=document.to_dict() if document else None,
+                                                    annotations=[item.to_dict() for item in store.annotations(document.id)] if document else []))
+                    document_match = re.fullmatch(r'/api/pdf/([a-f0-9]{64})', path)
+                    if document_match:
+                        document = store.pdf(document_match[1])
+                        return self.reply(200, dict(document=document.to_dict(), annotations=[item.to_dict() for item in store.annotations(document.id)]))
+                    pdf_match = re.fullmatch(r'/api/pdf/([a-f0-9]{64})/file', path)
+                    if pdf_match:
+                        return self.binary(200, store.pdf_bytes(store.pdf(pdf_match[1])), 'application/pdf')
+                    image_match = re.fullmatch(r'/api/annotations/([a-f0-9]{64})/image', path)
+                    if image_match:
+                        return self.binary(200, store.annotation_image(image_match[1]), 'image/png')
                     if path == "/api/library":
                         return self.reply(200, store.library())
                     if path == "/api/example":
@@ -68,6 +91,9 @@ def handler(store, secret, literature=None, now=utc_now):
                             "contentKind": "full-text",
                             "content": "# Synthetic citation example\n\n## Method\nThis is a synthetic paper fixture, not published research.\n\nA source snapshot preserves the exact text used for a report.\n\n## Results\nNo experiment was performed. Any report about this example must retain that limitation.\n",
                         })
+                    discovery_match = re.fullmatch(r'/api/discoveries/([a-f0-9]{64})', path)
+                    if discovery_match:
+                        return self.reply(200, store.discovery(discovery_match[1]).to_dict())
                     match = re.fullmatch(r"/api/(papers|intents|reports)/([a-f0-9]{64})(/export)?", path)
                     if match:
                         kind, identity, exporting = match.groups()
@@ -78,6 +104,32 @@ def handler(store, secret, literature=None, now=utc_now):
                         record = {"papers": store.paper, "intents": store.intent, "reports": store.report}[kind](identity)
                         return self.reply(200, record.to_dict())
                 if self.command == "POST":
+                    if path == '/api/matrix':
+                        return self.reply(201, store.add_reading_cell(data.get('annotationId'), data.get('column'), now()).to_dict())
+                    if path == '/api/pdf':
+                        paper = store.paper(data.get('paperId'))
+                        document = store.paper_pdf(paper.id)
+                        if document is None:
+                            content = pdf_files.download(paper)
+                            document = store.save_pdf(pdf_files.inspect(paper, content, now()), content)
+                        return self.reply(200, dict(document=document.to_dict(), annotations=[item.to_dict() for item in store.annotations(document.id)]))
+                    if path == '/api/annotations':
+                        document = store.pdf(data.get('documentId'))
+                        annotation = PdfAnnotation.create(data, document, now())
+                        image = pdf_files.crop(store.pdf_bytes(document), annotation) if annotation.kind == 'figure' else None
+                        return self.reply(201, store.save_annotation(annotation, image).to_dict())
+                    if path == '/api/discover':
+                        query = DiscoveryQuery.parse(data)
+                        result = literature.discover(query, store.paper(query.seed_id))
+                        if isinstance(result, DiscoveryBatch):
+                            return self.reply(201, dict(status='complete', **store.save_discovery(result).to_dict()))
+                        return self.reply(200, result.to_dict())
+                    if path == '/api/favorites':
+                        return self.reply(201, store.save_favorite(data.get('batchId'), data.get('workId')).to_dict())
+                    if path == '/api/discoveries/read':
+                        batch = store.discovery(data.get('batchId'))
+                        paper = batch.paper(data.get('workId')).reading(now())
+                        return self.reply(201, store.save_paper(paper).to_dict())
                     if path == "/api/search":
                         return self.reply(200, literature.search(data))
                     if path == "/api/papers":
@@ -95,7 +147,12 @@ def handler(store, secret, literature=None, now=utc_now):
                         intent = store.intent(data.get("intentId"))
                         cited = tuple(paper.id for paper in intent.papers)
                         evidence = EvidenceReference.parse_many([{"paperId": data.get("paperId"), "quote": data.get("quote")}], cited, intent.papers)[0]
-                        return self.reply(200, evidence.locate(intent.papers))
+                        location = evidence.locate(intent.papers)
+                        document = store.paper_pdf(evidence.paper_id)
+                        pages = document.matching_pages(evidence.quote) if document else ()
+                        if pages:
+                            location['pdf'] = dict(documentId=document.id, pages=list(pages))
+                        return self.reply(200, location)
                 raise Invalid("Route not found", 404)
             except Invalid as error:
                 self.reply(error.status, {"code": "research_invalid", "detail": error.detail})

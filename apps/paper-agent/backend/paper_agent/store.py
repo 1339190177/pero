@@ -11,6 +11,9 @@ import threading
 
 from .model import ID, Invalid, PaperSnapshot, ResearchInput, canonical, digest, text
 from .reports import ResearchReport
+from .discovery import DiscoveryBatch, SavedDiscovery
+from .pdf import PdfDocument, PdfAnnotation
+from .reading_matrix import ReadingCell
 
 
 @dataclass(frozen=True)
@@ -80,6 +83,82 @@ class ResearchStore:
     def paper(self, identity):
         return PaperSnapshot.from_record(self._read("papers", identity))
 
+    def pdf(self, identity):
+        return PdfDocument.from_record(self._read('pdfs', identity))
+
+    def paper_pdf(self, paper_id):
+        self.paper(paper_id)
+        documents = [self.pdf(i) for i in self._list('pdfs')]
+        return max((doc for doc in documents if doc.paper_id == paper_id), key=lambda doc: doc.created_at, default=None)
+
+    def pdf_bytes(self, document):
+        return (self.root / 'pdf-files' / (document.file_digest + '.pdf')).read_bytes()
+
+    def save_pdf(self, document, data):
+        directory = self.root / 'pdf-files'
+        directory.mkdir(parents=True, exist_ok=True)
+        target = directory / (document.file_digest + '.pdf')
+        with self.lock:
+            if not target.exists():
+                descriptor, name = tempfile.mkstemp(dir=directory)
+                try:
+                    with os.fdopen(descriptor, 'wb') as output:
+                        output.write(data)
+                    os.replace(name, target)
+                finally:
+                    if os.path.exists(name):
+                        os.unlink(name)
+            try:
+                return self.pdf(document.id)
+            except Invalid as error:
+                if error.status != 404:
+                    raise
+            self._write('pdfs', document.id, document.to_dict())
+        return document
+
+    def annotations(self, document_id):
+        items = [self.annotation(i) for i in self._list('annotations')]
+        return sorted((item for item in items if item.document_id == document_id), key=lambda item: (item.page, item.created_at))
+
+    def annotation(self, identity):
+        return PdfAnnotation.from_record(self._read('annotations', identity))
+
+    def save_annotation(self, annotation, image=None):
+        with self.lock:
+            try:
+                return self.annotation(annotation.id)
+            except Invalid as error:
+                if error.status != 404:
+                    raise
+            if image is not None:
+                directory = self.root / 'pdf-images'
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / (annotation.id + '.png')).write_bytes(image)
+            self._write('annotations', annotation.id, annotation.to_dict())
+        return annotation
+
+    def annotation_image(self, identity):
+        annotation = self.annotation(identity)
+        if annotation.kind != 'figure':
+            raise Invalid('This annotation has no image', 404)
+        return (self.root / 'pdf-images' / (annotation.id + '.png')).read_bytes()
+
+    def reading_matrix(self):
+        cells = [ReadingCell.from_record(self._read('reading-cells', i)) for i in self._list('reading-cells')]
+        cells.sort(key=lambda cell: (cell.created_at, cell.id))
+        return [dict(**cell.to_dict(), annotation=self.annotation(cell.annotation_id).to_dict()) for cell in cells]
+
+    def add_reading_cell(self, annotation_id, column, now):
+        cell = ReadingCell.create(self.annotation(annotation_id), column, now)
+        with self.lock:
+            try:
+                return ReadingCell.from_record(self._read('reading-cells', cell.id))
+            except Invalid as error:
+                if error.status != 404:
+                    raise
+            self._write('reading-cells', cell.id, cell.to_dict())
+        return cell
+
     def intent(self, identity):
         return ResearchInput.from_record(self._read("intents", identity))
 
@@ -105,7 +184,39 @@ class ResearchStore:
             saved = self.report(identity)
             reports.append(dict(id=saved.id, intentId=saved.report.intent_id, title=saved.report.title,
                                 acceptance="unverified", createdAt=saved.created_at))
-        return dict(papers=papers, intents=intents, reports=reports)
+        discoveries = [self.discovery(i) for i in self._list('discoveries')]
+        discoveries.sort(key=lambda batch: batch.fetched_at, reverse=True)
+        favorites = [self.favorite(i).to_dict() for i in self._list('favorites')]
+        return dict(papers=papers, intents=intents, reports=reports, favorites=favorites, matrixCount=len(self._list('reading-cells')),
+                    discoveries=[dict(id=b.id, seedId=b.seed_id, seedTitle=b.seed_title, relation=b.relation,
+                                      page=b.page, fetchedAt=b.fetched_at) for b in discoveries])
+
+    def discovery(self, identity):
+        return DiscoveryBatch.from_record(self._read('discoveries', identity))
+
+    def save_discovery(self, batch):
+        self._write('discoveries', batch.id, batch.to_dict())
+        return batch
+
+    def favorite(self, identity):
+        value = self._read('favorites', identity)
+        batch = self.discovery(value.get('batchId'))
+        result = SavedDiscovery(batch, batch.paper(value.get('paper', {}).get('id')))
+        if result.id != value.get('id'):
+            raise Invalid('Stored favorite integrity check failed')
+        return result
+
+    def save_favorite(self, batch_id, work_id):
+        batch = self.discovery(batch_id)
+        result = SavedDiscovery(batch, batch.paper(work_id))
+        with self.lock:
+            try:
+                return self.favorite(result.id)
+            except Invalid as error:
+                if error.status != 404:
+                    raise
+            self._write('favorites', result.id, result.to_dict())
+        return result
 
     def save_paper(self, paper):
         with self.lock:
