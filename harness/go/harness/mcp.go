@@ -108,7 +108,14 @@ func mountMCPServer(ctx context.Context, run *point.Run, registry *ToolRegistry,
 	}, func(owner *point.Run, generation string, definitions []harnessmcp.Tool) (point.Dispose, error) {
 		tools := make([]Tool, len(definitions))
 		for i, definition := range definitions {
-			tools[i] = Tool{Schema: definition.Schema, Execute: definition.Execute}
+			tools[i] = Tool{
+				Schema: definition.Schema, Execute: definition.Execute,
+				PreserveInitialOutputPair: true,
+				RenderOutput: func(_ context.Context, _ ToolRequest, value json.RawMessage) (ToolOutputProjection, error) {
+					content, err := harnessmcp.RenderToolOutput(value)
+					return ToolOutputProjection{Content: content}, err
+				},
+			}
 		}
 		return registry.replaceGeneration(owner, generation, tools)
 	})

@@ -62,7 +62,7 @@ func buildMCPTools(session *mcp.ClientSession, serverName string, remotes []*mcp
 		}
 		publicNames[name] = remoteName
 		tool := Tool{
-			Schema: harnessmodel.ToolSchema{Name: name, Description: remote.Description, InputSchema: schema},
+			Schema: harnessmodel.ToolSchema{Name: name, Description: remote.Description, InputSchema: schema, OutputSchema: canonicalOutputSchema(name, remote.OutputSchema)},
 			Execute: func(callCtx context.Context, raw json.RawMessage) (harnesstool.Result, error) {
 				arguments := any(map[string]any{})
 				if len(raw) > 0 {
@@ -76,7 +76,7 @@ func buildMCPTools(session *mcp.ClientSession, serverName string, remotes []*mcp
 				if err != nil {
 					return harnesstool.Result{}, SafeError(err)
 				}
-				return fromMCPResult(result), nil
+				return fromMCPResult(result)
 			},
 		}
 		definitions = append(definitions, tool)
@@ -133,8 +133,22 @@ func PublicMCPToolName(serverName, rawName string) string {
 	return normalized[:min(len(normalized), maxLength-hashLength-1)] + "_" + suffix
 }
 
-func fromMCPResult(result *mcp.CallToolResult) harnesstool.Result {
+func fromMCPResult(result *mcp.CallToolResult) (harnesstool.Result, error) {
+	if result == nil {
+		return harnesstool.Result{}, errors.New("MCP tool returned no result")
+	}
 	converted := harnesstool.Result{IsError: result.IsError}
+	if !result.IsError {
+		content := result.Content
+		if content == nil {
+			content = []mcp.Content{}
+		}
+		value, err := json.Marshal(canonicalResult{Content: content, StructuredContent: result.StructuredContent})
+		if err != nil {
+			return harnesstool.Result{}, fmt.Errorf("encode canonical MCP result: %w", err)
+		}
+		converted.Value = value
+	}
 	for _, content := range result.Content {
 		switch value := content.(type) {
 		case *mcp.TextContent:
@@ -162,5 +176,5 @@ func fromMCPResult(result *mcp.CallToolResult) harnesstool.Result {
 			converted.Content = append(converted.Content, harnessmodel.ContentBlock{Type: harnessmodel.BlockText, Text: string(data)})
 		}
 	}
-	return converted
+	return converted, nil
 }
