@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -50,7 +51,7 @@ type namespaceLocation struct {
 }
 
 // ProveJSONNamespace is for an authenticated, trusted backend handshake only.
-// It does no mkdir, open/load, migration, or write. Re-checking both proofs just
+// It does no mkdir, cache load, migration, or write. Re-checking both proofs just
 // before mounting the peer prevents an aliased second cache from loading data.
 func ProveJSONNamespace(description JSONNamespace) (*NamespaceProof, error) {
 	if !filepath.IsAbs(description.Root) {
@@ -144,8 +145,28 @@ func (p *NamespaceProof) sampleDocument(path string, rejectSymlink bool) error {
 	if !info.Mode().IsRegular() {
 		return errors.New("storage: cache namespace contains a non-regular document")
 	}
+	info, err = namespaceIdentity(path)
+	if err != nil {
+		return err
+	}
 	p.documents = append(p.documents, info)
 	return nil
+}
+
+// namespaceIdentity snapshots identity now. Windows path-based Stat defers
+// the file ID lookup until SameFile, which could otherwise sample a replacement
+// at validation time. Handle Stat captures the actual ID before closing; Unix
+// Stat already captures identity without requiring directory read permission.
+func namespaceIdentity(path string) (os.FileInfo, error) {
+	if runtime.GOOS != "windows" {
+		return os.Stat(path)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	info, statErr := file.Stat()
+	return info, errors.Join(statErr, file.Close())
 }
 
 func proveNamespaceLocation(path string) (namespaceLocation, error) {
@@ -176,7 +197,7 @@ func proveNamespaceLocation(path string) (namespaceLocation, error) {
 	}
 	var result namespaceLocation
 	for {
-		info, err := os.Stat(resolved)
+		info, err := namespaceIdentity(resolved)
 		if err != nil {
 			return namespaceLocation{}, err
 		}
