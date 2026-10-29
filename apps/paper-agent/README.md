@@ -53,10 +53,63 @@ figure captures are rendered by the backend from the saved original. These check
 establish source location, not scientific validity. Repeated report quotations
 offer each matching page rather than silently selecting one occurrence.
 
-This slice provides PDF reading and a manually curated matrix. It does not add
-PaperQA's retrieval/model loop, automatic figure recognition or OCR. Existing
-Agent reports still use the explicitly frozen source text; downloading a PDF
-does not replace an abstract snapshot with extracted full text.
+Choose **Ask this PDF** to ask a question about the saved full text. The App
+splits PDF text into overlapping page-local passages, ranks them with local BM25,
+and freezes up to 12 passages (19,200 characters), their PDF versions and the
+exact answer prompt. The existing Host Agent generates a sourced answer. Every
+PDF answer section needs an exact quotation and a valid passage ID; unmatched
+quotes are rejected and retained for repair. Clicking a citation opens the saved
+PDF version, scrolls to the quotation and highlights its text rectangles.
+
+**Search full PDF text** also works with 1–5 selected papers once their PDFs are
+saved. If no query terms match, the App asks for source-language keywords;
+unrelated text is not substituted. Retrieval uses local SQLite FTS5/BM25, without
+embedding search or model query expansion; cross-language and low-recall queries
+can miss relevant material. Absence from the selected passages is not evidence of
+absence in the paper. OCR and automatic figure recognition are not included.
+Existing abstract/text snapshots remain unchanged. Ordinary research still uses
+those snapshots unless full-text retrieval is selected.
+
+## Search saved sources
+
+The library's **Search saved text** searches titles, saved source text and the
+latest downloaded PDF revision for each snapshot. It runs entirely in the
+existing authenticated Python App backend; searching never starts an Agent or
+queries a public literature service. Results retain the source kind, snapshot
+text digest, PDF file digest, page or Markdown heading, and exact character
+range. Open a PDF result to return to its saved document and page. Expand
+**Snapshot details** to inspect the complete chunk, URL and digest.
+
+The first query backfills `research-v1/search-v1.sqlite3` from immutable JSON;
+subsequent queries index only newly saved versions and remove withdrawn sources.
+This SQLite file is a derived cache: stop the App and remove it to rebuild on
+the next search. Original snapshots, PDFs, frozen inputs and reports remain the
+source of truth. No model, embedding runtime or additional Python package is
+needed for search; Python's SQLite must provide FTS5.
+
+Markdown chunks respect headings; PDF chunks stay within a page. Both preserve
+exact original slices with overlap, up to 1,600 characters per chunk. English,
+Unicode words and Chinese characters/bigrams are normalized for FTS5/BM25.
+Queries use up to 64 distinct terms, with truncation disclosed. Search returns
+up to 12 chunks by default (API limit 1–30), at most two per PDF page and 19,200
+characters total. Displayed counts distinguish returned chunks from all lexical
+matches; they do not measure relevance quality, confidence or full-paper coverage.
+
+New PDF research inputs freeze the retrieval method, query terms, selected PDF
+versions, returned passage IDs and selected papers without returned evidence.
+Reopening the same request uses those frozen passages and its original prompt,
+even after an index rebuild or a newer PDF download. Legacy frozen inputs remain
+readable. JSON exports include this retrieval record, source metadata and exact
+passages; Markdown includes the method, coverage limitations and PDF digests.
+Abstract/report snapshots retain their original kinds when PDF passages are used.
+No-match questions ask for different source-language keywords instead of filling
+the context with unrelated text.
+
+Authenticated API: `POST /api/library/search` with `query`, optional stored
+`paperIds`, `limit`, and `pdfOnly`. Responses include exact chunks, versioned
+source locators, scores, total/returned counts and truncation. Scores rank lexical
+matches only. This does not add OCR, semantic retrieval, a knowledge graph or an
+independent acceptance decision.
 
 ## Workflow and boundaries
 

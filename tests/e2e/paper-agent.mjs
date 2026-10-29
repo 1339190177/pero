@@ -1,3 +1,4 @@
+import { exerciseLocalSearch } from './paper-search-flow.mjs';
 // Real Electron -> Rust Host -> Python App; Agent output is a labelled ACP fixture.
 import { expect } from '@playwright/test';
 import { electron } from './electron.mjs';
@@ -5,9 +6,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { setAppearance } from './sidebar-controls.mjs';
 import { execFileSync } from 'node:child_process';
-import { exercisePdf, reopenPdf } from './paper-pdf-flow.mjs';
+import { exercisePdf, reopenPdf, setPaperAppearance as setAppearance } from './paper-pdf-flow.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'test-results/paper-agent');
@@ -52,7 +52,7 @@ const observe = page => {
   page.on('console', message => {
     if (message.type() !== 'error') return;
     const url = message.location().url;
-    if (/\b(?:400|403|503)\b/.test(message.text()) && /\/(?:api\/(?:reports|discover|pdf)|host\/agent)$/.test(url)) expectedConsole.push({ url, text: message.text() });
+    if (/\b(?:400|403|503)\b/.test(message.text()) && /\/(?:api\/(?:reports|discover|pdf|library\/search)|host\/agent)$/.test(url)) expectedConsole.push({ url, text: message.text() });
     else errors.push({ url, text: message.text() });
   });
   page.on('response', response => {
@@ -105,6 +105,9 @@ try {
   expect(await frame.locator('body').evaluate(() => typeof window.pero)).toBe('undefined');
   checks.push('actual installed Python backend, explicit synthetic import, immutable reading, no App preload or implicit Agent run');
   await page.screenshot({ path: resolve(out, 'source.png') });
+  await exerciseLocalSearch({ frame, page, out });
+  expect(await fixtureTurns()).toHaveLength(0);
+  checks.push('local indexed search, source digest, empty/error recovery, source opening and keyboard focus');
 
   await frame.getByRole('button', { name: 'Discover', exact: true }).click();
   await expect(frame.getByRole('heading', { name: 'Confirm seed paper', exact: true })).toBeVisible();
@@ -268,7 +271,7 @@ try {
   await setAppearance(page, 'light');
   if (await frame.locator('.pa-research').count()) await frame.getByRole('button', { name: 'Research', exact: true }).click();
   const savedPdf = await exercisePdf({ frame, page, app, out, fixture: pdfFixture });
-  checks.push('PDFium text selection, persisted highlight, real rendered region capture, manual matrix cell and source navigation');
+  checks.push('PDFium reading and manual matrix; full-text retrieval -> Host ACP answer -> exact PDF citation region');
   const beforeRestart = (await fixtureTurns()).length;
   await app.close(); app = undefined;
   app = await launch(); page = await app.firstWindow();
@@ -279,14 +282,23 @@ try {
     BrowserWindow.getAllWindows()[0].setSize(1488, 1086);
   });
   frame = await openPaper(page);
-  await expect.poll(async () => savedCount(frame)).toBe(2);
+  await expect.poll(async () => savedCount(frame)).toBe(3);
   await reopenPdf({ frame, saved: savedPdf });
+  await frame.getByRole('tab', { name: /^Reports/ }).click();
+  await frame.getByRole('button', { name: 'PDF answer fixture', exact: true }).click();
+  await expect(frame.getByRole('heading', { name: 'PDF answer fixture', exact: true })).toBeVisible();
+  await frame.locator('.pa-report .pa-scientific').getByRole('button', { name: 'Citation evidence 1', exact: true }).click();
+  await expect(frame.locator('[data-citation-region="true"]').first()).toBeVisible();
   checks.push('PDF bytes, file digest, page anchors, annotations and matrix survive Desktop restart');
   expect((await library(frame)).favorites).toHaveLength(2);
   await frame.getByRole('tab', { name: /^Saved/ }).click();
   await frame.locator('[data-favorite-work="W2"] .pa-saved-actions>summary').click();
   await frame.locator('[data-favorite-work="W2"]').getByRole('button', { name: 'Compare', exact: true }).click();
-  await expect(frame.locator('.pa-research-inputs')).toContainText('2/5');
+  // Opening the PDF answer restores that paper before adding the two discovery sources.
+  await expect(frame.locator('.pa-research-inputs')).toContainText('3/5');
+  await expect(frame.locator('.pa-research-inputs li')).toHaveCount(3);
+  await expect(frame.locator('.pa-research-inputs')).toContainText(savedPdf.paper.title);
+  await expect(frame.getByRole('checkbox', { name: 'Search full PDF text' })).not.toBeChecked();
   await frame.getByRole('button', { name: 'View discovery source', exact: true }).first().click();
   await expect(frame.locator('.pa-discovery')).toContainText('Synthetic W2');
   await frame.getByRole('tab', { name: /^Reports/ }).click();

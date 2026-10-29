@@ -1,6 +1,14 @@
+import { exercisePdfSearch } from './paper-search-flow.mjs';
 import { expect } from '@playwright/test';
 import { resolve } from 'node:path';
-import { setAppearance } from './sidebar-controls.mjs';
+// Exercise App theme propagation through the persisted Host preference boundary.
+export async function setPaperAppearance(page, appearance) {
+  await page.evaluate(value => {
+    const state = JSON.parse(window.peroDiagnostics.snapshot());
+    return window.pero.sessionCommand({ method: 'settings.workbench', preferences: { ...state.preferences, appearance: value } });
+  }, appearance);
+  await expect.poll(async () => page.evaluate(() => JSON.parse(window.peroDiagnostics.snapshot()).preferences.appearance)).toBe(appearance);
+}
 
 export async function exercisePdf({ frame, page, app, out, fixture }) {
   const post = (path, body) => frame.locator('body').evaluate(async (_element, { path, body }) => {
@@ -74,7 +82,7 @@ export async function exercisePdf({ frame, page, app, out, fixture }) {
   await expect(viewer.locator(`[data-annotation-id="${figure.id}"][data-focused="true"]`)).toBeVisible();
   await viewer.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await viewer.getByRole('button', { name: 'Fit width', exact: true }).click();
-  await setAppearance(page, 'dark');
+  await setPaperAppearance(page, 'dark');
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 800));
   await expect.poll(async () => frame.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await expect.poll(async () => {
@@ -85,7 +93,7 @@ export async function exercisePdf({ frame, page, app, out, fixture }) {
   await expect(viewer.locator(`[data-annotation-id="${figure.id}"]`)).toBeVisible();
   await page.screenshot({ path: resolve(out, 'pdf-dark-narrow.png') });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1488, 1086));
-  await setAppearance(page, 'light');
+  await setPaperAppearance(page, 'light');
   const unavailable = await post('/api/papers/import', { title: 'Synthetic unavailable PDF', sourceId: 'unavailable-pdf',
     url: 'https://example.invalid/source', pdfUrl: 'https://example.invalid/paper.pdf', authors: [], contentKind: 'abstract', content: 'Synthetic source remains readable.' });
   await frame.locator('.pa-library-footer').getByRole('button', { name: 'Refresh', exact: true }).click();
@@ -99,6 +107,16 @@ export async function exercisePdf({ frame, page, app, out, fixture }) {
   await frame.getByRole('button', { name: paper.title, exact: true }).click();
   await expect(viewer).toBeVisible();
   await expect(viewer.locator('[data-page-number="1"] img')).toBeVisible();
+  await exercisePdfSearch({ frame, page, out, realPdf: fixture.realPdf });
+  await frame.getByRole('button', { name: 'Ask this PDF', exact: true }).click();
+  await expect(frame.getByRole('checkbox', { name: 'Search full PDF text' })).toBeChecked();
+  await frame.getByRole('textbox', { name: 'Research question', exact: true }).fill(fixture.realPdf ? 'attention mechanism' : 'Second page');
+  await frame.getByRole('button', { name: 'Start research', exact: true }).click();
+  await expect(frame.getByRole('heading', { name: 'PDF answer fixture', exact: true })).toBeVisible({ timeout: 30000 });
+  await frame.locator('.pa-report .pa-scientific').getByRole('button', { name: 'Citation evidence 1', exact: true }).click();
+  await expect(viewer.locator('[data-citation-region="true"]').first()).toBeVisible();
+  await page.screenshot({ path: resolve(out, 'pdf-answer-citation.png') });
+  await frame.getByRole('button', { name: 'Research', exact: true }).click();
   return { paper, figure, fileDigest: result.document.fileDigest, targetPage };
 }
 

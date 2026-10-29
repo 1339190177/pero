@@ -133,8 +133,8 @@ Evidence: `test-results/paper-agent/result.json`, `pdf-highlight.png`,
 `pdf-figure.png`, `pdf-matrix.png`, `pdf-dark-narrow.png`; a real-document copy
 is retained under `test-results/paper-pdf/real/`. Generated evidence is ignored.
 
-This slice does not add OCR, automatic figure/table recognition, PaperQA-style
-retrieval over PDF chunks, or scientific acceptance. PDF download does not mutate
+This PDF reading slice does not add OCR, automatic figure/table recognition,
+or scientific acceptance. Full-text retrieval is recorded below. PDF download does not mutate
 existing frozen abstract/text inputs. Matrix curation is additive; annotation
 editing/removal and annotated-PDF export remain future work. macOS development
 acceptance does not establish Windows/Linux or packaged-release acceptance.
@@ -142,3 +142,32 @@ acceptance does not establish Windows/Linux or packaged-release acceptance.
 Final PDF follow-up: all 14 Desktop checks passed, with no unexpected browser errors.
 Loaded JS SHA-256: `bb158649c86ec3ebe13523f0bb93c67b8375250d5e6ee4d9f150452641646a62`.
 Loaded CSS SHA-256: `3086dfc17d2df7b1502d78479b8bfa74559bf5612c5f0c17dc181fdcea541c45`.
+
+
+## Full-text questions and exact PDF citations (2026-10-29)
+
+Saved PDF page text is split into overlapping, unchanged source passages and
+searched through the shared local SQLite FTS5/BM25 index. A question freezes
+at most 12 passages / 19,200 characters, the document IDs and file digests,
+retrieval scope, and the exact Host Agent prompt. Retrying that input after a
+new PDF version is saved retains the original passages and prompt. No matching
+terms produces an explicit error; unrelated text does not fill the context.
+
+Full-text answer evidence requires a passage ID and an exact quotation from
+that frozen passage. Citation resolution reads the saved document version,
+uses native PDFium text search to obtain page rectangles, and navigates the
+EmbedPDF reader to the corresponding highlighted region. This includes matrix
+citations; exported Markdown retains PDF page links and version digests.
+
+Validation: 20 Python tests, App TypeScript/build, repository `npm run check`,
+and 15 real Desktop checks passed. The desktop run used the saved 15-page
+arXiv PDF above, with deterministic ACP output rather than a model request.
+It checked full-text question submission, quotation highlighting, and reopening
+the answer and citation after Desktop restart. Unexpected browser errors: 0.
+Evidence: `test-results/paper-agent/result.json`, `pdf-answer-citation.png`.
+Loaded JS SHA-256: `37941651723dbd2c6c962000d7c0413328f5bfe6b4ad93597b9e198a28a34ae2`.
+Loaded CSS SHA-256: `eddfb9834eaee028727bb170c5f1a6dfe091cb9cb6d21ce095eb6ff3787d7025`.
+
+Retrieval is lexical: no embeddings, translation, OCR, or iterative query
+expansion. Exact quotes establish provenance, not support for every generated
+claim. Real model answer quality and cross-platform packaging remain unverified.
