@@ -96,12 +96,12 @@ mod tests {
         for (name, viewport, route, tab, open, preferred_width, covered, expected) in [
             (
                 "documents share the content dock without an App surface",
-                1488.,Content(WorkspaceItem::Document {owner:"conversation".into(),source:"code".into()}),Chat,true,420.,false,
+                1488.,Content(WorkspaceItem::Document {origin:pero_contracts::content_origin::ContentOrigin::Conversation {thread_id:"conversation".into()},source:"code".into()}),Chat,true,420.,false,
                 (260.,false,Dock,420.,true,false),
             ),
             (
                 "narrow document content gives the shared dock the available width",
-                1000.,Content(WorkspaceItem::Document {owner:"conversation".into(),source:"code".into()}),Chat,true,420.,false,
+                1000.,Content(WorkspaceItem::Document {origin:pero_contracts::content_origin::ContentOrigin::Conversation {thread_id:"conversation".into()},source:"code".into()}),Chat,true,420.,false,
                 (240.,true,Dock,760.,false,false),
             ),
             (

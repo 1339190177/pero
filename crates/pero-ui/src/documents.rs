@@ -2,6 +2,7 @@
 use crate::{app::Workbench, workspace::WorkspaceItem};
 use gpui_kit::{prelude::*, *};
 use pero_chat_ui::content_reader::ContentReader;
+use pero_contracts::content_origin::ContentOrigin;
 use pero_contracts::content_document::{ContentDocument, ContentFormat};
 
 pub(crate) struct WorkspaceDocument {
@@ -13,14 +14,14 @@ pub(crate) struct WorkspaceDocument {
 impl Workbench {
     pub(crate) fn open_document(
         &mut self,
-        owner: String,
+        origin: ContentOrigin,
         title: String,
         document: ContentDocument,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let item = WorkspaceItem::Document {
-            owner,
+            origin,
             source: document.id.clone(),
         };
         let view = if let Some(open) = self.documents.iter_mut().find(|open| open.item == item) {
@@ -45,17 +46,21 @@ impl Workbench {
 
     pub(crate) fn reconcile_documents(&mut self, cx: &mut Context<Self>) {
         let chats = &self.chat.read(cx).chats;
-        self.documents.retain(|open|matches!(&open.item,WorkspaceItem::Document {owner,..} if chats.iter().any(|chat|&chat.id==owner)));
+        self.documents.retain(|open|match &open.item {
+            WorkspaceItem::Document {origin:ContentOrigin::App {app,panel},..}=>self.apps.contains_panel(app,panel),
+            WorkspaceItem::Document {origin,..}=>origin.thread_id().is_none_or(|owner|chats.iter().any(|chat|chat.id==owner)),
+            _=>false,
+        });
         let updates = self
             .documents
             .iter()
             .filter_map(|open| {
-                let WorkspaceItem::Document { owner, source } = &open.item else {
+                let WorkspaceItem::Document { origin, source } = &open.item else {
                     return None;
                 };
                 let document = chats
                     .iter()
-                    .find(|chat| &chat.id == owner)?
+                    .find(|chat| Some(chat.id.as_str()) == origin.thread_id())?
                     .tools
                     .iter()
                     .filter_map(|tool| tool.document.as_ref())

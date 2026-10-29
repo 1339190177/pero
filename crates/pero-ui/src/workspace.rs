@@ -1,10 +1,11 @@
+use pero_contracts::content_origin::ContentOrigin;
 /// A stable identity for content that can remain open in the workbench.
 /// Titles and other presentation metadata come from the current source object.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum WorkspaceItem {
     Conversation(String),
-    Document { owner: String, source: String },
+    Document { origin: ContentOrigin, source: String },
     Project(String),
     Task(String),
     App { name: String, panel: String },
@@ -238,6 +239,7 @@ impl WorkspaceNavigation {
 
 #[cfg(test)]
 mod tests {
+    use super::ContentOrigin;
     use super::{WorkbenchPage, WorkspaceItem, WorkspaceNavigation, WorkspaceRoute};
 
     #[derive(Clone)]
@@ -256,8 +258,8 @@ mod tests {
     fn workspace_tab_transitions() {
         use Action::*;
         let conversation = WorkspaceItem::Conversation("conversation".into());
-        let document=WorkspaceItem::Document {owner:"conversation".into(),source:"output".into()};
-        let other_document=WorkspaceItem::Document {owner:"other".into(),source:"output".into()};
+        let document=WorkspaceItem::Document {origin:ContentOrigin::Conversation {thread_id:"conversation".into()},source:"output".into()};
+        let other_document=WorkspaceItem::Document {origin:ContentOrigin::Conversation {thread_id:"other".into()},source:"output".into()};
         let project = WorkspaceItem::Project("project".into());
         let task = WorkspaceItem::Task("project".into());
         let shared_project = WorkspaceItem::Project("shared:pero".into());
@@ -279,6 +281,12 @@ mod tests {
         }
 
         let cases = [
+            Case {
+                name:"documents with equal source ids remain distinct across authority namespaces",
+                actions:vec![Open(document.clone()),Open(WorkspaceItem::Document {origin:ContentOrigin::File {path:"/work/output".into()},source:"output".into()})],
+                items:vec![document.clone(),WorkspaceItem::Document {origin:ContentOrigin::File {path:"/work/output".into()},source:"output".into()}],
+                route:WorkspaceRoute::Content(WorkspaceItem::Document {origin:ContentOrigin::File {path:"/work/output".into()},source:"output".into()}),
+            },
             Case {
                 name: "document identity includes its source owner and deduplicates reopen",
                 actions: vec![Open(document.clone()),Open(other_document.clone()),Open(document.clone())],
