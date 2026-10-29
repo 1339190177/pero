@@ -5,6 +5,7 @@ use std::io::{self, BufRead, Write};
 mod agents;
 mod apps;
 mod contributions;
+mod local_worker;
 
 fn emit(event: HostEvent) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
@@ -21,6 +22,7 @@ fn main() -> io::Result<()> {
     let mut agents = agents::Manager::new(std::env::current_dir()?);
     let settings_path = std::env::var_os("PERO_SETTINGS_PATH").map(std::path::PathBuf::from);
     let mut apps = apps::Apps::new(settings_path.as_deref());
+    let workers = local_worker::LocalWorkers::new(settings_path.as_deref());
     let locale = settings_path
         .as_deref()
         .and_then(pero_runtime::settings::load_locale)
@@ -61,6 +63,10 @@ fn main() -> io::Result<()> {
         }
         if value.get("method").and_then(|v| v.as_str()) == Some("apps") {
             emit(apps.dispatch(value))?;
+            continue;
+        }
+        if value.get("action").and_then(|action|action.as_str()).is_some_and(|action|action.starts_with("local_worker_")) {
+            workers.dispatch(value,settings_path.as_deref());
             continue;
         }
         if value.get("action").is_some() {
