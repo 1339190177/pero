@@ -1,4 +1,9 @@
 {
+  "content.find": "查找",
+  "content.close_find": "关闭查找",
+  "content.case_sensitive": "区分大小写",
+  "content.previous_match": "上一个匹配",
+  "content.next_match": "下一个匹配",
   "content.open_full": "打开完整结果",
   "content.cancel_load": "取消加载",
   "content.open": "查看结果",

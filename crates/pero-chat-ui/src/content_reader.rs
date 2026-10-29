@@ -3,9 +3,9 @@ use crate::content_document::{ContentDocument, ContentFormat, PreviewShape, Stru
 use gpui_kit::component::Disableable;
 use gpui_kit::{
     component::{
-        ActiveTheme, Sizable,
+        ActiveTheme, IconName, Sizable,
         button::*,
-        input::{Editor, EditorState, RopeExt},
+        input::{Editor, EditorState, Input, InputEvent, InputState, RopeExt, Search},
     },
     prelude::*,
     *,
@@ -18,6 +18,10 @@ pub struct ContentReader {
     editor: Option<Entity<EditorState>>,
     preview: Result<StructuredPreview, String>,
     source: bool,
+    search_open: bool,
+    search_input: Entity<InputState>,
+    _search_subscription: Subscription,
+    case_insensitive: bool,
     path: Vec<Range<usize>>,
     copied: bool,
     window: AnyWindowHandle,
@@ -31,17 +35,45 @@ impl ContentReader {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        // wasm32-unknown-unknown takes the non-macOS Kit keymap.
+        cx.bind_keys([KeyBinding::new("cmd-f", Search, Some("Input"))]);
         let preview = document.preview();
         let source = !matches!(
             document.format,
             ContentFormat::Json | ContentFormat::JsonLines
         );
+        let search_input = cx.new(|cx| InputState::new(window, cx));
+        let search_subscription =
+            cx.subscribe_in(&search_input, window, |this, input, event, _, cx| {
+                if let Some(editor) = &this.editor {
+                    editor.update(cx, |editor, cx| match event {
+                        InputEvent::Change => editor.set_search_query(
+                            input.read(cx).value().to_string(),
+                            this.case_insensitive,
+                            cx,
+                        ),
+                        InputEvent::PressEnter { shift, .. } => {
+                            if *shift {
+                                editor.previous_search_match(cx);
+                            } else {
+                                editor.next_search_match(cx);
+                            }
+                        }
+                        _ => {}
+                    });
+                }
+                cx.notify();
+            });
         let mut this = Self {
             document,
             locale,
             editor: None,
             preview,
             source,
+            search_open: false,
+            search_input,
+            _search_subscription: search_subscription,
+            case_insensitive: true,
             path: vec![],
             copied: false,
             window: window.window_handle(),
@@ -58,6 +90,11 @@ impl ContentReader {
             "source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
+            "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len()})}),
+            "foldable":self.editor.as_ref().map(|e|e.read(cx).display_map().is_fold_candidate(0)),
+            "cursor":self.editor.as_ref().map(|e|e.read(cx).cursor_position()),
+            "folds":self.editor.as_ref().map(|e|e.read(cx).display_map().folded_ranges().len()),
+            "language":self.document.language(),
             "editorBytes":self.editor.as_ref().map(|e|e.read(cx).text().len())})
     }
 
@@ -75,16 +112,11 @@ impl ContentReader {
             let language = self.document.language();
             // Long single-line JSON must not shape a screenful of wrapped text.
             self.editor = Some(cx.new(|cx| {
-                let mut editor = EditorState::new(window, cx)
+                EditorState::new(window, cx)
                     .language(language.to_owned())
+                    .searchable(true)
                     .soft_wrap(false)
-                    .default_value(self.document.source().to_owned());
-                // Kit's Syntect background executor still runs on the browser
-                // thread in Wasm. A 1 MiB source stalled it for 1.5 seconds.
-                // Keep large-source reading interactive rather than scheduling
-                // a deferred whole-document regex parse.
-                Self::limit_highlighting(&self.document, &mut editor, cx);
-                editor
+                    .default_value(self.document.source().to_owned())
             }));
         }
         if let (Some(editor), Some(range)) = (&self.editor, range) {
@@ -99,14 +131,38 @@ impl ContentReader {
         cx.notify();
     }
 
-    fn limit_highlighting(
-        document: &ContentDocument,
-        editor: &mut EditorState,
-        cx: &mut Context<EditorState>,
-    ) {
-        if document.bytes > 64 * 1024 {
-            editor.set_highlighter_factory(std::rc::Rc::new(|_| None), cx);
+    fn search_source(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = true;
+        let seed = self
+            .editor
+            .as_ref()
+            .map(|editor| editor.read(cx).selected_range())
+            .filter(|range| !range.is_empty())
+            .map(|range| self.document.text(&range).to_owned());
+        self.search_input.update(cx, |input, cx| {
+            if let Some(seed) = &seed {
+                input.set_value(seed.clone(), window, cx);
+            }
+            input.focus(window, cx);
+            input.select_all(window, cx);
+        });
+        if let (Some(editor), Some(seed)) = (&self.editor, seed) {
+            editor.update(cx, |editor, cx| {
+                editor.set_search_query(seed, self.case_insensitive, cx)
+            });
         }
+        cx.notify();
+    }
+
+    fn close_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = false;
+        if let Some(editor) = &self.editor {
+            editor.update(cx, |editor, cx| {
+                editor.close_search(cx);
+                editor.focus(window, cx);
+            });
+        }
+        cx.notify();
     }
 
     /// Updates run at the event boundary, outside rendering. Multiple pending
@@ -150,7 +206,9 @@ impl ContentReader {
         let properties = preview.shape == PreviewShape::Properties;
         let mut element = div()
             .id(("content-row", index))
-            .h(px(pero_theme::UiAppearance::global(cx).typography.row_height()))
+            .h(px(pero_theme::UiAppearance::global(cx)
+                .typography
+                .row_height()))
             .flex()
             .items_center()
             .border_b_1()
@@ -224,12 +282,13 @@ impl Render for ContentReader {
             self.document.format,
             ContentFormat::Json | ContentFormat::JsonLines
         );
-        let height = if self.source {
-            let lines = self.document.source().lines().take(16).count().max(1) as f32;
-            (64. + lines * pero_theme::UiAppearance::global(cx).typography.code * 1.5).clamp(112., 400.)
-        } else {
+        let height = if self.source { 400. } else {
             self.preview.as_ref().map_or(120., |preview| (60. + 28. * preview.rows.len().max(1) as f32).min(400.))
         };
+        let no_matches = self
+            .editor
+            .as_ref()
+            .is_none_or(|editor| editor.read(cx).search_session().matcher.is_empty());
         let toolbar = div()
             .flex()
             .items_center()
@@ -259,6 +318,17 @@ impl Render for ContentReader {
                         cx.listener(|this, _, window, cx| this.open_source(None, window, cx)),
                     ),
             )
+            .when(self.source, |el| {
+                el.child(
+                    Button::new("content-find")
+                        .ghost()
+                        .small()
+                        .label(self.t("content.find"))
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.search_source(window, cx)),
+                        ),
+                )
+            })
             .when(!self.path.is_empty() && !self.source, |el| {
                 el.child(
                     Button::new("content-back")
@@ -278,7 +348,9 @@ impl Render for ContentReader {
             .child(div().flex_1())
             .child(
                 div()
-                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                    .text_size(
+                        pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption),
+                    )
                     .text_color(cx.theme().muted_foreground)
                     .child(format!("{} B", self.document.bytes)),
             )
@@ -301,6 +373,16 @@ impl Render for ContentReader {
             );
         let mut view = div()
             .id("content-reader")
+            .capture_action(cx.listener(|this, _: &Search, window, cx| {
+                this.search_source(window, cx);
+                cx.stop_propagation();
+            }))
+            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                if this.search_open && event.keystroke.key == "escape" {
+                    this.close_search(window, cx);
+                    cx.stop_propagation();
+                }
+            }))
             .relative()
             .child(self.bounds.probe())
             .flex()
@@ -312,20 +394,113 @@ impl Render for ContentReader {
             .border_color(cx.theme().border)
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
-            .child(toolbar);
+            .child(toolbar)
+            .when(self.source && self.search_open, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .h(px(32.))
+                        .gap(px(4.))
+                        .child(Input::new(&self.search_input).small().flex_1())
+                        .child(
+                            Button::new("content-case")
+                                .ghost()
+                                .small()
+                                .label("Aa")
+                                .toggled(!self.case_insensitive)
+                                .tooltip(self.t("content.case_sensitive"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.case_insensitive = !this.case_insensitive;
+                                    if let Some(editor) = &this.editor {
+                                        editor.update(cx, |editor, cx| {
+                                            editor.set_search_query(
+                                                this.search_input.read(cx).value().to_string(),
+                                                this.case_insensitive,
+                                                cx,
+                                            )
+                                        });
+                                    }
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div().text_size(px(12.)).child(
+                                self.editor
+                                    .as_ref()
+                                    .map(|editor| editor.read(cx).search_session().matcher.label())
+                                    .unwrap_or_default(),
+                            ),
+                        )
+                        .child(
+                            Button::new("content-prev")
+                                .disabled(no_matches)
+                                .ghost()
+                                .small()
+                                .icon(IconName::ChevronLeft)
+                                .tooltip(self.t("content.previous_match"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if let Some(editor) = &this.editor {
+                                        editor.update(cx, |editor, cx| {
+                                            editor.previous_search_match(cx);
+                                        });
+                                    }
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            Button::new("content-next")
+                                .disabled(no_matches)
+                                .ghost()
+                                .small()
+                                .icon(IconName::ChevronRight)
+                                .tooltip(self.t("content.next_match"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if let Some(editor) = &this.editor {
+                                        editor.update(cx, |editor, cx| {
+                                            editor.next_search_match(cx);
+                                        });
+                                    }
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            Button::new("content-close-find")
+                                .ghost()
+                                .small()
+                                .icon(IconName::Close)
+                                .tooltip(self.t("content.close_find"))
+                                .on_click(
+                                    cx.listener(|this, _, window, cx| {
+                                        this.close_search(window, cx)
+                                    }),
+                                ),
+                        ),
+                )
+            });
         if self.source {
             if let Some(editor) = &self.editor {
                 view = view.child(
-                    Editor::new(editor)
-                        .readonly(true)
-                        .aria_label(self.t("content.source"))
-                        .h(px(height - 34.)),
+                    div().id("content-source-area").child(
+                        Editor::new(editor)
+                            .readonly(true)
+                            .aria_label(self.t("content.source"))
+                            .h(px(height - if self.search_open { 66. } else { 34. })),
+                    ),
                 );
             }
         } else {
             match &self.preview {
                 Err(error) => {
-                    view = view.child(div().p(px(12.)).text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).child(error.clone()))
+                    view = view.child(
+                        div()
+                            .p(px(12.))
+                            .text_size(
+                                pero_theme::UiAppearance::global(cx)
+                                    .text(pero_theme::TextRole::Caption),
+                            )
+                            .child(error.clone()),
+                    )
                 }
                 Ok(preview) if preview.rows.is_empty() => {
                     view = view.child(div().p(px(12.)).child(self.t("content.empty")))
@@ -341,7 +516,10 @@ impl Render for ContentReader {
                         .flex()
                         .h(px(28.))
                         .flex_shrink_0()
-                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                        .text_size(
+                            pero_theme::UiAppearance::global(cx)
+                                .text(pero_theme::TextRole::Caption),
+                        )
                         .child(div().w(px(48.)).flex_shrink_0().child("#"))
                         .children(
                             (!properties)

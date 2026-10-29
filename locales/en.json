@@ -1,4 +1,9 @@
 {
+  "content.find": "Find",
+  "content.close_find": "Close find",
+  "content.case_sensitive": "Match case",
+  "content.previous_match": "Previous match",
+  "content.next_match": "Next match",
   "content.open_full": "Open complete result",
   "content.cancel_load": "Cancel loading",
   "content.open": "Open result",
