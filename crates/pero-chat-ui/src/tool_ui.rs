@@ -1,5 +1,5 @@
 //! Compact tool presentation. Protocol data stays in Conversation; only output
-//! is disclosed here, never agent-supplied raw arguments.
+//! and explicitly disclosed arguments are kept separate.
 use serde_json::Value;
 
 pub(crate) fn action(kind: &str) -> (&'static str, &'static str) {
@@ -107,7 +107,7 @@ mod rendering {
                                 .replace("{count}", &fetches.to_string()),
                         );
                     }
-                    parts.join(" · ")
+                    parts.join(", ")
                 } else {
                     self.t("chat.tool_group")
                         .replace("{count}", &tools.len().to_string())
@@ -147,6 +147,8 @@ mod rendering {
                 .min_w_0()
                 .child(
                     Button::new(("tool-toggle", row))
+                        .relative()
+                        .child(first.toggle_bounds.probe())
                         .ghost()
                         .small()
                         .w_full()
@@ -155,7 +157,6 @@ mod rendering {
                         .justify_start()
                         .accessibility_label(format!("{summary}. {disclosure}"))
                         .toggled(open)
-                        .tooltip(summary.clone())
                         .child(self.icon(if open { "chevron-down" } else { "chevron-right" })
                             .size(px(12.)).flex_shrink_0().text_color(p.text_muted))
                         .child(self.icon(if failed { "alert-circle" } else if running { "clock" } else { icon })
@@ -211,8 +212,33 @@ mod rendering {
                                     .flex_col()
                                     .gap(px(6.))
                                     .when(tools.len() > 1 || tool.title != summary, |el| {
-                                        el.child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body)).child(tool.title.clone()))
+                                        el.child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).text_color(p.text_muted).child(tool.title.clone()))
                                     })
+                                    .when_some(tool.transcript.input_text(), |el, input| {
+                                        let chat_id = conversation_id.to_owned();
+                                        let tool_id = tool.id.clone();
+                                        el.child(Button::new(("tool-input", index)).relative().child(tool.input_bounds.probe())
+                                            .ghost().small().justify_start()
+                                            .text_color(p.text_muted)
+                                            .accessibility_label(self.t("chat.tool_input"))
+                                            .child(self.icon(if tool.input_open { "chevron-down" } else { "chevron-right" }).size(px(12.)).text_color(p.text_muted))
+                                            .child(div().flex_1().text_left().text_color(p.text_muted).child(self.t("chat.tool_input")))
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                if let Some(tool) = this.chats.iter_mut().find(|chat|chat.id==chat_id).and_then(|chat|chat.tools.iter_mut().find(|tool|tool.id==tool_id)) {
+                                                    tool.input_open = !tool.input_open;
+                                                    if tool.input_open && tool.input_view.is_none() {
+                                                        tool.input_view = Some(cx.new(|cx| {
+                                                            let mut view = crate::stream::StreamText::new(&format!("```json\n{input}\n```"), cx);
+                                                            view.appearance = crate::stream::StreamAppearance::Tool;
+                                                            view
+                                                        }));
+                                                    }
+                                                }
+                                                cx.notify();
+                                            })))
+                                    })
+                                    .when(tool.input_open, |el| el.child(div().id(("tool-input-scroll",index)).max_h(px(180.)).overflow_y_scroll().children(tool.input_view.clone())))
+                                    .when(tool.transcript.input.is_some() && !tool.output.is_empty(), |el| el.child(div().text_size(px(12.)).text_color(p.text_muted).child(self.t("chat.tool_output"))))
                                     .children(tool.locations.iter().map(|path| {
                                         div()
                                             .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))

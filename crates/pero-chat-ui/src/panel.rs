@@ -304,6 +304,7 @@ impl ChatPanel {
             "completion":{"open":self.composer_state.open,"loading":self.composer_state.loading,"error":self.composer_state.error,
                 "selected":self.composer_state.selected,"items":self.composer_picker_items().iter().map(|i|&i.label).collect::<Vec<_>>()},
             "reasoningBounds":self.chats.iter().flat_map(|chat|chat.messages.iter().enumerate().filter(|(_,m)|m.role=="thought").map(move |(index,message)|json!({"chat":chat.id,"index":index,"open":chat.thinking.open(index),"bounds":message.toggle_bounds.snapshot()}))).collect::<Vec<_>>(),
+            "inputBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.input_bounds.snapshot()}))).collect::<Vec<_>>(),
             "toolBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.toggle_bounds.snapshot()}))).collect::<Vec<_>>(),
             "contentReaders":self.chats.iter().flat_map(|chat|chat.tools.iter()).filter_map(|tool|tool.reader.as_ref().map(|reader|reader.read(cx).snapshot(cx))).collect::<Vec<_>>(),
             "toolViews":self.chats.iter().map(|c|c.tools.iter().filter(|t|t.view.is_some()).count()).collect::<Vec<_>>(),

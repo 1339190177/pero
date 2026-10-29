@@ -83,6 +83,12 @@ pub struct Tool {
     /// Original ACP output, including diffs and terminal references. Arguments
     /// are intentionally kept out of the default tool presentation.
     pub output: Vec<Value>,
+    pub transcript: crate::tool_transcript::ToolTranscript,
+    pub input_open: bool,
+    #[serde(skip)]
+    pub input_view: Option<Entity<StreamText>>,
+    #[serde(skip)]
+    pub(crate) input_bounds: crate::view_bounds::ViewBounds,
     pub cancelled: bool,
     pub document: Option<ContentDocument>,
     #[serde(skip)]
@@ -99,7 +105,7 @@ impl Tool {
     pub fn set_body_open(&mut self, open: bool, cx: &mut App) {
         if open {
             if self.document.is_none() && self.view.is_none() {
-                self.view = Some(cx.new(|cx| StreamText::new(&self.content, cx)));
+                self.view = Some(cx.new(|cx| { let mut view = StreamText::new(&self.content, cx); view.appearance = crate::stream::StreamAppearance::Tool; view }));
             }
         }
         // Closing a presentation must retain its selection, folds and search.
@@ -287,6 +293,10 @@ impl Conversation {
                             status: "pending".into(),
                             content: String::new(),
                             output: vec![],
+                            transcript: Default::default(),
+                            input_open: false,
+                            input_view: None,
+                            input_bounds: Default::default(),
                             cancelled: false,
                             document: None,
                             reader: None,
@@ -323,42 +333,44 @@ impl Conversation {
                 {
                     tool.cancelled = true;
                 }
-                if let Some(content) = data["content"].as_array() {
-                    tool.output = content.clone();
-                    let next = content
-                        .iter()
-                        .filter_map(|item| {
-                            item["content"]["text"]
-                                .as_str()
-                                .or_else(|| item["content"]["resource"]["text"].as_str())
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    if next != tool.content {
-                        let revision = tool
-                            .document
-                            .as_ref()
-                            .map_or(1, |document| document.revision + 1);
-                        tool.document = ContentDocument::from_tool(
-                            format!("{}/{}", self.id, tool.id),
-                            revision,
-                            &next,
-                        );
-                        if let Some(document) = &tool.document {
-                            tool.view = None;
-                            if let Some(reader) = &tool.reader {
-                                reader
-                                    .update(cx, |reader, cx| reader.replace(document.clone(), cx));
-                            }
-                        } else {
-                            tool.reader = None;
-                        }
-                        if let Some(view) = &tool.view {
-                            view.update(cx, |view, cx| view.replace(&next, cx));
-                        }
-                        tool.content = next;
-                    }
+                let patch = match serde_json::from_value::<crate::tool_transcript::ToolTranscriptPatch>(data.clone()) {
+                    Ok(patch) => patch,
+                    Err(error) => { self.error = Some(error.to_string()); return true; }
+                };
+                tool.transcript.apply(patch);
+                tool.output = tool.transcript.output();
+                if let Some(view) = &tool.input_view {
+                    let text = tool.transcript.input_text().unwrap_or_default();
+                    view.update(cx, |view, cx| view.replace(&format!("```json\n{text}\n```"), cx));
                 }
+                let next = tool.output
+                    .iter()
+                    .filter_map(|item| {
+                        item["content"]["text"]
+                            .as_str()
+                            .or_else(|| item["content"]["resource"]["text"].as_str())
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if next != tool.content {
+                    let revision = tool.document.as_ref().map_or(1, |document| document.revision + 1);
+                    tool.document = ContentDocument::from_tool(
+                        format!("{}/{}", self.id, tool.id), revision, &next,
+                    );
+                    if let Some(document) = &tool.document {
+                        tool.view = None;
+                        if let Some(reader) = &tool.reader {
+                            reader.update(cx, |reader, cx| reader.replace(document.clone(), cx));
+                        }
+                    } else {
+                        tool.reader = None;
+                    }
+                    if let Some(view) = &tool.view {
+                        view.update(cx, |view, cx| view.replace(&next, cx));
+                    }
+                    tool.content = next;
+                }
+
                 true
             }
             "session_info_update" => {

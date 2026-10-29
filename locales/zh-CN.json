@@ -577,5 +577,7 @@
   "settings.code_font_hint": "代码块与源码阅读器。",
   "settings.decrease_font": "减小字号",
   "settings.increase_font": "增大字号",
-  "settings.close": "关闭设置"
+  "settings.close": "关闭设置",
+  "chat.tool_input": "参数",
+  "chat.tool_output": "结果"
 }

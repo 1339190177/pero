@@ -42,3 +42,4 @@ pub mod authentication;
 
 pub mod conversation_title;
 pub mod thinking;
+pub mod tool_transcript;

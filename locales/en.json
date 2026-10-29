@@ -577,5 +577,7 @@
   "settings.code_font_hint": "Code blocks and source readers.",
   "settings.decrease_font": "Decrease font size",
   "settings.increase_font": "Increase font size",
-  "settings.close": "Close settings"
+  "settings.close": "Close settings",
+  "chat.tool_input": "Parameters",
+  "chat.tool_output": "Result"
 }
