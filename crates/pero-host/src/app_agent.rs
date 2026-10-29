@@ -39,6 +39,7 @@ impl Manager {
         let mut event = HostEvent::new("session_created", None, String::new());
         event.thread_id = Some(thread_id.clone());
         event.data = serde_json::json!({"agent":agent.id,"workspace":self.workspace});
+        let app_use = self.app_use.clone();
         if let Some(scope) = scope {
             event.data["scope"] = serde_json::json!(scope);
         }
@@ -49,12 +50,14 @@ impl Manager {
         let _ = self.tx.send(event);
         self.sessions.insert(
             thread_id.clone(),
-            acp::start(
+            if let Some(endpoint) = app_use { acp::start_app(
+                agent.clone(), self.workspace.clone(), thread_id, self.tx.clone(), endpoint,
+            ) } else { acp::start(
                 agent.clone(),
                 self.workspace.clone(),
                 thread_id,
                 self.tx.clone(),
-            ),
+            ) },
         );
         Ok(())
     }

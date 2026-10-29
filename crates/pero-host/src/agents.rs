@@ -24,6 +24,7 @@ pub struct Manager {
     tx: Sender<HostEvent>,
     history: Arc<Mutex<Vec<HostEvent>>>,
     app_bindings: HashMap<String, AppSessionBinding>,
+    app_use: Option<acp::AppUseEndpoint>,
 }
 impl Manager {
     pub fn new(root: PathBuf) -> Self {
@@ -112,6 +113,7 @@ impl Manager {
             tx,
             history,
             app_bindings,
+            app_use: acp::AppUseEndpoint::from_environment(),
         }
     }
     fn visible_history(&self) -> Vec<HostEvent> {

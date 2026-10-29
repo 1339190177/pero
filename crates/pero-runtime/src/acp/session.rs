@@ -53,15 +53,20 @@ pub fn start(
     thread: String,
     tx: Sender<HostEvent>,
 ) -> SessionHandle {
-    start_with_workspace_access(config, cwd, thread, tx, true)
+    start_with_workspace_access(config, cwd, thread, tx, true, None)
+}
+
+/// A scoped Desktop conversation may use the Host-selected App Use endpoint.
+pub fn start_app(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>, endpoint: super::AppUseEndpoint) -> SessionHandle {
+    start_with_workspace_access(config, cwd, thread, tx, true, Some(endpoint))
 }
 
 /// The independent Worker supervisor already owns this checkout's write lease.
 pub fn start_supervised(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>) -> SessionHandle {
-    start_with_workspace_access(config, cwd, thread, tx, false)
+    start_with_workspace_access(config, cwd, thread, tx, false, None)
 }
 
-fn start_with_workspace_access(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>, acquire_workspace: bool) -> SessionHandle {
+fn start_with_workspace_access(config: AgentConfig, cwd: PathBuf, thread: String, tx: Sender<HostEvent>, acquire_workspace: bool, app_use: Option<super::AppUseEndpoint>) -> SessionHandle {
     let (commands, rx) = mpsc::unbounded_channel();
     let permissions: Permissions = Arc::default();
     let pending = permissions.clone();
@@ -78,6 +83,7 @@ fn start_with_workspace_access(config: AgentConfig, cwd: PathBuf, thread: String
             rx,
             pending.clone(),
             acquire_workspace,
+            app_use,
         ));
         pending.lock().unwrap().clear();
         if let Err(error) = result {
@@ -151,6 +157,7 @@ async fn run(
     mut commands: mpsc::UnboundedReceiver<SessionCommand>,
     permissions: Permissions,
     acquire_workspace: bool,
+    app_use: Option<super::AppUseEndpoint>,
 ) -> Result<(), String> {
     config.validate_mcp()?;
     event(
@@ -244,8 +251,15 @@ async fn run(
             let auth_methods = initialized.auth_methods.clone();
             event(&tx, &thread, "agent_info", "", serde_json::to_value(&initialized).unwrap_or_default());
             let mut session_data = loop {
+                let mut mcp_servers = config.mcp_servers.clone();
+                if initialized.agent_capabilities.mcp_capabilities.http {
+                    if let Some(endpoint) = &app_use {
+                        mcp_servers.push(endpoint.server(&thread));
+                    }
+                }
+                let request = NewSessionRequest::new(cwd.clone()).mcp_servers(mcp_servers);
                 let result = setup_request(
-                    connection.send_request(UntypedMessage::new("session/new", NewSessionRequest::new(cwd.clone()).mcp_servers(config.mcp_servers.clone()))?).block_task(),
+                    connection.send_request(UntypedMessage::new("session/new", request)?).block_task(),
                     &mut commands, &mut deferred, &tx, &thread, "Session creation",
                 ).await;
                 match result {
@@ -332,10 +346,14 @@ async fn run(
                                 Err(error) => { event(&tx,&thread,"session_error",error,Value::Null); continue; },
                             }
                         } else { None };
-                        let blocks = match prompt_blocks(text, context, &initialized.agent_capabilities.prompt_capabilities) {
+                        let text=text.strip_prefix("/app-use").filter(|_|text.len()==8||text.as_bytes().get(8).is_some_and(|c|c.is_ascii_whitespace())).map(|s|s.trim_start().to_string()).unwrap_or(text);
+                        let mut blocks = match prompt_blocks(text, context, &initialized.agent_capabilities.prompt_capabilities) {
                             Ok(blocks) => blocks,
                             Err(error) => { event(&tx, &thread, "session_error", error.to_string(), Value::Null); continue; },
                         };
+                        if app_use.is_some() && initialized.agent_capabilities.mcp_capabilities.http {
+                            blocks.push(ContentBlock::Text(TextContent::new(format!("Host-provided App Use workflow:\n{}",super::APP_USE_SKILL))));
+                        }
                         event(&tx, &thread, "turn_started", "正在思考", Value::Null);
                         let prompt = connection.send_request(PromptRequest::new(
                             session_id.clone(), blocks,
