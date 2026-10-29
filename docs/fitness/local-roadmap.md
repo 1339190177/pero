@@ -39,3 +39,11 @@ Cloud deployment is claimed.
 Screenshots and results: `test-results/local-roadmap/`. The model provider is a
 fixture; the local file effect is real. This proves L0/L1 development behavior,
 not a signed package, production provider task, Cloud claim or accepted result.
+
+## Published development package
+
+The feature is included in
+[v0.1.0-dev.20261029.6](https://github.com/phodal/pero/releases/tag/v0.1.0-dev.20261029.6),
+source `65e4e1a83eb639e4694f661a7c6a8fe4d2d26886`. All four native build/launch
+jobs and publication passed. Package sizes, metadata checks and remaining
+acceptance limits are recorded in [release products](release-products.md#local-roadmap-release--2026-10-29).

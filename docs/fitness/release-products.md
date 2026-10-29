@@ -128,3 +128,39 @@ Local evidence: `target/release-downloads/v0.1.0-dev.20261029.3/download-verific
 corresponding screenshots. The native GPUI developer preview was also rebuilt
 and connected locally; its [separate record](native-preview.md) keeps its checkout
 dependency and missing cloud/Web App support distinct from the four public archives.
+
+
+## Local ROADMAP release — 2026-10-29
+
+Published prerelease: [v0.1.0-dev.20261029.6](https://github.com/phodal/pero/releases/tag/v0.1.0-dev.20261029.6).
+Source: `65e4e1a83eb639e4694f661a7c6a8fe4d2d26886`.
+[Native release run 40845181348](https://github.com/phodal/pero/actions/runs/40845181348)
+passed all four native package/launch jobs and publication. The manual workflow
+used snapshot ref `v0.1.0-dev.20261029.2` for its existing cache scope while
+checking out and verifying the exact `.6` source tag.
+[Source CI 40845172163](https://github.com/phodal/pero/actions/runs/40845172163)
+passed all nine jobs.
+
+| Public archive | Bytes |
+| --- | ---: |
+| Pero-macos-arm64.dmg | 103,623,414 |
+| Pero-windows-x64.zip | 171,170,269 |
+| Pero-linux-x64.tar.gz | 140,564,539 |
+| Virtual-Cell-macos-arm64.dmg | 126,880,422 |
+
+The user explicitly approved a 110,000,000-byte Pero macOS download limit. Both
+packaging and release verification enforce it; Host and Worker are both bundled
+and stripped. The `.4`/`.5` gates prevented publication before source-only
+standalone types and the approved package budget were corrected. Those tags
+were preserved.
+
+The public release contains 13 assets. Downloaded all four build manifests and
+the combined SHA256SUMS: each manifest hash, archive hash reference, release tag,
+source revision and build URL matched. The binary archive bytes were checked
+by the native publication workflow; this public metadata check did not download
+and independently launch all four archives. Local packaged Electron fixture
+checks passed streaming, follow-up, cancellation, permission, history reload,
+locale, theme and narrow layout; packaged Host/Worker lifecycle checks passed.
+The provider remained a fixture. Signing/notarization limitations above remain.
+
+Local public-metadata evidence: `/tmp/pero-roadmap-release/public-6/verification.json`.
