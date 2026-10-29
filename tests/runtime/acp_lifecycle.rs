@@ -326,3 +326,44 @@ fn model_changes_require_an_advertised_id_for_each_supported_api() {
         close(&handle, &rx);
     }
 }
+
+#[test]
+fn composer_commands_permissions_and_structured_context_cross_the_acp_wire() {
+    use pero_contracts::{composer_capabilities::AgentCommand, context::{ContextContent, ContextKind, ContextReference}};
+    let (handle, rx) = launch("composer", None);
+    let info = until(&rx, "agent_info");
+    assert_eq!(info.data["agentCapabilities"]["promptCapabilities"]["image"], true);
+    let mut ready = false;
+    let mut commands = None;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !ready || commands.is_none() {
+        let event = rx.recv_timeout(deadline.saturating_duration_since(Instant::now())).unwrap();
+        if event.kind == "session_ready" {
+            assert_eq!(event.data["peroCapabilities"], json!({"images":true,"embedded_context":true}));
+            ready = true;
+        }
+        if event.kind == "session_update" && event.data["sessionUpdate"] == "available_commands_update" {
+            commands = Some(AgentCommand::from_update(&event.data).unwrap());
+        }
+    }
+    assert_eq!(commands.unwrap()[0].name, "compact");
+    handle.tx.send(SessionCommand::Configure {id:"approval".into(),value:"read".into()}).unwrap();
+    let confirmed = until(&rx, "configuration_changed");
+    assert!(confirmed.data["options"].as_array().unwrap().iter().any(|option| option["id"]=="approval" && option["current"]=="read"));
+    handle.tx.send(SessionCommand::PromptWithContext {
+        text:"Review selected context".into(),
+        context:vec![
+            ContextReference {id:"snapshot-1".into(),kind:ContextKind::File,label:"example.rs".into(),source:"example.rs".into(),content:ContextContent::Text{text:"frozen file".into()}},
+            ContextReference {id:"snapshot-2".into(),kind:ContextKind::Image,label:"example.png".into(),source:"example.png".into(),content:ContextContent::Image{data:"aGVsbG8=".into(),mime_type:"image/png".into()}},
+        ],
+    }).unwrap();
+    let rendered = until(&rx, "session_update");
+    let blocks: Value = serde_json::from_str(rendered.data["content"]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(blocks[0]["text"], "Review selected context");
+    assert_eq!(blocks[1]["type"], "resource");
+    assert!(blocks[1]["resource"]["text"].as_str().unwrap().ends_with("frozen file"));
+    assert_eq!(blocks[2]["type"], "image");
+    assert_eq!(blocks[2]["mimeType"], "image/png");
+    until(&rx, "turn_finished");
+    close(&handle, &rx);
+}
