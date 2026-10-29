@@ -29,6 +29,13 @@ date: 2026-10-29
 
 实施优先级恢复为：工作区内容生命周期 → Editor/Markdown/WebView 使用链路 → App 消费验收 → 内容专用投影 → 输出预算与性能优化。当前阅读器验证仅证明已列出的局部操作，未完成的主线仍按下文步骤逐项交付。
 
+Implementation update (2026-10-30): file/Markdown and real Virtual Cell result
+workflows now pass through retained workspace documents. Current receipts and
+remaining gaps are tracked in [workspace document acceptance](../fitness/workspace-documents.md)
+and the [active implementation matrix](../exec-plans/2026-10-30-content-view-parity.md).
+Restart recovery, generic WebView, MCP Apps and large-source performance are
+not completed by this implementation slice.
+
 ## 1. 研究基线与已有能力
 
 | 对象 | 固定基线 | 使用范围 |

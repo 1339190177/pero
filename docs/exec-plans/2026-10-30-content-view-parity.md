@@ -16,7 +16,7 @@ proves local wiring; real-provider, platform and installed-package acceptance
 remain distinct. Do not mark a row complete for an interface, placeholder or
 simulated result alone.
 
-| Capability | Current baseline | Required implementation | Acceptance gate |
+| Capability | Baseline at b2f2259 | Required implementation | Acceptance gate |
 | --- | --- | --- | --- |
 | Source identity and admission | Conversation-owned immutable documents | Typed conversation, file, App and MCP origins; one admission boundary and revision owner | Equal content from different authorities stays distinct; no renderer guesses authority |
 | Markdown | Chat rendering only | Independent rendered/source document, links and source ranges, stable updates | Open a real Markdown source, switch modes, follow a link and return with state |
@@ -61,4 +61,33 @@ simulated result alone.
 - Existing result document acceptance: docs/fitness/workspace-documents.md.
 - Existing reader/output acceptance: docs/fitness/content-reader.md.
 - Large-source incident remains open: docs/issues/2026-10-29-content-reader-main-thread.md.
-- All additions above are pending until their corresponding acceptance is recorded.
+- Typed source metadata, all-text admission, Markdown rendered/source view,
+  Host-owned open/save/relative links, conflict/discard and App document admission
+  are implemented. Their first real workflows are recorded in
+  [workspace document acceptance](../fitness/workspace-documents.md).
+- Actual file and real Virtual Cell computation workflows pass in background
+  macOS Electron. The App source contains 20,021 bytes, including the previously
+  omitted condition details; no truncation occurs in the workspace path.
+- Original code-tab retention, 1 MiB JSON/source operations and Web IME pass.
+  The 1 MiB probe still records a roughly 300 ms main-thread task. Performance
+  remains open, and this is release Wasm functional proof, not release-Oz or a
+  downloaded package receipt.
+- File close/reopen is covered within one session. Restart recovery, split
+  panes, Markdown anchors/range mapping, Save As and native runtime UI proof
+  remain incomplete; therefore the broader lifecycle/Markdown rows stay open.
+- Generic WebView, MCP Apps, advanced table/editor operations, unified
+  extensible content icons and the Data Agent workflow have no completed
+  implementation/acceptance yet. They remain explicit work, not implied by
+  the App SDK bridge. Cross-platform and assistive-technology proof is pending.
+
+## Next implementation boundary
+
+Use GPUI Kit's existing `gpui-webview`/Wry integration for native embedding
+rather than building a new native bridge. It is experimental; documented Linux
+support is X11, so Wayland acceptance is a distinct gap. Add generic Web items
+with their own identity and lifecycle rather than fake installed-App entries.
+For MCP Apps, first supply a real Host-owned server/resource connection and
+preserve `_meta.ui.resourceUri`; current ACP configuration forwards servers to
+external Agents and is not a Pero MCP resource transport. Then use the official
+AppBridge and its sandbox/CSP lifecycle. Only after the actual view workflow
+passes should output budgeting and file-on-demand optimizations be expanded.

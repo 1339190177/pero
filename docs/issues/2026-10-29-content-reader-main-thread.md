@@ -51,3 +51,13 @@ full-featured implementation passes the interaction budget. A fast opening
 sample, disabling highlighter features, or replacing native selection does not
 close it. The [acceptance matrix](../fitness/content-reader.md) records the
 functional evidence and remaining boundaries.
+
+## 2026-10-30 regression receipt
+
+The retained-document/file/App work preserves the large reader's functional
+operations. A macOS background Electron release-Wasm run over 8,000 records
+and 1,086,892 bytes recorded preview 38 ms, source 55 ms and a retained
+switch 339.5 ms, including a 312 ms main-thread task. These are individual
+probe samples, not a throughput distribution or release-Oz claim. The issue
+remains open; no syntax/selection functionality was removed to improve the
+numbers. Receipt: `test-results/content-reader/performance.json`.
