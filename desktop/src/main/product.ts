@@ -6,6 +6,7 @@ import { resolve, sep, delimiter } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DesktopApps } from './apps';
 import { Product } from '../../../packages/product/product';
+import { testWindowOptions } from './test-display';
 
 const root = resolve(__dirname, '../..');
 const product = Product.parse(JSON.parse(readFileSync(resolve(root, 'product.json'), 'utf8')));
@@ -38,8 +39,8 @@ function menus() {
 app.whenReady().then(async () => {
   locale = (process.env.PERO_LOCALE || app.getLocale()).startsWith('zh') ? 'zh-CN' : 'en';
   const profile = app.getPath('userData');
-  window = new BrowserWindow({ title: product.name, width: 1280, height: 900, minWidth: 760, minHeight: 600,
-    webPreferences: { preload: resolve(__dirname, 'product-preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  window = new BrowserWindow({ ...testWindowOptions, title: product.name, width: 1280, height: 900, minWidth: 760, minHeight: 600,
+    webPreferences: { ...testWindowOptions.webPreferences, preload: resolve(__dirname, 'product-preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   protocol.handle('pero-app', request => apps.serve(request));
   // Only the product shell has a preload; App documents retain their separate origin.
   protocol.handle('pero', async request => {

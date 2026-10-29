@@ -10,6 +10,7 @@ import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 import { DesktopApps } from './apps';
 import { DesktopContributions } from './contributions';
 import { LocalExecutionController } from './local-execution';
+import { backgroundTest, testWindowOptions } from './test-display';
 
 // Register before ready so macOS cannot deliver the callback before the listener.
 // pero://connect/ completes sign-in; pero://tasks/<id> opens a Cloud task from the task square.
@@ -239,9 +240,9 @@ app.whenReady().then(async () => {
     });
     if (!selected.canceled && selected.filePaths[0]) host.stdin.write(JSON.stringify({ action: 'resolve_context', request_id: command.request_id, kind: command.kind, source: selected.filePaths[0] }) + '\n');
   });
-  window = new BrowserWindow({ width: 1488, height: 1086, minWidth: 1000, minHeight: 680,
+  window = new BrowserWindow({ ...testWindowOptions, width: 1488, height: 1086, minWidth: 1000, minHeight: 680,
     title: t('window.title'), backgroundColor: '#F7F9FC',
-    webPreferences: { preload: resolve(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+    webPreferences: { ...testWindowOptions.webPreferences, preload: resolve(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
@@ -250,8 +251,10 @@ app.whenReady().then(async () => {
   updateMenus();
   await window.loadURL('pero://workbench/');
   acceptDeepLink = url => {
-    if (window.isMinimized()) window.restore();
-    window.show(); window.focus();
+    if (!backgroundTest) {
+      if (window.isMinimized()) window.restore();
+      window.show(); window.focus();
+    }
     send({ version: 1, kind: 'remote_open', request_id: null, text: 'desktop_login' });
     // The adapter validates the identifier; without a connection the Cloud page shows its setup instead.
     if (url.startsWith('pero://tasks/')) void remote.command({ action: 'remote_select', task_id: new URL(url).pathname.slice(1) });
