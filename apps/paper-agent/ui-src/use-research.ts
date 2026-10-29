@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Agent, Api, Intent, Report } from './types';
 import type { Translator } from './i18n';
 
-export type ResearchRequest = { question: string; paperIds: string[]; verifyCode: boolean; verificationPlan: string };
+export type ResearchRequest = { question: string; paperIds: string[]; verifyCode: boolean; verificationPlan: string; fullText?: boolean };
 export function useResearch(api: Api, agent: Agent, active: boolean, refresh: () => Promise<void>, onError: (error: unknown) => void, t: Translator) {
   const [intent, setIntent] = useState<Intent | null>(null);
   const [report, setReport] = useState<Report | null>(null);

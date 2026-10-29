@@ -3,6 +3,7 @@ import { downloadFile, useAppAgent, useAppApi, useAppI18n, useAppInfo, useAppCha
 import { Button, Checkbox, EmptyState, Feedback, Field, Icon, Input, Select, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar } from '@pero/app-sdk/ui';
 import { messages } from './i18n';
 import { ImportPanel, PaperList } from './library';
+import { LibrarySearch } from './library-search';
 import { EvidencePanel, Experiments, Reader, ReportView, type Citation } from './documents';
 import { Discovery, type DiscoveryOpening } from './discovery';
 import { ReadingMatrix } from './reading-matrix';
@@ -16,6 +17,7 @@ export default function PaperAgent() {
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [selected, setSelected] = useState<string[]>([]), [reading, setReading] = useState<Paper | null>(null), [readingBusy, setReadingBusy] = useState(false);
   const [libraryView, setLibraryView] = useState('papers'), [view, setView] = useState('source'), [adding, setAdding] = useState(false), [showResearch, setShowResearch] = useState(false);
+  const [fullText, setFullText] = useState(false);
   const [question, setQuestion] = useState(''), [verifyCode, setVerifyCode] = useState(false), [verificationPlan, setVerificationPlan] = useState(''), [agentId, setAgentId] = useState('');
   const [discoveryOpening, setDiscoveryOpening] = useState<DiscoveryOpening | null>(null);
   const [citation, setCitation] = useState<Citation | null>(null), [evidence, setEvidence] = useState<EvidenceLocation | null>(null), [evidenceBusy, setEvidenceBusy] = useState(false);
@@ -43,7 +45,7 @@ export default function PaperAgent() {
   useEffect(() => {
     if (!task.intent) return;
     setQuestion(task.intent.question); setSelected(task.intent.papers.map(paper => paper.id));
-    setVerifyCode(task.intent.verifyCode); setVerificationPlan(task.intent.verificationPlan); setCitation(null); evidenceVersion.current++;
+    setFullText(!!task.intent.fullText); setVerifyCode(task.intent.verifyCode); setVerificationPlan(task.intent.verificationPlan); setCitation(null); evidenceVersion.current++;
   }, [task.intent?.id]);
   useEffect(() => { if (task.report) { setAdding(false); setView('report'); } }, [task.report?.id]);
 
@@ -70,7 +72,7 @@ export default function PaperAgent() {
     if (locked || task.repair) return false;
     const ids = Array.from(new Set([...selected, seedId, paper.id]));
     if (ids.length > 5) { onError(new Error(t('maxSelection'))); return false; }
-    task.reset(); setSelected(ids); setShowResearch(true);
+    task.reset(); setFullText(false); setSelected(ids); setShowResearch(true);
     setQuestion(prior => prior.includes(t('matrixInstruction')) ? prior : `${prior.trim()}${prior.trim() ? '\n\n' : ''}${t('matrixInstruction')}`);
     return true;
   }
@@ -100,8 +102,14 @@ export default function PaperAgent() {
     if (!value.quote || !task.intent) { setEvidenceBusy(false); return; }
     setEvidenceBusy(true);
     try {
-      const result = await api.post<EvidenceLocation>('/api/evidence', { intentId: task.intent.id, paperId: value.paperId, quote: value.quote });
-      if (mounted.current && version === evidenceVersion.current) setEvidence(result);
+      const result = await api.post<EvidenceLocation>('/api/evidence', { intentId: task.intent.id, paperId: value.paperId, quote: value.quote, passageId: value.passageId });
+      if (mounted.current && version === evidenceVersion.current) {
+        setEvidence(result);
+        if (result.pdf && value.passageId) {
+          const paper = task.intent.papers.find(p => p.id === value.paperId);
+          if (paper) { await read(paper); setPdfFocus({ documentId: result.pdf.documentId, page: result.pdf.pages[0], rects: result.pdf.rects }); }
+        }
+      }
     } catch (error) { if (mounted.current && version === evidenceVersion.current) onError(error); }
     finally { if (mounted.current && version === evidenceVersion.current) setEvidenceBusy(false); }
   }
@@ -127,7 +135,7 @@ export default function PaperAgent() {
   }
   function begin(execute: boolean) {
     setError('');
-    void task.begin({ question, paperIds: selected, verifyCode, verificationPlan }, agentId, execute);
+    void task.begin({ question, paperIds: selected, verifyCode, verificationPlan, fullText }, agentId, execute);
   }
   useAppDataChanged(() => refresh().catch(onError));
   useAppObject({id:'paper-agent',kind:'research-library',label:'Paper Agent',state:{
@@ -153,7 +161,7 @@ export default function PaperAgent() {
         <Tabs value={libraryView} onValueChange={setLibraryView}>
           <TabsList><TabsTrigger value="papers">{t('papers')} <span className="pa-count">{library.papers.length}</span></TabsTrigger><TabsTrigger value="favorites">{t('favorites')} <span className="pa-count">{library.favorites?.length ?? 0}</span></TabsTrigger><TabsTrigger value="reports">{t('reports')} <span className="pa-count">{library.reports.length}</span></TabsTrigger></TabsList>
           <TabsContent value="papers" forceMount>
-            {loading ? <p role="status">{t('loading')}</p> : <PaperList selecting={showResearch} papers={library.papers} selected={selected} readingId={reading?.id ?? ''} locked={locked} onRead={paper => void read(paper)} onSelect={(id, checked) => setSelected(prior => checked ? [...prior, id] : prior.filter(item => item !== id))} t={t}/>}
+            {loading ? <p role="status">{t('loading')}</p> : <LibrarySearch api={api} t={t} onOpen={async hit => { const paper = library.papers.find(p => p.id === hit.source.paperId); if (!paper) return; await read(paper); if (hit.source.documentId && hit.page) setPdfFocus({ documentId: hit.source.documentId, page: hit.page }); }}><PaperList selecting={showResearch} papers={library.papers} selected={selected} readingId={reading?.id ?? ''} locked={locked} onRead={paper => void read(paper)} onSelect={(id, checked) => setSelected(prior => checked ? [...prior, id] : prior.filter(item => item !== id))} t={t}/></LibrarySearch>}
           </TabsContent>
           <TabsContent value="favorites" forceMount><ul className="pa-report-list">{(library.favorites ?? []).map(favorite => <li key={favorite.id} data-favorite-work={favorite.paper.id}>
             <Button variant="ghost" disabled={!favorite.paper.abstract.trim()} onClick={() => void readFavorite(favorite)}>{favorite.paper.title}</Button>
@@ -173,9 +181,9 @@ export default function PaperAgent() {
             <div className="pa-stage-toolbar"><TabsList><TabsTrigger value="source">{t('reader')}</TabsTrigger><TabsTrigger value="discovery">{t('discover')}</TabsTrigger><TabsTrigger value="report">{t('report')}</TabsTrigger>{!!library.matrixCount && <TabsTrigger value="matrix">{t('matrix')}</TabsTrigger>}{!!task.report?.experiments?.length && <TabsTrigger value="experiments">{t('experiments')}</TabsTrigger>}</TabsList>
               {task.report && view === 'report' && <div className="pa-actions pa-export"><Button variant="ghost" onClick={() => void exportReport('markdown')}>{t('exportMarkdown')}</Button><Button variant="ghost" onClick={() => void exportReport('json')}>{t('exportJson')}</Button><Button variant="ghost" onClick={() => window.print()}>{t('print')}</Button></div>}
             </div>
-            <TabsContent value="source" forceMount><div className="pa-document-scroll" aria-busy={readingBusy}>{readingBusy && <p className="pa-loading" role="status">{t('loading')}</p>}<Reader onMatrixAdded={async () => { await refresh(); setView('matrix'); }} api={api} pdfFocus={pdfFocus} onDiscover={discoverCurrent} paper={reading} busy={readingBusy} onFull={() => void full()} onExcerpt={excerpt} onDiscuss={chat ? discuss : undefined} t={t}/></div></TabsContent>
+            <TabsContent value="source" forceMount><div className="pa-document-scroll" aria-busy={readingBusy}>{readingBusy && <p className="pa-loading" role="status">{t('loading')}</p>}<Reader askDisabled={locked} onAskPdf={() => { if (!reading || locked) return; const paper = reading; setError(''); setReadingBusy(true); void api.post('/api/pdf', { paperId: paper.id }).then(() => { setSelected([paper.id]); setFullText(true); setVerifyCode(false); setShowResearch(true); requestAnimationFrame(() => document.getElementById('paper-question')?.focus()); }).catch(onError).finally(() => setReadingBusy(false)); }} onMatrixAdded={async () => { await refresh(); setView('matrix'); }} api={api} pdfFocus={pdfFocus} onDiscover={discoverCurrent} paper={reading} busy={readingBusy} onFull={() => void full()} onExcerpt={excerpt} onDiscuss={chat ? discuss : undefined} t={t}/></div></TabsContent>
             <TabsContent value="discovery" forceMount><div className="pa-document-scroll"><Discovery api={api} opening={discoveryOpening} library={library} locked={locked || task.repair} selected={selected} onRefresh={refresh} onRead={paper => read(paper)} onCompare={addToComparison} onReturn={id => { if (reading?.id === id) setView('source'); else { const paper = library.papers.find(p => p.id === id); if (paper) void read(paper); } }} t={t}/></div></TabsContent>
-            <TabsContent value="report" forceMount><div className="pa-report-layout" data-evidence={!!citation}><div className="pa-document-scroll"><ReportView report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div><EvidencePanel citation={citation} location={evidence} paper={citationPaper} busy={evidenceBusy} onClose={closeEvidence} onRead={page => { if (citationPaper) { const target = evidence?.pdf; void read(citationPaper).then(() => { if (target) setPdfFocus({ documentId: target.documentId, page: page ?? target.pages[0] }); }); } }} t={t}/></div></TabsContent>
+            <TabsContent value="report" forceMount><div className="pa-report-layout" data-evidence={!!citation}><div className="pa-document-scroll"><ReportView report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div><EvidencePanel citation={citation} location={evidence} paper={citationPaper} busy={evidenceBusy} onClose={closeEvidence} onRead={page => { if (citationPaper) { const target = evidence?.pdf; void read(citationPaper).then(() => { if (target) setPdfFocus({ documentId: target.documentId, page: page ?? target.pages[0], rects: target.rects }); }); } }} t={t}/></div></TabsContent>
             <TabsContent value="matrix" forceMount><div className="pa-document-scroll"><ReadingMatrix api={api} active={view === 'matrix'} count={library.matrixCount ?? 0} papers={library.papers} onOpen={annotation => { const paper = library.papers.find(item => item.id === annotation.paperId); if (paper) void read(paper).then(() => setPdfFocus({ documentId: annotation.documentId, page: annotation.page, annotationId: annotation.id })); }} t={t}/></div></TabsContent>
             <TabsContent value="experiments" forceMount><div className="pa-document-scroll"><Experiments report={task.report} intent={task.intent} onCite={value => void cite(value)} t={t}/></div></TabsContent>
           </Tabs>}</div>
@@ -184,11 +192,12 @@ export default function PaperAgent() {
         <Toolbar actions={<Button variant="ghost" disabled={locked} onClick={() => { task.reset(); setQuestion(''); }}>{t('newResearch')}</Button>}><h2>{t('research')}</h2></Toolbar>
         <div className="pa-research-inputs"><span>{t('selected')} {selected.length}/5</span><ol>{selected.map(id => <li key={id}>{library.papers.find(paper => paper.id === id)?.title ?? frozen?.papers.find(paper => paper.id === id)?.title ?? id}</li>)}</ol></div>
         <label className="pa-question-label" htmlFor="paper-question">{t('question')}</label><Textarea id="paper-question" rows={5} value={question} maxLength={2000} disabled={locked} onChange={event => setQuestion(event.target.value)} placeholder={t('questionPlaceholder')}/>
+        <label className="pa-checkbox-label"><Checkbox checked={fullText} disabled={locked || verifyCode} onCheckedChange={setFullText}/>{t('fullTextQuestion')}</label>
         {!agent.available && <p className="pa-muted">{t('noAgent')} <Button variant="ghost" onClick={() => void agent.refresh().catch(onError)}>{t('refresh')}</Button></p>}
         <div className="pa-run-actions">{task.pending ? <Button variant="primary" disabled={task.busy} onClick={() => begin(true)}>{t('retryStart')}</Button> : task.working ? <Button disabled={task.busy || task.status === 'cancelling'} onClick={() => void task.cancel()}>{task.status === 'cancelling' ? t('cancelling') : t('cancel')}</Button> : <Button variant="primary" disabled={!canPrepare || !agent.available || !agentId} onClick={() => begin(true)}><Icon name="play"/>{task.busy ? t('preparing') : t('start')}</Button>}
         </div>
         <details className="pa-research-options"><summary>{t('researchOptions')}</summary>
-        <label className="pa-checkbox-label"><Checkbox checked={verifyCode} disabled={locked} onCheckedChange={setVerifyCode}/>{t('verifyCode')}</label>
+        <label className="pa-checkbox-label"><Checkbox checked={verifyCode} disabled={locked || fullText} onCheckedChange={setVerifyCode}/>{t('verifyCode')}</label>
         {verifyCode && <Field label={t('boundary')}>{props => <Textarea {...props} rows={4} maxLength={4000} disabled={locked} value={verificationPlan} onChange={event => setVerificationPlan(event.target.value)} placeholder={t('boundaryPlaceholder')}/>}</Field>}
         <Select label={t('agent')} value={agentId} onChange={setAgentId} disabled={locked || !agent.available} options={agent.agents.filter(item => item.available).length ? agent.agents.filter(item => item.available).map(item => ({ value: item.id, label: item.name })) : [{ value: '', label: t('noAgentChoice') }]}/>
         {agent.workspace && <div className="pa-workspace-path"><small>{t('workspace')}</small><span title={agent.workspace}>{agent.workspace}</span></div>}
@@ -196,6 +205,7 @@ export default function PaperAgent() {
         </details>
         {task.status === 'failed' && task.raw && <Feedback kind="error">{task.raw}</Feedback>}
         {!!runStatus && <p className="pa-run-status" role="status">{runStatus}{task.status === 'needs_input' && chat && <Button onClick={() => {void chat.open().catch(onError);}}>{t('openChat')}</Button>}{task.status === 'failed' && task.sessionId && <Button onClick={task.retryPoll}>{t('retry')}</Button>}</p>}
+        {frozen?.retrieval && <details className="pa-small-details"><summary>{t('retrievalDetails')}</summary><p>{frozen.passages?.length ?? 0} / {frozen.retrieval.totalMatches} {t('localPassages')}</p>{!!frozen.retrieval.unmatchedPaperIds.length && <Feedback>{t('unmatchedSources')} {frozen.retrieval.unmatchedPaperIds.map(id => frozen.papers.find(p => p.id === id)?.title ?? id).join(' · ')}</Feedback>}<small>{t('localScope')}</small></details>}
         {task.sessionId && <details className="pa-small-details"><summary>{t('session')}</summary><code>{task.sessionId}</code></details>}
         {frozen && <div className="pa-frozen"><details className="pa-small-details"><summary>{t('prepared')}</summary><small>{frozen.id.slice(0, 16)}</small><Button variant="ghost" onClick={() => downloadFile('research-prompt.txt', frozen.prompt, 'text/plain;charset=utf-8')}>{t('prompt')}</Button></details>
           <details className="pa-output" open={task.repair}><summary>{t('importReport')}</summary>{task.repair && <p role="status">{t('invalidReport')}</p>}<Field label={t('rawOutput')}>{props => <Textarea {...props} rows={8} value={task.raw} disabled={task.working || task.busy} maxLength={500000} onChange={event => task.setRaw(event.target.value)} placeholder={t('reportPlaceholder')}/>}</Field><Button disabled={task.working || task.busy || !task.raw.trim()} onClick={() => { setError(''); void task.saveRaw(); }}>{t('saveReport')}</Button></details>

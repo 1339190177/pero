@@ -6,7 +6,7 @@ import { ScientificContent } from './scientific-content';
 import { EvidenceMatrix } from './evidence-matrix';
 import type { Translator } from './i18n';
 
-export function Reader({ paper, busy, api, pdfFocus, onFull, onExcerpt, onDiscuss, onDiscover, onMatrixAdded, t }: { paper: Paper | null; busy: boolean; api: Api; pdfFocus?: PdfFocus | null; onFull(): void; onExcerpt(text: string): void; onDiscuss?(text: string, source?: PdfSource): void; onDiscover(): void; onMatrixAdded(): Promise<void>; t: Translator }) {
+export function Reader({ paper, busy, api, pdfFocus, onFull, onExcerpt, onDiscuss, onDiscover, askDisabled, onAskPdf, onMatrixAdded, t }: { paper: Paper | null; busy: boolean; api: Api; pdfFocus?: PdfFocus | null; onFull(): void; onExcerpt(text: string): void; onDiscuss?(text: string, source?: PdfSource): void; onDiscover(): void; onAskPdf(): void; askDisabled: boolean; onMatrixAdded(): Promise<void>; t: Translator }) {
   const source = useRef<HTMLDivElement>(null), rawSource = useRef<HTMLPreElement>(null), excerpt = useRef('');
   useEffect(() => { excerpt.current = ''; }, [paper?.id]);
   function capture() {
@@ -23,7 +23,7 @@ export function Reader({ paper, busy, api, pdfFocus, onFull, onExcerpt, onDiscus
       <h1>{paper.title}</h1>
       <p className="pa-document-meta"><span>{t(paper.contentKind === 'abstract' ? 'abstract' : paper.contentKind === 'report' ? 'sourceReport' : 'fullText')}</span>{paper.sourceId.startsWith('synthetic') && <span>{t('synthetic')}</span>}</p>
       {!!paper.authors?.length && <p className="pa-authors">{paper.authors.join(', ')}</p>}
-      <Toolbar><Button onClick={onDiscover}>{t('discover')}</Button><a href={paper.url} target="_blank" rel="noreferrer">{t('original')}</a>
+      <Toolbar>{paper.pdfUrl && <Button disabled={busy || askDisabled} onClick={onAskPdf}>{t('askPdf')}</Button>}<Button onClick={onDiscover}>{t('discover')}</Button><a href={paper.url} target="_blank" rel="noreferrer">{t('original')}</a>
         {paper.contentKind !== 'full-text' && paper.source === 'alphaxiv' && <Button disabled={busy} onClick={onFull}>{busy ? t('loading') : t('fetchFull')}</Button>}
       </Toolbar>
     </header>
@@ -36,12 +36,12 @@ export function Reader({ paper, busy, api, pdfFocus, onFull, onExcerpt, onDiscus
   </article>;
 }
 
-export type Citation = { paperId: string; quote?: string };
+export type Citation = { paperId: string; quote?: string; passageId?: string };
 function Citations({ paperIds, evidence, intent, onCite, t }: { paperIds: string[]; evidence?: Evidence[]; intent: Intent; onCite(value: Citation): void; t: Translator }) {
   return <div className="pa-citations" aria-label={t('evidence')}>{paperIds.flatMap(id => {
     const paper = intent.papers.find(paper => paper.id === id), refs = evidence?.filter(item => item.paperId === id) ?? [];
     const quotes = refs.length ? refs.map(ref => ref.quote) : [undefined];
-    return quotes.map((quote, index) => <Button key={`${id}:${index}`} variant="ghost" onClick={() => onCite({ paperId: id, quote })}><span className="pa-citation-number">{intent.papers.findIndex(paper => paper.id === id) + 1}{quotes.length > 1 && `.${index + 1}`}</span><span>{paper?.title ?? id}</span>{quote && <span aria-label={t('exactQuote')}>↗</span>}</Button>);
+    return quotes.map((quote, index) => <Button key={`${id}:${index}`} variant="ghost" onClick={() => onCite({ paperId: id, quote, passageId: refs[index]?.passageId })}><span className="pa-citation-number">{intent.papers.findIndex(paper => paper.id === id) + 1}{quotes.length > 1 && `.${index + 1}`}</span><span>{paper?.title ?? id}</span>{quote && <span aria-label={t('exactQuote')}>↗</span>}</Button>);
   })}</div>;
 }
 function PrintedEvidence({ evidence, paperIds, intent }: { evidence?: Evidence[]; paperIds: string[]; intent: Intent }) {

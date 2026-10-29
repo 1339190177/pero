@@ -1,4 +1,11 @@
 export const messages = {
+  localSearch: { zh: '搜索本地原文', en: 'Search saved text' }, clearSearch: { zh: '清除', en: 'Clear search' },
+  localPassages: { zh: '匹配片段', en: 'matching passages' },
+  localNoMatches: { zh: '没有匹配片段。试试原文语言的关键词，或清除搜索以阅读论文。', en: 'No matching passages. Try keywords in the source language, or clear the search to read papers.' },
+  localScope: { zh: '仅检索已保存文本和最新版 PDF；关键词相关性不代表结论成立。', en: 'Saved text and latest saved PDFs only. Keyword relevance does not establish support.' },
+  localQueryTruncated: { zh: '本次仅使用前 64 个不同检索词，请缩短查询以获得更准确的结果。', en: 'Only the first 64 distinct terms were used. Shorten the query for more precise results.' },
+  unmatchedSources: { zh: '当前片段未覆盖：', en: 'No returned passages from:' },
+  askPdf: { zh: '问这篇论文', en: 'Ask this PDF' }, fullTextQuestion: { zh: '检索 PDF 全文', en: 'Search full PDF text' },
   pdfDownloading: { zh: '正在下载 PDF…', en: 'Downloading PDF…' }, pdfText: { zh: '文本', en: 'Text' },
   pdfPageText: { zh: '本页文本', en: 'Page text' },
   pdfReader: { zh: 'PDF 阅读器', en: 'PDF reader' }, pdfPage: { zh: '页码', en: 'Page' },

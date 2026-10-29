@@ -84,7 +84,8 @@ function PdfPages({ document, documentId, annotations, api, focus, t, onSaved, o
     return scrollCapability.onLayoutReady(event => {
       if (event.documentId !== documentId || applied) return;
       applied = true;
-      scrollCapability.forDocument(documentId).scrollToPage({ pageNumber: focus.page, behavior: 'instant' });
+      const rect = focus.rects?.[0], page = document.pages[focus.page - 1];
+      scrollCapability.forDocument(documentId).scrollToPage({ pageNumber: focus.page, behavior: 'instant', ...(rect ? { pageCoordinates: { x: rect.x * page.width, y: rect.y * page.height }, alignY: 25 } : {}) });
       setTarget(focus.annotationId ?? '');
     });
   }, [scrollCapability, focus, document.id, documentId]);
@@ -143,7 +144,7 @@ function PdfPages({ document, documentId, annotations, api, focus, t, onSaved, o
         <Scroller documentId={documentId} renderPage={({ width, height, pageIndex }) => <div className="pa-pdf-page" data-page-number={pageIndex + 1} data-selection-ready={!!selectionState?.documents[documentId]?.geometry[pageIndex]} style={{ width, height, position: 'relative', background: 'white' }}>
           <PagePointerProvider documentId={documentId} pageIndex={pageIndex}>
             <RenderLayer documentId={documentId} pageIndex={pageIndex} draggable={false}/>
-            <div className="pa-pdf-marks" aria-hidden="true">{annotations.filter(item => item.page === pageIndex + 1).flatMap(item => item.rects.map((rect, i) => <span key={`${item.id}:${i}`} data-annotation-id={item.id} data-kind={item.kind} data-focused={target === item.id} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }}/>))}</div>
+            <div className="pa-pdf-marks" aria-hidden="true">{focus?.page === pageIndex + 1 && focus.rects?.map((rect, i) => <span key={`citation:${i}`} data-citation-region="true" data-focused="true" style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }}/>) }{annotations.filter(item => item.page === pageIndex + 1).flatMap(item => item.rects.map((rect, i) => <span key={`${item.id}:${i}`} data-annotation-id={item.id} data-kind={item.kind} data-focused={target === item.id} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }}/>))}</div>
             <SelectionLayer documentId={documentId} pageIndex={pageIndex}/><MarqueeCapture documentId={documentId} pageIndex={pageIndex}/>
           </PagePointerProvider>
         </div>}/>
