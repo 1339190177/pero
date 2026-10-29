@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 pub mod context;
+pub mod roadmap;
 pub mod i18n;
 pub mod local_worker;
 pub mod session_settings;
@@ -56,6 +57,7 @@ pub enum HostCommand {
     Workspace {
         path: String,
     },
+    LoadRoadmap,
     AttachFiles {
         paths: Vec<String>,
     },
