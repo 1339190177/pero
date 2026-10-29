@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -182,15 +183,16 @@ func (p *LocalProvider) confineStrict(argv []string, policy Policy) (Confined, e
 }
 func strictBwrapProfile(policy Policy, mounts []strictMount, workspace bool) []string {
 	args := []string{"--die-with-parent", "--new-session", "--unshare-user", "--unshare-pid", "--unshare-net", "--unshare-ipc", "--unshare-uts", "--cap-drop", "ALL", "--clearenv", "--tmpfs", "/", "--tmpfs", "/tmp", "--proc", "/proc", "--dev", "/dev"}
-	// bwrap creates destination leaves, but parents must exist before RO mounts.
+	// bwrap consumes Linux paths, even when a profile is inspected on another OS.
+	// It creates destination leaves, but parents must exist before RO mounts.
 	parents := map[string]bool{}
 	for _, mount := range mounts {
-		for parent := filepath.Dir(mount.destination); parent != "/"; parent = filepath.Dir(parent) {
+		for parent := path.Dir(mount.destination); parent != "/" && parent != "."; parent = path.Dir(parent) {
 			parents[parent] = true
 		}
 	}
 	if workspace {
-		for parent := filepath.Dir(policy.WorkspaceRoot); parent != "/"; parent = filepath.Dir(parent) {
+		for parent := path.Dir(policy.WorkspaceRoot); parent != "/" && parent != "."; parent = path.Dir(parent) {
 			parents[parent] = true
 		}
 	}

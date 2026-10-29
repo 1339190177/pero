@@ -13,14 +13,17 @@ import (
 )
 
 func TestProfilesDenyNetworkAndHostRoot(t *testing.T) {
-	p := Policy{Mode: ReadOnly, WorkspaceRoot: "/work", Strict: &StrictProfile{ReadOnlyPaths: []string{"/usr/bin"}}}
+	p := Policy{Mode: ReadOnly, WorkspaceRoot: "/owned/nested/work", Strict: &StrictProfile{ReadOnlyPaths: []string{"/usr/bin"}}}
 	mounts := []strictMount{{source: "/usr/bin", destination: "/usr/bin"}}
 	args := strictBwrapProfile(p, mounts, true)
 	s := strings.Join(args, " ")
-	for _, want := range []string{"--unshare-net", "--clearenv", "--cap-drop ALL", "--ro-bind /work /work", "--remount-ro /"} {
+	for _, want := range []string{"--unshare-net", "--clearenv", "--cap-drop ALL", "--ro-bind /owned/nested/work /owned/nested/work", "--dir /owned", "--dir /owned/nested", "--dir /usr", "--remount-ro /"} {
 		if !strings.Contains(s, want) {
 			t.Fatal(want, s)
 		}
+	}
+	if strings.Contains(s, "--dir / ") || strings.Contains(s, `--dir \`) {
+		t.Fatal("profile parents must be POSIX paths below root", s)
 	}
 	if strings.Contains(s, "--ro-bind / /") {
 		t.Fatal("host root exported")
@@ -30,7 +33,7 @@ func TestProfilesDenyNetworkAndHostRoot(t *testing.T) {
 		t.Fatal(seat)
 	}
 	p.Mode = WorkspaceWrite
-	if !strings.Contains(strings.Join(strictBwrapProfile(p, mounts, true), " "), "--bind /work /work") {
+	if !strings.Contains(strings.Join(strictBwrapProfile(p, mounts, true), " "), "--bind /owned/nested/work /owned/nested/work") {
 		t.Fatal("workspace grant absent")
 	}
 }
