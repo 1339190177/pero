@@ -534,5 +534,6 @@
   "chat.usage_input": "Input tokens",
   "chat.usage_output": "Output tokens",
   "workspace.close_tab": "Close tab",
-  "workspace.resize_chat": "Resize chat. Use Left and Right arrow keys."
+  "workspace.resize_chat": "Resize chat. Use Left and Right arrow keys.",
+  "composer.app_object": "App objects"
 }

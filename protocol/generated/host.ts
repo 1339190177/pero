@@ -32,7 +32,7 @@ export type HostCommand =
   | CloseCommand
   | DeleteCommand;
 export type ContextKind =
-  "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch";
+  "file" | "directory" | "symbol" | "thread" | "skill" | "image" | "selection" | "branch_diff" | "fetch" | "app_object";
 export type ThreadId = string;
 export type ContextContent = TextContextContent | ImageContextContent;
 export type AppRequest = ListApps | InstallApp | EnableApp | DisableApp | UninstallApp | ResolveApp | AgentApp;

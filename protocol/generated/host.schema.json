@@ -1249,7 +1249,8 @@
         "image",
         "selection",
         "branch_diff",
-        "fetch"
+        "fetch",
+        "app_object"
       ]
     },
     "ContextReference": {

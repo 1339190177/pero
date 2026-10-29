@@ -179,6 +179,7 @@ impl ContextSources<'_> {
                     detail: "Working tree, staged and committed changes against base".into(),
                 });
             }
+            ContextKind::AppObject => return Ok(vec![]),
             ContextKind::Fetch => {
                 let url = context_url(query)?;
                 items.push(ContextCandidate {
@@ -208,6 +209,7 @@ impl ContextSources<'_> {
         }
         let label;
         let content = match kind {
+            ContextKind::AppObject => return Err("App context must be selected from its managed panel".into()),
             ContextKind::Fetch => {
                 let url = context_url(source)?;
                 let client = reqwest::blocking::Client::builder()

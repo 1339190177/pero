@@ -73,7 +73,7 @@ model ListAgentsCommand { action: "list_agents"; ...Closed }
 model WorkspaceCommand { action: "workspace"; path: string; ...Closed }
 model LoadRoadmapCommand { action: "load_roadmap"; ...Closed }
 model AttachFilesCommand { action: "attach_files"; paths: string[]; ...Closed }
-enum ContextKind { file, directory, symbol, thread, skill, image, selection, branch_diff, fetch }
+enum ContextKind { file, directory, symbol, thread, skill, image, selection, branch_diff, fetch, app_object }
 model TextContextContent { type: "text"; text: string; ...Closed }
 model ImageContextContent { type: "image"; data: string; mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp"; ...Closed }
 @oneOf union ContextContent {TextContextContent, ImageContextContent}

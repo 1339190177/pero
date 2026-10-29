@@ -188,6 +188,7 @@ impl ChatPanel {
             ContextKind::Selection => "composer.selection",
             ContextKind::BranchDiff => "composer.branch_diff",
             ContextKind::Fetch => "composer.fetch",
+            ContextKind::AppObject => "composer.app_object",
         })
     }
 
@@ -202,6 +203,7 @@ impl ChatPanel {
             ContextKind::Selection => "icons/text-cursor.svg",
             ContextKind::BranchDiff => "icons/git-branch.svg",
             ContextKind::Fetch => "icons/globe.svg",
+            ContextKind::AppObject => "icons/box.svg",
         }
     }
 }
