@@ -2,16 +2,17 @@ use super::*;
 
 impl Workbench {
     pub(crate) fn remote_form(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let busy = self.remote.loading() || self.remote.submitting;
         let agent = self.remote_agent(cx);
         let agents = self.chat.read(cx).agents.clone();
+        let caption = pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption);
         let field = |label: &str, child: AnyElement| {
             div()
                 .flex()
                 .flex_col()
                 .gap(px(6.))
-                .child(section_title(p, label))
+                .child(section_title(p, label, caption))
                 .child(child)
         };
         div()
@@ -29,7 +30,7 @@ impl Workbench {
                     .gap(px(14.))
                     .child(
                         div()
-                            .text_size(px(22.))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title))
                             .font_weight(FontWeight::BOLD)
                             .child(self.t("remote.new")),
                     )
@@ -95,7 +96,7 @@ impl Workbench {
                                     .small()
                                     .label(a.name.clone())
                                     .toggled(agent == a.id)
-                                    .when(agent == a.id, |b| b.bg(p.color("accent-soft")))
+                                    .when(agent == a.id, |b| b.bg(p.accent_soft))
                                     .disabled(busy)
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.remote.agent = Some(id.clone());
@@ -111,7 +112,7 @@ impl Workbench {
                                 .role(Role::Alert)
                                 .aria_label(self.t(key))
                                 .whitespace_normal()
-                                .text_color(p.color("error"))
+                                .text_color(p.error)
                                 .child(self.t(key)),
                         )
                     })
@@ -144,8 +145,8 @@ impl Workbench {
                     )
                     .child(
                         div()
-                            .text_size(px(12.))
-                            .text_color(p.color("text-muted"))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                            .text_color(p.text_muted)
                             .child(self.t("remote.draft_hint")),
                     ),
             )

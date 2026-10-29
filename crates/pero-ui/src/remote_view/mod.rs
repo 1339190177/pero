@@ -73,11 +73,11 @@ pub(crate) fn local_time(iso: &str) -> String {
     }
 }
 
-pub(crate) fn section_title(p: &Palette, text: &str) -> Div {
+pub(crate) fn section_title(p: &Palette, text: &str, font_size: Pixels) -> Div {
     div()
-        .text_size(px(12.))
+        .text_size(font_size)
         .font_weight(FontWeight::SEMIBOLD)
-        .text_color(p.color("text-muted"))
+        .text_color(p.text_muted)
         .child(text.to_string())
 }
 
@@ -95,7 +95,7 @@ impl Workbench {
             .unwrap_or_else(|| id.to_string())
     }
     pub fn remote_view(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let detail_visible = self.remote.creating
             || matches!(self.navigation.current(), Some(WorkspaceItem::Task(_)));
         let configured = self.remote.configured();
@@ -117,8 +117,8 @@ impl Workbench {
                         .gap(px(8.))
                         .px(px(20.))
                         .py(px(10.))
-                        .bg(p.color("error-bg"))
-                        .text_color(p.color("error"))
+                        .bg(p.error_bg)
+                        .text_color(p.error)
                         .whitespace_normal()
                         .child(string(&self.remote.data, "error").to_string()),
                 )
@@ -141,8 +141,8 @@ impl Workbench {
                             .aria_label(self.t("remote.sync_incomplete"))
                             .px(px(20.))
                             .py(px(10.))
-                            .bg(p.color("warning-bg"))
-                            .text_color(p.color("warning"))
+                            .bg(p.warning_bg)
+                            .text_color(p.warning)
                             .whitespace_normal()
                             .child(self.t("remote.sync_incomplete")),
                     )
@@ -150,7 +150,7 @@ impl Workbench {
             )
             .when(editing, |el| el.child(self.remote_connection_view(cx)))
             .when(!configured && !editing,|el|el.child(div().p(px(24.)).flex().flex_col().gap(px(12.))
-                .child(div().text_color(p.color("text-muted")).child(self.t("project.connect_tasks")))
+                .child(div().text_color(p.text_muted).child(self.t("project.connect_tasks")))
                 .child(Button::new("project-connect").outline().label(self.t("settings.connections"))
                     .on_click(cx.listener(|this,_,window,cx|{this.navigate(WorkbenchPage::Connections,cx);this.open_remote_connection(window,cx);} )))))
             .when(

@@ -4,7 +4,7 @@ impl Workbench {
     pub(crate) fn remote_list(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         use crate::projects::TaskStatusFilter;
         let owner = cx.entity().clone();
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let loading = self.remote.loading();
         let query = self.remote.search.read(cx).value().to_lowercase();
         let unbound = self
@@ -143,9 +143,9 @@ impl Workbench {
             .flex()
             .items_center()
             .gap(px(12.))
-            .bg(p.color("surface-muted"))
-            .text_size(px(12.))
-            .text_color(p.color("text-muted"))
+            .bg(p.surface_muted)
+            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+            .text_color(p.text_muted)
             .child(div().flex_1().child(self.t("cloud.col.task")))
             .child(div().w(px(105.)).child(self.t("cloud.col.status")))
             .when(!narrow, |el| {
@@ -166,7 +166,7 @@ impl Workbench {
                 el.child(
                     div()
                         .py(px(32.))
-                        .text_color(p.color("text-muted"))
+                        .text_color(p.text_muted)
                         .whitespace_normal()
                         .child(self.t(if loading {
                             "remote.loading"
@@ -262,7 +262,7 @@ impl Workbench {
         narrow: bool,
         cx: &mut Context<Self>,
     ) -> Button {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let id = string(task, "id").to_string();
         let title = string(task, "title").to_string();
         let state = phase(task);
@@ -282,7 +282,7 @@ impl Workbench {
             .rounded_none()
             .px(px(12.))
             .border_b_1()
-            .border_color(p.color("border"))
+            .border_color(p.border)
             .accessibility_label(label)
             .child(
                 div()
@@ -305,8 +305,8 @@ impl Workbench {
                                     div()
                                         .mt(px(4.))
                                         .truncate()
-                                        .text_size(px(11.))
-                                        .text_color(p.color("text-muted"))
+                                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                        .text_color(p.text_muted)
                                         .child(source),
                                 )
                             }),
@@ -314,7 +314,7 @@ impl Workbench {
                     .child(
                         div()
                             .w(px(105.))
-                            .text_size(px(12.))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
                             .text_color(p.color(tone_colors(state.tone()).1))
                             .child(self.t(state.label_key())),
                     )
@@ -323,15 +323,15 @@ impl Workbench {
                             div()
                                 .w(px(100.))
                                 .truncate()
-                                .text_size(px(12.))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
                                 .child(string(task, "agent_id").to_string()),
                         )
                         .child(
                             div()
                                 .w(px(150.))
                                 .truncate()
-                                .text_size(px(12.))
-                                .text_color(p.color("text-muted"))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                .text_color(p.text_muted)
                                 .child(target),
                         )
                     }),
