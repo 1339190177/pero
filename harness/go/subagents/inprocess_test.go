@@ -244,7 +244,8 @@ func TestForkKeepsCompletedPrefixAndInheritedToolMask(t *testing.T) {
 			t.Fatal("parent tool restriction lost")
 		}
 	}
-	if err := run.Dispose(ctx); err != nil {
+	// Result delivery precedes the terminal bookkeeping receipt; join it explicitly.
+	if err := run.Wait(ctx); err != nil {
 		t.Fatal(err)
 	}
 }

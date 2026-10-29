@@ -1472,7 +1472,7 @@
       },
       {
         "destination": "subagents/inprocess_test.go",
-        "sha256": "16f823b56afa4a22f3e97876139997adeac9332c2b3425cd79f02792bff4721d"
+        "sha256": "51e9970fa35b7583681ca6f8a3779bd711805de901b006168704f994ee4c15d2"
       }
     ]
   }

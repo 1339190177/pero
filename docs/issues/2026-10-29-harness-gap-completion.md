@@ -210,3 +210,19 @@ it passes. The exact fixture source compiled in an isolated Rust 1.99.1 crate;
 only the new regression ran there (seven worker integration tests filtered out).
 The isolated run was not a local full-worker or macOS pass. Final CI acceptance
 above subsequently verified the complete macOS remote suite and all other jobs.
+
+## Post-acceptance test receipt correction (2026-10-29)
+
+The documentation-only follow-up run `40808553240` exposed a remaining test
+caller in `TestForkKeepsCompletedPrefixAndInheritedToolMask`: after consuming
+`run.Result`, it asserted that another `Dispose` request was already terminal.
+Result delivery precedes final retirement bookkeeping, so that request can
+legitimately return `ErrSubagentActivationDisposalPending`. The test now joins
+`run.Wait(ctx)`, matching the production caller contract fixed above; no runtime
+code or cancellation policy changed. Other disposal assertions were inspected:
+active-disposal, self-wait and repeated-disposal-after-terminal-join tests remain
+intact. The fork test plus the existing typed receipt regression passed 100 times
+under the race detector. This corrects a test expectation, not a reopened runtime
+result-loss defect; the earlier dated 15-job acceptance remains historical evidence.
+Follow-up publication and CI outcomes are tracked in PR #4; this dated record
+does not require another repository edit after acceptance.
