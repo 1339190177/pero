@@ -138,6 +138,9 @@ model RemoteConnection {
   ...Closed;
 }
 model ProvisionWorker { name: string; projects: string[]; labels?: string[]; ...Closed }
+model WorkerCapability { project_id: Id; workspace_key: Id; agent_id: Id; ...Closed }
+model EnrollWorker { device_id: Id; request_id: Id; name: string; projects: string[]; capabilities: WorkerCapability[]; @minLength(64) @maxLength(64) enrollment_secret: string; ...Closed }
+model DisableWorkerResult { disabled: boolean; ...Closed }
 model WorkerCredential { worker: Worker; token: string; ...Closed }
 model Dispatch { worker_id?: string; ...Closed }
 model Claim { request_id: Id; instance_id: Id; ...Closed }
@@ -149,4 +152,4 @@ model Complete { ...LeaseIdentity; outcome: Outcome; @maxLength(16000) summary: 
 model ErrorResponse { error: string; ...Closed }
 
 @oneOf
-union RemoteProtocol { TaskSpec, Task, Run, Worker, RunEvent, RemoteState, TaskPage, EventReceipt, ProvisionWorker, WorkerCredential, ClientCredential, Identity, GitHubStatus, GitHubSyncResult, Dispatch, Claim, ClaimResult, LeaseIdentity, RenewResult, EventBatch, Complete, ErrorResponse }
+union RemoteProtocol { TaskSpec, Task, Run, Worker, RunEvent, RemoteState, TaskPage, EventReceipt, ProvisionWorker, EnrollWorker, WorkerCapability, DisableWorkerResult, WorkerCredential, ClientCredential, Identity, GitHubStatus, GitHubSyncResult, Dispatch, Claim, ClaimResult, LeaseIdentity, RenewResult, EventBatch, Complete, ErrorResponse }

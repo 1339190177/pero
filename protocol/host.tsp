@@ -22,6 +22,14 @@ model Closed {
   ...Record<never>;
 }
 
+model LocalWorkerBinding {project_id:string; workspace_key:string; path:string; agent_ids:string[]; ...Closed}
+model LocalWorkerSummary {id:string; name:string; url:string; bindings:LocalWorkerBinding[]; ...Closed}
+model LocalWorkerConfig {id:string; name:string; url:string; token:string; bindings:LocalWorkerBinding[]; ...Closed}
+model LocalWorkerStartCommand {action:"local_worker_start"; request_id:string; worker:LocalWorkerConfig; ...Closed}
+model LocalWorkerStopCommand {action:"local_worker_stop"; request_id:string; ...Closed}
+model LocalWorkerGetCommand {action:"local_worker_get"; request_id:string; ...Closed}
+@oneOf union LocalWorkerRequest {LocalWorkerStartCommand,LocalWorkerStopCommand,LocalWorkerGetCommand}
+
 // ---------- Host input: one JSON object per stdin line ----------
 
 /** Bootstrap transport probe. */
@@ -101,6 +109,7 @@ union HostCommand {
 
 @oneOf
 union HostInput {
+  LocalWorkerRequest,
   EchoRequest,
   SetLocaleRequest,
   SetRemoteSettingsRequest,
@@ -136,6 +145,12 @@ model WorkbenchSettingsEvent { kind: "workbench_settings"; ...EventBase; data: W
 /** Main-process acknowledgements contain no persisted connection payload. */
 model RemoteSettingsSavedEvent { kind: "remote_settings_saved"; ...EventBase }
 model RemoteSettingsErrorEvent { kind: "remote_settings_error"; ...EventBase }
+model LocalWorkerState {
+  status:"stopped"|"starting"|"idle"|"running"|"offline"|"stopping"|"needs_attention"|"unavailable";
+  enabled:boolean; configuration:LocalWorkerSummary|null; worker_id:string; name:string; url:string;
+  message:string; run_id:string|null; attempt:uint32; ...Closed
+}
+model LocalWorkerStateEvent {kind:"local_worker_state"; ...EventBase; data:LocalWorkerState}
 model ReadyEvent { kind: "ready"; ...SystemEventBase }
 /** Emitted by Electron when the Host child cannot start or exits. */
 model DisconnectedEvent { kind: "disconnected"; ...SystemEventBase }
@@ -233,6 +248,7 @@ model ContributorSessionEvent { kind: "contributor_session"; ...ThreadEventBase;
 
 @oneOf
 union HostEvent {
+  LocalWorkerStateEvent,
   ContributorStateEvent,
   ContributorSessionEvent,
   Pero.Contributions.ContributionResultEvent,

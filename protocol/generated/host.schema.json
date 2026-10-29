@@ -1734,6 +1734,9 @@
       "title": "HostEvent",
       "oneOf": [
         {
+          "$ref": "#/$defs/LocalWorkerStateEvent"
+        },
+        {
           "$ref": "#/$defs/ContributorStateEvent"
         },
         {
@@ -1846,6 +1849,9 @@
     "HostInput": {
       "title": "HostInput",
       "oneOf": [
+        {
+          "$ref": "#/$defs/LocalWorkerRequest"
+        },
         {
           "$ref": "#/$defs/EchoRequest"
         },
@@ -1972,6 +1978,298 @@
         "action",
         "method",
         "id"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerBinding": {
+      "title": "LocalWorkerBinding",
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string"
+        },
+        "workspace_key": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "agent_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "project_id",
+        "workspace_key",
+        "path",
+        "agent_ids"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerConfig": {
+      "title": "LocalWorkerConfig",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalWorkerBinding"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "url",
+        "token",
+        "bindings"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerGetCommand": {
+      "title": "LocalWorkerGetCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "local_worker_get"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerRequest": {
+      "title": "LocalWorkerRequest",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LocalWorkerStartCommand"
+        },
+        {
+          "$ref": "#/$defs/LocalWorkerStopCommand"
+        },
+        {
+          "$ref": "#/$defs/LocalWorkerGetCommand"
+        }
+      ]
+    },
+    "LocalWorkerStartCommand": {
+      "title": "LocalWorkerStartCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "local_worker_start"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "worker": {
+          "$ref": "#/$defs/LocalWorkerConfig"
+        }
+      },
+      "required": [
+        "action",
+        "request_id",
+        "worker"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerState": {
+      "title": "LocalWorkerState",
+      "type": "object",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "stopped"
+            },
+            {
+              "type": "string",
+              "const": "starting"
+            },
+            {
+              "type": "string",
+              "const": "idle"
+            },
+            {
+              "type": "string",
+              "const": "running"
+            },
+            {
+              "type": "string",
+              "const": "offline"
+            },
+            {
+              "type": "string",
+              "const": "stopping"
+            },
+            {
+              "type": "string",
+              "const": "needs_attention"
+            },
+            {
+              "type": "string",
+              "const": "unavailable"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LocalWorkerSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "worker_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "required": [
+        "status",
+        "enabled",
+        "configuration",
+        "worker_id",
+        "name",
+        "url",
+        "message",
+        "run_id",
+        "attempt"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerStateEvent": {
+      "title": "LocalWorkerStateEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "local_worker_state"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/LocalWorkerState"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerStopCommand": {
+      "title": "LocalWorkerStopCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "local_worker_stop"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "LocalWorkerSummary": {
+      "title": "LocalWorkerSummary",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalWorkerBinding"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "url",
+        "bindings"
       ],
       "additionalProperties": false
     },

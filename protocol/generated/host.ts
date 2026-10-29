@@ -5,6 +5,7 @@
  */
 export type HostProtocol = HostInput | HostEvent;
 export type HostInput =
+  | LocalWorkerRequest
   | EchoRequest
   | SetLocaleRequest
   | SetRemoteSettingsRequest
@@ -13,6 +14,7 @@ export type HostInput =
   | HostCommand
   | AppRequest
   | ContributionRequest;
+export type LocalWorkerRequest = LocalWorkerStartCommand | LocalWorkerStopCommand | LocalWorkerGetCommand;
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
@@ -36,6 +38,7 @@ export type RequestId = string;
 export type AppName = string;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | LocalWorkerStateEvent
   | ContributorStateEvent
   | ContributorSessionEvent
   | ContributionResultEvent
@@ -91,6 +94,32 @@ export type ThreadEvent =
   | SessionClosedEvent;
 export type AppResult = AppSuccess | AppFailure;
 
+export interface LocalWorkerStartCommand {
+  action: "local_worker_start";
+  request_id: string;
+  worker: LocalWorkerConfig;
+}
+export interface LocalWorkerConfig {
+  id: string;
+  name: string;
+  url: string;
+  token: string;
+  bindings: LocalWorkerBinding[];
+}
+export interface LocalWorkerBinding {
+  project_id: string;
+  workspace_key: string;
+  path: string;
+  agent_ids: string[];
+}
+export interface LocalWorkerStopCommand {
+  action: "local_worker_stop";
+  request_id: string;
+}
+export interface LocalWorkerGetCommand {
+  action: "local_worker_get";
+  request_id: string;
+}
 /**
  * Bootstrap transport probe.
  */
@@ -275,6 +304,30 @@ export interface ContributionPublish {
   operation: "publish";
   workspace: string;
   review_token: string;
+}
+export interface LocalWorkerStateEvent {
+  kind: "local_worker_state";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: LocalWorkerState;
+}
+export interface LocalWorkerState {
+  status: "stopped" | "starting" | "idle" | "running" | "offline" | "stopping" | "needs_attention" | "unavailable";
+  enabled: boolean;
+  configuration: LocalWorkerSummary | null;
+  worker_id: string;
+  name: string;
+  url: string;
+  message: string;
+  run_id: string | null;
+  attempt: number;
+}
+export interface LocalWorkerSummary {
+  id: string;
+  name: string;
+  url: string;
+  bindings: LocalWorkerBinding[];
 }
 export interface ContributorStateEvent {
   kind: "contributor_state";
