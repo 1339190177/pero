@@ -108,7 +108,7 @@ impl PendingText {
 }
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
-pub(crate) struct StreamText {
+pub struct StreamText {
     document: Entity<TextViewState>,
     pending: PendingText,
     follow_scroll: Option<ScrollHandle>,
@@ -221,7 +221,7 @@ impl Render for StreamText {
 /// Scroll offsets are negative toward the bottom; max_offset is a positive
 /// extent. Do not pull readers back down while they inspect earlier output.
 #[cfg(any(target_family = "wasm", feature = "native"))]
-pub(crate) fn near_bottom(scroll: &ScrollHandle) -> bool {
+pub fn near_bottom(scroll: &ScrollHandle) -> bool {
     scroll.max_offset().y + scroll.offset().y <= px(48.)
 }
 
@@ -229,7 +229,7 @@ pub(crate) fn near_bottom(scroll: &ScrollHandle) -> bool {
 /// cannot revoke it. Apply a concrete offset after the new content is laid out,
 /// and discard this follow request if the reader moved since it was requested.
 #[cfg(any(target_family = "wasm", feature = "native"))]
-pub(crate) fn scroll_after_layout(scroll: &ScrollHandle, window: &Window) {
+pub fn scroll_after_layout(scroll: &ScrollHandle, window: &Window) {
     let scroll = scroll.clone();
     let previous = scroll.offset();
     window.on_next_frame(move |window, _| {

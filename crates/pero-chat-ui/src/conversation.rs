@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct AgentChoice {
+pub struct AgentChoice {
     pub id: String,
     pub name: String,
     pub available: bool,
 }
 
 #[derive(Clone, Serialize)]
-pub(crate) struct Message {
+pub struct Message {
     pub role: String,
     pub text: String,
     pub attached_files: Vec<String>,
@@ -68,7 +68,7 @@ impl Message {
 }
 
 #[derive(Clone, Serialize)]
-pub(crate) struct Tool {
+pub struct Tool {
     pub id: String,
     pub title: String,
     pub kind: String,
@@ -101,14 +101,16 @@ impl Tool {
 /// Updates mutate their existing store entry without moving the timeline row.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", content = "index", rename_all = "snake_case")]
-pub(crate) enum StreamItem {
+pub enum StreamItem {
     Message(usize),
     Tool(usize),
 }
 
 #[derive(Clone, Serialize)]
-pub(crate) struct Conversation {
+pub struct Conversation {
     pub workspace: String,
+    pub scope: Option<pero_contracts::AppChatScope>,
+    pub usage: Option<pero_contracts::usage::SessionUsage>,
     pub id: String,
     pub title: String,
     pub agent: String,
@@ -149,6 +151,8 @@ impl Conversation {
     pub fn new(id: String, agent: String, title: String) -> Self {
         Self {
             workspace: String::new(),
+            scope: None,
+            usage: None,
             id,
             agent,
             title,

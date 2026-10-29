@@ -521,5 +521,16 @@
   "roadmap.running": "正在本地会话中执行",
   "roadmap.finished": "本轮已结束 · 请在会话中复核",
   "roadmap.auth_required": "Agent 需要登录 · 请打开会话",
-  "roadmap.attention": "打开会话查看状态"
+  "roadmap.attention": "打开会话查看状态",
+  "chat.panel_title": "对话",
+  "chat.panel_loading": "正在打开对话…",
+  "chat.panel_timeout": "对话未加载，请重试。",
+  "chat.open_panel": "打开对话",
+  "chat.close_panel": "收起对话",
+  "apps.switch": "切换应用",
+  "chat.usage": "用量",
+  "chat.usage_context": "上下文",
+  "chat.usage_cost": "会话费用",
+  "chat.usage_input": "输入 token",
+  "chat.usage_output": "输出 token"
 }

@@ -1,6 +1,6 @@
 use crate::{
-    app::{Workbench, session_command},
     conversation::{Conversation, StreamItem},
+    panel::ChatPanel,
 };
 use gpui_kit::{
     component::{button::*, *},
@@ -8,7 +8,7 @@ use gpui_kit::{
     *,
 };
 use pero_contracts::HostEvent;
-use serde_json::{Value, json};
+use serde_json::json;
 
 enum RenderItem {
     Message(usize),
@@ -48,10 +48,10 @@ fn render_items(chat: &Conversation) -> Vec<RenderItem> {
     rows
 }
 
-impl Workbench {
+impl ChatPanel {
     pub fn sync_follow(&mut self, cx: &mut Context<Self>) {
         for (i, chat) in self.chats.iter_mut().enumerate() {
-            let enabled = self.active_chat == Some(i) && self.tab == 4 && self.navigation == 0;
+            let enabled = self.active_chat == Some(i) && self.visible;
             let open_tools = if enabled {
                 render_items(chat)
                     .into_iter()
@@ -84,10 +84,13 @@ impl Workbench {
             }
         }
     }
-    pub fn focus_chat(&mut self, index: Option<usize>, tab: usize, cx: &mut Context<Self>) {
+    pub fn focus_chat(&mut self, index: Option<usize>, cx: &mut Context<Self>) {
         if self.active_chat != index {
             if let Some(chat) = self.active_chat.and_then(|i| self.chats.get_mut(i)) {
-                chat.draft = self.composer.read(cx).content();
+                chat.draft = self
+                    .composer_restore
+                    .clone()
+                    .unwrap_or_else(|| self.composer.read(cx).content());
                 chat.draft_references = self.composer_state.references.clone();
             }
             self.composer_state = Default::default();
@@ -95,26 +98,12 @@ impl Workbench {
             if let Some(chat) = index.and_then(|i| self.chats.get(i)) {
                 self.composer_restore = Some(chat.draft.clone());
                 self.composer_state.references = chat.draft_references.clone();
+            } else {
+                self.composer_restore = Some(gpui_kit::component::input::InputContent::new(""));
             }
         }
         self.active_chat = index;
-        self.tab = tab;
         self.sync_follow(cx);
-        cx.notify();
-    }
-    pub fn command(&mut self, value: Value, cx: &mut Context<Self>) {
-        if value["action"] == "choose_workspace"
-            && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings)
-        {
-            self.pending_project_workspace = false;
-        }
-        if session_command(&value.to_string()).is_err() {
-            if let Some(chat) = self.active_chat.and_then(|index| self.chats.get_mut(index)) {
-                chat.pending_model = None;
-                chat.pending_setting = None;
-            }
-            self.error = Some("error.connection".into());
-        }
         cx.notify();
     }
     pub fn delete_chat(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -136,6 +125,7 @@ impl Workbench {
         };
         let id = chat.id.clone();
         let active = self.active_chat == Some(index);
+        self.expanded_reasoning.retain(|(thread, _)| thread != &id);
         self.expanded_tools
             .retain(|key| !key.starts_with(&format!("{id}/")));
         self.chats.remove(index);
@@ -156,6 +146,11 @@ impl Workbench {
         cx.notify();
     }
     pub fn new_chat(&mut self, cx: &mut Context<Self>) {
+        self.new_draft(cx);
+        cx.emit(crate::ChatAction::Activated);
+    }
+
+    pub(crate) fn new_draft(&mut self, cx: &mut Context<Self>) {
         let agent = self
             .agents
             .get(self.agent_index)
@@ -172,15 +167,15 @@ impl Workbench {
         self.chats
             .push(Conversation::new(id, agent, self.t("chat.new").into()));
         self.chats.last_mut().unwrap().workspace = self.workspace.clone();
-        self.navigation = 0;
+        self.chats.last_mut().unwrap().scope = self.scope.clone();
         self.error = None;
-        self.focus_chat(Some(self.chats.len() - 1), 4, cx);
+        self.focus_chat(Some(self.chats.len() - 1), cx);
     }
     pub fn connect_chat(&mut self, cx: &mut Context<Self>) {
         if let Some(i) = self.active_chat {
             if self.chats[i].state == "draft" {
                 self.chats[i].state = "connecting".into();
-                self.command(json!({"action":"new_session","thread_id":self.chats[i].id,"agent_id":self.chats[i].agent}),cx);
+                self.command(json!({"action":"new_session","thread_id":self.chats[i].id,"agent_id":self.chats[i].agent,"scope":self.chats[i].scope}),cx);
             }
         }
     }
@@ -223,7 +218,7 @@ impl Workbench {
             chat.state = "connecting".into();
             chat.queued = Some(text);
             chat.queued_contexts = contexts;
-            json!({"action":"new_session","thread_id":chat.id,"agent_id":chat.agent})
+            json!({"action":"new_session","thread_id":chat.id,"agent_id":chat.agent,"scope":chat.scope})
         } else {
             chat.state = "running".into();
             json!({"action":"prompt","thread_id":chat.id,"text":text,"contexts":contexts})
@@ -239,27 +234,67 @@ impl Workbench {
     }
     pub fn receive_chat(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
         if event.kind == "replay" {
-            self.chats.clear();
-            self.active_chat = None;
+            // A refresh is a history snapshot, not a reset of the retained editor
+            // or of newer live events that this surface has already observed.
+            let selected = self
+                .active_chat
+                .and_then(|index| self.chats.get(index))
+                .map(|chat| chat.id.clone());
+            let retained = self
+                .chats
+                .iter()
+                .map(|chat| chat.id.clone())
+                .collect::<std::collections::HashSet<_>>();
             if let Some(events) = event.data["events"].as_array() {
                 for value in events {
-                    if let Ok(event) = serde_json::from_value(value.clone()) {
-                        self.receive_chat(&event, cx);
+                    if let Ok(replayed) = serde_json::from_value::<HostEvent>(value.clone()) {
+                        if replayed
+                            .thread_id
+                            .as_ref()
+                            .is_some_and(|id| !retained.contains(id))
+                        {
+                            self.receive_chat(&replayed, cx);
+                        }
                     }
                 }
             }
             for chat in &mut self.chats {
-                if !event.data["active"]
+                let active = event.data["active"]
                     .as_array()
-                    .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(&chat.id)))
-                {
+                    .is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(&chat.id)));
+                if !active && chat.state != "draft" {
                     chat.state = "closed".into();
-                }
-                chat.queued = None;
-                if chat.state == "closed" {
+                    chat.queued = None;
+                    chat.queued_contexts.clear();
                     chat.permission = None;
+                    chat.pending_model = None;
+                    chat.pending_setting = None;
+                    chat.flush(cx);
                 }
             }
+            let initial_empty = !self.replayed
+                && self.pending_prompts.is_empty()
+                && self.composer.read(cx).value().is_empty()
+                && selected
+                    .as_ref()
+                    .and_then(|id| self.chats.iter().find(|chat| &chat.id == id))
+                    .is_some_and(|chat| chat.state == "draft" && chat.draft.text().is_empty());
+            let restored = initial_empty
+                .then(|| {
+                    self.chats
+                        .iter()
+                        .rposition(|chat| chat.scope == self.scope && chat.state != "draft")
+                })
+                .flatten();
+            let next = restored
+                .or_else(|| {
+                    selected
+                        .as_ref()
+                        .and_then(|id| self.chats.iter().position(|chat| &chat.id == id))
+                })
+                .or_else(|| self.chats.iter().rposition(|chat| chat.scope == self.scope));
+            self.replayed = true;
+            self.focus_chat(next, cx);
             cx.notify();
             return true;
         }
@@ -294,31 +329,6 @@ impl Workbench {
         }
         if event.kind == "workspace" {
             self.workspace = event.text.clone();
-            if let Ok(identity) = serde_json::from_value::<
-                pero_contracts::workbench::WorkspaceIdentity,
-            >(event.data.clone())
-            {
-                self.workspace_repositories
-                    .retain(|entry| entry.workspace != event.text);
-                if let Some(repository) = identity.repository {
-                    self.workspace_repositories.push(
-                        pero_contracts::workbench::WorkspaceRepository {
-                            workspace: event.text.clone(),
-                            repository,
-                        },
-                    );
-                }
-            }
-            self.reconcile_project_selection();
-            if self.pending_project_workspace {
-                self.pending_project_workspace = false;
-                if let Some(id) = self.current_project().and_then(|project| project.shared_id) {
-                    let mut preferences = self.preferences.clone();
-                    preferences.bind(event.text.clone(), id);
-                    self.save_preferences(preferences, cx);
-                    self.selected_project = Some(format!("workspace:{}", event.text));
-                }
-            }
             cx.notify();
             return true;
         }
@@ -343,6 +353,10 @@ impl Workbench {
         match event.kind.as_str() {
             "session_created" => {
                 chat.workspace = event.data["workspace"].as_str().unwrap_or_default().into();
+                chat.scope = event
+                    .data
+                    .get("scope")
+                    .and_then(|value| serde_json::from_value(value.clone()).ok());
             }
             "agent_info" => {
                 chat.capabilities =
@@ -408,6 +422,11 @@ impl Workbench {
                 }
                 chat.pending_setting = None;
             }
+            "session_usage" => {
+                if let Ok(usage) = serde_json::from_value(event.data.clone()) {
+                    chat.usage = Some(usage);
+                }
+            }
             "turn_started" => chat.state = "running".into(),
             "turn_finished" => {
                 chat.flush(cx);
@@ -458,10 +477,10 @@ impl Workbench {
             .or_else(|| self.agents.get(self.agent_index).map(|a| a.id.clone()))
             .unwrap_or_else(|| "codex".into());
         div().flex_1().min_h_0().flex().flex_col()
-            .when(self.contribution.data["local"]["thread_id"].as_str()==Some(id.as_str()),|el|el.child(
+            .when(self.show_return_to_review,|el|el.child(
                 div().px(px(16.)).py(px(8.)).border_b_1().border_color(p.color("border")).child(
-                    Button::new("contribution-return").outline().small().label(self.t("contribution.return_review")).on_click(cx.listener(|this,_,_,cx|{
-                        this.remote.public_contributions=true;this.navigation=3;this.sync_follow(cx);cx.notify();
+                    Button::new("contribution-return").outline().small().label(self.t("contribution.return_review")).on_click(cx.listener(|_,_,_,cx|{
+                        cx.emit(crate::ChatAction::ReturnToReview);
                     })))))
             .child(div().id("messages").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.chat_scroll).px(px(16.)).py(px(10.))
                 .when(chat.is_none_or(|c|c.messages.is_empty()),|el|el.child(div().py(px(24.)).flex().flex_col().gap(px(12.))
@@ -473,10 +492,12 @@ impl Workbench {
                         RenderItem::Message(index)=>{
                             let message=conversation.messages.get(index)?;
                             if message.role=="thought" {
+                                let key = (conversation.id.clone(), index);
+                                let open = self.expanded_reasoning.contains(&key);
                                 return Some(div().id(("thought",i)).mb(px(10.))
-                                    .child(Button::new(("thought-toggle",i)).ghost().small().icon(IconName::ChevronDown).label(self.t("chat.reasoning"))
-                                        .on_click(cx.listener(|this,_,_,cx|{this.show_details=!this.show_details;cx.notify();})))
-                                    .when(self.show_details,|el|el.child(message.view.clone())).into_any_element());
+                                    .child(Button::new(("thought-toggle",i)).ghost().small().icon(if open { IconName::ChevronDown } else { IconName::ChevronRight }).label(self.t("chat.reasoning"))
+                                        .on_click(cx.listener(move |this,_,_,cx|{if !this.expanded_reasoning.remove(&key) { this.expanded_reasoning.insert(key.clone()); } cx.notify();})))
+                                    .when(open,|el|el.child(message.view.clone())).into_any_element());
                             }
                             Some(div().id(("message",i)).mb(px(10.)).flex().flex_col().gap(px(3.))
                                 .child(div().text_size(px(11.)).font_weight(FontWeight::BOLD).text_color(p.color("text-muted")).child(if message.role=="user"{self.t("chat.you").to_string()}else{agent.clone()}))
@@ -517,6 +538,7 @@ impl Workbench {
                         }))
                     })))
             }))
+            .children(chat.and_then(|c| c.usage.as_ref()).map(|usage| crate::usage::render_usage(usage, &self.locale, p)))
             .child(self.composer_view(cx))
     }
 }

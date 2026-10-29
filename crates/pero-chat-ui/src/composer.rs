@@ -1,4 +1,4 @@
-use crate::app::Workbench;
+use crate::panel::ChatPanel;
 use gpui_kit::{
     component::{
         button::*,
@@ -12,7 +12,7 @@ use gpui_kit::{
 use pero_contracts::context::ContextKind;
 use serde_json::json;
 
-impl Workbench {
+impl ChatPanel {
     pub fn composer_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
         let chat = self.active_chat.and_then(|i| self.chats.get(i));

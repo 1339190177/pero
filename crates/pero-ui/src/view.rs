@@ -29,22 +29,29 @@ impl Workbench {
             |this: &mut Self, action: &SidebarAction, window, cx| {
                 match action {
                     SidebarAction::RequestDelete(index) => {
-                        this.deleting_chat = this.chats.get(*index).map(|chat| chat.id.clone());
+                        this.chat.update(cx, |panel, _| {
+                            panel.deleting_chat =
+                                panel.chats.get(*index).map(|chat| chat.id.clone());
+                        });
                     }
                     SidebarAction::ConfirmDelete(index) => {
-                        if this.deleting_chat.as_deref()
-                            == this.chats.get(*index).map(|chat| chat.id.as_str())
-                        {
-                            this.delete_chat(*index, cx);
-                        }
+                        this.chat.update(cx, |panel, cx| {
+                            if panel.deleting_chat.as_deref()
+                                == panel.chats.get(*index).map(|chat| chat.id.as_str())
+                            {
+                                panel.delete_chat(*index, cx);
+                            }
+                        });
                     }
-                    SidebarAction::CancelDelete => this.deleting_chat = None,
+                    SidebarAction::CancelDelete => {
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
+                    }
                     SidebarAction::NewChat => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.new_chat(cx);
                     }
                     SidebarAction::Navigate(index) => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.navigation = *index;
                         this.sync_follow(cx);
                         if *index == 7 {
@@ -52,49 +59,51 @@ impl Workbench {
                         }
                     }
                     SidebarAction::OpenProject(key) => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.open_project(key.clone(), window, cx);
                     }
                     SidebarAction::ToggleProject(key) => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         if !this.collapsed_projects.remove(key) {
                             this.collapsed_projects.insert(key.clone());
                         }
                     }
                     SidebarAction::SelectSession(index) => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.navigation = 0;
                         this.focus_chat(Some(*index), 4, cx);
                     }
                     SidebarAction::SelectTask(id) => {
-                        this.deleting_chat = None;
+                        this.chat.update(cx, |panel, _| panel.deleting_chat = None);
                         this.open_task(id.clone(), cx);
                     }
                 }
                 cx.notify();
             },
         ));
+        let panel = self.chat.read(cx);
         let query = self.search.read(cx).value().to_lowercase();
         let matches = |title: &str| query.is_empty() || title.to_lowercase().contains(&query);
-        let session_row = |i: usize, chat: &crate::conversation::Conversation| sidebar::RecentRow {
-            label: chat.title.clone(),
-            icon: "terminal",
-            active: self.navigation == 0 && self.active_chat == Some(i),
-            busy: chat.busy(),
-            attention: chat.permission.is_some() || chat.error.is_some(),
-            action: SidebarAction::SelectSession(i),
-            delete: Some(DeleteAffordance {
-                confirming: self.deleting_chat.as_deref() == Some(chat.id.as_str()),
-                request: SidebarAction::RequestDelete(i),
-                confirm: SidebarAction::ConfirmDelete(i),
-                cancel: SidebarAction::CancelDelete,
-            }),
-        };
+        let session_row =
+            |i: usize, chat: &pero_chat_ui::conversation::Conversation| sidebar::RecentRow {
+                label: chat.title.clone(),
+                icon: "terminal",
+                active: self.navigation == 0 && panel.active_chat == Some(i),
+                busy: chat.busy(),
+                attention: chat.permission.is_some() || chat.error.is_some(),
+                action: SidebarAction::SelectSession(i),
+                delete: Some(DeleteAffordance {
+                    confirming: panel.deleting_chat.as_deref() == Some(chat.id.as_str()),
+                    request: SidebarAction::RequestDelete(i),
+                    confirm: SidebarAction::ConfirmDelete(i),
+                    cancel: SidebarAction::CancelDelete,
+                }),
+            };
         let groups = self
-            .project_catalog()
+            .project_catalog(cx)
             .into_iter()
             .filter_map(|project| {
-                let mut rows = self
+                let mut rows = panel
                     .chats
                     .iter()
                     .enumerate()
@@ -162,7 +171,7 @@ impl Workbench {
                 })
             })
             .collect();
-        let ungrouped = self
+        let ungrouped = panel
             .chats
             .iter()
             .enumerate()
@@ -185,17 +194,18 @@ impl Workbench {
         )
     }
 
-    fn detail(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
-        let session = self
+    fn detail(&self, _window: &mut Window, cx: &mut Context<Self>) -> Div {
+        let panel = self.chat.read(cx);
+        let session = panel
             .active_chat
-            .and_then(|i| self.chats.get(i))
+            .and_then(|i| panel.chats.get(i))
             .map(|chat| SessionHeader {
                 title: chat.title.clone(),
                 agent: chat.agent.clone(),
                 closed: chat.state == "closed",
             });
         let content = if self.tab == 4 {
-            self.chat_view(window, cx).into_any_element()
+            self.chat.clone().into_any_element()
         } else {
             let ui = self.ui();
             div()
@@ -227,12 +237,19 @@ impl Workbench {
             |this, action: &TaskDetailAction, _, cx| match action {
                 TaskDetailAction::NewSession => this.new_chat(cx),
                 TaskDetailAction::CloseSession => {
-                    if let Some(chat) = this.active_chat.and_then(|i| this.chats.get(i)) {
-                        let id = chat.id.clone();
+                    let panel = this.chat.read(cx);
+                    if let Some(id) = panel
+                        .active_chat
+                        .and_then(|i| panel.chats.get(i))
+                        .map(|chat| chat.id.clone())
+                    {
                         this.command(json!({"action":"close","thread_id":id}), cx);
                     }
                 }
-                TaskDetailAction::SelectTab(tab) => this.focus_chat(this.active_chat, *tab, cx),
+                TaskDetailAction::SelectTab(tab) => {
+                    let active = this.chat.read(cx).active_chat;
+                    this.focus_chat(active, *tab, cx);
+                }
             },
         ));
         task_detail::task_detail(
@@ -250,7 +267,7 @@ impl Workbench {
         Rc::new(
             cx.listener(|this, action: &WorkspaceAction, _, cx| match action {
                 WorkspaceAction::NewSession(index) => {
-                    this.agent_index = *index;
+                    this.chat.update(cx, |chat, _| chat.agent_index = *index);
                     this.new_chat(cx);
                 }
             }),
@@ -259,6 +276,8 @@ impl Workbench {
 
     fn environments(&self, cx: &mut Context<Self>) -> Div {
         let agents: Vec<_> = self
+            .chat
+            .read(cx)
             .agents
             .iter()
             .map(|agent| AgentRow {
@@ -272,14 +291,29 @@ impl Workbench {
 
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.composer_focused = self.composer.read(cx).focus_handle(cx).is_focused(window);
-        self.apply_composer_context(window, cx);
+        let scope = self
+            .apps
+            .active
+            .as_ref()
+            .filter(|_| self.navigation == 7)
+            .map(|active| pero_contracts::AppChatScope {
+                app: active.name.clone(),
+                panel: active.panel.clone(),
+            });
+        self.chat.update(cx, |chat, cx| chat.set_scope(scope, cx));
+        self.sync_follow(cx);
+        let show_return = self
+            .chat
+            .read(cx)
+            .active_chat
+            .and_then(|i| self.chat.read(cx).chats.get(i))
+            .is_some_and(|chat| {
+                self.contribution.data["local"]["thread_id"].as_str() == Some(chat.id.as_str())
+            });
+        self.chat
+            .update(cx, |chat, _| chat.show_return_to_review = show_return);
         if self.input_locale != self.locale {
             self.input_locale = self.locale.clone();
-            let placeholder = self.t("chat.placeholder");
-            self.composer.update(cx, |input, cx| {
-                input.set_placeholder(placeholder, window, cx)
-            });
             let placeholder = self.t("sessions.search");
             self.search.update(cx, |input, cx| {
                 input.set_placeholder(placeholder, window, cx)
@@ -297,8 +331,10 @@ impl Render for Workbench {
         let width: f32 = window.viewport_size().width.into();
         let height: f32 = window.viewport_size().height.into();
         let compact = width < 1150.;
+        let sidebar_width = if compact { 240. } else { 260. };
+        let app_chat_width = self.apps.chat_width(width, width - sidebar_width);
         self.follow_task_pages(window, cx);
-        self.sync_app_surface(if compact { 240. } else { 260. }, width, height);
+        self.sync_app_surface(sidebar_width, width, height);
         let p = self.palettes.get(self.dark);
         div()
             .size_full()
@@ -307,7 +343,7 @@ impl Render for Workbench {
             .text_color(p.color("text"))
             .font_family("Noto Sans CJK SC")
             .text_size(px(14.))
-            .child(self.sidebar(if compact { 240. } else { 260. }, cx))
+            .child(self.sidebar(sidebar_width, cx))
             .child(
                 div()
                     .flex_1()
@@ -359,7 +395,9 @@ impl Render for Workbench {
                         |el| el.child(self.projects_view(cx)),
                     )
                     .when(self.navigation == 2, |el| el.child(self.environments(cx)))
-                    .when(self.navigation == 7, |el| el.child(self.apps_view(cx)))
+                    .when(self.navigation == 7, |el| {
+                        el.child(self.apps_view(app_chat_width, width < 1050., cx))
+                    })
                     .when(self.navigation == 8, |el| el.child(self.insights_view(cx)))
                     .when(self.navigation == 9, |el| {
                         el.child(self.remote_connection_view(cx))

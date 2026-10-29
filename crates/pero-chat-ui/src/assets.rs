@@ -1,6 +1,6 @@
 use gpui_kit::*;
 use std::borrow::Cow;
-pub(crate) struct UiAssets;
+pub struct UiAssets;
 impl AssetSource for UiAssets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: Option<&'static [u8]> = match path {

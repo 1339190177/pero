@@ -30,12 +30,24 @@ pub(crate) struct AppSelection {
 pub(crate) struct AppWorkspace {
     pub catalog: Vec<InstalledApp>,
     pub active: Option<AppSelection>,
+    pub chat_open: bool,
     pub loading: bool,
     pub error: Option<String>,
     pub removing: Option<String>,
 }
 
 impl AppWorkspace {
+    pub fn chat_width(&self, viewport_width: f32, available_width: f32) -> f32 {
+        if !self.chat_open {
+            return 0.;
+        }
+        if viewport_width < 1050. {
+            available_width.max(0.)
+        } else {
+            420_f32.min(available_width.max(0.) * 0.55)
+        }
+    }
+
     /// A refreshed installation may no longer offer the currently selected panel.
     pub fn replace_catalog(&mut self, catalog: Vec<InstalledApp>) {
         self.catalog = catalog;
@@ -101,6 +113,19 @@ mod surface {
 
         pub(crate) fn receive_apps(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
             match event.kind.as_str() {
+                "app_scope" => {
+                    if let Ok(scope) =
+                        serde_json::from_value::<pero_contracts::AppChatScope>(event.data.clone())
+                    {
+                        if self.apps.select(&scope.app, &scope.panel) {
+                            self.navigation = 7;
+                            self.apps.chat_open = true;
+                            self.chat
+                                .update(cx, |chat, cx| chat.set_scope(Some(scope), cx));
+                            self.sync_follow(cx);
+                        }
+                    }
+                }
                 "apps_catalog" => match serde_json::from_value(event.data.clone()) {
                     Ok(catalog) => self.apps.replace_catalog(catalog),
                     Err(_) => {
@@ -139,9 +164,11 @@ mod surface {
             {
                 // An HTML iframe paints above the GPUI canvas. Keep its document
                 // alive but uncover the canvas while its settings menu is open.
-                let payload = if let Some(active) = self.apps.active.as_ref().filter(|_| self.navigation == 7 && !self.settings_menu_open) {
+                let chat_width = self.apps.chat_width(width, width - left);
+                let chat_only = self.apps.chat_open && width < 1050.;
+                let payload = if let Some(active) = self.apps.active.as_ref().filter(|_| self.navigation == 7 && !self.settings_menu_open && !chat_only) {
                     json!({"visible":true,"name":active.name,"panel":active.panel,
-                        "left":left,"top":48,"width":(width-left).max(0.),"height":(height-48.).max(0.),
+                        "left":left,"top":48,"width":(width-left-chat_width).max(0.),"height":(height-48.).max(0.),
                         "dark":self.dark,"locale":self.locale})
                 } else {
                     json!({"visible":false,"dark":self.dark,"locale":self.locale})
@@ -155,7 +182,12 @@ mod surface {
             let _ = (left, width, height);
         }
 
-        pub(crate) fn apps_view(&self, cx: &mut Context<Self>) -> AnyElement {
+        pub(crate) fn apps_view(
+            &self,
+            chat_width: f32,
+            narrow: bool,
+            cx: &mut Context<Self>,
+        ) -> AnyElement {
             let p = self.palettes.get(self.dark);
             let busy = self.apps.loading;
             if let Some(active) = &self.apps.active {
@@ -189,24 +221,65 @@ mod surface {
                                     .label(self.t("apps.back"))
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.apps.active = None;
+                                        this.apps.chat_open = false;
                                         cx.notify();
                                     })),
                             )
-                            .child(div().font_weight(FontWeight::SEMIBOLD).child(title)),
+                            .child(div().font_weight(FontWeight::SEMIBOLD).child(title))
+                            .child(div().flex_1())
+                            .child(
+                                Button::new("app-chat-toggle")
+                                    .ghost()
+                                    .small()
+                                    .label(self.t(if self.apps.chat_open {
+                                        "chat.close_panel"
+                                    } else {
+                                        "chat.open_panel"
+                                    }))
+                                    .toggled(self.apps.chat_open)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.apps.chat_open = !this.apps.chat_open;
+                                        this.sync_follow(cx);
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                     .child(
                         div()
                             .flex_1()
-                            .p(px(20.))
-                            .text_color(p.color("text-muted"))
-                            .child(if self.settings_menu_open {
-                                ""
-                            } else {
-                                self.t(if cfg!(target_family = "wasm") {
-                                    "apps.loading_panel"
-                                } else {
-                                    "apps.native_unavailable"
-                                })
+                            .min_h_0()
+                            .flex()
+                            .when(!self.apps.chat_open || !narrow, |el| {
+                                el.child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .p(px(20.))
+                                        .text_color(p.color("text-muted"))
+                                        .child(if self.settings_menu_open {
+                                            ""
+                                        } else {
+                                            self.t(if cfg!(target_family = "wasm") {
+                                                "apps.loading_panel"
+                                            } else {
+                                                "apps.native_unavailable"
+                                            })
+                                        }),
+                                )
+                            })
+                            .when(self.apps.chat_open, |el| {
+                                el.child(
+                                    div()
+                                        .id("app-chat-panel")
+                                        .w(px(chat_width))
+                                        .flex_shrink_0()
+                                        .min_h_0()
+                                        .h_full()
+                                        .when(!narrow, |el| {
+                                            el.border_l_1().border_color(p.color("border"))
+                                        })
+                                        .child(self.chat.clone()),
+                                )
                             }),
                     )
                     .into_any_element();

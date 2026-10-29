@@ -1,12 +1,13 @@
-use crate::conversation::{AgentChoice, Conversation};
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
 pub(crate) use crate::native::{request_locale, send_probe, session_command};
 use crate::theme::Palettes;
 use gpui_kit::{
-    component::input::{InputEvent, InputState, TextareaState},
+    component::input::{InputEvent, InputState},
     *,
 };
+use pero_chat_ui::{ChatAction, ChatPanel};
 use pero_contracts::{EchoRequest, HostEvent, MAX_TEXT_CHARS};
+use serde_json::{Value, json};
 #[cfg(target_family = "wasm")]
 use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
 #[cfg(target_family = "wasm")]
@@ -61,27 +62,13 @@ pub(crate) struct Workbench {
     pub last_echo: String,
     pub error: Option<String>,
     pub events: Vec<HostEvent>,
-    pub composer: Entity<TextareaState>,
+    pub chat: Entity<ChatPanel>,
     pub search: Entity<InputState>,
-    pub chats: Vec<Conversation>,
-    pub active_chat: Option<usize>,
-    pub deleting_chat: Option<String>,
-    pub agents: Vec<AgentChoice>,
-    pub agent_index: usize,
-    pub model_menu: bool,
     pub workspace: String,
     pub workspace_repositories: Vec<pero_contracts::workbench::WorkspaceRepository>,
-    pub show_details: bool,
-    pub chat_scroll: ScrollHandle,
     pub task_scroll: ScrollHandle,
     /// A further task page was requested and its result has not arrived yet.
     pub task_more_pending: bool,
-    pub attachments: Vec<pero_contracts::context::ContextReference>,
-    pub composer_focused: bool,
-    pub composer_restore: Option<gpui_kit::component::input::InputContent>,
-    pub composer_picker_scroll: ScrollHandle,
-    pub composer_state: crate::composer_state::ComposerState,
-    pub expanded_tools: std::collections::HashSet<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -103,38 +90,42 @@ impl Workbench {
             }
             cx.notify();
         })];
-        let composer = cx.new(|cx| {
-            TextareaState::new(window, cx)
-                .submit_on_enter(true)
-                .placeholder(pero_contracts::i18n::text(&locale, "chat.placeholder"))
-        });
+        let chat = cx.new(|cx| ChatPanel::new(palettes.clone(), dark, locale.clone(), window, cx));
         let search = cx.new(|cx| {
             InputState::new(window, cx)
                 .placeholder(pero_contracts::i18n::text(&locale, "sessions.search"))
         });
         let mut subscriptions = subscriptions;
-        subscriptions.push(
-            cx.subscribe_in(&composer, window, |this, _, event, window, cx| {
-                match event {
-                    InputEvent::PressEnter { shift: false, .. } => {
-                        if this.composer_state.open {
-                            this.select_composer_candidate(
-                                this.composer_state.selected,
-                                window,
-                                cx,
-                            );
-                        } else {
-                            this.send_chat(window, cx);
-                        }
-                    }
-                    InputEvent::Change => this.update_composer_completion(cx),
-                    _ => {}
+        subscriptions.push(cx.observe(&chat, |_, _, cx| cx.notify()));
+        subscriptions.push(cx.subscribe(&chat, |this, _, event, cx| {
+            match event {
+                ChatAction::Command(command) => this.command(
+                    serde_json::to_value(command).expect("serializable command"),
+                    cx,
+                ),
+                ChatAction::ChooseWorkspace => {
+                    this.command(json!({"action":"choose_workspace"}), cx)
                 }
-                cx.notify();
-            }),
-        );
-        subscriptions
-            .push(cx.observe(&composer, |this, _, cx| this.update_composer_completion(cx)));
+                ChatAction::ChooseContext { kind, request_id } => this.command(
+                    json!({"action":"choose_context","kind":kind,"request_id":request_id}),
+                    cx,
+                ),
+                ChatAction::Activated => {
+                    if this.navigation != 7 || !this.apps.chat_open {
+                        this.navigation = 0;
+                    }
+                    this.tab = 4;
+                    this.error = None;
+                    this.sync_follow(cx);
+                }
+                ChatAction::ReturnToReview => {
+                    this.remote.public_contributions = true;
+                    this.navigation = 3;
+                    this.sync_follow(cx);
+                }
+            }
+            cx.notify();
+        }));
         subscriptions.push(cx.subscribe(&search, |_, _, _: &InputEvent, cx| cx.notify()));
         let project_binding = cx.new(|cx| InputState::new(window, cx));
         subscriptions.push(cx.subscribe(&project_binding, |this, _, event, cx| {
@@ -177,28 +168,63 @@ impl Workbench {
             last_echo: String::new(),
             error: None,
             events: Vec::new(),
-            composer,
+            chat,
             search,
-            chats: vec![],
-            active_chat: None,
-            deleting_chat: None,
-            agents: vec![],
-            agent_index: 0,
-            model_menu: false,
             workspace: String::new(),
             workspace_repositories: vec![],
-            show_details: false,
-            chat_scroll: ScrollHandle::new(),
             task_scroll: ScrollHandle::new(),
             task_more_pending: false,
-            attachments: vec![],
-            composer_state: Default::default(),
-            composer_picker_scroll: ScrollHandle::new(),
-            composer_restore: None,
-            composer_focused: false,
-            expanded_tools: Default::default(),
             _subscriptions: subscriptions,
         }
+    }
+
+    pub fn sync_follow(&mut self, cx: &mut Context<Self>) {
+        let visible = (self.navigation == 0 && self.tab == 4)
+            || (self.navigation == 7 && self.apps.active.is_some() && self.apps.chat_open);
+        self.chat
+            .update(cx, |chat, cx| chat.set_visible(visible, cx));
+    }
+
+    pub fn focus_chat(&mut self, index: Option<usize>, tab: usize, cx: &mut Context<Self>) {
+        self.tab = tab;
+        self.chat.update(cx, |chat, cx| {
+            chat.set_scope(None, cx);
+            chat.focus_chat(index, cx);
+        });
+        self.sync_follow(cx);
+        cx.notify();
+    }
+
+    pub fn new_chat(&mut self, cx: &mut Context<Self>) {
+        self.navigation = 0;
+        self.tab = 4;
+        self.error = None;
+        self.chat
+            .update(cx, |chat, cx| chat.new_chat_in_scope(None, cx));
+        self.sync_follow(cx);
+        cx.notify();
+    }
+
+    pub fn command(&mut self, value: Value, cx: &mut Context<Self>) {
+        if value["action"] == "choose_workspace"
+            && (self.navigation != 3 || self.project_tab != crate::projects::ProjectTab::Settings)
+        {
+            self.pending_project_workspace = false;
+        }
+        if session_command(&value.to_string()).is_err() {
+            self.chat.update(cx, |panel, cx| {
+                if let Some(chat) = panel
+                    .active_chat
+                    .and_then(|index| panel.chats.get_mut(index))
+                {
+                    chat.pending_model = None;
+                    chat.pending_setting = None;
+                }
+                cx.notify();
+            });
+            self.error = Some("error.connection".into());
+        }
+        cx.notify();
     }
 
     pub fn send(&mut self, cx: &mut Context<Self>) {
@@ -233,9 +259,6 @@ impl Workbench {
         if self.receive_local_execution(&event, cx) {
             return;
         }
-        if self.receive_composer(&event, cx) {
-            return;
-        }
         if self.receive_contribution(&event, cx) {
             return;
         }
@@ -245,7 +268,43 @@ impl Workbench {
         if self.receive_remote(&event, cx) {
             return;
         }
-        if self.receive_chat(&event, cx) {
+        let handled = self.chat.update(cx, |chat, cx| chat.receive(&event, cx));
+        if event.kind == "agents" {
+            self.workspace = event.text.clone();
+        }
+        if event.kind == "workspace" {
+            self.workspace = event.text.clone();
+            if let Ok(identity) = serde_json::from_value::<
+                pero_contracts::workbench::WorkspaceIdentity,
+            >(event.data.clone())
+            {
+                self.workspace_repositories
+                    .retain(|entry| entry.workspace != event.text);
+                if let Some(repository) = identity.repository {
+                    self.workspace_repositories.push(
+                        pero_contracts::workbench::WorkspaceRepository {
+                            workspace: event.text.clone(),
+                            repository,
+                        },
+                    );
+                }
+            }
+            self.reconcile_project_selection(cx);
+            if self.pending_project_workspace {
+                self.pending_project_workspace = false;
+                if let Some(id) = self
+                    .current_project(cx)
+                    .and_then(|project| project.shared_id)
+                {
+                    let mut preferences = self.preferences.clone();
+                    preferences.bind(event.text.clone(), id);
+                    self.save_preferences(preferences, cx);
+                    self.selected_project = Some(format!("workspace:{}", event.text));
+                }
+            }
+        }
+        if handled && !matches!(event.kind.as_str(), "ready" | "disconnected" | "settings") {
+            cx.notify();
             return;
         }
         match event.kind.as_str() {
@@ -261,20 +320,27 @@ impl Workbench {
                     }
                     self.dark = self.preferences.appearance.dark(self.system_dark);
                     self.palettes.apply(self.dark, cx);
+                    self.chat
+                        .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
                     self.error = None;
                 }
             }
             "settings" => {
                 self.locale = pero_contracts::i18n::normalize(&event.text).into();
                 gpui_kit::component::set_locale(&self.locale);
+                self.chat
+                    .update(cx, |chat, cx| chat.set_context(self.dark, &self.locale, cx));
             }
             "ready" => self.connected = true,
             "disconnected" => {
                 self.connected = false;
                 self.pending = None;
-                for chat in &mut self.chats {
-                    chat.pending_model = None;
-                }
+                self.chat.update(cx, |panel, cx| {
+                    for chat in &mut panel.chats {
+                        chat.pending_model = None;
+                    }
+                    cx.notify();
+                });
                 self.error = Some(event.message_key.clone().unwrap_or_else(|| {
                     if event.text.is_empty() {
                         "error.connection".into()
@@ -436,25 +502,27 @@ pub fn snapshot() -> String {
             "received": ui.received, "lastEcho": ui.last_echo, "pending": ui.pending,
             "error": ui.error, "dark": ui.dark, "navigation": ui.navigation,
             "preferences":ui.preferences,"selectedProject":ui.selected_project,"projectTab":ui.project_tab,"taskStatus":ui.task_status,
-            "projects":ui.project_catalog(),"workspaceRepositories":ui.workspace_repositories,
-            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading,
+            "projects":ui.project_catalog(cx),"workspaceRepositories":ui.workspace_repositories,
+            "apps": ui.apps.catalog, "activeApp": ui.apps.active, "appError": ui.apps.error, "appsLoading": ui.apps.loading, "appChatOpen": ui.apps.chat_open,
             "locale": ui.locale, "labels": { "tasks": ui.t("nav.tasks"), "send": ui.t("probe.send") },
-            "tab": ui.tab, "events": ui.events,
-            "chats": ui.chats, "activeChat": ui.active_chat, "agents": ui.agents,
-            "composer": ui.composer.read(cx).value().as_ref(),"composerFocused":ui.composer_focused,"workspace":ui.workspace,
-            "attachments": ui.attachments.iter().filter_map(|file|Some(file.label.as_str())).collect::<Vec<_>>(),
-            "expandedTools":ui.expanded_tools,
-            "modelMenu":ui.model_menu,
-            "completion": {"open":ui.composer_state.open,"loading":ui.composer_state.loading,"error":ui.composer_state.error,"selected":ui.composer_state.selected,"items":ui.composer_picker_items().iter().map(|i|&i.label).collect::<Vec<_>>()},
-            "toolViews":ui.chats.iter().map(|chat|chat.tools.iter().filter(|tool|tool.view.is_some()).count()).collect::<Vec<_>>(),
-            "scroll": {"y":f32::from(ui.chat_scroll.offset().y),"max":f32::from(ui.chat_scroll.max_offset().y)},
-            "renderStats":ui.chats.iter().map(|c|c.messages.iter().map(|m|m.view.read(cx).stats()).collect::<Vec<_>>()).collect::<Vec<_>>(),
-            "renderedBytes":ui.chats.iter().map(|c|c.messages.iter().map(|m|m.view.read(cx).rendered_bytes(cx)).collect::<Vec<_>>()).collect::<Vec<_>>(),
+            "tab": ui.tab, "events": ui.events, "workspace": ui.workspace,
         });
         value["preferencesStatus"] = serde_json::json!(ui.preferences_status);
         value["projectBinding"] = serde_json::json!(ui.project_binding.read(cx).value().as_ref());
         value["sidebarSearch"] = serde_json::json!(ui.search.read(cx).value().as_ref());
-        value["deletingChat"] = serde_json::json!(ui.deleting_chat);
+        if let Some(fields) = ui.chat.read(cx).snapshot(cx).as_object() {
+            value.as_object_mut().expect("workbench snapshot").extend(
+                fields
+                    .iter()
+                    .filter(|(key, _)| {
+                        !matches!(
+                            key.as_str(),
+                            "connected" | "error" | "dark" | "locale" | "workspace"
+                        )
+                    })
+                    .map(|(key, value)| (key.clone(), value.clone())),
+            );
+        }
         value["localRoadmap"] = serde_json::json!(ui.local_roadmap);
         value["localExecution"] = ui.local_execution.snapshot(&ui.locale, cx);
     });
@@ -465,7 +533,11 @@ pub fn snapshot() -> String {
 #[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 pub fn paste_image(data: &str, mime_type: &str) {
-    update(|ui, cx| ui.queue_composer_image(data.to_owned(), mime_type.to_owned(), cx));
+    update(|ui, cx| {
+        ui.chat.update(cx, |chat, cx| {
+            chat.queue_composer_image(data.to_owned(), mime_type.to_owned(), cx)
+        })
+    });
 }
 
 #[cfg(target_family = "wasm")]
@@ -475,6 +547,8 @@ pub fn set_system_theme(dark: bool) {
         ui.system_dark = dark;
         ui.dark = ui.preferences.appearance.dark(dark);
         ui.palettes.apply(ui.dark, cx);
+        ui.chat
+            .update(cx, |chat, cx| chat.set_context(ui.dark, &ui.locale, cx));
         cx.notify();
     });
 }

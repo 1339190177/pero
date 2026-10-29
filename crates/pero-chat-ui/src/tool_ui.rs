@@ -47,14 +47,14 @@ pub(crate) fn short_label(action: &str, title: &str, path: Option<&str>) -> Stri
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod rendering {
     use super::*;
-    use crate::{app::Workbench, conversation::Tool};
+    use crate::{conversation::Tool, panel::ChatPanel};
     use gpui_kit::{
         component::{Sizable, button::*},
         prelude::*,
         *,
     };
 
-    impl Workbench {
+    impl ChatPanel {
         pub(crate) fn tool_group(
             &self,
             conversation_id: &str,

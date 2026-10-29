@@ -262,7 +262,7 @@ impl Workbench {
                             let workspace_key = string(task, "workspace_key").to_string();
                             let agent_id = string(task, "agent_id").to_string();
                             let path = self
-                                .project_catalog()
+                                .project_catalog(cx)
                                 .into_iter()
                                 .find(|project| project.contains_task(&project_id))
                                 .and_then(|project| project.workspace)

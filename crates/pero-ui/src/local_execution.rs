@@ -220,7 +220,7 @@ impl Workbench {
             .collect::<Vec<_>>();
         if self.remote.operator() {
             project_ids.extend(
-                self.project_catalog()
+                self.project_catalog(cx)
                     .into_iter()
                     .filter_map(|project| project.shared_id),
             );
@@ -229,6 +229,8 @@ impl Workbench {
         }
         let no_projects = project_ids.is_empty();
         let agents = self
+            .chat
+            .read(cx)
             .agents
             .iter()
             .filter(|agent| agent.available)
@@ -333,7 +335,7 @@ impl Workbench {
                         let id=agent.id.clone();let workbench=agent_workbench.clone();
                         menu.item(PopupMenuItem::new(agent.name.clone()).on_click(move|_,_,cx|{let _=workbench.update(cx,|this,cx|{this.local_execution.agent_id=id.clone();cx.notify();});}))
                     })).into_any_element()))
-                .when(self.agents.iter().all(|agent|!agent.available),|el|el.child(div().text_size(px(12.)).text_color(p.color("warning")).child(self.t("worker.local.no_agents"))))
+                .when(self.chat.read(cx).agents.iter().all(|agent|!agent.available),|el|el.child(div().text_size(px(12.)).text_color(p.color("warning")).child(self.t("worker.local.no_agents"))))
                 .child(div().whitespace_normal().text_size(px(12.)).text_color(p.color("text-muted")).child(self.t("worker.local.enable_hint")))
                 .child(Button::new("local-worker-enable").primary().label(self.t("worker.local.enable")).loading(local.pending).disabled(!ready)
                     .on_click(cx.listener(|this,_,_,cx|{

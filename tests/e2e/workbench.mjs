@@ -53,7 +53,7 @@ try{
  await input('permission');
  await expect.poll(async()=>(await state()).chats[0].permission!==null).toBe(true);
  await page.screenshot({path:resolve(out,'permission.png')});
- await page.mouse.click(342,912);
+ await page.mouse.click(342,await page.evaluate(()=>innerHeight-164));
  await expect.poll(async()=>(await state()).chats[0].state).toBe('idle');
  await input('longstream');
  await expect.poll(async()=>(await state()).chats[0].messages.at(-1).text.includes('中文片段200'),{intervals:[50],timeout:15000}).toBe(true);

@@ -236,7 +236,7 @@ impl Workbench {
             .as_bool()
             .unwrap_or(false);
         self.remote.data = event.data.clone();
-        self.reconcile_project_selection();
+        self.reconcile_project_selection(cx);
         if !self.remote.loading() {
             self.task_more_pending = false;
         }
@@ -262,7 +262,7 @@ impl Workbench {
             self.remote.seen_connection = true;
             if !self.show_local_execution_onboarding()
                 && self.navigation == 1
-                && self.active_chat.is_none()
+                && self.chat.read(cx).active_chat.is_none()
                 && self.selected_project.is_none()
             {
                 self.navigation = 3;
@@ -296,11 +296,14 @@ impl Workbench {
         cx.notify();
         true
     }
-    pub(crate) fn remote_agent(&self) -> String {
+    pub(crate) fn remote_agent(&self, cx: &App) -> String {
         self.remote
             .agent
             .clone()
-            .or_else(|| self.agents.get(self.agent_index).map(|a| a.id.clone()))
+            .or_else(|| {
+                let chat = self.chat.read(cx);
+                chat.agents.get(chat.agent_index).map(|a| a.id.clone())
+            })
             .unwrap_or_else(|| "codex".into())
     }
     pub(crate) fn create_remote(&mut self, cx: &mut Context<Self>) {
@@ -340,7 +343,7 @@ impl Workbench {
         self.remote.submitting = true;
         self.command(
             json!({"action":"remote_create","title":title,"prompt":prompt,"acceptance":acceptance,
-            "project_id":project,"workspace_key":workspace,"agent_id":self.remote_agent()}),
+            "project_id":project,"workspace_key":workspace,"agent_id":self.remote_agent(cx)}),
             cx,
         );
     }

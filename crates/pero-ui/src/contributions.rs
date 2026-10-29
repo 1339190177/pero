@@ -1,10 +1,11 @@
 //! Public human contributions reuse local ACP sessions; no Worker execution is fabricated.
-use crate::{app::Workbench, conversation::Conversation, remote::string};
+use crate::{app::Workbench, remote::string};
 use gpui_kit::{
     component::{button::*, *},
     prelude::*,
     *,
 };
+use pero_chat_ui::conversation::Conversation;
 use pero_contracts::HostEvent;
 use serde_json::{Value, json};
 
@@ -35,18 +36,23 @@ impl Workbench {
             return false;
         }
         if let Some(id) = event.thread_id.as_ref() {
-            let index = match self.chats.iter().position(|chat| &chat.id == id) {
-                Some(index) => index,
-                None => {
-                    self.chats.push(Conversation::new(
-                        id.clone(),
-                        string(&event.data, "agent_id").to_string(),
-                        event.text.clone(),
-                    ));
-                    self.chats.len() - 1
-                }
-            };
-            self.workspace = string(&event.data, "workspace").to_string();
+            let workspace = string(&event.data, "workspace").to_string();
+            self.workspace = workspace.clone();
+            let index = self.chat.update(cx, |panel, _| {
+                let index = match panel.chats.iter().position(|chat| &chat.id == id) {
+                    Some(index) => index,
+                    None => {
+                        panel.chats.push(Conversation::new(
+                            id.clone(),
+                            string(&event.data, "agent_id").to_string(),
+                            event.text.clone(),
+                        ));
+                        panel.chats.len() - 1
+                    }
+                };
+                panel.workspace = workspace;
+                index
+            });
             self.navigation = 0;
             self.focus_chat(Some(index), 4, cx);
         }
@@ -54,7 +60,7 @@ impl Workbench {
     }
     fn contribution_action(&mut self, action: &str, cx: &mut Context<Self>) {
         let task_id = string(&self.contribution.data, "selected_task_id").to_string();
-        self.command(json!({"action":format!("remote_contribution_{action}"),"task_id":task_id,"agent_id":self.remote_agent()}), cx);
+        self.command(json!({"action":format!("remote_contribution_{action}"),"task_id":task_id,"agent_id":self.remote_agent(cx)}), cx);
     }
     pub(crate) fn contribution_view(
         &self,
@@ -101,6 +107,8 @@ impl Workbench {
     }
     fn contribution_detail(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
+        let agents = self.chat.read(cx).agents.clone();
+        let selected_agent = self.remote_agent(cx);
         let data = &self.contribution.data;
         let task = &data["detail"];
         let local = &data["local"];
@@ -246,13 +254,13 @@ impl Workbench {
                             .child(self.t("contribution.agent")),
                     )
                     .child(div().flex().flex_wrap().gap(px(8.)).children(
-                        self.agents.iter().enumerate().map(|(i, agent)| {
+                        agents.iter().enumerate().map(|(i, agent)| {
                             let id = agent.id.clone();
                             Button::new(("contribution-agent", i))
                                 .outline()
                                 .small()
                                 .label(agent.name.clone())
-                                .toggled(self.remote_agent() == agent.id)
+                                .toggled(selected_agent == agent.id)
                                 .disabled(!agent.available || busy)
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.remote.agent = Some(id.clone());

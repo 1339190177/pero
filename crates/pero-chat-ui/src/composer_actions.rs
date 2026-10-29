@@ -1,5 +1,5 @@
-//! Workbench shell for the shared completion surface. Context I/O stays in Host.
-use crate::{app::Workbench, composer_picker::PickerItem, composer_state::*};
+//! ChatPanel shell for the shared completion surface. Context I/O stays in Host.
+use crate::{composer_picker::PickerItem, composer_state::*, panel::ChatPanel};
 use base64::Engine as _;
 use gpui_kit::{component::input::InlineToken, *};
 use pero_contracts::{
@@ -8,7 +8,7 @@ use pero_contracts::{
 };
 use serde_json::json;
 
-impl Workbench {
+impl ChatPanel {
     pub(crate) fn select_session_setting(
         &mut self,
         thread: &str,
@@ -490,7 +490,7 @@ impl Workbench {
         self.update_composer_completion(cx);
     }
 
-    pub(crate) fn queue_composer_image(
+    pub fn queue_composer_image(
         &mut self,
         data: String,
         mime_type: String,

@@ -521,5 +521,16 @@
   "roadmap.running": "Running in the local conversation",
   "roadmap.finished": "Turn finished · review the conversation",
   "roadmap.auth_required": "Agent sign-in required · open the conversation",
-  "roadmap.attention": "Open the conversation to review status"
+  "roadmap.attention": "Open the conversation to review status",
+  "chat.panel_title": "Chat",
+  "chat.panel_loading": "Opening chat…",
+  "chat.panel_timeout": "Chat did not load. Retry to reconnect.",
+  "chat.open_panel": "Open chat",
+  "chat.close_panel": "Close chat",
+  "apps.switch": "Switch App",
+  "chat.usage": "Usage",
+  "chat.usage_context": "Context",
+  "chat.usage_cost": "Session cost",
+  "chat.usage_input": "Input tokens",
+  "chat.usage_output": "Output tokens"
 }

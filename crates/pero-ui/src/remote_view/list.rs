@@ -7,9 +7,9 @@ impl Workbench {
         let loading = self.remote.loading();
         let query = self.remote.search.read(cx).value().to_lowercase();
         let unbound = self
-            .current_project()
+            .current_project(cx)
             .is_some_and(|project| project.shared_id.is_none());
-        let project = self.current_project();
+        let project = self.current_project(cx);
         let all_projects = self.selected_project.is_none();
         let visible = self
             .remote

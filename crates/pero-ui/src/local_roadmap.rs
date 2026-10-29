@@ -45,7 +45,7 @@ impl Workbench {
 
     pub(crate) fn project_tasks(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let local = self
-            .current_project()
+            .current_project(cx)
             .is_some_and(|project| project.workspace.is_some());
         div()
             .flex_1()
@@ -108,7 +108,9 @@ impl Workbench {
                     && session.goal == item.text
             })
             .and_then(|session| {
-                self.chats
+                self.chat
+                    .read(cx)
+                    .chats
                     .iter()
                     .position(|chat| chat.id == session.thread_id)
             })
@@ -118,8 +120,10 @@ impl Workbench {
             return;
         }
         if !self
+            .chat
+            .read(cx)
             .agents
-            .get(self.agent_index)
+            .get(self.chat.read(cx).agent_index)
             .is_some_and(|agent| agent.available)
         {
             return;
@@ -129,21 +133,27 @@ impl Workbench {
         let path = data.path.clone();
         let goal = item.text.clone();
         self.new_chat(cx);
-        let chat = self.chats.last_mut().unwrap();
-        chat.queued = Some(prompt);
+        let thread_id = self.chat.update(cx, |panel, cx| {
+            let chat = panel.chats.last_mut().expect("new roadmap chat");
+            chat.queued = Some(prompt);
+            let id = chat.id.clone();
+            panel.connect_chat(cx);
+            id
+        });
         self.local_roadmap.sessions.push(RoadmapSession {
             workspace,
             path,
             goal,
-            thread_id: chat.id.clone(),
+            thread_id,
         });
-        self.connect_chat(cx);
     }
 
     fn local_roadmap_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
+        let agents = self.chat.read(cx).agents.clone();
+        let agent_index = self.chat.read(cx).agent_index;
         let workspace = self
-            .current_project()
+            .current_project(cx)
             .and_then(|project| project.workspace)
             .unwrap_or_default();
         let data = self
@@ -330,7 +340,12 @@ impl Workbench {
                         })
                     })
                     .and_then(|session| {
-                        self.chats.iter().find(|chat| chat.id == session.thread_id)
+                        self.chat
+                            .read(cx)
+                            .chats
+                            .iter()
+                            .find(|chat| chat.id == session.thread_id)
+                            .map(|chat| chat.state.clone())
                     });
                 el.child(
                     div()
@@ -387,15 +402,16 @@ impl Workbench {
                                     .flex()
                                     .flex_wrap()
                                     .gap(px(8.))
-                                    .children(self.agents.iter().enumerate().map(|(i, agent)| {
+                                    .children(agents.iter().enumerate().map(|(i, agent)| {
                                         Button::new(("roadmap-agent", i))
                                             .ghost()
                                             .small()
                                             .label(agent.name.clone())
-                                            .toggled(self.agent_index == i)
+                                            .toggled(agent_index == i)
                                             .disabled(!agent.available || session.is_some())
                                             .on_click(cx.listener(move |this, _, _, cx| {
-                                                this.agent_index = i;
+                                                this.chat
+                                                    .update(cx, |chat, _| chat.agent_index = i);
                                                 cx.notify();
                                             }))
                                     }))
@@ -412,9 +428,8 @@ impl Workbench {
                                                     || !self.connected
                                                     || self.workspace != workspace
                                                     || session.is_none()
-                                                        && !self
-                                                            .agents
-                                                            .get(self.agent_index)
+                                                        && !agents
+                                                            .get(agent_index)
                                                             .is_some_and(|agent| agent.available),
                                             )
                                             .on_click(cx.listener(|this, _, _, cx| {
@@ -423,8 +438,7 @@ impl Workbench {
                                     ),
                             )
                             .when(
-                                session.is_none()
-                                    && !self.agents.iter().any(|agent| agent.available),
+                                session.is_none() && !agents.iter().any(|agent| agent.available),
                                 |el| {
                                     el.child(
                                         div()
@@ -436,7 +450,7 @@ impl Workbench {
                             )
                             .when_some(session, |el, chat| {
                                 el.child(div().mt(px(12.)).text_color(p.color("text-muted")).child(
-                                    self.t(match chat.state.as_str() {
+                                    self.t(match chat.as_str() {
                                         "running" | "connecting" => "roadmap.running",
                                         "idle" => "roadmap.finished",
                                         "auth_required" => "roadmap.auth_required",

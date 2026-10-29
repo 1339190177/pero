@@ -4,7 +4,8 @@ impl Workbench {
     pub(crate) fn remote_form(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
         let busy = self.remote.loading() || self.remote.submitting;
-        let agent = self.remote_agent();
+        let agent = self.remote_agent(cx);
+        let agents = self.chat.read(cx).agents.clone();
         let field = |label: &str, child: AnyElement| {
             div()
                 .flex()
@@ -86,8 +87,8 @@ impl Workbench {
                             .flex()
                             .flex_wrap()
                             .gap(px(6.))
-                            .when(self.agents.is_empty(), |el| el.child(agent.clone()))
-                            .children(self.agents.iter().enumerate().map(|(i, a)| {
+                            .when(agents.is_empty(), |el| el.child(agent.clone()))
+                            .children(agents.iter().enumerate().map(|(i, a)| {
                                 let id = a.id.clone();
                                 Button::new(("remote-agent", i))
                                     .outline()

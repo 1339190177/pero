@@ -1,5 +1,5 @@
 //! One completion surface for context sources, references, commands and skills.
-use crate::app::Workbench;
+use crate::panel::ChatPanel;
 use gpui_kit::{
     component::{button::*, *},
     prelude::*,
@@ -7,15 +7,15 @@ use gpui_kit::{
 };
 use pero_contracts::context::ContextKind;
 
-pub(crate) struct PickerItem {
+pub struct PickerItem {
     pub icon: &'static str,
     pub label: String,
     pub detail: String,
     pub group: String,
 }
 
-impl Workbench {
-    pub(crate) fn composer_picker_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
+impl ChatPanel {
+    pub fn composer_picker_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
         let items = self.composer_picker_items();
         let selected = self.composer_state.selected;
@@ -177,7 +177,7 @@ impl Workbench {
             )
     }
 
-    pub(crate) fn context_kind_label(&self, kind: ContextKind) -> &str {
+    pub fn context_kind_label(&self, kind: ContextKind) -> &str {
         self.t(match kind {
             ContextKind::File => "composer.files",
             ContextKind::Directory => "composer.directories",
@@ -191,7 +191,7 @@ impl Workbench {
         })
     }
 
-    pub(crate) fn context_kind_icon(kind: ContextKind) -> &'static str {
+    pub fn context_kind_icon(kind: ContextKind) -> &'static str {
         match kind {
             ContextKind::File => "icons/file.svg",
             ContextKind::Directory => "icons/folder.svg",

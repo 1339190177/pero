@@ -3,13 +3,13 @@ use pero_contracts::context::{ContextCandidate, ContextKind, ContextReference};
 use std::ops::Range;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum CompletionKind {
+pub enum CompletionKind {
     Mention(Option<ContextKind>),
     Slash,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct CompletionQuery {
+pub struct CompletionQuery {
     pub range: Range<usize>,
     pub kind: CompletionKind,
     pub query: String,
@@ -52,14 +52,14 @@ impl CompletionQuery {
 }
 
 #[derive(Clone)]
-pub(crate) enum ComposerChoice {
+pub enum ComposerChoice {
     Source(ContextKind),
     Context(ContextCandidate),
     Command { name: String, description: String },
 }
 
 #[derive(Default)]
-pub(crate) struct ComposerState {
+pub struct ComposerState {
     pub open: bool,
     pub loading: bool,
     pub error: Option<String>,

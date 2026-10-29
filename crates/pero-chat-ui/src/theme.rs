@@ -6,14 +6,14 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 #[derive(Clone, Deserialize)]
-pub(crate) struct Palettes {
+pub struct Palettes {
     pub light: Palette,
     pub dark: Palette,
 }
 
 #[derive(Clone, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct Palette(HashMap<String, String>);
+pub struct Palette(HashMap<String, String>);
 
 impl Palette {
     pub fn color(&self, token: &str) -> Hsla {

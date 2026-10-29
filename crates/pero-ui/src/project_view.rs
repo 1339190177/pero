@@ -12,7 +12,7 @@ use gpui_kit::{
 use serde_json::{Value, json};
 
 impl Workbench {
-    pub(crate) fn project_catalog(&self) -> Vec<Project> {
+    pub(crate) fn project_catalog(&self, cx: &App) -> Vec<Project> {
         let mut workspaces = vec![self.workspace.clone()];
         workspaces.extend(
             self.preferences
@@ -20,7 +20,13 @@ impl Workbench {
                 .iter()
                 .map(|binding| binding.workspace.clone()),
         );
-        workspaces.extend(self.chats.iter().map(|chat| chat.workspace.clone()));
+        workspaces.extend(
+            self.chat
+                .read(cx)
+                .chats
+                .iter()
+                .map(|chat| chat.workspace.clone()),
+        );
         let mut shared = self.remote.data["identity"]["projects"]
             .as_array()
             .into_iter()
@@ -67,23 +73,23 @@ impl Workbench {
         )
     }
 
-    pub(crate) fn reconcile_project_selection(&mut self) {
-        if let Some(project) = self.current_project() {
+    pub(crate) fn reconcile_project_selection(&mut self, cx: &App) {
+        if let Some(project) = self.current_project(cx) {
             self.selected_project = Some(project.key);
         }
     }
 
-    pub(crate) fn current_project(&self) -> Option<Project> {
+    pub(crate) fn current_project(&self, cx: &App) -> Option<Project> {
         let key = self.selected_project.as_deref()?;
-        self.project_catalog()
+        self.project_catalog(cx)
             .into_iter()
             .find(|project| project.matches_key(key))
     }
 
-    pub(crate) fn task_in_project(&self, task: &Value) -> bool {
+    pub(crate) fn task_in_project(&self, task: &Value, cx: &App) -> bool {
         self.selected_project.is_none()
             || self
-                .current_project()
+                .current_project(cx)
                 .is_some_and(|project| project.contains_task(string(task, "project_id")))
     }
 
@@ -94,7 +100,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let Some(project) = self
-            .project_catalog()
+            .project_catalog(cx)
             .into_iter()
             .find(|project| project.key == key)
         else {
@@ -139,9 +145,9 @@ impl Workbench {
             .iter()
             .find(|task| string(task, "id") == id)
         {
-            if !self.task_in_project(task) {
+            if !self.task_in_project(task, cx) {
                 self.selected_project = self
-                    .project_catalog()
+                    .project_catalog(cx)
                     .into_iter()
                     .find(|project| project.contains_task(string(task, "project_id")))
                     .map(|project| project.key);
@@ -210,7 +216,7 @@ impl Workbench {
                                 this.sync_follow(cx);
                             })),
                     )
-                    .children(self.project_catalog().into_iter().enumerate().map(
+                    .children(self.project_catalog(cx).into_iter().enumerate().map(
                         |(i, project)| {
                             let path = project
                                 .workspace
@@ -263,7 +269,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
-        let project = self.current_project();
+        let project = self.current_project(cx);
         let name = project
             .as_ref()
             .map(|project| project.name.clone())
@@ -344,7 +350,7 @@ impl Workbench {
 
     fn project_sources(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
-        let project = self.current_project();
+        let project = self.current_project(cx);
         let repositories = self
             .remote
             .repositories()
@@ -430,7 +436,7 @@ impl Workbench {
 
     fn project_execution(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
-        let project = self.current_project();
+        let project = self.current_project(cx);
         let workers = self
             .remote
             .workers()
@@ -508,7 +514,7 @@ impl Workbench {
 
     fn project_settings(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
-        let project = self.current_project();
+        let project = self.current_project(cx);
         div()
             .flex_1()
             .min_w_0()
@@ -556,8 +562,9 @@ impl Workbench {
                                     == crate::settings_menu::PreferenceSaveState::Saving,
                             )
                             .on_click(cx.listener(|this, _, _, cx| {
-                                let Some(workspace) =
-                                    this.current_project().and_then(|project| project.workspace)
+                                let Some(workspace) = this
+                                    .current_project(cx)
+                                    .and_then(|project| project.workspace)
                                 else {
                                     return;
                                 };
@@ -593,10 +600,22 @@ impl Workbench {
     pub(crate) fn insights_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palettes.get(self.dark);
         let sessions = self
+            .chat
+            .read(cx)
             .chats
             .iter()
             .enumerate()
             .filter(|(_, chat)| chat.permission.is_some() || chat.error.is_some() || chat.busy())
+            .map(|(i, chat)| {
+                let status = self.t(if chat.permission.is_some() {
+                    "insights.approval"
+                } else if chat.error.is_some() {
+                    "insights.attention"
+                } else {
+                    "filter.running"
+                });
+                (i, chat.title.clone(), status)
+            })
             .collect::<Vec<_>>();
         let tasks = self
             .remote
@@ -635,20 +654,13 @@ impl Workbench {
                         .child(self.t("insights.empty")),
                 )
             })
-            .children(sessions.into_iter().map(|(i, chat)| {
-                let status = self.t(if chat.permission.is_some() {
-                    "insights.approval"
-                } else if chat.error.is_some() {
-                    "insights.attention"
-                } else {
-                    "filter.running"
-                });
+            .children(sessions.into_iter().map(|(i, title, status)| {
                 Button::new(("insight-session", i))
                     .ghost()
                     .w_full()
                     .h(px(44.))
                     .justify_start()
-                    .label(format!("{} · {}", chat.title, status))
+                    .label(format!("{} · {}", title, status))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.navigation = 0;
                         this.focus_chat(Some(i), 4, cx);

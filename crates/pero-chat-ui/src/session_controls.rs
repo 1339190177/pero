@@ -1,5 +1,5 @@
 //! Capability-driven session controls share one choice menu and one selection action.
-use crate::app::Workbench;
+use crate::panel::ChatPanel;
 use gpui_kit::{
     component::{
         button::*,
@@ -15,7 +15,7 @@ fn setting_menu(
     mut menu: PopupMenu,
     setting: &SessionSetting,
     thread: &str,
-    workbench: &WeakEntity<Workbench>,
+    workbench: &WeakEntity<ChatPanel>,
 ) -> PopupMenu {
     menu = menu
         .min_w(px(220.))
@@ -45,7 +45,7 @@ fn setting_menu(
     menu
 }
 
-impl Workbench {
+impl ChatPanel {
     pub(crate) fn session_setting_controls(
         &self,
         category: &str,
