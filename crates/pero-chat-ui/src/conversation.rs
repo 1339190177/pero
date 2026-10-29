@@ -1,4 +1,4 @@
-use crate::stream::StreamText;
+use crate::{content_document::ContentDocument, content_reader::ContentReader, stream::StreamText};
 use gpui_kit::{App, AppContext as _, Entity};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -79,6 +79,9 @@ pub struct Tool {
     /// are intentionally kept out of the default tool presentation.
     pub output: Vec<Value>,
     pub cancelled: bool,
+    pub document: Option<ContentDocument>,
+    #[serde(skip)]
+    pub reader: Option<Entity<ContentReader>>,
     #[serde(skip)]
     pub view: Option<Entity<StreamText>>,
 }
@@ -88,11 +91,12 @@ impl Tool {
     /// document here avoids parsing large output the reader has not opened.
     pub fn set_body_open(&mut self, open: bool, cx: &mut App) {
         if open {
-            if self.view.is_none() {
+            if self.document.is_none() && self.view.is_none() {
                 self.view = Some(cx.new(|cx| StreamText::new(&self.content, cx)));
             }
         } else {
             self.view = None;
+            self.reader = None;
         }
     }
 }
@@ -243,6 +247,8 @@ impl Conversation {
                             content: String::new(),
                             output: vec![],
                             cancelled: false,
+                            document: None,
+                            reader: None,
                             view: None,
                         });
                         self.tools.len() - 1
@@ -279,10 +285,32 @@ impl Conversation {
                     tool.output = content.clone();
                     let next = content
                         .iter()
-                        .filter_map(|item| item["content"]["text"].as_str())
+                        .filter_map(|item| {
+                            item["content"]["text"]
+                                .as_str()
+                                .or_else(|| item["content"]["resource"]["text"].as_str())
+                        })
                         .collect::<Vec<_>>()
                         .join("\n");
                     if next != tool.content {
+                        let revision = tool
+                            .document
+                            .as_ref()
+                            .map_or(1, |document| document.revision + 1);
+                        tool.document = ContentDocument::from_tool(
+                            format!("{}/{}", self.id, tool.id),
+                            revision,
+                            &next,
+                        );
+                        if let Some(document) = &tool.document {
+                            tool.view = None;
+                            if let Some(reader) = &tool.reader {
+                                reader
+                                    .update(cx, |reader, cx| reader.replace(document.clone(), cx));
+                            }
+                        } else {
+                            tool.reader = None;
+                        }
                         if let Some(view) = &tool.view {
                             view.update(cx, |view, cx| view.replace(&next, cx));
                         }

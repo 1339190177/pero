@@ -122,6 +122,8 @@ mod rendering {
             } else {
                 None
             };
+            let reader_tools = tools.iter().map(|tool| tool.id.clone()).collect::<Vec<_>>();
+            let reader_chat = conversation_id.to_string();
             let disclosure = self.t(if open {
                 "chat.tool_collapse"
             } else {
@@ -182,9 +184,17 @@ mod rendering {
                             })
                             .size(px(12.)),
                         )
-                        .on_click(cx.listener(move |this, _, _, cx| {
+                        .on_click(cx.listener(move |this, _, window, cx| {
                             if !this.expanded_tools.remove(&key) {
                                 this.expanded_tools.insert(key.clone());
+                                let locale = this.locale.clone();
+                                if let Some(chat) = this.chats.iter_mut().find(|chat| chat.id == reader_chat) {
+                                    for tool in chat.tools.iter_mut().filter(|tool| reader_tools.contains(&tool.id)) {
+                                        if let Some(document) = &tool.document {
+                                            tool.reader = Some(cx.new(|cx| crate::content_reader::ContentReader::new(document.clone(), locale.clone(), window, cx)));
+                                        }
+                                    }
+                                }
                             }
                             this.sync_follow(cx);
                             cx.notify();
@@ -214,6 +224,20 @@ mod rendering {
                                             .text_color(p.color("text-muted"))
                                             .child(path.clone())
                                     }))
+                                    .when_some(tool.document.as_ref().filter(|_| tool.reader.is_none()), |el, document| {
+                                        let document = document.clone();
+                                        let chat_id = conversation_id.to_string();
+                                        let tool_id = tool.id.clone();
+                                        el.child(Button::new(("open-content", index)).ghost().small().label(self.t("content.open"))
+                                            .on_click(cx.listener(move |this, _, window, cx| {
+                                                let locale = this.locale.clone();
+                                                if let Some(tool) = this.chats.iter_mut().find(|c| c.id == chat_id).and_then(|c| c.tools.iter_mut().find(|t| t.id == tool_id)) {
+                                                    tool.reader = Some(cx.new(|cx| crate::content_reader::ContentReader::new(document.clone(), locale, window, cx)));
+                                                }
+                                                cx.notify();
+                                            })))
+                                    })
+                                    .when_some(tool.reader.as_ref(), |el, reader| el.child(reader.clone()))
                                     .when_some(tool.view.as_ref(), |el, view| {
                                         el.child(view.clone())
                                     })

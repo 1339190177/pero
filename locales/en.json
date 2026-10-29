@@ -1,4 +1,12 @@
 {
+  "content.open": "Open result",
+  "content.preview": "Preview",
+  "content.source": "Source",
+  "content.copy": "Copy source",
+  "content.copied": "Copied",
+  "content.back": "Back",
+  "content.empty": "No data",
+  "content.missing": "Missing",
   "workspace.local": "Local workspace",
   "nav.tasks": "Tasks",
   "nav.sessions": "Conversations",

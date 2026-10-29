@@ -1,4 +1,12 @@
 {
+  "content.open": "查看结果",
+  "content.preview": "预览",
+  "content.source": "源码",
+  "content.copy": "复制原文",
+  "content.copied": "已复制",
+  "content.back": "返回",
+  "content.empty": "没有数据",
+  "content.missing": "缺失",
   "workspace.local": "本机工作区",
   "nav.tasks": "任务",
   "nav.sessions": "会话",

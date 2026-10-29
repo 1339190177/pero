@@ -155,6 +155,13 @@ impl ChatPanel {
     pub fn set_context(&mut self, dark: bool, locale: &str, cx: &mut Context<Self>) {
         self.dark = dark;
         self.locale = pero_contracts::i18n::normalize(locale).into();
+        for chat in &self.chats {
+            for tool in &chat.tools {
+                if let Some(reader) = &tool.reader {
+                    reader.update(cx, |reader, cx| { reader.locale = self.locale.clone(); cx.notify(); });
+                }
+            }
+        }
         gpui_kit::component::set_locale(&self.locale);
         self.palettes.apply(dark, cx);
         cx.notify();
@@ -300,6 +307,7 @@ impl ChatPanel {
             "modelMenu":self.model_menu,"deletingChat":self.deleting_chat,
             "completion":{"open":self.composer_state.open,"loading":self.composer_state.loading,"error":self.composer_state.error,
                 "selected":self.composer_state.selected,"items":self.composer_picker_items().iter().map(|i|&i.label).collect::<Vec<_>>()},
+            "contentReaders":self.chats.iter().flat_map(|chat|chat.tools.iter()).filter_map(|tool|tool.reader.as_ref().map(|reader|reader.read(cx).snapshot(cx))).collect::<Vec<_>>(),
             "toolViews":self.chats.iter().map(|c|c.tools.iter().filter(|t|t.view.is_some()).count()).collect::<Vec<_>>(),
             "scroll":{"y":f32::from(self.chat_scroll.offset().y),"max":f32::from(self.chat_scroll.max_offset().y)},
             "renderStats":self.chats.iter().map(|c|c.messages.iter().map(|m|m.view.read(cx).stats()).collect::<Vec<_>>()).collect::<Vec<_>>(),
