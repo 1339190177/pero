@@ -14,3 +14,8 @@ The frame announces `{type:'pero:app:ready'}` to its parent. The parent replies
 with `{type:'pero:app:context',context:{locale,dark,active}}`. The provider accepts
 only messages from its parent and validates the three fields. There are no
 App-controlled credentials, host paths or Session bindings in this message.
+
+`useAppChat().open()` opens the host-owned Chat panel when the product enables
+Chat. `useAppChat().compose(text)` opens it and inserts text into its draft;
+the user still sends the message. These requests use the managed iframe's App
+identity and do not expose session commands or Agent credentials to the App.

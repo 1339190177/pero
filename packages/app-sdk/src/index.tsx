@@ -30,6 +30,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAppInfo = () => ({ active: useContext(Context).active });
+
+/** Opens the host-owned chat or fills its draft. Neither action submits a prompt. */
+export function useAppChat() {
+  return {
+    open: () => window.parent.postMessage({ type: 'pero:app:chat' }, '*'),
+    compose: (text: string) => window.parent.postMessage({ type: 'pero:app:chat', text }, '*'),
+  };
+}
 export const useTheme = () => ({ id: 'pero', mode: useContext(Context).dark ? 'dark' : 'light' });
 export function useAppI18n<M extends Record<string, { zh: string; en: string }>>(messages: M) {
   const { locale } = useContext(Context);

@@ -6,7 +6,7 @@ export type AppSurface = { visible: boolean; name?: string; panel?: string; left
 type Frame = { element: HTMLIFrameElement; name: string; panel: string; ready: boolean; failed: boolean; timer: ReturnType<typeof setTimeout> };
 
 /** Retains App documents across navigation; GPUI owns selection and layout. */
-export function mountAppSurfaces(command: (value: object) => Promise<void>) {
+export function mountAppSurfaces(command: (value: object) => Promise<void>, onChat?: (context: { name: string; panel: string; text?: string }) => void) {
   const frames = new Map<string, Frame>();
   const region = document.createElement('section');
   region.id = 'pero-app-surface';
@@ -56,9 +56,14 @@ export function mountAppSurfaces(command: (value: object) => Promise<void>) {
     renderStatus();
   };
   window.addEventListener('message', event => {
-    if (event.data?.type !== 'pero:app:ready') return;
     const frame = [...frames.values()].find(frame => frame.element.contentWindow === event.source);
     if (!frame) return;
+    if (event.data?.type === 'pero:app:chat') {
+      if (event.data.text !== undefined && (typeof event.data.text !== 'string' || event.data.text.length > 64000)) return;
+      onChat?.({ name: frame.name, panel: frame.panel, text: event.data.text });
+      return;
+    }
+    if (event.data?.type !== 'pero:app:ready') return;
     clearTimeout(frame.timer); frame.ready = true;
     context(frame); renderStatus();
   });

@@ -29,7 +29,10 @@ try {
     document.documentElement.style.setProperty(`--pero-${key}`, value);
   }
   await init();
-  const apps = mountAppSurfaces(value => window.pero ? window.pero.appsCommand(value) : Promise.reject(new Error(t('error.browser'))));
+  const apps = mountAppSurfaces(value => window.pero ? window.pero.appsCommand(value) : Promise.reject(new Error(t('error.browser'))), context => {
+    receive_host_event(JSON.stringify({ version: 1, kind: 'app_scope', request_id: null, text: '', data: { app: context.name, panel: context.panel } }));
+    if (context.text !== undefined) receive_host_event(JSON.stringify({ version: 1, kind: 'compose_intent', request_id: null, text: context.text }));
+  });
   window.peroAppSurface = json => apps.surface(JSON.parse(json) as AppSurface);
   window.peroSendProbe = (json) => {
     const request = JSON.parse(json);
@@ -71,7 +74,7 @@ try {
   window.peroDiagnostics = { snapshot };
   document.addEventListener('paste', (event: ClipboardEvent) => {
     const before = JSON.parse(snapshot());
-    if (!before.composerFocused || before.navigation !== 0 || before.tab !== 4) return;
+    if (!before.composerFocused || !(before.navigation === 0 && before.tab === 4 || before.navigation === 7 && before.appChatOpen)) return;
     const images = [...(event.clipboardData?.items ?? [])].filter(item=>item.kind === 'file' && item.type.startsWith('image/'));
     if (!images.length) return;
     event.preventDefault();
