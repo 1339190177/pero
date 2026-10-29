@@ -16,6 +16,7 @@ from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import xml.etree.ElementTree as ET
 
+from .discovery import DiscoveryBatch, DiscoveryPaper, SeedMatches, WORK
 from .model import Invalid
 
 SOURCES = ("alphaxiv", "openalex", "biorxiv", "pubmed")
@@ -377,6 +378,37 @@ class LiteratureClient:
                 "warnings": [{"source": error["source"], "message": error["error"]} for error in errors],
                 "status": "failed" if len(errors) == len(query.sources) else "partial" if errors else "complete",
                 "notice": "Public-source retrieval; content and candidates remain unverified."}
+
+    def discover(self, query, paper):
+        selector = query.selector(paper)
+        work = self._request('https://api.openalex.org/works/' + quote(selector, safe=''), optional=True) if selector else None
+        if work is None:
+            result = self._request(self._endpoint('https://api.openalex.org/works', search=paper.title[:500], per_page=5))
+            candidates = tuple(DiscoveryPaper.parse(_openalex(w, 'openalex')) for w in result['results'])
+            return SeedMatches(paper.id, candidates)
+        seed = DiscoveryPaper.parse(_openalex(work, 'openalex'))
+        start, size = (query.page - 1) * 12, 12
+        if query.relation == 'citing':
+            result = self._request(self._endpoint('https://api.openalex.org/works', filter='cites:' + seed.id,
+                                                  sort='publication_date:desc', page=query.page, per_page=size))
+            records = result['results']
+            more = query.page * size < result['meta']['count']
+        else:
+            key = 'related_works' if query.relation == 'related' else 'referenced_works'
+            ids = work.get(key)
+            if not isinstance(ids, list):
+                raise Invalid('OpenAlex did not supply this relationship. Try another relation or retry later.')
+            ids = list(dict.fromkeys(w.rsplit('/', 1)[-1] for w in ids if isinstance(w, str)
+                                    and WORK.fullmatch(w.rsplit('/', 1)[-1]) and w.rsplit('/', 1)[-1] != seed.id))
+            selected = ids[start:start + size]
+            records = self._request(self._endpoint('https://api.openalex.org/works',
+                filter='openalex:' + '|'.join(selected), per_page=size))['results'] if selected else []
+            indexed = {w['id'].rsplit('/', 1)[-1]: w for w in records}
+            records = [indexed[identity] for identity in selected if identity in indexed]
+            more = start + size < len(ids)
+        items = tuple(DiscoveryPaper.parse(_openalex(w, 'openalex')) for w in records)
+        return DiscoveryBatch(paper.id, paper.title, query.relation, seed, items, query.page,
+                              more and query.page < 100, self._now(), 'confirmed' if query.work_id else 'identifier')
 
     def read(self, value):
         identity = PaperIdentity.parse(value)
