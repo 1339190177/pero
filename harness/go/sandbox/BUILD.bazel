@@ -7,10 +7,23 @@ go_library(
         "links_unsupported.go",
         "policy.go",
         "strict.go",
+        "windows_acl_windows.go",
+        "windows_backend_windows.go",
+        "windows_process_windows.go",
+        "windows_runner.go",
+        "windows_runner_windows.go",
+        "windows_token_windows.go",
+        "windows_unsupported.go",
         "workspace.go",
     ],
     importpath = "github.com/phodal/pero/harness/go/sandbox",
     visibility = ["//visibility:public"],
+    deps = select({
+        "@rules_go//go/platform:windows": [
+            "@org_golang_x_sys//windows",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 go_test(
@@ -20,4 +33,5 @@ go_test(
         "workspace_unix_test.go",
     ],
     embed = [":sandbox"],
+
 )
