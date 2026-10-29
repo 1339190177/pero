@@ -89,5 +89,5 @@ watch(sources, { recursive: true }, (_event, filename) => {
 });
 
 console.log('Building the debug Host and native preview.');
-await run('cargo', cargoArgs(['build', '--locked', '-p', 'pero-host']));
+await run('cargo', cargoArgs(['build', '--locked', '-p', 'pero-host', '-p', 'pero-worker']));
 await cycle();

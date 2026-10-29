@@ -53,7 +53,7 @@ for (const [kind, policy, executable] of [['python', product.python, 'python3'],
 for (const { app, input } of inputs) {
   if (!input) execFileSync(process.execPath, [resolve(root, 'scripts/build/apps.mjs'), '--app', app], { stdio: 'inherit' });
 }
-execFileSync(process.execPath, [resolve(root, 'scripts/cargo.mjs'), 'build', '--release', '--locked', '-p', 'pero-host'], { stdio: 'inherit' });
+execFileSync(process.execPath, [resolve(root, 'scripts/cargo.mjs'), 'build', '--release', '--locked', '-p', 'pero-host', '-p', 'pero-worker'], { stdio: 'inherit' });
 rmSync(output, { recursive: true, force: true });
 mkdirSync(join(output, 'desktop/dist'), { recursive: true });
 mkdirSync(join(output, 'bin'), { recursive: true });
