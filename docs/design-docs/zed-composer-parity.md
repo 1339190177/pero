@@ -93,3 +93,11 @@ locks its identity. Rich draft restoration, explicit external authentication,
 startup retry, selected-Agent persistence and current acceptance boundaries are
 recorded in [Agent preparation](../fitness/agent-preparation.md). Process sharing
 and submitted-session restoration are not included in this UI alignment.
+
+## Streaming transcript presentation (2026-10-29)
+
+Shared Chat follows Zed's thinking-disclosure lifecycle, compact tool text,
+separate arguments/results and session title notifications. Expanded reasoning
+is additionally muted. Actual UI and real Qoder acceptance, including the
+provider's missing title-notification boundary, are recorded in
+[streaming presentation](../fitness/streaming-presentation.md).

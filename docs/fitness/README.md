@@ -82,3 +82,6 @@ Workspace navigation ownership and pure layout refactor:
 Agent → App tools, task grants and panel evidence: [App Use](app-use.md).
 
 Automatic ACP Agent preparation, draft preservation and external login: [Agent preparation](agent-preparation.md).
+
+Reasoning, tool input/results and ACP session title replay:
+[streaming presentation](streaming-presentation.md).
