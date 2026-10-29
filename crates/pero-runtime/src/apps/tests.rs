@@ -75,7 +75,7 @@ fn installation_and_retained_data_lifecycle() {
     let source = workspace.package(None);
     let root = workspace.0.join("managed/apps");
     let name = AppName::try_from("virtual-cell".to_string()).unwrap();
-    let mut store = AppStore::open(root.clone()).unwrap();
+    let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
     assert!(store.list().is_empty());
     assert!(!store.install(&source).unwrap()[0].enabled);
     assert!(store.resolve(&name).is_err());
@@ -93,7 +93,7 @@ fn installation_and_retained_data_lifecycle() {
     fs::create_dir_all(&data).unwrap();
     fs::write(data.join("draft.json"), "user draft").unwrap();
     drop(store);
-    let mut store = AppStore::open(root).unwrap();
+    let mut store = AppStore::open(root, PythonEnvironments::default()).unwrap();
     assert!(store.list()[0].enabled);
     store.set_enabled(&name, false).unwrap();
     assert!(store.resolve(&name).is_err());
@@ -115,14 +115,14 @@ fn builtin_uninstall_is_not_reversed_on_restart() {
     fs::create_dir(&catalog).unwrap();
     fs::rename(&source, catalog.join("virtual-cell")).unwrap();
     let root = workspace.0.join("managed/apps");
-    let mut store = AppStore::open(root.clone()).unwrap();
+    let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
     store.seed_builtins(&catalog).unwrap();
     assert!(store.list()[0].enabled);
     store
         .uninstall(&AppName::try_from("virtual-cell".to_string()).unwrap())
         .unwrap();
     drop(store);
-    let mut store = AppStore::open(root).unwrap();
+    let mut store = AppStore::open(root, PythonEnvironments::default()).unwrap();
     store.seed_builtins(&catalog).unwrap();
     assert!(store.list().is_empty());
 }
@@ -133,7 +133,7 @@ fn rejected_package_does_not_publish_partial_install() {
     let source = workspace.package(None);
     fs::remove_file(source.join("dist/index.html")).unwrap();
     let root = workspace.0.join("managed/apps");
-    let mut store = AppStore::open(root.clone()).unwrap();
+    let mut store = AppStore::open(root.clone(), PythonEnvironments::default()).unwrap();
     assert!(store.install(&source).is_err());
     assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
     #[cfg(unix)]
@@ -151,7 +151,11 @@ fn backend_lifecycle() {
         let workspace = Workspace::new();
         let source = workspace.package(Some(kind));
         let name = AppName::try_from("virtual-cell".to_string()).unwrap();
-        let mut store = AppStore::open(workspace.0.join("managed/apps")).unwrap();
+        let mut store = AppStore::open(
+            workspace.0.join("managed/apps"),
+            PythonEnvironments::default(),
+        )
+        .unwrap();
         store.install(&source).unwrap();
         store.set_enabled(&name, true).unwrap();
         let access = store.resolve(&name).unwrap().backend.unwrap();

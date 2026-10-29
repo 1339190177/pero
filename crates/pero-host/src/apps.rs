@@ -56,12 +56,17 @@ impl Apps {
                     .unwrap_or(Path::new(".pero"))
                     .join("apps")
             });
-        let store = AppStore::open(root).and_then(|mut store| {
+        let store = (|| {
+            let python = settings
+                .map(pero_runtime::settings::load_app_python)
+                .transpose()?
+                .unwrap_or_default();
+            let mut store = AppStore::open(root, python)?;
             if let Some(catalog) = std::env::var_os("PERO_BUILTIN_APPS_ROOT") {
                 store.seed_builtins(Path::new(&catalog))?;
             }
             Ok(store)
-        });
+        })();
         Self { store }
     }
 

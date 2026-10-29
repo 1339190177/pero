@@ -1,4 +1,5 @@
 //! Runtime-owned preferences. Desktop forwards changes rather than owning a second store.
+use crate::apps::PythonEnvironments;
 use pero_contracts::RemoteConnectionSettings;
 use std::{
     io::{self, Write},
@@ -11,6 +12,31 @@ pub fn load_locale(path: &Path) -> Option<String> {
         .get("locale")?
         .as_str()
         .map(|locale| pero_contracts::i18n::normalize(locale).into())
+}
+
+/// Trusted Host configuration; an invalid explicit binding must never become
+/// an implicit request to run an App with system Python.
+pub fn load_app_python(path: &Path) -> Result<PythonEnvironments, String> {
+    #[derive(serde::Deserialize)]
+    struct AppSettings {
+        #[serde(default)]
+        app_python: PythonEnvironments,
+    }
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok(PythonEnvironments::default());
+        }
+        Err(error) => {
+            return Err(format!(
+                "Cannot read App Python settings {}: {error}",
+                path.display()
+            ));
+        }
+    };
+    serde_json::from_slice::<AppSettings>(&bytes)
+        .map(|settings| settings.app_python)
+        .map_err(|error| format!("Invalid App Python settings {}: {error}", path.display()))
 }
 
 fn update(path: &Path, edit: impl FnOnce(&mut serde_json::Value)) -> io::Result<()> {

@@ -1,9 +1,11 @@
 //! Local App packages and the single owner of their installed state and backends.
 mod definition;
 mod process;
+mod python;
 pub use definition::{AppDefinition, AppName, AppSummary};
 use process::AppProcess;
 pub use process::BackendAccess;
+pub use python::{PythonEnvironment, PythonEnvironments};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -37,10 +39,11 @@ pub struct AppStore {
     data: PathBuf,
     installed: BTreeMap<AppName, AppInstallation>,
     processes: BTreeMap<AppName, AppProcess>,
+    python: PythonEnvironments,
 }
 
 impl AppStore {
-    pub fn open(root: PathBuf) -> Result<Self, String> {
+    pub fn open(root: PathBuf, python: PythonEnvironments) -> Result<Self, String> {
         fs::create_dir_all(&root).map_err(|error| error.to_string())?;
         let root = dunce::canonicalize(root).map_err(|error| error.to_string())?;
         let data = root
@@ -89,6 +92,7 @@ impl AppStore {
             data,
             installed,
             processes: BTreeMap::new(),
+            python,
         })
     }
 
@@ -240,7 +244,12 @@ impl AppStore {
         if app.definition.backend.is_some() && !self.processes.contains_key(name) {
             self.processes.insert(
                 name.clone(),
-                AppProcess::start(&app.definition, &root, &self.data.join(name.as_str()))?,
+                AppProcess::start(
+                    &app.definition,
+                    &root,
+                    &self.data.join(name.as_str()),
+                    self.python.select(name),
+                )?,
             );
         }
         let backend = self
