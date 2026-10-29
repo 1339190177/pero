@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "paper-agent",
+  "version": "0.1.0",
+  "displayName": "Paper Agent",
+  "description": "论文阅读、证据核对与研究报告。",
+  "permissions": { "host": ["agent"] },
+  "contributes": { "panels": [{ "id": "main", "title": "Paper Agent", "entry": "dist/index.html" }] },
+  "backend": { "type": "python", "entry": "backend/server.py" }
+}

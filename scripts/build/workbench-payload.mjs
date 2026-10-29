@@ -1,5 +1,5 @@
 // Shared workbench payload for native Electron distributions.
-import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { stageAgentAdapters } from './agent-adapters.mjs';
@@ -23,7 +23,7 @@ export async function stageWorkbench(payload, product) {
   // Builtin Apps include runnable assets and stdlib Python, never development dependencies.
   for (const appName of product.apps) for (const entry of ['app.json', 'dist', 'backend', 'examples', 'evidence', 'THIRD_PARTY_NOTICES.md', 'README.md', 'licenses']) {
     const source = resolve(root, 'apps', appName, entry);
-    cpSync(source, join(payload, 'apps', appName, entry), { recursive: true, filter: path => !path.includes('__pycache__') });
+    if (existsSync(source)) cpSync(source, join(payload, 'apps', appName, entry), { recursive: true, filter: path => !path.includes('__pycache__') });
   }
   // GPUI embeds these fonts in Wasm; Vite's public copy is unused duplication.
   const fonts = join(payload, 'web/dist/fonts');
