@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import themes from '../../../web/src/theme.generated.json';
 import './ui.css';
+export { useAppAgent } from './agent';
 
 export type AppContext = { locale: 'en' | 'zh-CN'; dark: boolean; active: boolean };
 const Context = createContext<AppContext>({ locale: 'en', dark: false, active: true });

@@ -41,7 +41,7 @@ export class DesktopApps {
     this.pending.clear();
   }
 
-  private request<T>(action: string, fields: Record<string, string> = {}): Promise<T> {
+  private request<T>(action: string, fields: Record<string, unknown> = {}): Promise<T> {
     const id = `apps-${randomUUID()}`;
     return new Promise((resolveRequest, reject) => {
       const timer = setTimeout(() => {
@@ -96,6 +96,13 @@ export class DesktopApps {
       const origin = `pero-app://${url.host}`;
       const caller = request.headers.get('Origin');
       if (caller && caller !== origin) return new Response('App origin refused', { status: 403 });
+      if (url.pathname === '/host/agent') {
+        if (request.method !== 'POST') return new Response('Method refused', { status: 405 });
+        const body = await request.text();
+        if (Buffer.byteLength(body) > 256_000) return new Response('Research request too large', { status: 413 });
+        const result = await this.request('agent', { name: url.hostname, request: JSON.parse(body) });
+        return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
+      }
       const access = await this.request<AppAccess>('resolve', { name: url.hostname });
       if (url.pathname.startsWith('/api/')) {
         if (!access.backend) return new Response('This App has no backend', { status: 503 });
