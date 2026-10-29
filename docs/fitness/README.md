@@ -85,3 +85,6 @@ Automatic ACP Agent preparation, draft preservation and external login: [Agent p
 
 Reasoning, tool input/results and ACP session title replay:
 [streaming presentation](streaming-presentation.md).
+
+Retained generic HTTP(S) Web sources, isolated Electron and native Wry engine
+acceptance: [web-documents.md](web-documents.md).

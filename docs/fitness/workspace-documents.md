@@ -104,9 +104,10 @@ The complete matrix stays active in
 [the implementation plan](../exec-plans/2026-10-30-content-view-parity.md).
 Markdown heading anchors and rendered/source selection mapping, Save As,
 split panes, navigation history and restart/draft recovery remain incomplete.
-Generic Web/native WebView items, MCP Apps negotiation/resource/bridge,
-advanced editor/table interactions and the dataset/Data Agent workflow are
-not implemented by this slice. Icon mapping/extension admission and
+Generic Web/native WebView items now have a separate
+[Web acceptance record](web-documents.md). MCP Apps negotiation/resource/bridge,
+advanced editor/table interactions and the dataset/Data Agent workflow remain
+unimplemented. Icon mapping/extension admission and
 cross-platform package/accessibility evidence remain separate gates.
 The existing large-source incident is still open: immutable text does not yet
 share every parse or move the Wasm parsing/IME work onto a worker.

@@ -75,19 +75,38 @@ simulated result alone.
 - File close/reopen is covered within one session. Restart recovery, split
   panes, Markdown anchors/range mapping, Save As and native runtime UI proof
   remain incomplete; therefore the broader lifecycle/Markdown rows stay open.
-- Generic WebView, MCP Apps, advanced table/editor operations, unified
-  extensible content icons and the Data Agent workflow have no completed
-  implementation/acceptance yet. They remain explicit work, not implied by
-  the App SDK bridge. Cross-platform and assistive-technology proof is pending.
+- Generic HTTP(S) Web sources now have separate retained workspace identities,
+  Electron WebContentsView and native GPUI Kit/Wry engines. Actual Electron
+  and hidden macOS WebKit receipts are in [Web view acceptance](../fitness/web-documents.md).
+  Two-page visibility, overlays and teardown are covered. This does not supply
+  MCP Apps, inline HTML admission, restart recovery or full browser parity.
+- MCP Apps, advanced table/editor operations, unified extensible content icons
+  and the Data Agent workflow remain unimplemented. Cross-platform package,
+  physical native UI and assistive-technology proof is pending.
+
+## Current delivery status
+
+| Capability | Current implementation and verified boundary | Remaining gate |
+| --- | --- | --- |
+| Source admission | Typed metadata and conversation/file/App revision ownership | Real MCP resource authority and metadata |
+| Markdown | Retained rendered/source views and file-relative links in actual Desktop | Heading anchors and rendered/source range mapping |
+| Files | Host-owned open/edit/save, conflict preservation, discard and unload guard | Save As, restart/draft recovery and physical native dialogs |
+| Workspace lifecycle | Stable tabs and reading state within a process | Restart, workspace back/forward and split panes |
+| Web | Actual Electron and macOS Wry page engines, history, retention and release | Inline HTML, restart, popup/native navigation limits and other OS receipts |
+| MCP Apps | Origin namespace only | Real server/resource connection, metadata, AppBridge and acceptance |
+| App SDK | Actual Virtual Cell result opens completely and returns to retained App | Rich standalone Web reader and other source kinds |
+| Icons | Existing shared action catalog plus Web tab/control icons | Unified content/language mappings and extension admission |
+| Editor | Existing exact copy/search/selection and source editor | Regex/whole-word search, structural folds and source navigation |
+| Data projections | Existing source-backed record/table preview | Sort/filter/resize/cell-copy and stable source mappings |
+| Performance | Full functionality retained and actual 1 MiB probes | Shared indexes, worker work, repeated cold/warm interaction distributions |
+| Data Agent | Virtual Cell computation and source handoff are verified separately | Dataset schema/grain/provenance, selection context and real Agent consumption |
+| Platform/accessibility | macOS hidden Electron, native engine and native compilation | Physical focus/IME, screen reader and installed Windows/Linux/macOS evidence |
 
 ## Next implementation boundary
 
-Use GPUI Kit's existing `gpui-webview`/Wry integration for native embedding
-rather than building a new native bridge. It is experimental; documented Linux
-support is X11, so Wayland acceptance is a distinct gap. Add generic Web items
-with their own identity and lifecycle rather than fake installed-App entries.
-For MCP Apps, first supply a real Host-owned server/resource connection and
-preserve `_meta.ui.resourceUri`; current ACP configuration forwards servers to
-external Agents and is not a Pero MCP resource transport. Then use the official
-AppBridge and its sandbox/CSP lifecycle. Only after the actual view workflow
-passes should output budgeting and file-on-demand optimizations be expanded.
+Supply a real Host-owned MCP server/resource connection and preserve
+`_meta.ui.resourceUri`; current ACP configuration forwards servers to external
+Agents and is not a Pero MCP resource transport. Then use the official
+AppBridge and its sandbox/CSP lifecycle. A generic Web page does not receive
+MCP or installed-App authority. Continue restart/reading/data capabilities
+against their gates above; output budget expansion remains secondary.

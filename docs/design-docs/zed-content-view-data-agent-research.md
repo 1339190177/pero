@@ -33,8 +33,10 @@ Implementation update (2026-10-30): file/Markdown and real Virtual Cell result
 workflows now pass through retained workspace documents. Current receipts and
 remaining gaps are tracked in [workspace document acceptance](../fitness/workspace-documents.md)
 and the [active implementation matrix](../exec-plans/2026-10-30-content-view-parity.md).
-Restart recovery, generic WebView, MCP Apps and large-source performance are
-not completed by this implementation slice.
+Generic HTTP(S) Web views now run in isolated Electron and native GPUI Kit/Wry
+engines; [Web acceptance](../fitness/web-documents.md) separates actual engine
+proof from physical UI/platform limits. Restart recovery, MCP Apps and
+large-source performance remain incomplete.
 
 ## 1. 研究基线与已有能力
 
