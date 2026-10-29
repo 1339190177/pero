@@ -4,6 +4,9 @@ pub(crate) struct UiAssets;
 impl AssetSource for UiAssets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: Option<&'static [u8]> = match path {
+            "icons/settings.svg" => Some(include_bytes!("../../../web/public/icons/settings.svg")),
+            "icons/alert-circle.svg" => Some(include_bytes!("../../../web/public/icons/alert-circle.svg")),
+            "icons/database.svg" => Some(include_bytes!("../../../web/public/icons/database.svg")),
             "icons/languages.svg" => {
                 Some(include_bytes!("../../../web/public/icons/languages.svg"))
             }
@@ -15,7 +18,9 @@ impl AssetSource for UiAssets {
             "icons/circle-check-filled.svg" => Some(include_bytes!(
                 "../../../web/public/icons/circle-check-filled.svg"
             )),
-            "icons/arrow-left.svg" => Some(include_bytes!("../../../web/public/icons/arrow-left.svg")),
+            "icons/arrow-left.svg" => {
+                Some(include_bytes!("../../../web/public/icons/arrow-left.svg"))
+            }
             "icons/server.svg" => Some(include_bytes!("../../../web/public/icons/server.svg")),
             "icons/clock.svg" => Some(include_bytes!("../../../web/public/icons/clock.svg")),
             "icons/copy.svg" => Some(include_bytes!("../../../web/public/icons/copy.svg")),
@@ -53,6 +58,15 @@ impl AssetSource for UiAssets {
             "icons/chevron-right.svg" => Some(include_bytes!(
                 "../../../web/public/icons/chevron-right.svg"
             )),
+            "icons/lightbulb.svg" => Some(include_bytes!("../../../web/public/icons/lightbulb.svg")),
+            "icons/shield.svg" => Some(include_bytes!("../../../web/public/icons/shield.svg")),
+            "icons/image.svg" => Some(include_bytes!("../../../web/public/icons/image.svg")),
+            "icons/sparkles.svg" => Some(include_bytes!("../../../web/public/icons/sparkles.svg")),
+            "icons/code.svg" => Some(include_bytes!("../../../web/public/icons/code.svg")),
+            "icons/message-circle.svg" => Some(include_bytes!("../../../web/public/icons/message-circle.svg")),
+            "icons/text-cursor.svg" => Some(include_bytes!("../../../web/public/icons/text-cursor.svg")),
+            "icons/globe.svg" => Some(include_bytes!("../../../web/public/icons/globe.svg")),
+            "icons/git-branch.svg" => Some(include_bytes!("../../../web/public/icons/git-branch.svg")),
             _ => None,
         };
         Ok(bytes.map(Cow::Borrowed))
