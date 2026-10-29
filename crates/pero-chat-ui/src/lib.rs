@@ -23,6 +23,8 @@ pub mod artifact_read;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod content_reader;
 #[cfg(any(target_family = "wasm", feature = "native"))]
+mod view_bounds;
+#[cfg(any(target_family = "wasm", feature = "native"))]
 pub mod theme;
 #[cfg_attr(not(any(target_family = "wasm", feature = "native")), allow(dead_code))]
 mod tool_ui;
