@@ -34,6 +34,9 @@ window.addEventListener('message', event => {
     initialContext(context); applyContext();
   } else if (event.data?.type === 'pero:chat:event') {
     if (initialized) receive_host_event(JSON.stringify(event.data.event)); else queued.push(event.data.event);
+  } else if (event.data?.type === 'pero:chat:query-selection' && initialized) {
+    const state = JSON.parse(snapshot());
+    window.parent.postMessage({type:'pero:chat:selection',id:event.data.id,thread:state.chats?.[state.activeChat]?.id,draft:{threadId:state.chats?.[state.activeChat]?.id,scope:state.scope}},parentOrigin);
   } else if (event.data?.type === 'pero:chat:compose' && initialized && typeof event.data.text === 'string') compose(event.data.text);
 });
 window.peroSessionCommand = json => window.parent.postMessage({ type: 'pero:chat:command', command: JSON.parse(json) }, parentOrigin);

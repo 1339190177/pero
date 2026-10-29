@@ -30,6 +30,7 @@ export function mountChatSurface(container: HTMLElement, options: {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const pending: HostEvent[] = [];
   let draft: string | undefined;
+  const selections = new Map<string, {resolve(draft: {threadId?:string;scope?:{app:string;panel:string}}|undefined): void; timer: ReturnType<typeof setTimeout>}>();
   const post = (type: string, value: object) => frame.contentWindow?.postMessage({ type, ...value }, origin);
   const renderStatus = () => {
     frame.title = translate(context.locale, 'chat.panel_title');
@@ -47,7 +48,10 @@ export function mountChatSurface(container: HTMLElement, options: {
   retry.onclick = start;
   const receive = (event: MessageEvent) => {
     if (event.source !== frame.contentWindow || event.origin !== origin) return;
-    if (event.data?.type === 'pero:chat:connect') post('pero:chat:context', { context });
+    if (event.data?.type === 'pero:chat:selection') {
+      const pending = selections.get(event.data.id);
+      if (pending) { clearTimeout(pending.timer); selections.delete(event.data.id); pending.resolve(event.data.draft||{threadId:event.data.thread}); }
+    } else if (event.data?.type === 'pero:chat:connect') post('pero:chat:context', { context });
     else if (event.data?.type === 'pero:chat:ready') {
       connected = true; clearTimeout(timer); renderStatus();
       post('pero:chat:context', { context });
@@ -69,9 +73,14 @@ export function mountChatSurface(container: HTMLElement, options: {
   start();
   return {
     frame,
+    async selectedThread():Promise<string|undefined>{return (await this.selectedDraft())?.threadId;},
+    selectedDraft(): Promise<{threadId?:string;scope?:{app:string;panel:string}}|undefined> {
+      if (!connected) return Promise.resolve(undefined);
+      return new Promise(resolve => { const id=crypto.randomUUID(); const timer=setTimeout(()=>{selections.delete(id);resolve(undefined);},2000); selections.set(id,{resolve,timer});post('pero:chat:query-selection',{id}); });
+    },
     context(value: ChatSurfaceContext) { context = value; renderStatus(); post('pero:chat:context', { context }); },
     event(event: HostEvent) { if (connected) post('pero:chat:event', { event }); else pending.push(event); },
     compose(text: string) { if (connected) post('pero:chat:compose', { text }); else draft = text; },
-    dispose() { clearTimeout(timer); window.removeEventListener('message', receive); frame.remove(); status.remove(); },
+    dispose() { for(const pending of selections.values()){clearTimeout(pending.timer);pending.resolve(undefined);} selections.clear(); clearTimeout(timer); window.removeEventListener('message', receive); frame.remove(); status.remove(); },
   };
 }

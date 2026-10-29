@@ -1,3 +1,5 @@
+import { appChatLauncher } from '../../../web/src/app-chat';
+import { previewContext } from '../../../web/src/context-preview';
 import { mountAppSurfaces } from '../../../web/src/apps';
 import type { HostEvent } from '../../../web/src/bootstrap';
 import type { ProductFields } from '../../../packages/product/product';
@@ -8,18 +10,22 @@ type Context = { product: ProductFields; locale: string; dark: boolean; connecte
 const bridge = (window as unknown as { product: {
   connect(): Promise<Context>; open(name?: string): Promise<void>;
   sessionCommand(command: object): Promise<void>;
+  appUseCommand(command: object): Promise<unknown>;
   onEvent(receive: (value: HostEvent) => void): void;
   onContext(receive: (value: Context) => void): void;
 } }).product;
+window.peroAppUseRevoke = async(thread,scope) => {await bridge.appUseCommand({action:'revoke',thread_id:thread,scope});};
 let context: Context;
 let runtimeConnected = false;
 let selected: { app: string; panel?: string };
 const report = (error: Error) => surface.event({ kind: 'apps_error', text: error.message } as HostEvent);
-const surface = mountAppSurfaces(async () => bridge.open(selected.app).catch(report), request => {
-  if (!chat || !context.product.chat || selected.app !== request.name) return;
-  chatOpen = true; update();
-  if (request.text !== undefined) chat.compose(request.text);
+const launchAppChat=appChatLauncher({
+  open:scope=>{if(!chat||!context.product.chat||selected.app!==scope.app)throw new Error('Chat is not enabled for this App');chatOpen=true;update();},
+  draft:async()=>chat?.selectedDraft(),
+  command:value=>bridge.appUseCommand(value),
+  deliver:(thread_id,contexts,text,replace)=>chat?.event({version:1,kind:'compose_context',request_id:null,text,data:{thread_id,contexts,replace}}),
 });
+const surface = mountAppSurfaces(async () => bridge.open(selected.app).catch(report),launchAppChat);
 const navigation = document.createElement('nav');
 navigation.hidden = true;
 const selector = document.createElement('select');
@@ -34,6 +40,7 @@ const chatPanel = document.createElement('aside');
 chatPanel.id = 'product-chat'; chatPanel.hidden = true;
 document.body.append(chatPanel);
 let chat: ChatSurface | undefined;
+window.peroAppUseThread = () => chat?.selectedThread() || Promise.resolve(undefined);
 let chatOpen = true;
 let chatReady = false;
 const initializeChat = () => {
@@ -95,7 +102,16 @@ bridge.connect().then(value => {
   context.connected ||= runtimeConnected;
   if (value.product.chat) chat = mountChatSurface(chatPanel, {
     context: { dark: value.dark, locale: value.locale, active: chatOpen, scope: { app: selected.app, panel: selected.panel || 'main' } },
-    command: command => bridge.sessionCommand(command),
+    command:command=>{
+      const intent=command as {action?:string;thread_id?:string};
+      if(intent.action==='app_use_selection')return bridge.appUseCommand({action:'select',thread_id:intent.thread_id}).then(()=>{});
+      if(intent.action==='app_context_preview'){
+        const preview=command as {reference:Parameters<typeof previewContext>[0];thread_id:string};
+        previewContext(preview.reference,context=>chat?.event({version:1,kind:'compose_context',request_id:null,text:'',data:{thread_id:preview.thread_id,contexts:[context]}}));
+        return Promise.resolve();
+      }
+      return bridge.sessionCommand(command);
+    },
     ready: () => { chatReady = true; initializeChat(); },
   });
   for (const name of value.product.apps) selector.add(new Option(name, name));

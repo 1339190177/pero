@@ -1,4 +1,6 @@
 import init, { run, receive_host_event, snapshot, paste_image, set_system_theme } from './wasm/pero_ui';
+import { appChatLauncher } from './app-chat';
+import { previewContext } from './context-preview';
 import themes from './theme.generated.json';
 import './shell.css';
 import { normalizeLocale, translate } from '../../locales';
@@ -7,7 +9,7 @@ import { mountAppSurfaces, type AppSurface } from './apps';
 export interface HostEvent { version: number; kind: string; request_id: string | null; text: string; message_key?: string; thread_id?: string; data?: unknown }
 declare global {
   interface Window {
-    pero?: { connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; chooseWorkspace(): Promise<void>; chooseContext(command?: object): Promise<void> };
+    pero?: { connect(): Promise<HostEvent>; getLocale(): Promise<string>; setLocale(locale: string): Promise<void>; sendProbe(request: { id: string; text: string }): Promise<void>; onEvent(callback: (event: HostEvent) => void): () => void; sessionCommand(command: object): Promise<void>; remoteCommand(command: object): Promise<void>; appsCommand(command: object): Promise<void>; appUseCommand(command: object): Promise<unknown>; chooseWorkspace(): Promise<void>; chooseContext(command?: object): Promise<void> };
     peroSendProbe(json: string): void;
     peroSetLocale(locale: string): void;
     peroSessionCommand(json: string): void;
@@ -29,10 +31,14 @@ try {
     document.documentElement.style.setProperty(`--pero-${key}`, value);
   }
   await init();
-  const apps = mountAppSurfaces(value => window.pero ? window.pero.appsCommand(value) : Promise.reject(new Error(t('error.browser'))), context => {
-    receive_host_event(JSON.stringify({ version: 1, kind: 'app_scope', request_id: null, text: '', data: { app: context.name, panel: context.panel } }));
-    if (context.text !== undefined) receive_host_event(JSON.stringify({ version: 1, kind: 'compose_intent', request_id: null, text: context.text }));
+  const launchAppChat=appChatLauncher({
+    open:scope=>receive_host_event(JSON.stringify({version:1,kind:'app_scope',request_id:null,text:'',data:scope})),
+    draft:async()=>{const state=JSON.parse(snapshot());return {threadId:state.chats?.[state.activeChat]?.id,scope:state.scope};},
+    command:value=>{if(!window.pero)throw new Error(t('error.browser'));return window.pero.appUseCommand(value);},
+    deliver:(thread_id,contexts,text,replace)=>receive_host_event(JSON.stringify({version:1,kind:'compose_context',request_id:null,text,data:{thread_id,contexts,replace}})),
   });
+  const apps = mountAppSurfaces(value=>window.pero?window.pero.appsCommand(value):Promise.reject(new Error(t('error.browser'))),launchAppChat);
+  window.peroAppUseRevoke = async(thread,scope) => {await window.pero!.appUseCommand({action:'revoke',thread_id:thread,scope});};
   window.peroAppSurface = json => apps.surface(JSON.parse(json) as AppSurface);
   window.peroSendProbe = (json) => {
     const request = JSON.parse(json);
@@ -54,13 +60,14 @@ try {
   };
   window.peroSessionCommand = (json) => {
     const command = JSON.parse(json);
+    if(command.action==='app_context_preview'){previewContext(command.reference,context=>receive_host_event(JSON.stringify({version:1,kind:'compose_context',request_id:null,text:'',data:{thread_id:command.thread_id,contexts:[context]}})));return;}
     if (!window.pero && command.method === 'settings.workbench') {
       // Browser preview keeps appearance in memory; Desktop persists via Host.
       queueMicrotask(() => onEvent({version:1,kind:'workbench_settings',request_id:null,text:'',data:command.preferences}));
       return;
     }
     if (!window.pero) { queueMicrotask(() => onEvent({version:1,kind:'error',request_id:null,text:'',message_key:'error.agent_browser'})); return; }
-    const pending = typeof command.action === 'string' && command.action.startsWith('apps_') ? window.pero.appsCommand(command) : typeof command.action === 'string' && command.action.startsWith('remote_') ? window.pero.remoteCommand(command) : command.action === 'choose_workspace' ? window.pero.chooseWorkspace() : command.action === 'choose_context' ? window.pero.chooseContext(command.kind ? command : undefined) : window.pero.sessionCommand(command);
+    const pending = command.action==='app_use_selection' ? window.pero.appUseCommand({action:'select',thread_id:command.thread_id}) : typeof command.action === 'string' && command.action.startsWith('apps_') ? window.pero.appsCommand(command) : typeof command.action === 'string' && command.action.startsWith('remote_') ? window.pero.remoteCommand(command) : command.action === 'choose_workspace' ? window.pero.chooseWorkspace() : command.action === 'choose_context' ? window.pero.chooseContext(command.kind ? command : undefined) : window.pero.sessionCommand(command);
     pending.catch(() => onEvent({version:1,kind:command.action === 'search_context' || command.action === 'resolve_context' || command.action === 'choose_context' && command.kind ? 'context_error' : command.thread_id?'session_error':'error',thread_id:command.thread_id,request_id:command.request_id ?? null,text:t('error.connection')}));
   };
   run(JSON.stringify(themes), dark, locale);
