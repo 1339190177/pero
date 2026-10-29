@@ -1,5 +1,4 @@
 //! Retained reading state; an editor is mounted only when source is requested.
-use pero_contracts::content_document::{ContentDocument, ContentFormat, PreviewShape, StructuredPreview};
 use gpui_kit::component::Disableable;
 use gpui_kit::{
     component::{
@@ -10,11 +9,21 @@ use gpui_kit::{
     prelude::*,
     *,
 };
+use pero_contracts::content_document::{
+    ContentDocument, ContentFormat, PreviewShape, StructuredPreview,
+};
 use std::ops::Range;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReaderPlacement {
+    Inline,
+    Workspace,
+}
 
 pub struct ContentReader {
     pub document: ContentDocument,
     pub locale: String,
+    placement: ReaderPlacement,
     editor: Option<Entity<EditorState>>,
     preview: Result<StructuredPreview, String>,
     source: bool,
@@ -26,6 +35,7 @@ pub struct ContentReader {
     copied: bool,
     window: AnyWindowHandle,
     bounds: crate::view_bounds::ViewBounds,
+    focus_handle: FocusHandle,
 }
 
 impl ContentReader {
@@ -67,6 +77,7 @@ impl ContentReader {
         let mut this = Self {
             document,
             locale,
+            placement: ReaderPlacement::Inline,
             editor: None,
             preview,
             source,
@@ -78,6 +89,7 @@ impl ContentReader {
             copied: false,
             window: window.window_handle(),
             bounds: Default::default(),
+            focus_handle: cx.focus_handle(),
         };
         if source {
             this.open_source(None, window, cx);
@@ -85,9 +97,26 @@ impl ContentReader {
         this
     }
 
+    /// The same reading state fits the workspace instead of an inline result.
+    pub fn workspace(mut self) -> Self {
+        self.placement = ReaderPlacement::Workspace;
+        self
+    }
+
+    pub fn focus(&self, window: &mut Window, cx: &mut App) {
+        if self.search_open {
+            self.search_input
+                .update(cx, |input, cx| input.focus(window, cx));
+        } else if let Some(editor) = &self.editor {
+            editor.update(cx, |editor, cx| editor.focus(window, cx));
+        } else {
+            self.focus_handle.focus(window, cx);
+        }
+    }
+
     pub fn snapshot(&self, cx: &App) -> serde_json::Value {
         serde_json::json!({"bounds":self.bounds.snapshot(),"id":self.document.id,"revision":self.document.revision,"bytes":self.document.bytes,
-            "source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
+            "workspace":self.placement==ReaderPlacement::Workspace,"source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
             "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len(),"current":s.matcher.current()})}),
@@ -278,6 +307,7 @@ impl ContentReader {
 
 impl Render for ContentReader {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let workspace = self.placement == ReaderPlacement::Workspace;
         let structured = matches!(
             self.document.format,
             ContentFormat::Json | ContentFormat::JsonLines
@@ -290,6 +320,11 @@ impl Render for ContentReader {
             self.preview.as_ref().map_or(120., |preview| {
                 (60. + 28. * preview.rows.len().max(1) as f32).min(400.)
             })
+        };
+        let editor_height: DefiniteLength = if workspace {
+            relative(1.).into()
+        } else {
+            px(height - if self.search_open { 66. } else { 34. }).into()
         };
         let no_matches = self
             .editor
@@ -379,6 +414,7 @@ impl Render for ContentReader {
             );
         let mut view = div()
             .id("content-reader")
+            .track_focus(&self.focus_handle)
             .capture_action(cx.listener(|this, _: &Search, window, cx| {
                 this.search_source(window, cx);
                 cx.stop_propagation();
@@ -394,6 +430,7 @@ impl Render for ContentReader {
             .flex()
             .flex_col()
             .h(px(height))
+            .when(workspace, |el| el.flex_1().h_full())
             .w_full()
             .min_w_0()
             .border_1()
@@ -487,12 +524,15 @@ impl Render for ContentReader {
         if self.source {
             if let Some(editor) = &self.editor {
                 view = view.child(
-                    div().id("content-source-area").child(
-                        Editor::new(editor)
-                            .readonly(true)
-                            .aria_label(self.t("content.source"))
-                            .h(px(height - if self.search_open { 66. } else { 34. })),
-                    ),
+                    div()
+                        .id("content-source-area")
+                        .when(workspace, |el| el.flex_1().min_h_0())
+                        .child(
+                            Editor::new(editor)
+                                .readonly(true)
+                                .aria_label(self.t("content.source"))
+                                .h(editor_height),
+                        ),
                 );
             }
         } else {

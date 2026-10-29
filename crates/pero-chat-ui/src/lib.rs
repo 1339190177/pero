@@ -20,7 +20,7 @@ mod session_controls;
 pub mod stream;
 pub mod artifact_read;
 #[cfg(any(target_family = "wasm", feature = "native"))]
-mod content_reader;
+pub mod content_reader;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 mod view_bounds;
 #[cfg(any(target_family = "wasm", feature = "native"))]
