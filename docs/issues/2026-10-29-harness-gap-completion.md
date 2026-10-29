@@ -1,9 +1,25 @@
 ---
 kind: incident
-status: in_progress
+status: resolved
 ---
 
 # Complete actionable harness comparison gaps
+
+## Accepted code snapshot
+
+[CI run 40807109189](https://github.com/phodal/pero/actions/runs/40807109189) completed successfully:
+**15/15 jobs passed** for code head `78a402d4be2ce89695d40bbd44797d4a174d70c8`,
+tree `addf3222ddecce723d4c47cda1e85a34341f13a3`. This includes native harness Go on
+Linux/macOS/Windows, standalone harness Bazel, all three build/check/Rust
+aggregates, the positive Linux sandbox fixture, and actual extraction of all
+17 selected official AST pairs. The macOS remote suite passed all eight tests,
+including both the new socket regression and the previously failing worker case.
+
+Windows portable coding workflows and explicit unsupported-native admission are
+verified; a Windows implementation of Unix-only native workspace/shell features
+was not added. AST extraction is structural evidence, not semantic equivalence.
+Memory remains issue #9; no merge or deployment occurred. Earlier pending/failing
+receipts below are historical checkpoints, superseded by this final acceptance.
 
 The requested follow-up implements feasible gaps in the existing module comparison,
 using official DSH `f3803c96974ad4a94195fb97e5c637e9c2a3afe3` as behavioral
@@ -74,10 +90,9 @@ Font environment tests: 8 passed with real offline Python fixtures on Linux.
 
 Go source inventory is 406 files, 133 test files, maximum 956 lines. The native
 Go toolchain above is distinct from standalone Bazel's pinned Go 1.26.4 SDK.
-Bazel is not installed locally; the new isolated CI job must establish that gate.
-The new Windows/macOS/Linux jobs and required-positive sandbox job remain pending
-remote CI; local passes do not certify Windows cache repair or supported-host
-sandbox execution. No real model, credentials, desktop/UI or deployment was used.
+Bazel was not installed locally; its isolated CI gate subsequently passed.
+At this local checkpoint the Windows/macOS/Linux and positive sandbox jobs still
+required remote validation; final acceptance above supplies that evidence. No real model, credentials, desktop/UI or deployment was used.
 
 ## Cross-platform CI follow-up
 
@@ -106,7 +121,7 @@ cases now run only on their supported Linux/Darwin platforms. Windows runs expli
 fail-closed admission contracts instead; pure read-window, rendering, tail and
 frontmatter parsing tests remain cross-platform. No production capability guard is
 removed and the whole harness job is not skipped. The four affected packages pass
-Linux race tests and Windows cross-compilation; Windows execution remains a CI gate.
+Linux race tests and Windows cross-compilation; Windows execution was still a CI gate at this checkpoint; it passed in final acceptance.
 
 Three actual platform bugs are corrected separately from fixture scope:
 
@@ -124,8 +139,8 @@ Three actual platform bugs are corrected separately from fixture scope:
   entry power-loss guarantee is asserted.
 
 Focused three-package race tests (three repetitions), vet and Windows
-cross-compilation pass. Actual Windows execution is still required in the next
-CI run. AST source extraction remains 17/17: these platform fixes do not modify
+cross-compilation pass. Actual Windows execution was still required at this checkpoint and subsequently
+passed in final acceptance. AST source extraction remains 17/17: these platform fixes do not modify
 any of the selected and hash-verified official mapping source files.
 
 One aggregate Linux race run additionally observed
@@ -176,7 +191,7 @@ The fixture now canonicalizes its freshly created directory before deriving the
 inert executable path, matching `protected_path`'s existing canonical contract.
 Production binary pinning, ownership, workspace exclusion and script rejection
 are unchanged. The positive assertion reports the actual validation error on any
-future failure. No local Rust execution is claimed; final Windows CI is required.
+future failure. No local Rust execution is claimed for that fixture; final Windows CI subsequently passed.
 
 ## Final macOS fixture transport correction
 
@@ -193,5 +208,5 @@ kernel flag transition before supplying headers, then checks the authenticated
 request and timeout. Removing only the reset reproduces early return; restoring
 it passes. The exact fixture source compiled in an isolated Rust 1.99.1 crate;
 only the new regression ran there (seven worker integration tests filtered out).
-This is not a local full-worker or macOS pass; the next complete CI run remains
-the acceptance gate.
+The isolated run was not a local full-worker or macOS pass. Final CI acceptance
+above subsequently verified the complete macOS remote suite and all other jobs.

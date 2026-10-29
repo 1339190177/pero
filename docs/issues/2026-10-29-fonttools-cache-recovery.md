@@ -1,6 +1,6 @@
 ---
 kind: incident
-status: open
+status: resolved
 ---
 
 # Recover incomplete cached fontTools environments
@@ -36,5 +36,8 @@ Restoring the previous existence-only guard in a temporary copy reproduces
 `No module named pip.__main__` in the recovery test. `node --check` passes for
 the bootstrap and font build scripts; `git diff --check` passes.
 
-This is not Windows execution evidence. Real Windows CI validation of the
-integrated head remains pending; keep this incident open until that succeeds.
+The local checks above were not Windows execution evidence. Final
+[CI run 40807109189](https://github.com/phodal/pero/actions/runs/40807109189) passed all 15 jobs on
+`78a402d4be2ce89695d40bbd44797d4a174d70c8`, including the actual Windows font-tool
+recovery tests, build and Rust aggregate. This closes the incident; no dependency
+pin or system security setting was relaxed.

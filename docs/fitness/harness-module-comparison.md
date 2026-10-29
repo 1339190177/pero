@@ -178,4 +178,22 @@ JSONL recovery is explicit opt-in and complete-record-only, with preserved backu
 default fail-closed safety remains. The standalone harness now has its own Go and
 Bazel CI gates, separate from root server jobs. Positive strict sandbox execution
 is required on the selected Linux CI runner; an unavailable local backend is not
-reported as a pass. Windows font-cache repair awaits actual platform CI proof.
+reported as a pass. Actual Windows font-cache recovery and the complete platform
+aggregates have now passed the final CI gate below.
+
+
+## Final acceptance
+
+[CI run 40807109189](https://github.com/phodal/pero/actions/runs/40807109189) passed **15/15 jobs** on
+code head `78a402d4be2ce89695d40bbd44797d4a174d70c8` (tree
+`addf3222ddecce723d4c47cda1e85a34341f13a3`). Native harness tests ran on Linux, macOS
+and Windows; standalone harness Bazel, full build/check/Rust aggregates on all
+three platforms, positive Linux sandbox execution and 17 selected official AST
+extractions passed. This acceptance is tied to that exact code snapshot.
+
+Windows runs the portable coding workflow and explicit refusal tests for the
+unsupported Unix-native capabilities; it does not gain a Windows native workspace
+or process-group shell backend. The 17 AST pairs establish successful structural
+extraction, not semantic equivalence or whole-repository coverage. The intentional
+product/media/oracle limits above remain. PR #4 remains unmerged; no deployment
+was performed.
