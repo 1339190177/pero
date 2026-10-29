@@ -1,7 +1,8 @@
 # Workspace content tabs and shared Chat
 
-Status: implementation design, 2026-10-29. Extends ADRs 0001, 0007 and 0012.
-Runtime verification is recorded separately after the assembled UI is exercised.
+Status: implemented in source, 2026-10-29. Extends ADRs 0001, 0007 and 0012.
+Verification and remaining limits are recorded in
+[Workspace architecture acceptance](../fitness/workspace-architecture.md).
 
 ## Context
 
@@ -18,12 +19,40 @@ thread ID, `Project` by Project key, `Task` by Task ID, and `App` by App and pan
 names. Titles and icons are presentation derived from those source objects.
 An App item does not relax the current one-panel App manifest contract.
 
-`WorkspaceTabs` owns the open-item list and active selection. Opening an
-already-open item activates it without duplication. Selecting an absent item
-does not open it. Closing the active item selects its right neighbor, or its
-left neighbor when it was the last item. Closing the final item clears the
-selection. Source reconciliation removes unavailable objects without opening
-new items or changing the remaining order.
+`WorkspaceNavigation` owns the open-item list and one `WorkspaceRoute`:
+`Page(WorkbenchPage)` for a page, or `Content(WorkspaceItem)` for a source object.
+`WorkbenchPage` names Conversation, Projects, Agents, Tasks, Workers, Apps,
+Insights, Connections and Settings. `ConversationTab` names Chat and Logs.
+Legacy numeric page and tab values are converted only at the diagnostic
+boundary; they do not drive navigation or layout.
+
+Opening an already-open item activates it without duplication. Selecting an
+absent item does not open it. Closing the active item selects its right neighbor,
+or its left neighbor when it was the last item. Closing the final App returns to
+the App library; closing the final other item returns to Projects. Source
+reconciliation removes unavailable objects without opening new items or changing
+the remaining order, and leaves a visible page alone when only background tabs
+are removed.
+
+Core transitions return the changed route, if any. UI actions and Host events
+use that value to activate the selected source, focus its conversation or issue
+the existing Host command. Rendering reads the route and produces presentation;
+it does not reconcile sources, open content or repeat business activation.
+Project aliases acquired during repository discovery are replaced by canonical
+identities in the open list and route, with duplicates merged. This source
+identity correction does not activate the same Project again. A history replay
+preserves an explicitly opened Conversation; only an empty Conversation page
+adopts the restored history selection.
+
+`AppCatalog` owns installed App metadata and catalog presentation state. It does
+not own an active App or a second content selection. App identity comes from the
+navigation route. The existing `RemoteAdapter` remains the owner of remote Task
+requests and transport selection, including publishing the requested Task with
+its loading state. Workbench route selection is a separate UI concern. Ordinary
+polling refreshes the remote snapshot without selecting a Workbench route;
+explicit navigation and Task actions use the action/event path above.
+The Apps navigation entry always opens the library. An already-open App is
+restored from its content tab, retaining the same iframe document.
 
 A tab is a view. Closing it does not delete a conversation, cancel a running
 session or Task, uninstall an App, or stop an App backend. Those actions retain
@@ -50,11 +79,21 @@ preferred width. Appearance and layout use the existing
 settings file. An omitted layout in older settings or requests restores these
 defaults; no renderer-local preference store is added.
 
+`WorkspaceLayout` is a pure value computed from viewport width, route,
+conversation tab, saved layout preferences and whether an overlay covers the
+content. It owns sidebar sizing, narrow-window behavior, Chat placement and
+effective dock width, and App surface visibility. Chat visibility checks use
+the same placement rule. The renderer computes this value once per render;
+it does not change saved preferences to fit the viewport.
+
 Apps continue to render through the existing `pero-app://` iframe surface. GPUI
-owns its visible bounds; the Web shell mounts and retains the document. The
-iframe paints above the GPUI canvas, so overlays must explicitly coordinate
-surface visibility. This change does not turn an iframe into a native GPUI
-element or extend the native developer preview with a WebView.
+measures the content slot's actual bounds during prepaint; the Web shell mounts
+and retains the document. The surface combines those bounds with the computed
+layout visibility, rather than guessing coordinates or repeating route and
+breakpoint rules. The iframe paints above the GPUI canvas, so settings overlays
+and Chat resizing hide the surface while retaining its document. This change
+does not turn an iframe into a native GPUI element or extend the native
+developer preview with a WebView.
 
 An external Browser content type, arbitrary URL navigation, Electron
 `WebContentsView`, freely split panes, tab dragging and persisted workspace
@@ -64,13 +103,17 @@ work.
 
 ## Verification
 
-Core tests cover tab transitions and saved-layout admission and resize rules.
-The runtime settings test covers migration from settings without layout and
-restoration of the saved layout while preserving other preferences. Generated
-Host contracts describe the bounded width and optional legacy layout field.
+Core tests cover navigation transitions and source reconciliation, pure layout
+choices, and saved-layout admission and resize rules. The runtime settings test
+covers migration from settings without layout and restoration of the saved
+layout while preserving other preferences. Generated Host contracts describe
+the bounded width and optional legacy layout field.
 
 Compilation and these tests do not establish Desktop acceptance. Runtime
 verification must exercise content switching, closing and reopening views,
 retained App state, shared Chat, resize and restart, keyboard focus and IME,
 overlays, and narrow and light/dark layouts in the assembled Electron app.
 Native preview behavior and signed-package acceptance remain separate evidence.
+The existing [Workspace acceptance](../fitness/workspace.md) records the first
+content-tab slice; the [architecture acceptance record](../fitness/workspace-architecture.md)
+tracks this navigation and layout refactor separately.

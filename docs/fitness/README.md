@@ -72,3 +72,6 @@ Record the source version, level, date, target system and remaining gaps in the 
 
 Workspace content tabs, shared Chat layout, semantic icons and current Desktop
 acceptance: [workspace.md](workspace.md).
+
+Workspace navigation ownership and pure layout refactor:
+[workspace-architecture.md](workspace-architecture.md).
