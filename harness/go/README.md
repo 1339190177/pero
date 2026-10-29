@@ -90,12 +90,14 @@ approved foreground Bash. Writes, edits and every shell call require approval.
 Optional `--sandbox strict-workspace-write` or `strict-read-only`, with explicit
 `--sandbox-runtime` paths, requires the strict backend and denies network access.
 
-Windows instead requires explicit `--sandbox windows-acl-workspace-write` (or
+Windows file tools support bounded reads/list/search and approved atomic
+create-new-only writes with `--workspace`; existing-file replacement/edit remain
+unavailable. Windows shell instead requires explicit `--sandbox windows-acl-workspace-write` (or
 `windows-acl-read-only`), `--approval ask`, `--enable-shell`, `--workspace`, and
 an absolute `--shell` path to `pwsh.exe`. These presets are **partial write
 isolation only: outside reads and network remain unrestricted**; they reject
-`--sandbox-runtime` and never satisfy strict mode. Windows registers only the
-approved `shell` tool; descriptor-rooted native file tools remain Unix-only.
+`--sandbox-runtime` and never satisfy strict mode. The shell is additional to
+the handle-rooted file tools; read-only mode omits file creation.
 See [native tool composition](nativetools/README.md) and the
 [Windows sandbox contract](sandbox/README.md) before enabling it.
 

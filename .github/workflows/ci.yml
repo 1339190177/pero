@@ -149,7 +149,7 @@ jobs:
         run: go test -count=1 -v ./sandbox -run '^TestNativeRuntime$'
 
   windows-acl-sandbox:
-    name: Positive Windows partial ACL sandbox contract
+    name: Positive Windows file and partial ACL contracts
     runs-on: windows-latest
     timeout-minutes: 15
     env:
@@ -166,7 +166,7 @@ jobs:
       - name: Require positive partial-boundary and lifecycle contracts
         working-directory: harness/go
         run: |
-          go test -race -count=1 -json ./sandbox ./shell ./nativetools ./cmd/pero-agent-acp -run Windows | tee "$RUNNER_TEMP/windows-acl-results.jsonl"
+          go test -race -count=1 -json ./fstools ./sandbox ./shell ./nativetools ./cmd/pero-agent-acp -run "Windows|TestCodingModelCLICombinedActivationWire" | tee "$RUNNER_TEMP/windows-acl-results.jsonl"
           python - "$RUNNER_TEMP/windows-acl-results.jsonl" <<'PYTEST'
           import json, sys
           expected = {
@@ -176,8 +176,22 @@ jobs:
               "TestWindowsACLAdmissionBoundaries",
               "TestWindowsACLGrantRepairAndRevoke",
               "TestWindowsACLShellCancellationCleansJobAndPrivateTemp",
-              "TestWindowsPartialMountIsShellOnlyAndAlwaysAsks",
+              "TestWindowsPartialMountKeepsFileBoundaryAndAlwaysAsks",
+              "TestWindowsReadOnlyMountOmitsFileMutations",
               "TestWindowsACLCLIProcessApprovalAndWriteBoundary",
+              "TestWindowsWorkspaceReadListSearch",
+              "TestWindowsWorkspaceRejectsPathAliases",
+              "TestWindowsWorkspaceJunctionBoundaries",
+              "TestWindowsWorkspaceReadBoundsAndCancellation",
+              "TestWindowsWorkspaceTraversalBounds",
+              "TestWindowsWorkspacePinnedRootIdentity",
+              "TestWindowsWorkspaceSearchRootReplacement",
+              "TestWindowsWorkspaceCreateNew",
+              "TestWindowsWorkspaceCreateNeverReplaces",
+              "TestWindowsWorkspaceCreateCancellationAndReceipts",
+              "TestWindowsWorkspaceCreateRejectsRedirectsAndInvalidText",
+              "TestWindowsFileCLIReadCreateApprovalBoundary",
+              "TestCodingModelCLICombinedActivationWire/native-instructions=true",
           }
           events = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
           passed = {event.get("Test") for event in events if event.get("Action") == "pass"}
@@ -185,7 +199,7 @@ jobs:
           missing = expected - passed
           if missing or skipped:
               raise SystemExit(f"Windows positive gate missing={sorted(missing)} skipped={skipped}")
-          print(f"Verified all {len(expected)} required native Windows ACL contracts without skips")
+          print(f"Verified all {len(expected)} required native Windows file/ACL contracts without skips")
           PYTEST
 
   ast:

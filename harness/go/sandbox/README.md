@@ -55,8 +55,9 @@ Windows-only opt-in. Empty/default or `BackendStrict` never chooses it. The CLI
 presets are `windows-acl-read-only` and `windows-acl-workspace-write`; they require
 an explicit absolute PowerShell 7 executable, `--enable-shell`, a workspace and
 `--approval=ask`. Runtime mounts are rejected, not treated as read confinement.
-Windows native composition registers **only `shell`**; descriptor-rooted file
-operations remain unavailable rather than being replaced by weaker pathname I/O.
+The explicit partial backend adds `shell` alongside independently handle-rooted
+read/list/search/create-new file tools. Read-only mode omits file creation.
+Existing-file replacement/edit remain unavailable; see [file boundaries](../fstools/README.md).
 
 The result is **`enforcement: partial`, `readIsolated: false`,
 `networkIsolated: false`**. Reads, network, console/IPC and ambient permissions are
@@ -119,5 +120,6 @@ explicitly leaving unreclaimed temp residue for host cleanup.
 Linux unit/race checks and Windows cross-compilation do **not** establish native
 Windows enforcement. The positive Windows CI result for the exact commit is
 required before calling this backend runtime-verified. Other DSH services,
-AppContainer/network restrictions, Windows file tools and full upstream parity
-are outside this change.
+AppContainer/network restrictions and full upstream parity remain outside this
+change. The separately documented Windows file subset does not strengthen the
+shell's read/network isolation.

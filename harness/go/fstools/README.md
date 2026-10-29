@@ -4,8 +4,8 @@ Explicit launch-time workspace authority on Linux/macOS/Windows; unsupported
 platforms fail closed at construction. This is not an OS sandbox. The workspace is
 opened as an `os.Root` capability. Paths must be canonical relative slash paths;
 absolute paths, traversal, selected symlinks and special files are rejected.
-The reused scoped-text algorithm pins directory descriptors, checks preimages,
-stages replacement, synchronizes and verifies readback. Every scope must match
+The reused Unix scoped-text algorithm pins directory descriptors, checks
+preimages, stages replacement, synchronizes and verifies readback. Every scope must match
 the originally selected workspace identity, not a replacement pathname.
 
 Reads are bounded to UTF-8/NUL-free regular files ≤1 MiB. Directory listing is

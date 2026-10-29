@@ -29,7 +29,7 @@ claims. Counts are Go files / test files.
 | `agentinstructions` | 5 / 1 | Bounded untrusted workspace context; `packages/context/agent-instructions` | Explicit root AGENTS.md only; no home/ancestor/nested discovery. Source inspected within declared subset; see findings and limits below. |
 | `cmd/pero-agent-acp` | 14 / 8 | Headless CLI composition; `apps/ + profile composition` | Explicit endpoint/model/budgets, opt-in services; 413 recovery and length stop verified. Focused comparison and regression complete. |
 | `config` | 15 / 1 | Typed configuration and credentials helpers; `packages/settings/settings; packages/credentials` | Point setting/account discovery not mounted by CLI. Source inspected within declared subset; see findings and limits below. |
-| `fstools` | 7 / 3 | Descriptor-rooted bounded text files; `packages/fs/fs-local; packages/fs/tool-fs` | Physical read window restored; Unix-only, no symlinks, 1 MiB files. Focused comparison and regression complete. |
+| `fstools` | 11 / 5 | Descriptor-rooted bounded text files; `packages/fs/fs-local; packages/fs/tool-fs` | Physical read window; no selected reparse links, 1 MiB files. Windows native read/list/search/create-new implemented; replacement/edit still Unix-only. Native acceptance pending exact-head CI. |
 | `harness` | 142 / 32 | Agent loop, tools, routing, lifecycle, compaction; `packages/core/agent; agent-loop; tools; packages/compaction` | Projects/jobs/workflows/schedules and product assembly excluded; delegation separately pinned. Source inspected within declared subset; see findings and limits below. |
 | `internal/jsonwire` | 5 / 2 | JSON boundary parsing; `Local Go boundary utility` | Implementation utility, not an independently advertised DSH plugin. Source inspected within declared subset; see findings and limits below. |
 | `internal/sessionlogroute` | 2 / 1 | Session log routing utility; `packages/session/session-log-deepseek (related seam)` | Remote log upload/product services not composed. Source inspected within declared subset; see findings and limits below. |
@@ -197,3 +197,14 @@ or process-group shell backend. The 17 AST pairs establish successful structural
 extraction, not semantic equivalence or whole-repository coverage. The intentional
 product/media/oracle limits above remain. PR #4 remains unmerged; no deployment
 was performed.
+
+
+## Windows file subset — 2026-10-29 (native acceptance pending)
+
+The earlier acceptance above predates Windows file support. The current bounded
+increment adds real handle-rooted read/list/search and atomic exclusive creation,
+including approved built-CLI coverage and reparse/path/collision negatives.
+Existing-file replacement/edit remain deliberately unavailable: DSH's
+`ReplaceFileW` metadata merge cannot be replaced with pathname reopening or a
+metadata-dropping handle rename. Strict shell policy and partial backend limits
+are unchanged. See [verification and exact remaining gap](../issues/2026-10-29-windows-file-tools-verification.md).
