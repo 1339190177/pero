@@ -44,6 +44,8 @@ configuration is in [server/README.md](../../server/README.md#github-issue-intak
 
 First-run connection and local execution: [local-execution.md](local-execution.md).
 
+Local workspace ROADMAP loading and ACP execution: [local-roadmap.md](local-roadmap.md).
+
 Current conversation and ACP UI acceptance: [conversation-verification.md](conversation-verification.md). The bootstrap-only boundaries above are historical; actual provider replies and remaining limits are recorded separately.
 
 ## Acceptance levels
