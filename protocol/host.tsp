@@ -66,6 +66,7 @@ model SetRemoteSettingsRequest {
 
 model ListAgentsCommand { action: "list_agents"; ...Closed }
 model WorkspaceCommand { action: "workspace"; path: string; ...Closed }
+model LoadRoadmapCommand { action: "load_roadmap"; ...Closed }
 model AttachFilesCommand { action: "attach_files"; paths: string[]; ...Closed }
 enum ContextKind { file, directory, symbol, thread, skill, image, selection, branch_diff, fetch }
 model TextContextContent { type: "text"; text: string; ...Closed }
@@ -94,6 +95,7 @@ model CloseCommand { action: "close"; thread_id: string; ...Closed }
 union HostCommand {
   ListAgentsCommand,
   WorkspaceCommand,
+  LoadRoadmapCommand,
   AttachFilesCommand,
   SearchContextCommand,
   ResolveContextCommand,
@@ -175,6 +177,9 @@ model ReplayEvent { kind: "replay"; ...EventBase; data: ReplayData }
 model RepositoryIdentity { host: string; owner: string; name: string; ...Closed }
 model WorkspaceIdentity { repository: RepositoryIdentity | null; ...Closed }
 model WorkspaceEvent { kind: "workspace"; ...EventBase; data?: WorkspaceIdentity }
+model RoadmapItem { line: uint32; parent_line: uint32 | null; title: string; text: string; checked: boolean; headings: string[]; ...Closed }
+model LocalRoadmap { workspace: string; path: string; items: RoadmapItem[]; error: "not_found" | "read" | "invalid" | null; ...Closed }
+model LocalRoadmapEvent { kind: "local_roadmap"; ...EventBase; data: LocalRoadmap }
 model ContextFile { path: string; name: string; text: string; ...Closed }
 model ContextCandidatesEvent {kind: "context_candidates"; ...EventBase; data: ContextCandidate[]}
 model ContextResolvedEvent {kind: "context_resolved"; ...EventBase; data: ContextReference}
@@ -265,6 +270,7 @@ union HostEvent {
   AgentsEvent,
   ReplayEvent,
   WorkspaceEvent,
+  LocalRoadmapEvent,
   ContextFilesEvent,
   ContextCandidatesEvent,
   ContextResolvedEvent,

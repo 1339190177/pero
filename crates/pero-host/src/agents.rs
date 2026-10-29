@@ -101,7 +101,19 @@ impl Manager {
         let _ = self.tx.send(event);
     }
     fn publish_workspace(&self) {
-        self.send("workspace", self.workspace.to_string_lossy(), serde_json::json!(workspace_identity(&self.workspace)));
+        self.send(
+            "workspace",
+            self.workspace.to_string_lossy(),
+            serde_json::json!(workspace_identity(&self.workspace)),
+        );
+        self.publish_roadmap();
+    }
+    fn publish_roadmap(&self) {
+        self.send(
+            "local_roadmap",
+            "",
+            serde_json::json!(pero_runtime::roadmap::load(&self.workspace)),
+        );
     }
     pub fn dispatch(&mut self, value: serde_json::Value) {
         let command = match serde_json::from_value::<HostCommand>(value) {
@@ -112,6 +124,7 @@ impl Manager {
             }
         };
         match command {
+            HostCommand::LoadRoadmap => self.publish_roadmap(),
             HostCommand::ListAgents => {
                 self.send(
                     "agents",

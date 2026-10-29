@@ -1696,6 +1696,9 @@
           "$ref": "#/$defs/WorkspaceCommand"
         },
         {
+          "$ref": "#/$defs/LoadRoadmapCommand"
+        },
+        {
           "$ref": "#/$defs/AttachFilesCommand"
         },
         {
@@ -1783,6 +1786,9 @@
         },
         {
           "$ref": "#/$defs/WorkspaceEvent"
+        },
+        {
+          "$ref": "#/$defs/LocalRoadmapEvent"
         },
         {
           "$ref": "#/$defs/ContextFilesEvent"
@@ -1978,6 +1984,102 @@
         "action",
         "method",
         "id"
+      ],
+      "additionalProperties": false
+    },
+    "LoadRoadmapCommand": {
+      "title": "LoadRoadmapCommand",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "const": "load_roadmap"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "LocalRoadmap": {
+      "title": "LocalRoadmap",
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RoadmapItem"
+          }
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "not_found"
+            },
+            {
+              "type": "string",
+              "const": "read"
+            },
+            {
+              "type": "string",
+              "const": "invalid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "workspace",
+        "path",
+        "items",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "LocalRoadmapEvent": {
+      "title": "LocalRoadmapEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "local_roadmap"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/LocalRoadmap"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "data"
       ],
       "additionalProperties": false
     },
@@ -2999,6 +3101,53 @@
         "request_id",
         "kind",
         "source"
+      ],
+      "additionalProperties": false
+    },
+    "RoadmapItem": {
+      "title": "RoadmapItem",
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "parent_line": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "checked": {
+          "type": "boolean"
+        },
+        "headings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "line",
+        "parent_line",
+        "title",
+        "text",
+        "checked",
+        "headings"
       ],
       "additionalProperties": false
     },

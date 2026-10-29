@@ -18,6 +18,7 @@ export type LocalWorkerRequest = LocalWorkerStartCommand | LocalWorkerStopComman
 export type HostCommand =
   | ListAgentsCommand
   | WorkspaceCommand
+  | LoadRoadmapCommand
   | AttachFilesCommand
   | SearchContextCommand
   | ResolveContextCommand
@@ -55,6 +56,7 @@ export type HostEvent =
   | AgentsEvent
   | ReplayEvent
   | WorkspaceEvent
+  | LocalRoadmapEvent
   | ContextFilesEvent
   | ContextCandidatesEvent
   | ContextResolvedEvent
@@ -168,6 +170,9 @@ export interface ListAgentsCommand {
 export interface WorkspaceCommand {
   action: "workspace";
   path: string;
+}
+export interface LoadRoadmapCommand {
+  action: "load_roadmap";
 }
 export interface AttachFilesCommand {
   action: "attach_files";
@@ -619,6 +624,27 @@ export interface RepositoryIdentity {
   host: string;
   owner: string;
   name: string;
+}
+export interface LocalRoadmapEvent {
+  kind: "local_roadmap";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  data: LocalRoadmap;
+}
+export interface LocalRoadmap {
+  workspace: string;
+  path: string;
+  items: RoadmapItem[];
+  error: "not_found" | "read" | "invalid" | null;
+}
+export interface RoadmapItem {
+  line: number;
+  parent_line: number | null;
+  title: string;
+  text: string;
+  checked: boolean;
+  headings: string[];
 }
 export interface ContextFilesEvent {
   kind: "context_files";
