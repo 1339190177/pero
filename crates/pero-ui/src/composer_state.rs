@@ -1,9 +1,12 @@
 //! Completion queries use UTF-8 source ranges; the input owns token editing/history.
-use std::ops::Range;
 use pero_contracts::context::{ContextCandidate, ContextKind, ContextReference};
+use std::ops::Range;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum CompletionKind { Mention(Option<ContextKind>), Slash }
+pub(crate) enum CompletionKind {
+    Mention(Option<ContextKind>),
+    Slash,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CompletionQuery {
@@ -19,17 +22,32 @@ impl CompletionQuery {
         let line = &prefix[line_start..];
         if let Some(query) = line.strip_prefix('/') {
             if !query.chars().any(char::is_whitespace) {
-                return Some(Self { range: line_start..cursor, kind: CompletionKind::Slash, query: query.into() });
+                return Some(Self {
+                    range: line_start..cursor,
+                    kind: CompletionKind::Slash,
+                    query: query.into(),
+                });
             }
         }
         let start = prefix.rfind('@')?;
-        if start > 0 && !prefix[..start].ends_with(char::is_whitespace) { return None; }
-        let mention = &prefix[start+1..];
-        if mention.contains('\n') { return None; }
+        if start > 0 && !prefix[..start].ends_with(char::is_whitespace) {
+            return None;
+        }
+        let mention = &prefix[start + 1..];
+        if mention.contains('\n') {
+            return None;
+        }
         let (source, query) = mention.split_once(' ').unwrap_or((mention, ""));
         let kind = ContextKind::from_keyword(source);
-        Some(Self { range: start..cursor, kind: CompletionKind::Mention(kind),
-            query: if kind.is_some() { query.into() } else { mention.into() } })
+        Some(Self {
+            range: start..cursor,
+            kind: CompletionKind::Mention(kind),
+            query: if kind.is_some() {
+                query.into()
+            } else {
+                mention.into()
+            },
+        })
     }
 }
 
@@ -65,18 +83,34 @@ mod tests {
     #[test]
     fn completion_queries_respect_cursor_and_boundaries() {
         for (text, cursor, expected) in [
-            ("你好 @file src", 16, Some((CompletionKind::Mention(Some(ContextKind::File)), "src", 7))),
+            (
+                "你好 @file src",
+                16,
+                Some((CompletionKind::Mention(Some(ContextKind::File)), "src", 7)),
+            ),
             ("hello@world", 11, None),
             ("/", 1, Some((CompletionKind::Slash, "", 0))),
             ("/compact", 8, Some((CompletionKind::Slash, "compact", 0))),
             ("/compact now", 12, None),
             ("hello /skill", 12, None),
-            ("hi @sym", 7, Some((CompletionKind::Mention(None), "sym", 3))),
+            (
+                "hi @sym",
+                7,
+                Some((CompletionKind::Mention(None), "sym", 3)),
+            ),
             ("@file a\nnext", 12, None),
         ] {
             let actual = CompletionQuery::at(text, cursor);
-            assert_eq!(actual.as_ref().map(|q| (q.kind.clone(), q.query.as_str(), q.range.start)), expected, "{text}");
-            if let Some(query) = actual { assert_eq!(query.range.end, cursor); }
+            assert_eq!(
+                actual
+                    .as_ref()
+                    .map(|q| (q.kind.clone(), q.query.as_str(), q.range.start)),
+                expected,
+                "{text}"
+            );
+            if let Some(query) = actual {
+                assert_eq!(query.range.end, cursor);
+            }
         }
     }
 }

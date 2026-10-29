@@ -124,7 +124,8 @@ pub(crate) struct Conversation {
     #[serde(skip)]
     pub draft: gpui_kit::component::input::InputContent,
     #[serde(skip)]
-    pub draft_references: std::collections::HashMap<String, pero_contracts::context::ContextReference>,
+    pub draft_references:
+        std::collections::HashMap<String, pero_contracts::context::ContextReference>,
     pub permission: Option<Value>,
     pub auth_methods: Vec<Value>,
     pub models: Vec<(String, String)>,
@@ -327,7 +328,9 @@ impl Conversation {
 
     pub fn config(&mut self, data: &Value) {
         if let Some(capabilities) = data.get("peroCapabilities") {
-            if let Ok(capabilities) = serde_json::from_value(capabilities.clone()) { self.capabilities = capabilities; }
+            if let Ok(capabilities) = serde_json::from_value(capabilities.clone()) {
+                self.capabilities = capabilities;
+            }
         }
         if let Some(settings) = data.get("peroSettings") {
             if let Ok(settings) = serde_json::from_value(settings.clone()) {

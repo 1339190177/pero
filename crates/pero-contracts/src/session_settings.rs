@@ -69,8 +69,12 @@ impl SessionSettings {
     }
 
     pub fn acknowledge(&mut self, id: &str, value: &str) -> Result<(), &'static str> {
-        let selection = self.select(id,value)?;
-        if let Some(option) = self.options.iter_mut().find(|option| option.id == selection.id) {
+        let selection = self.select(id, value)?;
+        if let Some(option) = self
+            .options
+            .iter_mut()
+            .find(|option| option.id == selection.id)
+        {
             option.current = selection.value;
         }
         Ok(())

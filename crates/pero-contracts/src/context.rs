@@ -18,14 +18,31 @@ pub enum ContextKind {
 impl ContextKind {
     pub fn keyword(self) -> &'static str {
         match self {
-            Self::File=>"file",Self::Directory=>"directory",Self::Symbol=>"symbol",
-            Self::Thread=>"thread",Self::Skill=>"skill",Self::Image=>"image",
-            Self::Selection=>"selection",Self::BranchDiff=>"diff",Self::Fetch=>"fetch",
+            Self::File => "file",
+            Self::Directory => "directory",
+            Self::Symbol => "symbol",
+            Self::Thread => "thread",
+            Self::Skill => "skill",
+            Self::Image => "image",
+            Self::Selection => "selection",
+            Self::BranchDiff => "diff",
+            Self::Fetch => "fetch",
         }
     }
     pub fn from_keyword(keyword: &str) -> Option<Self> {
-        [Self::File,Self::Directory,Self::Symbol,Self::Thread,Self::Skill,Self::Image,Self::Selection,Self::BranchDiff,Self::Fetch]
-            .into_iter().find(|kind| kind.keyword()==keyword)
+        [
+            Self::File,
+            Self::Directory,
+            Self::Symbol,
+            Self::Thread,
+            Self::Skill,
+            Self::Image,
+            Self::Selection,
+            Self::BranchDiff,
+            Self::Fetch,
+        ]
+        .into_iter()
+        .find(|kind| kind.keyword() == keyword)
     }
 }
 
