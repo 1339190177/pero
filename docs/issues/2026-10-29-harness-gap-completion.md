@@ -177,3 +177,21 @@ inert executable path, matching `protected_path`'s existing canonical contract.
 Production binary pinning, ownership, workspace exclusion and script rejection
 are unchanged. The positive assertion reports the actual validation error on any
 future failure. No local Rust execution is claimed; final Windows CI is required.
+
+## Final macOS fixture transport correction
+
+Run `40805233021` at `e3b36ad` completed with 14 of 15 jobs passing, including
+all three native harness jobs, standalone harness Bazel and the full Windows
+aggregate. The sole failure was the macOS remote-worker test fixture accepting a
+connection from a nonblocking listener and reading it before headers arrived.
+BSD accepts inherit that nonblocking state; the per-connection reader now explicitly
+returns its socket to blocking mode while retaining the existing two-second read
+timeout and bearer validation. No worker/client transport or security policy changed.
+
+A Unix regression forces that inherited state on a real socket, observes the
+kernel flag transition before supplying headers, then checks the authenticated
+request and timeout. Removing only the reset reproduces early return; restoring
+it passes. The exact fixture source compiled in an isolated Rust 1.99.1 crate;
+only the new regression ran there (seven worker integration tests filtered out).
+This is not a local full-worker or macOS pass; the next complete CI run remains
+the acceptance gate.

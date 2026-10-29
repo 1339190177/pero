@@ -61,6 +61,9 @@ struct Fixture {
 }
 
 fn read_request(stream: &mut TcpStream) -> Option<(String, Value)> {
+    // BSD accept inherits the listener's nonblocking flag. Each connection is
+    // handled on its own thread and must wait for headers/body within the timeout.
+    stream.set_nonblocking(false).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .unwrap();
@@ -95,6 +98,41 @@ fn read_request(stream: &mut TcpStream) -> Option<(String, Value)> {
             serde_json::from_slice(&body).unwrap()
         },
     ))
+}
+
+#[test]
+fn cloud_request_waits_for_headers_on_an_inherited_nonblocking_socket() {
+    use std::os::fd::AsRawFd;
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (mut server, _) = listener.accept().unwrap();
+    // Reproduce BSD's inherited state on every Unix test host.
+    server.set_nonblocking(true).unwrap();
+    let observer = server.try_clone().unwrap();
+    let reader = std::thread::spawn(move || read_request(&mut server));
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let flags = unsafe { libc::fcntl(observer.as_raw_fd(), libc::F_GETFL) };
+        assert_ne!(flags, -1);
+        if flags & libc::O_NONBLOCK == 0 {
+            break;
+        }
+        assert!(
+            !reader.is_finished(),
+            "request reader returned before headers arrived"
+        );
+        assert!(
+            Instant::now() < deadline,
+            "request reader did not enter blocking mode"
+        );
+        std::thread::yield_now();
+    }
+    client.write_all(b"POST /claims HTTP/1.1\r\nAuthorization: Bearer cloud-secret\r\nContent-Length: 2\r\n\r\n{}").unwrap();
+    assert_eq!(reader.join().unwrap(), Some(("/claims".into(), json!({}))));
+    assert_eq!(
+        observer.read_timeout().unwrap(),
+        Some(Duration::from_secs(2))
+    );
 }
 
 fn expiry() -> String {
