@@ -125,7 +125,14 @@ mod tests {
     fn preferences_survive_restart_and_preserve_other_settings() {
         let path =
             std::env::temp_dir().join(format!("pero-i18n-settings-{}.json", std::process::id()));
-        std::fs::write(&path, r#"{"other":{"enabled":true}}"#).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"other":{"enabled":true},"workbench":{"appearance":"dark","projects":[]}}"#,
+        ).unwrap();
+        let restored = load_workbench(&path);
+        assert_eq!(restored.appearance, pero_contracts::workbench::Appearance::Dark);
+        assert_eq!(restored.layout.chat_width(), 420.);
+        assert!(!restored.layout.chat_open);
         save_locale(&path, "en").unwrap();
         assert_eq!(load_locale(&path).as_deref(), Some("en"));
         save_locale(&path, "zh-CN").unwrap();
@@ -144,6 +151,12 @@ mod tests {
             projects: vec![pero_contracts::workbench::ProjectBinding {
                 workspace: "/work/pero".into(), project_id: "pero".into(),
             }],
+            layout: {
+                let mut layout = pero_contracts::workbench::LayoutPreferences::default();
+                layout.resize_chat(512.);
+                layout.chat_open = true;
+                layout
+            },
         };
         save_workbench(&path, &preferences).unwrap();
         assert_eq!(load_workbench(&path), preferences);

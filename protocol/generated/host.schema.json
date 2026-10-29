@@ -2291,6 +2291,23 @@
       ],
       "additionalProperties": false
     },
+    "LayoutPreferences": {
+      "title": "LayoutPreferences",
+      "type": "object",
+      "properties": {
+        "chat_width": {
+          "type": "integer",
+          "minimum": 320,
+          "maximum": 640,
+          "default": 420
+        },
+        "chat_open": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
     "ListAgentsCommand": {
       "title": "ListAgentsCommand",
       "type": "object",
@@ -4552,6 +4569,9 @@
             "$ref": "#/$defs/ProjectBinding"
           },
           "maxItems": 128
+        },
+        "layout": {
+          "$ref": "#/$defs/LayoutPreferences"
         }
       },
       "required": [

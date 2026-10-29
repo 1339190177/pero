@@ -88,7 +88,11 @@ try {
   await host.next('error');
   host.send({ method: 'settings.locale', locale: 'zh-CN' });
   await host.next('settings', (e) => e.text === 'zh-CN');
-  const workbench = {appearance:'dark',projects:[{workspace:temp,project_id:'pero'}]};
+  const legacyWorkbench = {appearance:'dark',projects:[{workspace:temp,project_id:'pero'}]};
+  host.send({method:'settings.workbench',preferences:legacyWorkbench});
+  const migrated = await host.next('workbench_settings');
+  if (!isDeepStrictEqual(migrated.data,{...legacyWorkbench,layout:{chat_width:420,chat_open:false}})) failures.push('Legacy workbench preferences did not restore default layout');
+  const workbench = {...legacyWorkbench,layout:{chat_width:512,chat_open:true}};
   host.send({method:'settings.workbench',preferences:workbench});
   const applied = await host.next('workbench_settings');
   if (!isDeepStrictEqual(applied.data,workbench)) failures.push('Workbench preferences were not acknowledged');

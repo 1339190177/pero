@@ -164,10 +164,15 @@ export interface WorkbenchPreferences {
    * @maxItems 128
    */
   projects: ProjectBinding[];
+  layout?: LayoutPreferences;
 }
 export interface ProjectBinding {
   workspace: string;
   project_id: string;
+}
+export interface LayoutPreferences {
+  chat_width?: number;
+  chat_open?: boolean;
 }
 export interface ListAgentsCommand {
   action: "list_agents";
