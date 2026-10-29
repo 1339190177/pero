@@ -2,14 +2,15 @@ import { loadContentResult, cancelContentResult } from './content-results';
 import type { ContentChunk, ConversationReadParameters } from '../../packages/content-source/index';
 import { normalizeLocale, translate } from '../../locales';
 import type { HostEvent } from './bootstrap';
+import { readAppearance, type AppearanceSnapshot } from '../../packages/app-sdk/src/appearance';
 
-export type ChatSurfaceContext = { dark: boolean; locale: string; active: boolean; scope?: { app: string; panel: string } };
+export type ChatSurfaceContext = { dark: boolean; locale: string; active: boolean; appearance?: AppearanceSnapshot; scope?: { app: string; panel: string } };
 export type ChatSurface = ReturnType<typeof mountChatSurface>;
 
 /** The trusted shell owns commands. Domain App frames are never message sources here. */
 export function mountChatSurface(container: HTMLElement, options: {
   readContent(request:ConversationReadParameters):Promise<ContentChunk>;
-  command(value: object): Promise<void>; ready(): void; context: ChatSurfaceContext;
+  command(value: object): Promise<void>; ready(): void; appearance?(value: AppearanceSnapshot): void; context: ChatSurfaceContext;
   url?: string;
 }) {
   const url = new URL(options.url || 'pero://chat/chat.html');
@@ -51,7 +52,10 @@ export function mountChatSurface(container: HTMLElement, options: {
   retry.onclick = start;
   const receive = (event: MessageEvent) => {
     if (event.source !== frame.contentWindow || event.origin !== origin) return;
-    if (event.data?.type === 'pero:chat:selection') {
+    if (event.data?.type === 'pero:chat:appearance') {
+      const appearance = readAppearance(event.data.appearance);
+      if (appearance) options.appearance?.(appearance);
+    } else if (event.data?.type === 'pero:chat:selection') {
       const pending = selections.get(event.data.id);
       if (pending) { clearTimeout(pending.timer); selections.delete(event.data.id); pending.resolve(event.data.draft||{threadId:event.data.thread}); }
     } else if (event.data?.type === 'pero:chat:connect') post('pero:chat:context', { context });

@@ -15,5 +15,6 @@ declare module '*chat-wasm/pero_chat_web' {
   export function snapshot(): string;
   export function paste_image(data: string, mime_type: string): void;
   export function set_system_theme(dark: boolean): void;
+  export function set_appearance(json: string): void;
   export function compose(text: string): void;
 }

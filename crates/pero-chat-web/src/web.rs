@@ -26,6 +26,9 @@ extern "C" {
 
 struct ChatWindow {
     panel: Entity<ChatPanel>,
+    palettes: Palettes,
+    preferences: pero_contracts::workbench::WorkbenchPreferences,
+    system_dark: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -37,7 +40,7 @@ impl ChatWindow {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let panel = cx.new(|cx| ChatPanel::new(palettes, dark, locale, window, cx));
+        let panel = cx.new(|cx| ChatPanel::new(locale, window, cx));
         let subscriptions = vec![
             cx.subscribe(&panel, |this, _, action, cx| {
                 let value = match action {
@@ -66,6 +69,9 @@ impl ChatWindow {
         ];
         Self {
             panel,
+            palettes,
+            preferences: Default::default(),
+            system_dark: dark,
             _subscriptions: subscriptions,
         }
     }
@@ -74,7 +80,7 @@ impl ChatWindow {
 impl Render for ChatWindow {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let panel = self.panel.read(cx);
-        let palette = panel.palettes.get(panel.dark);
+        let palette = &pero_theme::UiAppearance::global(cx).palette.clone();
         let active = panel.active_chat;
         let label = active
             .and_then(|i| panel.chats.get(i))
@@ -93,10 +99,9 @@ impl Render for ChatWindow {
             .size_full()
             .flex()
             .flex_col()
-            .bg(palette.color("surface"))
-            .text_color(palette.color("text"))
-            .font_family("Noto Sans CJK SC")
-            .text_size(px(14.))
+            .bg(palette.surface)
+            .text_color(palette.text)
+            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
             .child(
                 div()
                     .flex()
@@ -105,7 +110,7 @@ impl Render for ChatWindow {
                     .px(px(12.))
                     .py(px(6.))
                     .border_b_1()
-                    .border_color(palette.color("border"))
+                    .border_color(palette.border)
                     .child(
                         Button::new("chat-session-picker")
                             .ghost()
@@ -206,7 +211,7 @@ pub fn run(theme_json: &str, dark: bool, locale: &str) -> Result<(), JsValue> {
                 ]);
             }
             gpui_kit::component::set_locale(&locale);
-            palettes.apply(dark, cx);
+            pero_theme::ResolvedAppearance::resolve(&Default::default(), dark, &palettes).install(cx);
             gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
                 let view = cx.new(|cx| ChatWindow::new(palettes, dark, locale, window, cx));
                 CHAT.with(|slot| *slot.borrow_mut() = Some(view.downgrade()));
@@ -240,6 +245,12 @@ pub fn receive_host_event(json: &str) -> Result<(), JsValue> {
         return Err(JsValue::from_str("Unsupported event version"));
     }
     update(|ui, cx| {
+        if event.kind == "workbench_settings" {
+            if let Ok(preferences) = serde_json::from_value(event.data.clone()) {
+                ui.preferences = preferences;
+                pero_theme::ResolvedAppearance::resolve(&ui.preferences, ui.system_dark, &ui.palettes).install(cx);
+            }
+        }
         ui.panel.update(cx, |panel, cx| {
             panel.receive(&event, cx);
         })
@@ -253,6 +264,7 @@ pub fn snapshot() -> String {
     update(|ui, cx| {
         value = ui.panel.read(cx).snapshot(cx);
         value["ready"] = true.into();
+        value["appearance"] = serde_json::to_value(pero_theme::UiAppearance::global(cx)).expect("serializable appearance");
     });
     value.to_string()
 }
@@ -269,9 +281,11 @@ pub fn paste_image(data: &str, mime_type: &str) {
 #[wasm_bindgen]
 pub fn set_system_theme(dark: bool) {
     update(|ui, cx| {
+        ui.system_dark = dark;
+        pero_theme::ResolvedAppearance::resolve(&ui.preferences, dark, &ui.palettes).install(cx);
         ui.panel.update(cx, |panel, cx| {
             let locale = panel.locale.clone();
-            panel.set_context(dark, &locale, cx);
+            panel.set_locale(&locale, cx);
         })
     });
 }
@@ -283,4 +297,12 @@ pub fn compose(text: &str) {
             panel.compose(text.into(), cx);
         })
     });
+}
+
+#[wasm_bindgen]
+pub fn set_appearance(json: &str) -> Result<(), JsValue> {
+    let appearance: pero_theme::ResolvedAppearance = serde_json::from_str(json)
+        .map_err(|error|JsValue::from_str(&error.to_string()))?;
+    update(|_,cx| appearance.install(cx));
+    Ok(())
 }
