@@ -119,7 +119,7 @@ mod surface {
         pub(crate) fn sync_app_surface(&mut self, left: f32, width: f32, height: f32) {
             #[cfg(target_family = "wasm")]
             {
-                let payload = if let Some(active) = self.apps.active.as_ref().filter(|_| self.navigation == 7) {
+                let payload = if let Some(active) = self.apps.active.as_ref().filter(|_| self.navigation == 7 && !self.settings_menu_open) {
                     json!({"visible":true,"name":active.name,"panel":active.panel,
                         "left":left,"top":48,"width":(width-left).max(0.),"height":(height-48.).max(0.),
                         "dark":self.dark,"locale":self.locale})
