@@ -300,7 +300,10 @@ test('MCP transport works with the official client and preserves App image metad
   const { DesktopAppUse } = await import('./app-use-mcp.ts');
   const { runInNewContext } = await import('node:vm');
   const { tmpdir } = await import('node:os');
-  const state = { image: { uri: 'app-owned-image-metadata' } };
+  const {mkdtemp,rm} = await import('node:fs/promises');
+  const {join} = await import('node:path');
+  const evidenceRoot = await mkdtemp(join(tmpdir(),'pero-mcp-output-'));
+  const state: {image:{uri:string};rows?:{id:number;value:string}[]} = { image: { uri: 'app-owned-image-metadata' } };
   const browser = {
     peroAppUseThread: () => 'thread',
     peroAppUse: async ({ request }: { request: { action: string } }) => ({
@@ -324,7 +327,7 @@ test('MCP transport works with the official client and preserves App image metad
   const desktop = new DesktopAppUse(
     () => window as never,
     () => {},
-    tmpdir(),
+    evidenceRoot,
   );
   const env = await desktop.start();
   desktop.accept({
@@ -345,7 +348,7 @@ test('MCP transport works with the official client and preserves App image metad
     );
     assert.deepEqual(
       (await client.listTools()).tools.map((tool) => tool.name),
-      ['app_use'],
+      ['app_use', 'content_read'],
     );
     const started = await client.callTool({
       name: 'app_use',
@@ -358,9 +361,20 @@ test('MCP transport works with the official client and preserves App image metad
     assert.equal(content.length, 1);
     assert.equal(content[0].type, 'text');
     assert.deepEqual(JSON.parse(content[0].text).objects[0].state, state);
+    state.rows=Array.from({length:8000},(_,id)=>({id,value:'structured data'.repeat(8)}));
+    const large=await client.callTool({name:'app_use',arguments:{action:'observe',taskId}});
+    const reference=JSON.parse((large.content as {text:string}[])[0].text);
+    assert.equal(reference.type,'content_reference');
+    assert.ok(reference.artifact.bytes>1_000_000);
+    assert.ok(Buffer.byteLength((large.content as {text:string}[])[0].text)<2048);
+    const selected=await client.callTool({name:'content_read',arguments:{id:reference.artifact.id,pointer:'/objects/0/state/rows/7999/id'}});
+    assert.equal(selected.isError,false);
+    assert.match((selected.content as {text:string}[])[0].text,/\n7999\n/);
+
   } finally {
     await client.close();
     desktop.close();
+    await rm(evidenceRoot,{recursive:true,force:true});
   }
 });
 
