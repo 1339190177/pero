@@ -606,5 +606,13 @@
   "content.keep_editing": "Keep editing",
   "content.link_unavailable": "This link has no available workspace target.",
   "content.unsaved_window": "Save your changes before closing or reloading the window.",
-  "content.discard_window": "Discard changes"
+  "content.discard_window": "Discard changes",
+  "web.open_url": "Open Web address…",
+  "web.back": "Back",
+  "web.forward": "Forward",
+  "web.reload": "Reload page",
+  "web.loading": "Loading…",
+  "web.close_address": "Close address field",
+  "web.unavailable": "This Web view is unavailable. Reopen the address.",
+  "web.address": "Web address"
 }

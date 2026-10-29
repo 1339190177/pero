@@ -606,5 +606,13 @@
   "content.keep_editing": "继续编辑",
   "content.link_unavailable": "此链接没有可用的工作区目标。",
   "content.unsaved_window": "关闭或重新载入窗口前，请先保存修改。",
-  "content.discard_window": "放弃修改"
+  "content.discard_window": "放弃修改",
+  "web.open_url": "打开网页…",
+  "web.back": "后退",
+  "web.forward": "前进",
+  "web.reload": "重新载入网页",
+  "web.loading": "正在加载…",
+  "web.close_address": "关闭地址栏",
+  "web.unavailable": "此网页视图不可用，请重新打开地址。",
+  "web.address": "网页地址"
 }

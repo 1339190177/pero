@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { normalizeLocale, translate, type Locale, type MessageKey } from '../../../locales';
 import { RemoteAdapter, type StoredRemoteConnection } from './remote';
 import { DesktopApps } from './apps';
+import {WebPages} from './web-pages';
 import { DesktopContributions } from './contributions';
 import { LocalExecutionController } from './local-execution';
 import { DesktopAppUse } from './app-use-mcp';
@@ -40,6 +41,7 @@ let window: BrowserWindow;
 let host: ChildProcessWithoutNullStreams;
 let ready = false;
 let appUse: DesktopAppUse | undefined;
+let webPages:WebPages|undefined;
 let locale: Locale = 'en';
 const t = (key: MessageKey) => translate(locale, key);
 let localExecution: LocalExecutionController | undefined;
@@ -113,7 +115,7 @@ function updateMenus() {
       { role: 'cut', label: t('menu.cut') }, { role: 'copy', label: t('menu.copy') },
       { role: 'paste', label: t('menu.paste') }, { role: 'selectAll', label: t('menu.select_all') },
     ] },
-    { label: t('menu.workbench'), submenu: [{ id:'open-file',label:t('content.open_file'),accelerator:'CmdOrCtrl+O',click:()=>send({version:1,kind:'document_choose',request_id:null,text:''}) }, { id: 'remote-tasks', label: t('nav.remote'), accelerator: 'CmdOrCtrl+Shift+R', click: () => send({version:1,kind:'remote_open',request_id:null,text:''}) }, { id: 'connection-message', label: t('menu.connection'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send(event('notice', 'notice.desktop')) }, { role: 'reload', label: t('menu.reload') }, { role: 'toggleDevTools', label: t('menu.developer_tools') }] },
+    { label: t('menu.workbench'), submenu: [{id:'open-url',label:t('web.open_url'),click:()=>send({version:1,kind:'web_choose',request_id:null,text:''})}, { id:'open-file',label:t('content.open_file'),accelerator:'CmdOrCtrl+O',click:()=>send({version:1,kind:'document_choose',request_id:null,text:''}) }, { id: 'remote-tasks', label: t('nav.remote'), accelerator: 'CmdOrCtrl+Shift+R', click: () => send({version:1,kind:'remote_open',request_id:null,text:''}) }, { id: 'connection-message', label: t('menu.connection'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send(event('notice', 'notice.desktop')) }, { role: 'reload', label: t('menu.reload') }, { role: 'toggleDevTools', label: t('menu.developer_tools') }] },
     { label: t('menu.language'), submenu: [
       { id: 'locale-zh-CN', label: '简体中文', type: 'radio', checked: locale === 'zh-CN', click: () => changeLocale('zh-CN') },
       { id: 'locale-en', label: 'English', type: 'radio', checked: locale === 'en', click: () => changeLocale('en') },
@@ -222,6 +224,11 @@ app.whenReady().then(async () => {
     if (!r || typeof r.id !== 'string' || r.id.length > 128 || typeof r.text !== 'string' || Array.from(r.text).length > 4096 || !ready) throw new Error('Invalid probe');
     host.stdin.write(JSON.stringify({ id: r.id, text: r.text }) + '\n');
   });
+  ipcMain.handle('pero:web',(sender,command:unknown)=>{
+    trusted(sender);
+    try {if(!webPages)throw new Error('Web views are unavailable');webPages.command(command);}
+    catch(error){send({version:1,kind:'web_error',request_id:null,text:error instanceof Error?error.message:String(error)});}
+  });
   ipcMain.handle('pero:session', async (sender, command: unknown) => {
     trusted(sender);
     if (!ready || !command || typeof command !== 'object') throw new Error('Invalid session command');
@@ -268,6 +275,8 @@ app.whenReady().then(async () => {
   window = new BrowserWindow({ ...testWindowOptions, width: 1488, height: 1086, minWidth: 1000, minHeight: 680,
     title: t('window.title'), backgroundColor: '#F7F9FC',
     webPreferences: { ...testWindowOptions.webPreferences, preload: resolve(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  webPages=new WebPages(window,send);
+  window.on('closed',()=>webPages?.dispose());
   window.webContents.on('did-start-navigation', (_event, _url, _inPlace, main) => { if (main) appUse?.reset(); });
   window.webContents.on('render-process-gone', () => appUse?.reset());
   window.webContents.on('will-prevent-unload',event=>{
