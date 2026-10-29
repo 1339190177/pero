@@ -47,6 +47,7 @@ type page struct {
 	DesktopLink                         template.URL
 	Session                             *store.CommunitySession
 	OAuth                               bool
+	Groups                              []store.PublicTaskGroup
 	Tasks                               []store.PublicTask
 	Task                                store.PublicTask
 	Workers                             []store.Worker
@@ -237,17 +238,12 @@ func offset(r *http.Request) (int, error) {
 	return n, nil
 }
 func (s *server) board(w http.ResponseWriter, r *http.Request) {
-	n, err := offset(r)
+	tasks, err := s.db.CommunityTaskOutline(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	tasks, more, err := s.db.CommunityTasks(r.Context(), n)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	s.render(w, r, 200, page{Title: "任务广场", View: "board", Tasks: tasks, Offset: n, More: more})
+	s.render(w, r, 200, page{Title: "任务广场", View: "board", Tasks: tasks, Groups: store.GroupPublicTasks(tasks)})
 }
 func (s *server) task(w http.ResponseWriter, r *http.Request) {
 	t, err := s.db.CommunityTask(r.Context(), r.PathValue("id"))
@@ -273,7 +269,7 @@ func (s *server) task(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.render(w, r, 200, page{Title: t.Title, View: "task", Task: t, Session: session, Workers: workers, History: history})
+	s.render(w, r, 200, page{Title: t.DisplayTitle(), View: "task", Task: t, Session: session, Workers: workers, History: history})
 }
 func (s *server) leaderboard(w http.ResponseWriter, r *http.Request) {
 	period := r.URL.Query().Get("period")

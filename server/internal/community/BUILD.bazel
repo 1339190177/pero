@@ -12,6 +12,7 @@ go_library(
     embedsrcs = [
         "assets/community.css",
         "assets/community.js",
+        "assets/task-browser.js",
         "assets/theme.generated.css",
         "templates/pages.html",
     ],
@@ -35,6 +36,7 @@ go_test(
     ],
     visibility = ["//server:__pkg__"],
     deps = [
+        "//server/internal/github",
         "//server/internal/httpapi",
         "//server/internal/store",
         "@com_github_jackc_pgx_v5//:pgx",

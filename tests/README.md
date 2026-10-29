@@ -37,6 +37,15 @@
 `test-results/connector/fixture/`、`test-results/connector/live/`、
 `test-results/remote-settings/`。
 
+## 任务树与全景
+
+`node tests/e2e/task-browser.mjs` 使用当前仓库 ROADMAP 和临时 Go/PostgreSQL
+服务验证“领域 → 功能 → 任务”、默认未完成范围、完整公开任务集、树/全景切换、
+搜索与动态计数、原地范围/验收、逐级键盘操作、
+URL 恢复、390px 深色与无 JavaScript 回退。设置 `PERO_TEST_DATABASE_URL`，可用
+`PERO_CHROMIUM_PATH` 指定本机 Chromium。截图和结果在 `test-results/task-browser/`。
+它不访问线上任务中心、不执行 Agent，也不发布 GitHub 内容。
+
 ## 层外
 
 - `npm test` 包含 `pero-worker`。`crates/pero-worker/tests/remote.rs` 自己起本地假协调服务，不使用 PostgreSQL。
