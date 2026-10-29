@@ -13,7 +13,7 @@ import sys
 
 from tree_sitter import Language, Node, Parser
 import tree_sitter_go
-import tree_sitter_typescript
+from typescript_language import load_typescript
 
 from compare import receiver_type, walk
 
@@ -35,8 +35,8 @@ class Fact:
     write_scope: str
 
 
-LANGUAGES = {"go": Language(tree_sitter_go.language()),
-             "typescript": Language(tree_sitter_typescript.language_typescript())}
+TYPESCRIPT, TYPESCRIPT_PROVENANCE = load_typescript()
+LANGUAGES = {"go": Language(tree_sitter_go.language()), "typescript": TYPESCRIPT}
 CALLABLES = {"function_declaration", "method_declaration", "method_definition", "generator_function_declaration"}
 FUNCTION_VALUES = {"arrow_function", "function_expression", "generator_function"}
 CONTROLS = {"if_statement", "switch_statement", "expression_switch_statement", "type_switch_statement",
@@ -204,6 +204,7 @@ def compare_references(mapping: dict, left_root: Path, right_root: Path) -> dict
                       "notes": pair.get("notes", ""), **sides, "landmarks": landmarks, "lexical_fact_deltas": fact_deltas})
     return {"schema_version": 1, "mode": "official_references", "semantic_equivalence": "not_established",
             "parser": {name: version(name) for name in ("tree-sitter", "tree-sitter-go", "tree-sitter-typescript")},
+            "typescript_grammar": TYPESCRIPT_PROVENANCE,
             "left_ref": mapping["left_ref"], "right_ref": mapping["right_ref"],
             "ref_basis": "declared_by_mapping; per-file hashes verify actual bytes, not Git checkout identity",
             "coverage": {"selected_pairs": len(pairs), "left_files": len({p["left"]["path"] for p in pairs}),
@@ -216,7 +217,7 @@ def markdown(report: dict) -> str:
     def esc(value):
         return str(value).replace("|", "\\|").replace("\n", " ")
     lines = ["# Official DSH → Pero AST reference review", "", "Tree-sitter structure evidence; not semantic equivalence or a passing behavior test.",
-             "", f"- Official: `{report['left_ref']}`", f"- Pero: `{report['right_ref']}`", f"- Summary: {report['summary']}", f"- Coverage: {report['coverage']}", "",
+             "", f"- Official: `{report['left_ref']}`", f"- Pero: `{report['right_ref']}`", f"- Summary: {report['summary']}", f"- Coverage: {report['coverage']}", f"- TypeScript grammar: `{report['typescript_grammar']['version']}` (see JSON for build provenance)", "",
              "Exact lexical differences reflect language, adapter and composition differences as well as possible defects. Unobserved landmarks require review, not automatic repair."]
     for pair in report["pairs"]:
         lines += ["", f"## {pair['label']}", "", f"Status: **{pair['status']}**", ""]
