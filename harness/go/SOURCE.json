@@ -1016,10 +1016,10 @@
     },
     {
       "destination": "storage/namespace.go",
-      "sha256": "591bf80dc6cca90dc4d4ddc3aeca4ba0a0d351fbf1a866f931022ec80241a009",
+      "sha256": "5d3908ca2e1112fb8591bcdd058045f5bfe9a83be0c908350bb6eac46943349e",
       "source_path": "go/harness/storage/namespace.go",
       "source_blob_sha1": "7a1995a83711c7b295051cda3859a5e51c4f3934",
-      "change": "imports only"
+      "change": "imports adapted; capture Windows namespace identity eagerly through handle Stat instead of deferred path lookup"
     },
     {
       "destination": "storage/namespace_test.go",
@@ -1289,7 +1289,7 @@
       },
       {
         "destination": "nativetools/tools_test.go",
-        "sha256": "abf5c5355d9e194665f437a973c6562befd8fe61ebf437587c0321bebf1b3b47"
+        "sha256": "18790f6a7490e5fba8ba72ee8619a159c60ea1963afac0f913c5a598faa0f0cb"
       },
       {
         "destination": "providers/openai/adapter_test.go",
@@ -1378,7 +1378,7 @@
       },
       {
         "destination": "sandbox/strict_test.go",
-        "sha256": "c31ac00e0aa7c62b1786fb51e68b14abd3d6f4ff3bbad0701c101b551c70b31b"
+        "sha256": "262d7c73ed1ce4b9449042cb43e149444a13d1f3f79579fb2d0b714ed35971dc"
       },
       {
         "destination": "session/persistence.go",
@@ -1403,6 +1403,63 @@
       {
         "destination": "sessionview/project_test.go",
         "sha256": "c198a0ec6cdbd9b5dc94f5f99078628720d18e7f079125bb0f16975f067fa8e9"
+      }
+    ]
+  },
+  "cross_platform_contract_review": {
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "fstools/review_race_test.go",
+        "sha256": "f5d20c97c0274da05fc9a2a1407449efd240e1566bd3f34d5d89c171f273ce19"
+      },
+      {
+        "destination": "fstools/workspace_test.go",
+        "sha256": "87b4c4815f6adc960f12171464894cf4aecc9bcd2300084d14a44e1bdabb74a5"
+      },
+      {
+        "destination": "media/attachment.go",
+        "sha256": "57a64329be175033de17a68f8c7d4f6cbd52ab9120cb1936fa078986bb4beaf6"
+      },
+      {
+        "destination": "media/file_attachment.go",
+        "sha256": "df2839b14d4374eab05c8e1de1aee90c50de5b619352fdbf4b126f26ee566877"
+      },
+      {
+        "destination": "media/file_attachment_test.go",
+        "sha256": "778d9c4c5acbf2fa3a2fa752b47605066db38d4333952418d788d2a501e34a19"
+      },
+      {
+        "destination": "media/request_image.go",
+        "sha256": "186a63de6edf8b5b46ebd5a846ec1671293d398dec7d31b99051ec86c2fabb87"
+      },
+      {
+        "destination": "media/request_image_test.go",
+        "sha256": "4a6bc8c3f27aa4499051635d4ed61b4fba8d493d5fc83952cead909ec681f696"
+      },
+      {
+        "destination": "nativetools/tools_test.go",
+        "sha256": "18790f6a7490e5fba8ba72ee8619a159c60ea1963afac0f913c5a598faa0f0cb"
+      },
+      {
+        "destination": "sandbox/strict.go",
+        "sha256": "41ba02fec04ae5de8186def7275fb2fc85b266048e7201a537e24841e7875d05"
+      },
+      {
+        "destination": "sandbox/strict_test.go",
+        "sha256": "262d7c73ed1ce4b9449042cb43e149444a13d1f3f79579fb2d0b714ed35971dc"
+      },
+      {
+        "destination": "shell/local_test.go",
+        "sha256": "47b724809c6df94ff5b5dd903e403bcf5ad04fcac8eb9265bd1a64defcd35ce9"
+      },
+      {
+        "destination": "skills/catalog_test.go",
+        "sha256": "696fb711aa920754884cb2420e898d04032fa464366f0a4144f4364d36cbc161"
+      },
+      {
+        "destination": "storage/namespace.go",
+        "sha256": "5d3908ca2e1112fb8591bcdd058045f5bfe9a83be0c908350bb6eac46943349e"
       }
     ]
   }

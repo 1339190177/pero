@@ -78,3 +78,59 @@ Bazel is not installed locally; the new isolated CI job must establish that gate
 The new Windows/macOS/Linux jobs and required-positive sandbox job remain pending
 remote CI; local passes do not certify Windows cache repair or supported-host
 sandbox execution. No real model, credentials, desktop/UI or deployment was used.
+
+## Cross-platform CI follow-up
+
+Run `40799866918` at public merge `c9fd173b68dff1f7b5165831c42db68458d28cb4`
+proved the positive Linux sandbox fixture (not skipped), AST 18-test suite and all
+17 selected official mappings. Windows font recovery tests (8), desktop build and
+typecheck passed. The isolated Bazel generation check exposed an alphabetical
+source-list ordering error; the source list is corrected rather than bypassing
+Gazelle's diff gate.
+
+macOS skills fixtures used a temporary path containing the OS `/var` alias,
+violating the existing canonical-root precondition before their intended checks.
+An aliased TMPDIR reproduces both the catalog and ABA failures on Linux. Trusted
+test-directory creation now resolves that alias; full skills race tests pass with
+the aliased TMPDIR. Production symlink/descriptor admission is unchanged.
+
+Windows Rust ACP MCP fixtures used `/fixture/not-executed`, which is not a native
+absolute path there; tests hit command admission instead of the intended protocol
+check. The follow-up uses a native absolute fixture path and asserts the specific
+expected rejection for invalid inputs. Production validation is not relaxed.
+Current platform CI still needs to rerun after these fixture corrections.
+
+The Windows harness matrix also exposed assumptions in Unix-only native-tool
+fixtures. Positive descriptor-rooted workspace/catalog and process-group shell
+cases now run only on their supported Linux/Darwin platforms. Windows runs explicit
+fail-closed admission contracts instead; pure read-window, rendering, tail and
+frontmatter parsing tests remain cross-platform. No production capability guard is
+removed and the whole harness job is not skipped. The four affected packages pass
+Linux race tests and Windows cross-compilation; Windows execution remains a CI gate.
+
+Three actual platform bugs are corrected separately from fixture scope:
+
+- The pure sandbox profile builder walks POSIX mount destinations with `path.Dir`,
+  not host-dependent `filepath.Dir`, avoiding a Windows non-progressing loop.
+- Storage namespace proofs capture Windows file identity from an open handle
+  immediately. Deferred path-based identity lookup no longer samples a replacement
+  during later comparison. Unix permission behavior remains unchanged.
+- Media uses the existing session-style Windows directory-sync limitation; it does
+  not pretend Windows can sync a directory opened with `os.Open`. Writable staging
+  links are removed before their shared published inode becomes read-only, and
+  same-store file publication is serialized. Corrupt derived-cache removal clears
+  its readonly attribute first. Cleanup assertions cover successful concurrent file
+  publication and image staging. No cross-process transaction or Windows directory
+  entry power-loss guarantee is asserted.
+
+Focused three-package race tests (three repetitions), vet and Windows
+cross-compilation pass. Actual Windows execution is still required in the next
+CI run. AST source extraction remains 17/17: these platform fixes do not modify
+any of the selected and hash-verified official mapping source files.
+
+One aggregate Linux race run additionally observed
+`TestReviewParentChildShareHardHTTPBudget/3` returning an activation-disposal-pending
+diagnostic instead of the child's output. Thirty isolated race repetitions passed.
+This observation is retained for a separate deterministic lifecycle investigation;
+the platform corrections do not claim to fix it, and a later green rerun does not
+erase the failed receipt. Vet and build passed on the platform-correction snapshot.
