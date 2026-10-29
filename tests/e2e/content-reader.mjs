@@ -379,8 +379,8 @@ try {
   await page.keyboard.press('Control+Tab');
   await paint();
   expect((await state()).activeContent).toEqual(lastTab);
-  // The captured fixture titles occupy 120px tabs; close the preceding visible tab.
-  await page.mouse.click((await page.evaluate(() => innerWidth)) - 137, 18);
+  // Close the preceding visible tab using the current tab's observed edge.
+  await page.mouse.click((await state()).activeTabBounds.left - 17, 18);
   await paint();
   expect((await state()).contentTabs.length).toBe(13);
   expect((await state()).activeContent).toEqual(lastTab);

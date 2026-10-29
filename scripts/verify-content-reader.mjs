@@ -19,6 +19,11 @@ await mkdir(isolated, { recursive: true });
 const out = resolve(root, 'test-results/content-reader');
 await mkdir(out, { recursive: true });
 const sources = [
+  'patches/gpui-pre-web-0.3.10-ime.patch',
+  'scripts/lib/gpui-web.mjs',
+  'crates/pero-contracts/src/file_document.rs',
+  'crates/pero-runtime/src/file_documents.rs',
+  'crates/pero-host/src/documents.rs',
   'crates/pero-chat-ui/src/artifact_read.rs',
   'crates/pero-contracts/src/content_document.rs',
   'crates/pero-ui/src/documents.rs',
@@ -30,6 +35,13 @@ const sources = [
   'crates/pero-ui/src/app.rs',
   'crates/pero-ui/src/view.rs',
   'crates/pero-ui/src/workspace_view.rs',
+  'packages/content-source/app-document.ts',
+  'packages/app-sdk/src/document.ts',
+  'packages/app-sdk/src/ui.tsx',
+  'apps/virtual-cell/ui-src/components.tsx',
+  'web/src/apps.ts',
+  'web/src/bootstrap.ts',
+  'desktop/src/main/index.ts',
   'locales/en.json',
   'locales/zh-CN.json',
 ];
@@ -49,6 +61,7 @@ for (const path of [
   'Cargo.lock',
   'crates',
   'scripts/cargo.mjs',
+  'scripts/build/apps.mjs',
   'scripts/lib',
   'patches',
   'desktop/src',
@@ -63,12 +76,13 @@ for (const path of [
   'packages/product',
   'packages/content-source',
   'packages/app-sdk/src',
+  'apps/virtual-cell',
   'tests/fixtures/acp-agent.mjs',
 ]) {
   await cp(resolve(root, path), resolve(isolated, path), {
     recursive: true,
     filter: (path) =>
-      !/[\\/]web[\\/]src[\\/](wasm|chat-wasm)([\\/]|$)/.test(path),
+      !/[\\/](node_modules|__pycache__)([\\/]|$)/.test(path) && !/[\\/]web[\\/]src[\\/](wasm|chat-wasm)([\\/]|$)/.test(path),
   });
 }
 await symlink(
@@ -76,8 +90,14 @@ await symlink(
   join(isolated, 'node_modules'),
   'dir',
 );
-await symlink(resolve(root, 'target'), join(isolated, 'target'), 'dir');
+await mkdir(join(isolated,'target/debug'),{recursive:true});
+await run(process.execPath,[resolve(isolated,'scripts/cargo.mjs'),'build','--locked','-p','pero-host'],{cwd:isolated,env:{...process.env,CARGO_TARGET_DIR:resolve(root,'target'),PERO_GPUI_KIT_PATH:process.env.PERO_GPUI_KIT_PATH||resolve(root,'../../test/gpui-kit')}});
+await cp(resolve(root,'target/debug/pero-host'),join(isolated,'target/debug/pero-host'));
 const before = await fingerprints(isolated);
+if(process.argv.includes('--app-documents')) {
+  await symlink(resolve(root,'apps/virtual-cell/node_modules'),join(isolated,'apps/virtual-cell/node_modules'),'dir');
+  await run(process.execPath,[resolve(isolated,'scripts/build/apps.mjs'),'--app','virtual-cell'],{cwd:isolated});
+}
 await run(
   process.execPath,
   [
@@ -97,7 +117,8 @@ await run(
     cwd: isolated,
     env: {
       ...process.env,
-      PERO_GPUI_KIT_PATH: resolve(root, '../../test/gpui-kit'),
+      CARGO_TARGET_DIR:resolve(root,'target'),
+      PERO_GPUI_KIT_PATH: process.env.PERO_GPUI_KIT_PATH || resolve(root, '../../test/gpui-kit'),
     },
   },
 );
@@ -167,7 +188,7 @@ await run(
   [
     resolve(
       root,
-      process.argv.includes('--workspace-documents')
+      process.argv.includes('--app-documents') ? 'tests/e2e/app-documents.mjs' : process.argv.includes('--file-documents') ? 'tests/e2e/file-documents.mjs' : process.argv.includes('--workspace-documents')
         ? 'tests/e2e/workspace-documents.mjs'
         : 'tests/e2e/content-reader.mjs',
     ),
