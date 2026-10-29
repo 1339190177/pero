@@ -1,8 +1,10 @@
 # Pero Apps
 
 `npm run dev:apps` builds and opens the first App, Virtual Cell, in an isolated
-developer profile. `npm run dev` uses the ordinary Desktop profile. Both seed
-builtins once; a removed App stays removed on restart.
+developer profile. `npm run dev` uses the ordinary Desktop profile. Both discover newly bundled Apps at startup and when the Apps catalog is
+requested. Existing enable state is retained; removals are recorded per App so
+refreshing or restarting does not reinstall it. Installed packages are not
+automatically updated.
 
 An App is a built local directory. Install it from **Apps → Install from folder**,
 enable it and open its panel. Version 1 supports one HTML entry and an optional

@@ -21,9 +21,15 @@ App port; its existing scientific methods and source attribution stay in the App
   second installation or backend lifecycle owner. Go Task/Run authority is unchanged.
 - Installation copies a selected local package into the managed App root and
   leaves it disabled until explicitly enabled. Installation state is durable.
-  Builtins are pretrusted by the composition root: a one-time seed installs and
-  enables the bundled catalog, with a durable marker so an uninstall survives
-  restart. There is no marketplace or automatic update mechanism in this slice.
+  Builtins are pretrusted by the composition root. Startup and catalog requests
+  discover newly bundled identities and install/enable them. A per-App discovery
+  receipt retains prior decisions: existing enable state and installed package
+  bytes are not overwritten; explicit removal prevents automatic reinstallation.
+  There is no marketplace, source watcher or automatic package update mechanism.
+  The 2026-10-29 migration replaces the old global `.builtins-seeded` gate.
+  Its `1` marker has no identity history: migration preserves installed names
+  and the original Virtual Cell builtin, including its prior removal. Other
+  pre-migration removals cannot be inferred from that marker alone.
 - Domain data lives outside the package at the App root's sibling
   `app-data/<name>`. Disable stops the backend; uninstall removes the installed
   package and retains domain data. Reinstall does not import a source package's

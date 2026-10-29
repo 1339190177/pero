@@ -113,3 +113,39 @@ Environment preparation and dependency installation remain external steps.
 This verifies local dependency/process separation; Windows/Linux runtime,
 packaged Desktop, filesystem/network sandboxing and scientific acceptance were
 not verified by this change.
+
+## Incremental builtin discovery — 2026-10-29
+
+Resolved [new Apps missing from existing profiles](../issues/2026-10-29-builtin-app-discovery.md).
+`BuiltinDiscovery` owns the per-identity decision to offer a new trusted App.
+The Host scans the configured builtin catalog at startup and on list requests,
+which Desktop issues on startup and Apps navigation/refresh. Newly encountered
+packages are installed and enabled; existing package files and enable states
+are retained. Explicit removals are recorded before removing the installation.
+This is discovery, not hot reload or automatic package updating.
+
+Legacy `.builtins-seeded` markers contain no identities. Migration retains all
+installed names and the original Virtual Cell identity. A removal of some other
+App before per-App receipts existed cannot be recovered from that marker alone.
+New discovery/removal decisions persist in `.builtin-discovery.json`.
+
+Validation passed:
+
+- `node scripts/cargo.mjs test --offline -p pero-runtime -p pero-host`: 41 runtime
+  tests and one Host test. The discovery table covers new/known/installed/legacy
+  identities; the store scenario covers old/new profiles, an added builtin,
+  disabled state, retained installed bytes, repeated scans and removal/restart.
+- `node scripts/cargo.mjs build --offline -p pero-host`.
+- `node tests/contracts/apps.mjs`: actual stdio/schema wiring, additions while
+  the Host is running, retained disable/removal, and existing Python environment
+  lifecycle checks.
+- `node tests/e2e/app-discovery.mjs`: actual Electron catalog with a legacy profile
+  containing disabled Virtual Cell. Paper Agent appeared without manual install;
+  the old installation record and research-data sentinel were unchanged. Explicit
+  removal stayed removed after restarting Desktop. No page exceptions.
+
+Screenshots and result: `test-results/app-discovery/legacy-profile-discovered.png`,
+`removal-retained.png`, `result.json`. They were inspected in the running Desktop
+flow. These isolated checks did not restart the user's current Desktop or change
+its App directories. The rebuilt development Host takes effect on its next start;
+packaged-release acceptance is not established by this run.

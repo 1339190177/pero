@@ -20,9 +20,9 @@ OpenAlex, bioRxiv or PubMed, read a supported ID/URL, or import text/Markdown.
 Open a paper to enter reading mode. The top bar contains Back, title, PDF
 navigation, zoom and **Ask**. Opening the App never starts research.
 
-Existing profiles seed builtins only once. To add this App to an existing
-profile, use **Apps → Install from folder**, choose this built directory and
-enable it. Domain data lives in Host-managed `app-data/paper-agent` and survives
+Existing profiles discover new bundled Apps at startup and when entering or
+refreshing Apps. External packages can be added through **Apps → Install from
+folder**, then enabled. Domain data lives in Host-managed `app-data/paper-agent` and survives
 disable, uninstall and reinstall. The App defaults to the shared Python
 environment; see [Python environment settings](../README.md#python-environments)
 for a dedicated override when needed. Install this App's pinned PDF dependencies
