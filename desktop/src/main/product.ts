@@ -1,3 +1,4 @@
+import {ConversationContentRead} from '../../../packages/content-source/index.ts';
 import { app, BrowserWindow, ipcMain, Menu, protocol, nativeTheme, net, dialog } from 'electron';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -96,6 +97,12 @@ app.whenReady().then(async () => {
     if (event.sender !== window.webContents || event.senderFrame?.url !== 'pero://workbench/') throw new Error('Untrusted sender');
   };
   ipcMain.handle('product:connect', event => { trusted(event); return context(); });
+  ipcMain.handle('product:content-read', (sender, value: unknown) => {
+    trusted(sender);
+    if(!appUse) throw new Error('Result files are unavailable');
+    const request=ConversationContentRead.parse(value);
+    return appUse.results.read(request.thread,request.request);
+  });
   ipcMain.handle('product:app-use', async (event, command: {action?:string;thread_id?:string;scope?:{app:string;panel:string};options?:unknown}) => {
     trusted(event);
     if(command?.action==='context'&&command.scope&&typeof command.thread_id==='string'){if(!appUse)throw new Error('App context is unavailable');return appUse.draftContext.freeze(command.scope,command.thread_id,command.options);}

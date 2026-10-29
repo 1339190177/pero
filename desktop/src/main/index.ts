@@ -1,3 +1,4 @@
+import {ConversationContentRead} from '../../../packages/content-source/index.ts';
 import { app, BrowserWindow, ipcMain, Menu, protocol, net, dialog, shell } from 'electron';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -201,6 +202,12 @@ app.whenReady().then(async () => {
     await remote.command(command);
   });
   ipcMain.handle('pero:apps', (sender, command: unknown) => { trusted(sender); return apps.command(command); });
+  ipcMain.handle('pero:content-read', (sender, value: unknown) => {
+    trusted(sender);
+    if(!appUse) throw new Error('Result files are unavailable');
+    const request=ConversationContentRead.parse(value);
+    return appUse.results.read(request.thread,request.request);
+  });
   ipcMain.handle('pero:app-use', async (sender, command: {action?:string;thread_id?:string;scope?:{app:string;panel:string};options?:unknown}) => {
     trusted(sender);
     if(command?.action==='context'&&command.scope&&typeof command.thread_id==='string'){if(!appUse)throw new Error('App context is unavailable');return appUse.draftContext.freeze(command.scope,command.thread_id,command.options);}

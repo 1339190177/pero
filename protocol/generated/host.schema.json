@@ -1101,6 +1101,75 @@
       ],
       "additionalProperties": false
     },
+    "ContentDocumentEvent": {
+      "title": "ContentDocumentEvent",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "content_document"
+        },
+        "version": {
+          "type": "number",
+          "const": 1
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "tool_call_id": {
+              "type": "string"
+            },
+            "artifact_id": {
+              "type": "string"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "const": "ready"
+                },
+                {
+                  "type": "string",
+                  "const": "error"
+                }
+              ]
+            }
+          },
+          "required": [
+            "tool_call_id",
+            "artifact_id",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "request_id",
+        "text",
+        "thread_id",
+        "data"
+      ],
+      "additionalProperties": false,
+      "description": "Read-only Desktop result-file transport. It never starts an Agent turn."
+    },
     "ContextCandidate": {
       "title": "ContextCandidate",
       "type": "object",
@@ -2118,6 +2187,9 @@
     "HostEvent": {
       "title": "HostEvent",
       "oneOf": [
+        {
+          "$ref": "#/$defs/ContentDocumentEvent"
+        },
         {
           "$ref": "#/$defs/LocalWorkerStateEvent"
         },

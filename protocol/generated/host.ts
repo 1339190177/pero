@@ -41,6 +41,7 @@ export type AppName = string;
 export type AgentRequest = AgentInfoRequest | AgentStartRequest | AgentEventsRequest | AgentCancelRequest;
 export type ContributionRequest = ContributionPrepare | ContributionReview | ContributionPublish;
 export type HostEvent =
+  | ContentDocumentEvent
   | LocalWorkerStateEvent
   | ContributorStateEvent
   | ContributorSessionEvent
@@ -353,6 +354,18 @@ export interface ContributionPublish {
   operation: "publish";
   workspace: string;
   review_token: string;
+}
+export interface ContentDocumentEvent {
+  kind: "content_document";
+  version: 1;
+  request_id: string | null;
+  text: string;
+  thread_id: string;
+  data: {
+    tool_call_id: string;
+    artifact_id: string;
+    status: "ready" | "error";
+  };
 }
 export interface LocalWorkerStateEvent {
   kind: "local_worker_state";

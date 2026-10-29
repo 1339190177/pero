@@ -193,6 +193,9 @@ model ContextCandidatesEvent {kind: "context_candidates"; ...EventBase; data: Co
 model ContextResolvedEvent {kind: "context_resolved"; ...EventBase; data: ContextReference}
 model ContextErrorEvent {kind: "context_error"; ...EventBase}
 model ContextFilesEvent { kind: "context_files"; ...EventBase; data: ContextFile[] }
+/** Read-only Desktop result-file transport. It never starts an Agent turn. */
+model ContentDocumentEvent {kind:"content_document";...ThreadEventBase;data:{tool_call_id:string;artifact_id:string;status:"ready"|"error";...Closed}}
+
 /** Main-process HTTP adapter snapshot; validated by protocol/remote.tsp. */
 model RemoteSnapshotPayload is Record<unknown>;
 model RemoteStateEvent { kind: "remote_state"; ...EventBase; data: RemoteSnapshotPayload }
@@ -276,6 +279,7 @@ model ContributorSessionEvent { kind: "contributor_session"; ...ThreadEventBase;
 
 @oneOf
 union HostEvent {
+  ContentDocumentEvent,
   LocalWorkerStateEvent,
   ContributorStateEvent,
   ContributorSessionEvent,
