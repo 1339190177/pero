@@ -25,6 +25,7 @@
     "Parent scoped authority and immutable launch-owned native sandbox are retained. Point sandbox ModeOverride propagation omitted because Pero never treats session events as executable sandbox authority. ApprovalNever pinned before publication and again after descriptor.",
     "Tool contribution retains native scoped registration and argument shape, narrowed to exact description/prompt keys. Uses registry StartActivation caller delivery and synchronous native result/disposal instead of asynchronous Start/WatchParentActivation, ensuring native capacity enforcement and parent cancellation.",
     "Trusted Compaction option defensively copied through existing native clone helper. No model-controlled budget/permission/provider/compaction knobs.",
-    "New synthetic tests and BUILD metadata. No live models or network actors."
+    "New synthetic tests and BUILD metadata. No live models or network actors.",
+    "Caller result consumption joins the already-started teardown receipt with Wait after Result delivery, instead of issuing Dispose again and surfacing transient disposal-pending as a tool failure. Closed-result and cancellation branches retain their existing cleanup behavior."
   ]
 }

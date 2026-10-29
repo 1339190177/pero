@@ -134,3 +134,21 @@ diagnostic instead of the child's output. Thirty isolated race repetitions passe
 This observation is retained for a separate deterministic lifecycle investigation;
 the platform corrections do not claim to fix it, and a later green rerun does not
 erase the failed receipt. Vet and build passed on the platform-correction snapshot.
+
+## Observed subagent result race resolved
+
+A deterministic isolated scheduler-gap reproduction subsequently proved the
+result-loss path: activation publishes its result after teardown/callbacks, then
+closes its final receipt after retirement bookkeeping. Calling Dispose again in
+that gap returns disposal-pending; the tool registry treated it as failure and
+lost successful child output. The caller now joins `Wait` after receiving a result.
+The existing selection/output mapping is named `awaitSubagentResult` and tested
+through the existing typed activation receipt, without a new interface or
+production test hook. Closed-result and pre-result cancellation behavior is retained.
+
+The shipping contract table proves blocked-receipt joining, preserved child output,
+real cleanup-error propagation, canceled receipt wait, pre-result authority
+revocation and closed-without-result failure. Old Dispose behavior fails the three
+receipt rows deterministically; the repaired table and real parent/child HTTP
+budget integration pass 30 race repetitions. Failed pre-fix aggregate evidence is
+retained rather than relabeled as a platform failure.

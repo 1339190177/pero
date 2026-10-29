@@ -1462,5 +1462,18 @@
         "sha256": "5d3908ca2e1112fb8591bcdd058045f5bfe9a83be0c908350bb6eac46943349e"
       }
     ]
+  },
+  "subagent_receipt_review": {
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "subagents/tool.go",
+        "sha256": "1ea6cec0784422ba4c8a423f4a73f1a627a9080f37d8eed3ea56a312e2b24420"
+      },
+      {
+        "destination": "subagents/inprocess_test.go",
+        "sha256": "16f823b56afa4a22f3e97876139997adeac9332c2b3425cd79f02792bff4721d"
+      }
+    ]
   }
 }
