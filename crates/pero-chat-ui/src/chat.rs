@@ -76,10 +76,11 @@ impl ChatPanel {
                 });
             }
             for (index, tool) in chat.tools.iter_mut().enumerate() {
-                tool.set_body_open(open_tools.contains(&index), cx);
+                let open = open_tools.contains(&index);
+                tool.set_body_open(open, cx);
                 if let Some(view) = &tool.view {
                     view.update(cx, |view, _| {
-                        view.set_scroll_handle(enabled.then(|| self.chat_scroll.clone()))
+                        view.set_scroll_handle(open.then(|| self.chat_scroll.clone()))
                     });
                 }
             }

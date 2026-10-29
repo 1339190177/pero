@@ -282,8 +282,14 @@ impl Render for ContentReader {
             self.document.format,
             ContentFormat::Json | ContentFormat::JsonLines
         );
-        let height = if self.source { 400. } else {
-            self.preview.as_ref().map_or(120., |preview| (60. + 28. * preview.rows.len().max(1) as f32).min(400.))
+        let height = if self.source {
+            let lines = self.document.source().lines().take(16).count().max(1) as f32;
+            (64. + lines * pero_theme::UiAppearance::global(cx).typography.code * 1.5)
+                .clamp(112., 400.)
+        } else {
+            self.preview.as_ref().map_or(120., |preview| {
+                (60. + 28. * preview.rows.len().max(1) as f32).min(400.)
+            })
         };
         let no_matches = self
             .editor
