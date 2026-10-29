@@ -147,14 +147,14 @@
       "git_blob_sha": "1bb389702dab0b97f68e49bbea90edda7e140ad5",
       "export_sha256": "aea82d7edbb9c6cca7e8192b7c1fb8de0d6c5274466656c97d7cf4567ba0dd4c",
       "destination": "harness/go/session/persistence.go",
-      "destination_sha256": "22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702"
+      "destination_sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
     },
     {
       "path": "go/harness/session/persistence_identity_test.go",
       "git_blob_sha": "a9b157c7edfd9a7aace17d5f2f37ddc971c15842",
       "export_sha256": "c1709dd6ff666c37bb39c24ef56fcdce4e63dfb657ec5e9439574bce63cb65a4",
       "destination": "harness/go/session/persistence_identity_test.go",
-      "destination_sha256": "f50ca37b6a7855d2a6b3e62f20d70441a435826c04cc34ea06f531befb3dcc9b"
+      "destination_sha256": "4cd3d90aa35969b72c7965d1d3617f8828ab916b470ed46fef52929629f0b5a6"
     },
     {
       "path": "go/harness/session/persistence_lease.go",
@@ -333,7 +333,8 @@
     "Retain selected self-contained tests only; replace old attachment-history fixture with generic suffix fixture; remove product-specific test cases.",
     "Retain DeepSeek MIT notice and repair its relative reference.",
     "Concept-based file-size split only; declarations and var/init order preserved by AST equivalence checks. Output files are adapted/split, not raw upstream blob copies.",
-    "Reject unterminated JSONL records during Load and writer-lease revalidation before append; preserve bytes rather than silently repair/discard."
+    "Reject unterminated JSONL records during Load and writer-lease revalidation before append; preserve bytes rather than silently repair/discard.",
+    "Explicit RecoverCompleteTail option permits lossless missing-delimiter recovery only after full validation, stale-state comparison and exclusive private backup under writer lease; default stays fail-closed."
   ],
   "omitted_production": [
     "context_plan_v1.go",

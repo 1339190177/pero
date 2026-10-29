@@ -167,7 +167,22 @@
       "sha256": "23ba77467f9e9b82f52906e32306355c85f26ded577c272c2ee6a987ef5770ac",
       "source_path": "go/harness/approval_test.go",
       "source_blob_sha1": "b8d10ee48ec92878d0f0057cb2414a2c41cde6af",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/approval_test.go",
+          "blob_sha1": "ef7a59995c40511f43285b2b865715fd3a260558",
+          "sha256": "94257da38b9929840b1d2dc5e0a4ce65baced51898f887f931496e5fcf4ae2d9",
+          "bytes": 19556
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/boot.go",
@@ -319,7 +334,22 @@
       "sha256": "90ffc5b95b188fd33959a868dbaebbc753f0f2affac4d56ba71643552e80f021",
       "source_path": "go/harness/harness_test.go",
       "source_blob_sha1": "7f67ef26b2670e560cf05f31786e22c45afa263a",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/harness_test.go",
+          "blob_sha1": "388d9e2c28362427aecded4a03adf4112dd04513",
+          "sha256": "7f7c4c461802e0d0391bd377c678f6a25ebd5a2a40c1ffdded2c1f99e69acf94",
+          "bytes": 16859
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/image_offload.go",
@@ -358,10 +388,10 @@
     },
     {
       "destination": "harness/mcp.go",
-      "sha256": "c17703ddf91dfc2b043072fdd5236afa42502e8b1180a18962094812998a15f2",
+      "sha256": "9630011cf1fb599669fe563bfac44af63d9f4679ec9ab49adda5a7af514e593f",
       "source_path": "go/harness/mcp.go",
       "source_blob_sha1": "9101f80063db36eaa5c89c55e8afdcb98a074bd3",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; retain canonical MCP value/schema and render output through existing registry seam"
     },
     {
       "destination": "harness/mcp_security_test.go",
@@ -492,11 +522,26 @@
       "sha256": "110b023796ba696cf9141dee4aa08692f10d8fc3ef87f1fac70aa4cae62812be",
       "source_path": "go/harness/retry_test.go",
       "source_blob_sha1": "0d7418476d2968f5dfc320cdffebe809efa22693",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/retry_test.go",
+          "blob_sha1": "670bf88c13265eb6c441e7714b15eb281f711a32",
+          "sha256": "110b023796ba696cf9141dee4aa08692f10d8fc3ef87f1fac70aa4cae62812be",
+          "bytes": 16378
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/session_compat.go",
-      "sha256": "f3d8100adc43f47749677097c721f0611e2ae487d3a9f65b43ff6cf368d54dd5",
+      "sha256": "5c6a15db1f28c3ffa37cb1da5b7b3ef1c92cf850c518c2abbc846fdc63023545",
       "source_path": "go/harness/session_compat.go",
       "source_blob_sha1": "d6666d5499a2385adb502c4f631eb49bf847d0c1",
       "change": "imports only"
@@ -581,7 +626,22 @@
       "sha256": "2f1e0ed168f44023b82fb867d0a3cfbe888baac99128019402dbe7d8926d03ec",
       "source_path": "go/harness/tools_arguments_dsh_test.go",
       "source_blob_sha1": "1094c4cc15f47e9464cf4db4bf3e90828c1ed373",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_test.go",
+          "blob_sha1": "ee419b7b7820119eee7e14c3f9b21e513a6a4ac0",
+          "sha256": "bc25409e796baf0dce2021d8f6651e4493553d0ae7010707c94f6c0431349bac",
+          "bytes": 14004
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/tools_arguments_dsh_todo.go",
@@ -602,14 +662,44 @@
       "sha256": "c8e2650c0b053af79e0f2c85f86c3e23fa8a9b901e1a67c5945a8a6844dc2cfa",
       "source_path": "go/harness/tools_arguments_dsh_todo_numbers_test.go",
       "source_blob_sha1": "522e0b7ff8a48467316b1774abd9817f935bed9b",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_todo_numbers_test.go",
+          "blob_sha1": "c80224b1c49d473e6bd88b3e8669abae0289db00",
+          "sha256": "051a6510062cb5b29b9ded4396b3874e9da1a3cd44895207bfd08069c418cd43",
+          "bytes": 27513
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/tools_arguments_dsh_todo_test.go",
       "sha256": "582815a2513213493eaff1fb3fd579e66eb005eb67b3df28aaf84c50b40c0b43",
       "source_path": "go/harness/tools_arguments_dsh_todo_test.go",
       "source_blob_sha1": "1dda06c7638f942e2b35b25f15f2e69c40b399da",
-      "change": "adapted; review pinned source diff"
+      "change": "adapted; review pinned source diff",
+      "source_verification": {
+        "status": "declared_blob_mismatch",
+        "import_origin_status": "unresolved",
+        "checked_at": "2026-10-29",
+        "method": "GitHub contents at declared commit/path; base64 decoded bytes independently hashed with Git blob framing",
+        "pinned_reference": {
+          "repository": "phodal/point",
+          "commit": "69a1f8692725078c4ce7feaf497f5b80799ca44d",
+          "path": "go/harness/tools_arguments_dsh_todo_test.go",
+          "blob_sha1": "25b73b1c877874c9e13168c4d4cd08e99bf81135",
+          "sha256": "582815a2513213493eaff1fb3fd579e66eb005eb67b3df28aaf84c50b40c0b43",
+          "bytes": 26582
+        },
+        "note": "Original source_blob_sha1 preserved as historical declaration, not verified import origin. The separately verified pinned reference does not establish which blob was originally imported."
+      }
     },
     {
       "destination": "harness/tools_body_admission.go",
@@ -884,7 +974,7 @@
     },
     {
       "destination": "mcp/tools.go",
-      "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc",
+      "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e",
       "source_path": "go/harness/mcp/tools.go",
       "source_blob_sha1": "a063b2a06878fc28b99809ae0f7b03220318d70e",
       "change": "imports adapted; honor advertised tools capability before discovery"
@@ -982,10 +1072,10 @@
     },
     {
       "destination": "sessionview/disk.go",
-      "sha256": "0f2e83b6484de855417a0067b4ad82ea915c773dee84a5ac056c724f37959997",
+      "sha256": "461b1058682f2ef956eef2d3ff008af3ecb1df41e99f4142c2ff2f4eaf9e3ac5",
       "source_path": "go/harness/sessionview/disk.go",
       "source_blob_sha1": "fe92af54cd79294ff82a3078c057ba7e5faeaac2",
-      "change": "imports only"
+      "change": "imports adapted; immutable checkpoints retained for previously opened history continuation"
     },
     {
       "destination": "sessionview/history.go",
@@ -1066,7 +1156,7 @@
     },
     {
       "destination": "cmd/pero-agent-acp/main.go",
-      "sha256": "e067f335ddbbe8bf0e99f96fd79f09af783787541ad3ad66bcec33077174d7ce",
+      "sha256": "dd19b76fe724370983aaa299e5e63d36ed1eba552eb656e583d29f47ef4a1c66",
       "change": "Explicit repeatable --skills-root wiring/default-off tests added; existing cwd admission preserved."
     },
     {
@@ -1149,7 +1239,7 @@
       },
       {
         "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
-        "sha256": "27f09ac78abe87894d607891d783aef80eaa9bd60291639712f3aa07315280f2"
+        "sha256": "874441b772a125bb1b703b0e55ac992be608559ee18e5fc0ced9dd1eeaf3ec0f"
       },
       {
         "destination": "cmd/pero-agent-acp/coding_model_wire_test.go",
@@ -1191,7 +1281,7 @@
       },
       {
         "destination": "mcp/tools.go",
-        "sha256": "943556672e4d40ce76f3131781945560050759a7ad6d1cd39a424a86d56b6fcc"
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
       },
       {
         "destination": "nativetools/tools.go",
@@ -1211,11 +1301,11 @@
       },
       {
         "destination": "session/persistence.go",
-        "sha256": "22c3a9c224a48fdd7d0f3ec2feee9e59da954436b7e3add4b4025c8ae3095702"
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
       },
       {
         "destination": "session/persistence_identity_test.go",
-        "sha256": "f50ca37b6a7855d2a6b3e62f20d70441a435826c04cc34ea06f531befb3dcc9b"
+        "sha256": "4cd3d90aa35969b72c7965d1d3617f8828ab916b470ed46fef52929629f0b5a6"
       },
       {
         "destination": "sessionview/project.go",
@@ -1228,6 +1318,91 @@
       {
         "destination": "storage/json_units.go",
         "sha256": "f001054d8cf58146d48c7ed840f96866edbd0da5ea6488e79b2116ec73491f52"
+      }
+    ]
+  },
+  "source_verification_scope": {
+    "status": "partial",
+    "reconciled_mismatches": 6,
+    "note": "Six previously reported test-file origin mismatches independently rechecked. Other entries are not newly verified by this check; destination hashes do not attest source origin."
+  },
+  "retained_sessionview_review": {
+    "record": "docs/fitness/harness-module-comparison.md",
+    "scope": "Locally authored contract tests and immutable-cache checkpoint lifetime fix. No production composition or JavaScript oracle execution.",
+    "files": [
+      {
+        "destination": "sessionview/history_test.go",
+        "sha256": "01210049f5a9069a4abf62b41872d28d72f12d36c78e38c67013ea63dfc18a88"
+      },
+      {
+        "destination": "sessionview/project_test.go",
+        "sha256": "c198a0ec6cdbd9b5dc94f5f99078628720d18e7f079125bb0f16975f067fa8e9"
+      },
+      {
+        "destination": "sessionview/disk_test.go",
+        "sha256": "8137a39a7cd18c810f25abcfef2f8d1a4a9b68d6c9c411539ba062b6621b3b03"
+      }
+    ]
+  },
+  "gap_completion_review": {
+    "official_commit": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "record": "docs/issues/2026-10-29-harness-gap-completion.md",
+    "files": [
+      {
+        "destination": "cmd/pero-agent-acp/compaction_wire_test.go",
+        "sha256": "874441b772a125bb1b703b0e55ac992be608559ee18e5fc0ced9dd1eeaf3ec0f"
+      },
+      {
+        "destination": "cmd/pero-agent-acp/main.go",
+        "sha256": "dd19b76fe724370983aaa299e5e63d36ed1eba552eb656e583d29f47ef4a1c66"
+      },
+      {
+        "destination": "harness/mcp.go",
+        "sha256": "9630011cf1fb599669fe563bfac44af63d9f4679ec9ab49adda5a7af514e593f"
+      },
+      {
+        "destination": "harness/mcp_output_test.go",
+        "sha256": "28fbcfe7c13a36a366953d4e6429215bc559e91b6bc40f26dbc79419813ac672"
+      },
+      {
+        "destination": "harness/session_compat.go",
+        "sha256": "5c6a15db1f28c3ffa37cb1da5b7b3ef1c92cf850c518c2abbc846fdc63023545"
+      },
+      {
+        "destination": "mcp/output.go",
+        "sha256": "c30eba61dfa9fa6fd2e2fd3efc6386cd7f68eaf073036c01b646e8131f6d792d"
+      },
+      {
+        "destination": "mcp/tools.go",
+        "sha256": "d96b44c95d72f1df01643024312ce3bfc8400159abbccf527a2d9ae3b00a136e"
+      },
+      {
+        "destination": "sandbox/strict_test.go",
+        "sha256": "c31ac00e0aa7c62b1786fb51e68b14abd3d6f4ff3bbad0701c101b551c70b31b"
+      },
+      {
+        "destination": "session/persistence.go",
+        "sha256": "99ce800c2ae64af1e927388b9eaa54967f1284e12be5d2458bb0865812fab1cf"
+      },
+      {
+        "destination": "session/persistence_identity_test.go",
+        "sha256": "4cd3d90aa35969b72c7965d1d3617f8828ab916b470ed46fef52929629f0b5a6"
+      },
+      {
+        "destination": "sessionview/disk.go",
+        "sha256": "461b1058682f2ef956eef2d3ff008af3ecb1df41e99f4142c2ff2f4eaf9e3ac5"
+      },
+      {
+        "destination": "sessionview/disk_test.go",
+        "sha256": "8137a39a7cd18c810f25abcfef2f8d1a4a9b68d6c9c411539ba062b6621b3b03"
+      },
+      {
+        "destination": "sessionview/history_test.go",
+        "sha256": "01210049f5a9069a4abf62b41872d28d72f12d36c78e38c67013ea63dfc18a88"
+      },
+      {
+        "destination": "sessionview/project_test.go",
+        "sha256": "c198a0ec6cdbd9b5dc94f5f99078628720d18e7f079125bb0f16975f067fa8e9"
       }
     ]
   }

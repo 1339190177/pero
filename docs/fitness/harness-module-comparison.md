@@ -15,7 +15,7 @@ gaps. It is not an exhaustive proof of all source paths.
 - Point extraction pins: `69a1f8692725078c4ce7feaf497f5b80799ca44d`
   for the core; `edff76d7dd39b2900cff707af1896fe8ff9fd2dc` for later
   coding/delegation/strict-policy components. Package manifests take precedence.
-- 25 Go packages, 401 Go files, 129 test files. Official DSH is TypeScript/Python;
+- 25 Go packages, 406 Go files, 133 test files. Official DSH is TypeScript/Python;
   this Go extraction has different composition boundaries.
 
 ## Module inventory and comparison scope
@@ -30,11 +30,11 @@ claims. Counts are Go files / test files.
 | `cmd/pero-agent-acp` | 14 / 8 | Headless CLI composition; `apps/ + profile composition` | Explicit endpoint/model/budgets, opt-in services; 413 recovery and length stop verified. Focused comparison and regression complete. |
 | `config` | 15 / 1 | Typed configuration and credentials helpers; `packages/settings/settings; packages/credentials` | Point setting/account discovery not mounted by CLI. Source inspected within declared subset; see findings and limits below. |
 | `fstools` | 7 / 3 | Descriptor-rooted bounded text files; `packages/fs/fs-local; packages/fs/tool-fs` | Physical read window restored; Unix-only, no symlinks, 1 MiB files. Focused comparison and regression complete. |
-| `harness` | 141 / 31 | Agent loop, tools, routing, lifecycle, compaction; `packages/core/agent; agent-loop; tools; packages/compaction` | Projects/jobs/workflows/schedules and product assembly excluded; delegation separately pinned. Source inspected within declared subset; see findings and limits below. |
+| `harness` | 142 / 32 | Agent loop, tools, routing, lifecycle, compaction; `packages/core/agent; agent-loop; tools; packages/compaction` | Projects/jobs/workflows/schedules and product assembly excluded; delegation separately pinned. Source inspected within declared subset; see findings and limits below. |
 | `internal/jsonwire` | 5 / 2 | JSON boundary parsing; `Local Go boundary utility` | Implementation utility, not an independently advertised DSH plugin. Source inspected within declared subset; see findings and limits below. |
 | `internal/sessionlogroute` | 2 / 1 | Session log routing utility; `packages/session/session-log-deepseek (related seam)` | Remote log upload/product services not composed. Source inspected within declared subset; see findings and limits below. |
 | `llm` | 10 / 4 | Provider metadata, request model and retry policy; `packages/llm/llm; llm-retry` | Point runtime service registration removed. Source inspected within declared subset; see findings and limits below. |
-| `mcp` | 6 / 2 | MCP transport and resources; `packages/mcp/mcp-client; mcp-resources` | Trusted operator config; MCP grants are not per-call file approvals or OS isolation. Source inspected within declared subset; see findings and limits below. |
+| `mcp` | 7 / 2 | MCP transport and resources; `packages/mcp/mcp-client; mcp-resources` | Trusted operator config; MCP grants are not per-call file approvals or OS isolation. Source inspected within declared subset; see findings and limits below. |
 | `media` | 18 / 7 | Attachments and image metadata primitives; `packages/attachment; model content support` | Presence does not imply multimodal CLI/provider composition. Source inspected within declared subset; see findings and limits below. |
 | `model` | 19 / 9 | Shared event/content/value types; `packages/core/session; packages/llm/llm` | Point product events/project binding omitted; extensions retained as opaque data. Source inspected within declared subset; see findings and limits below. |
 | `nativetools` | 3 / 2 | Pero composition of six tools; `packages/fs/tool-fs; packages/shell/tool-bash` | Local glue rather than full upstream tool surface; writes/shell approval retained. Source inspected within declared subset; see findings and limits below. |
@@ -43,7 +43,7 @@ claims. Counts are Go files / test files.
 | `runtime` | 26 / 12 | Stdlib lifecycle/service kernel; `Cordis lifecycle concepts` | Not an agent scheduler; supervisor/timer/product repair services excluded. Source inspected within declared subset; see findings and limits below. |
 | `sandbox` | 7 / 2 | Strict native process policy; `packages/sandbox/sandbox-local` | Unsupported backend refuses launch; positive OS confinement not demonstrated here. Source inspected within declared subset; see findings and limits below. |
 | `session` | 52 / 20 | Durable events, projection and context receipts; `packages/core/session; packages/session/session-format/projection` | Point project/context-plan receipt formats removed/replaced; no cross-product format claim. Source inspected within declared subset; see findings and limits below. |
-| `sessionview` | 6 / 0 | Conversation/UI projection helpers; `packages/session/session-projection` | Helper inclusion does not mean Pero UI parity or UI acceptance. Source inspected within declared subset; see findings and limits below. |
+| `sessionview` | 9 / 3 | Conversation/UI projection helpers; `packages/session/session-projection` | Direct projection/history/digest/cache contract tests added; immutable-checkpoint lifetime repaired. No production importer, UI acceptance or JavaScript oracle equivalence. |
 | `shell` | 7 / 2 | Foreground command lifecycle; `packages/shell/bash-local; shell` | Background/persistent/PowerShell/spill/managed-env paths excluded. Source inspected within declared subset; see findings and limits below. |
 | `skills` | 3 / 1 | Explicit read-only skill catalog; `packages/skill/skill-filesystem; tool-skill` | No implicit roots, bundle precedence, scripts or invocation hooks. Source inspected within declared subset; see findings and limits below. |
 | `storage` | 11 / 4 | Storage and persistence helpers; `packages/storage/storage-json; session-persistence-jsonl` | No SQLite migration/product-storage parity claim. Source inspected within declared subset; see findings and limits below. |
@@ -91,14 +91,12 @@ settings attribution; remaining Point mapping is provenance, not byte-equivalenc
 
 ## Explicit remaining gaps
 
-- **MCP structured output:** text content is retained, but structuredContent and
-  outputSchema are not fully projected into the generic canonical value/schema
-  seam. A response with prose plus a structured numeric result can lose the
-  machine-readable value. This is an unimplemented integration, not full MCP
-  compatibility; a future bounded task should wire that seam and validate both
-  text and structured consumers. It is not silently folded into this restoration.
-- **Inactive retained seams:** sessionview has no production importer/direct test
-  in this extraction; session-log routing has no upload caller; file settings,
+- **MCP structured output:** canonical content plus structuredContent and supported
+  outputSchema now flow through the existing registry boundary. Unsupported schemas
+  fall back explicitly; text and image projection remain the existing Go behavior,
+  not full official rich-attachment/PTC rendering parity.
+- **Inactive retained seams:** sessionview now has direct native contract tests but
+  still has no production importer in this extraction; session-log routing has no upload caller; file settings,
   credentials and optional media codecs are not implicitly enabled by CLI.
 - **Media:** native fixture tests are not an official Sharp/codec oracle run or
   multimodal provider E2E. The current CLI/provider remains text-only.
@@ -119,7 +117,18 @@ not every upstream origin. A separate partial Point-source collection checked
 from the file at the declared commit/path (`approval_test.go`, `harness_test.go`,
 `retry_test.go`, `tools_arguments_dsh_test.go`,
 `tools_arguments_dsh_todo_numbers_test.go`, `tools_arguments_dsh_todo_test.go`).
-Those source mappings need reconciliation; no origin hash was silently replaced.
+On 2026-10-29, all six were re-fetched at the exact declared Point commit/path
+through the GitHub contents connector. Decoded file bytes were independently
+hashed with Git blob framing and matched the connector-returned SHA, confirming
+the discrepancies. Each affected `SOURCE.json` entry now preserves its original
+`source_blob_sha1` declaration and records `source_verification` with
+`declared_blob_mismatch`, `import_origin_status: unresolved`, and a separately
+verified pinned reference (Git blob SHA-1, content SHA-256 and byte count).
+This reconciles the audit record; it does **not** recover the unknown original
+import blob or silently substitute a new provenance claim. To reproduce, fetch
+the six `source_path` files from that commit and compare `git hash-object <file>`
+and `sha256sum <file>` with `source_verification.pinned_reference`. No other
+Point origin is newly verified by this bounded recheck.
 Collection stopped when the requested focus moved to official DSH. This does
 not invalidate the individually inspected official behavior references, but
 precludes a blanket claim that all source provenance is independently verified.
@@ -133,7 +142,40 @@ aid. It records control-flow guards, calls, state writes, error landmarks and
 source spans without claiming cross-language semantic equivalence.
 
 The [validated snapshot](../../scripts/ast-compare/VALIDATION.md) selects 17
-callable pairs: 15 were extracted for review; 2 Todo selections remain unavailable
-because the pinned TypeScript grammar rejects a whole-file syntax construct.
-The tool fails closed rather than stripping syntax. Its 15 unit tests pass;
+callable pairs. The follow-up grammar extension parses the official Todo type-star
+export without stripping syntax; all 17 pairs are extracted against the verified
+source snapshot. The tool still fails closed on parser errors. Its 18 unit tests pass;
 this scoped evidence is not a whole-repository AST or behavioral parity claim.
+
+## Retained sessionview contract verification (2026-10-29)
+
+Three local test files cover seven concepts: history pagination, contiguous/safe
+JSON admission, whole-log digest, streaming projection checkpoint continuation,
+content-only tool-result replacement, disk snapshot continuation, and corrupted
+index/blob/checkpoint rejection. Pagination message counts, exclusive `before`,
+inclusive `through`, turn boundaries and source grouping were checked against
+official DSH `packages/api/session-controller/src/history.ts::paginate` at the
+pin above. UTF-16 byte limits, canvas receipts, native-to-projected mappings and
+the disk format remain retained Point-specific contracts, not DSH feature parity.
+
+The disk continuation regression failed before the fix: a second `Save` deleted
+the immutable checkpoint required by an already opened history. Checkpoints now
+remain available for those lazy continuations, with the same cache-directory
+lifetime as immutable blob segments. The cache owner must reclaim the directory
+when no history uses it; this change does not introduce background GC.
+
+Validation: `GOWORK=off go -C harness/go test -race ./sessionview` and
+`GOWORK=off go -C harness/go vet ./sessionview`. The original Point JavaScript
+projection oracle was not restored or executed; no full cross-language or UI
+acceptance claim follows from these native tests.
+
+
+## Actionable gap completion
+
+The [follow-up record](../issues/2026-10-29-harness-gap-completion.md) distinguishes
+implemented capability from intentionally unmounted product services. Current
+JSONL recovery is explicit opt-in and complete-record-only, with preserved backup;
+default fail-closed safety remains. The standalone harness now has its own Go and
+Bazel CI gates, separate from root server jobs. Positive strict sandbox execution
+is required on the selected Linux CI runner; an unavailable local backend is not
+reported as a pass. Windows font-cache repair awaits actual platform CI proof.
