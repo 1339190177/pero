@@ -35,6 +35,10 @@ impl Workbench {
             .items()
             .iter()
             .filter_map(|item| {
+                if let WorkspaceItem::Conversation(id) = item {
+                    return self.chat.read(cx).replacement_thread(id)
+                        .map(|id| (item.clone(), WorkspaceItem::Conversation(id.to_owned())));
+                }
                 let WorkspaceItem::Project(key) = item else {
                     return None;
                 };
