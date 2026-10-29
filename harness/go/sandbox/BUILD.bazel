@@ -30,8 +30,15 @@ go_test(
     name = "sandbox_test",
     srcs = [
         "strict_test.go",
+        "windows_integration_test.go",
+        "windows_policy_test.go",
         "workspace_unix_test.go",
     ],
     embed = [":sandbox"],
-
+    deps = select({
+        "@rules_go//go/platform:windows": [
+            "@org_golang_x_sys//windows",
+        ],
+        "//conditions:default": [],
+    }),
 )
