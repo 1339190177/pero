@@ -35,6 +35,26 @@ fn main() -> io::Result<()> {
     for line in io::stdin().lock().lines() {
         let line = line?;
         let value: serde_json::Value = serde_json::from_str(&line).unwrap_or_default();
+        if value.get("method").and_then(|v| v.as_str()).is_some_and(|method| method.starts_with("settings.workbench")) {
+            use pero_contracts::workbench::WorkbenchSettingsRequest;
+            let result = serde_json::from_value::<WorkbenchSettingsRequest>(value).ok()
+                .zip(settings_path.as_deref())
+                .and_then(|(request, path)| match request {
+                    WorkbenchSettingsRequest::Get => Some(pero_runtime::settings::load_workbench(path)),
+                    WorkbenchSettingsRequest::Set { preferences } => {
+                        pero_runtime::settings::save_workbench(path, &preferences).ok().map(|_| preferences)
+                    }
+                });
+            let event = if let Some(preferences) = result {
+                let mut event = HostEvent::new("workbench_settings", None, String::new());
+                event.data = serde_json::to_value(preferences)?;
+                event
+            } else {
+                HostEvent::message("error", None, "error.preferences")
+            };
+            emit(event)?;
+            continue;
+        }
         if value.get("method").and_then(|v| v.as_str()) == Some("contribution") {
             contributions::dispatch(value);
             continue;

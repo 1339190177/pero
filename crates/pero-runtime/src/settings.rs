@@ -62,6 +62,22 @@ pub fn save_locale(path: &Path, locale: &str) -> io::Result<()> {
     })
 }
 
+pub fn load_workbench(path: &Path) -> pero_contracts::workbench::WorkbenchPreferences {
+    std::fs::read(path).ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|value| serde_json::from_value(value["workbench"].clone()).ok())
+        .filter(pero_contracts::workbench::WorkbenchPreferences::valid)
+        .unwrap_or_default()
+}
+
+pub fn save_workbench(path: &Path, preferences: &pero_contracts::workbench::WorkbenchPreferences) -> io::Result<()> {
+    if !preferences.valid() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid workbench preferences"));
+    }
+    let preferences = serde_json::to_value(preferences)?;
+    update(path, |value| value["workbench"] = preferences)
+}
+
 pub fn save_remote_connection(
     path: &Path,
     connection: Option<&RemoteConnectionSettings>,
@@ -97,6 +113,14 @@ mod tests {
             encrypted_token: "ZW5jcnlwdGVk".into(),
         };
         save_remote_connection(&path, Some(&connection)).unwrap();
+        let preferences = pero_contracts::workbench::WorkbenchPreferences {
+            appearance: pero_contracts::workbench::Appearance::Dark,
+            projects: vec![pero_contracts::workbench::ProjectBinding {
+                workspace: "/work/pero".into(), project_id: "pero".into(),
+            }],
+        };
+        save_workbench(&path, &preferences).unwrap();
+        assert_eq!(load_workbench(&path), preferences);
         save_locale(&path, "en").unwrap();
         let value: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -110,6 +134,7 @@ mod tests {
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert!(value["remote_connection"].is_null());
         assert_eq!(load_locale(&path).as_deref(), Some("en"));
+        assert_eq!(load_workbench(&path), preferences);
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;

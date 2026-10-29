@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 pub mod i18n;
+pub mod workbench;
 pub mod context;
 pub mod composer_capabilities;
 pub mod session_settings;
