@@ -146,6 +146,37 @@ provision Workers/clients or invoke the operator GitHub sync routes. GitHub
 sign-in can issue Desktop credentials for an existing Client scope. Project
 provisioning remains operator-owned; a credential revocation UI is not implemented.
 
+## Local device enrollment
+
+A signed-in Desktop can explicitly enable a local Worker within the Client's
+existing project grants. This does not provision new project access. The Desktop
+saves a pending random `enrollment_secret` privately before calling:
+
+```text
+POST /api/client/v1/workers
+POST /api/v1/workers/enroll       # operator equivalent
+```
+
+Both accept `device_id`, `request_id`, `name`, `projects`, a 64-character lowercase
+hex `enrollment_secret`, and `capabilities` containing exact
+`{project_id, workspace_key, agent_id}` tuples. The response is
+`{worker, token}` with a separate Worker credential. Workspace paths and Agent
+commands are local configuration and are not sent to Cloud.
+
+Identical retries recover the same device and token. Changing a request under
+the same request ID, replaying a superseded configuration, or reconfiguring an
+active/unresolved Worker returns 409. A new request may update an idle owned
+device and rotate its token. `POST /api/client/v1/workers/{id}/disable` (operator:
+`POST /api/v1/workers/{id}/disable`) accepts `{}` and disables an idle owned device;
+foreign device IDs return 404. Stopping the local Worker does not require this
+credential-revocation operation.
+
+Claims for enrolled devices intersect device scope with the owner's current Client
+project grants and match the advertised project/workspace/Agent tuple before
+acquiring a lease. Existing administrator-provisioned Workers retain
+legacy claim behavior. Registered devices are not online-status receipts; the
+Workers list still has no heartbeat discovery. See [ADR 0010](../docs/adr/0010-desktop-worker-enrollment.md).
+
 ## Run
 
 Set `PERO_DATABASE_URL` to a PostgreSQL database and `PERO_OPERATOR_TOKEN` to a

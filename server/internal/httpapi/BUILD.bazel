@@ -8,6 +8,7 @@ go_library(
         "github.go",
         "routes.go",
         "worker.go",
+        "worker_devices.go",
     ],
     importpath = "github.com/phodal/pero/server/internal/httpapi",
     visibility = ["//server:__subpackages__"],
@@ -22,6 +23,7 @@ go_test(
     name = "httpapi_test",
     srcs = [
         "clients_test.go",
+        "worker_devices_test.go",
         "desktop_github_test.go",
         "desktop_connector_test.go",
         "github_test.go",

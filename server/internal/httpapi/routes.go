@@ -50,6 +50,8 @@ func Handler(db *store.Store, operatorToken string, services ...*gh.Service) htt
 	mux.HandleFunc("POST /api/v1/tasks/{id}/cancel", a.cancel)
 	mux.HandleFunc("GET /api/v1/workers", a.workers)
 	mux.HandleFunc("POST /api/v1/workers", a.createWorker)
+	mux.HandleFunc("POST /api/v1/workers/enroll", a.enrollWorker)
+	mux.HandleFunc("POST /api/v1/workers/{id}/disable", a.disableOwnedWorker)
 	mux.HandleFunc("POST /api/worker/v1/claims", a.claim)
 	mux.HandleFunc("GET /api/worker/v1/runs/{id}", a.workerRun)
 	mux.HandleFunc("POST /api/worker/v1/runs/{id}/renew", a.renew)
@@ -113,7 +115,7 @@ func failure(w http.ResponseWriter, err error) {
 	case errors.Is(err, store.ErrNotFound):
 		status = 404
 		message = err.Error()
-	case errors.Is(err, store.ErrContributionInput):
+	case errors.Is(err, store.ErrContributionInput), errors.Is(err, store.ErrEnrollmentInput):
 		status = 400
 		message = err.Error()
 	case errors.Is(err, store.ErrForbidden):

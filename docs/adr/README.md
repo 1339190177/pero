@@ -10,3 +10,4 @@
 
 - [0008: Product distributions](0008-product-distributions.md)
 - [0009: Local contributions from public tasks](0009-local-contributions.md)
+- [0010: Desktop Worker enrollment](0010-desktop-worker-enrollment.md)

@@ -21,6 +21,8 @@ func (a *API) registerClients(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/client/v1/me", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, clientIdentity(r)) })
 	mux.HandleFunc("GET /api/client/v1/tasks", a.clientTasks)
 	mux.HandleFunc("GET /api/client/v1/workers", a.clientWorkers)
+	mux.HandleFunc("POST /api/client/v1/workers", a.enrollWorker)
+	mux.HandleFunc("POST /api/client/v1/workers/{id}/disable", a.disableOwnedWorker)
 	mux.HandleFunc("GET /api/client/v1/tasks/{id}", a.clientTask)
 	mux.HandleFunc("POST /api/client/v1/tasks/{id}/claim", a.claimTask)
 	mux.HandleFunc("POST /api/client/v1/tasks/{id}/release", a.releaseTask)
