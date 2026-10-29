@@ -34,17 +34,17 @@ type Workspace struct {
 }
 
 func OpenWorkspace(name string) (*Workspace, error) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		return nil, errors.New("native workspace tools require supported descriptor-rooted Unix semantics")
 	}
 	if !filepath.IsAbs(name) {
 		return nil, errors.New("workspace must be an absolute path")
 	}
-	canonical, err := filepath.EvalSymlinks(name)
+	canonical, err := canonicalWorkspacePath(name)
 	if err != nil {
 		return nil, err
 	}
-	info, err := os.Lstat(canonical)
+	info, err := scopedPathInfo(canonical)
 	if err != nil || !info.IsDir() {
 		return nil, errors.New("workspace must be a directory")
 	}
@@ -57,19 +57,22 @@ func OpenWorkspace(name string) (*Workspace, error) {
 		root.Close()
 		return nil, errors.New("workspace changed during open")
 	}
-	return &Workspace{root: root, path: canonical, identity: info}, nil
+	return &Workspace{root: root, path: canonical, identity: opened}, nil
 }
 func (w *Workspace) Path() string { return w.path }
-func (w *Workspace) Close() error { w.mu.Lock(); defer w.mu.Unlock(); return w.root.Close() }
+
+// ReadOnly reports the native backend capability, not a session permission.
+func (w *Workspace) ReadOnly() bool { return !nativeFileWrites }
+func (w *Workspace) Close() error   { w.mu.Lock(); defer w.mu.Unlock(); return w.root.Close() }
 func (w *Workspace) CheckCWD(cwd string) error {
-	canonical, err := filepath.EvalSymlinks(cwd)
+	canonical, err := canonicalWorkspacePath(cwd)
 	if err != nil || canonical != w.path {
 		return errors.New("session cwd must equal the configured workspace")
 	}
 	return w.check()
 }
 func (w *Workspace) check() error {
-	info, err := os.Lstat(w.path)
+	info, err := scopedPathInfo(w.path)
 	if err != nil || !info.IsDir() || !os.SameFile(w.identity, info) {
 		return errors.New("workspace directory was replaced")
 	}
@@ -82,7 +85,7 @@ func relative(name string, directory bool) (string, error) {
 	if name == "." && directory {
 		return name, nil
 	}
-	if name == "" || strings.Contains(name, "\\") || !fs.ValidPath(name) || filepath.IsAbs(name) || strings.ContainsRune(name, 0) {
+	if name == "" || strings.Contains(name, "\\") || !fs.ValidPath(name) || filepath.IsAbs(name) || strings.ContainsRune(name, 0) || !nativeRelativePath(name) {
 		return "", errors.New("path must be a canonical workspace-relative slash path")
 	}
 	return name, nil
@@ -107,7 +110,7 @@ func (w *Workspace) checked(name string, directory bool) (string, error) {
 		if e != nil {
 			return "", e
 		}
-		if info.Mode()&os.ModeSymlink != 0 {
+		if scopedLink(info) {
 			return "", errors.New("symlink paths are not allowed")
 		}
 		if i < len(parts)-1 && !info.IsDir() {
@@ -124,7 +127,7 @@ func sameFileInfo(left, right fs.FileInfo) bool {
 // selectFile binds the reused scoped algorithm to the original workspace object,
 // not whatever directory currently occupies its pathname.
 func (w *Workspace) selectFile(name string) (*ScopedTextFiles, error) {
-	scope, err := OpenScopedTextFiles(w.path, []string{name}, MaxFileBytes)
+	scope, err := openScopedTextFiles(w.path, []string{name}, MaxFileBytes, w.ReadOnly())
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +157,9 @@ func (w *Workspace) Read(ctx context.Context, name string) (ScopedText, error) {
 }
 
 func (w *Workspace) Write(ctx context.Context, name, text string) (ScopedTextReceipt, error) {
+	if w.ReadOnly() {
+		return ScopedTextReceipt{}, errors.New("native Windows workspace is read-only")
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	name, err := w.checked(name, false)
@@ -267,6 +273,9 @@ func (w *Workspace) Write(ctx context.Context, name, text string) (ScopedTextRec
 	return receipt, nil
 }
 func (w *Workspace) Edit(ctx context.Context, name, oldText, newText string, all bool) (ScopedTextReceipt, error) {
+	if w.ReadOnly() {
+		return ScopedTextReceipt{}, errors.New("native Windows workspace is read-only")
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	name, err := w.checked(name, false)
@@ -336,7 +345,11 @@ func (w *Workspace) List(ctx context.Context, name string) (DirectoryResult, err
 		entries = entries[:MaxEntries]
 	}
 	for _, e := range entries {
-		out.Entries = append(out.Entries, DirectoryEntry{e.Name(), e.IsDir(), e.Type()&os.ModeSymlink != 0})
+		link, err := scopedEntryLink(e)
+		if err != nil {
+			return DirectoryResult{}, err
+		}
+		out.Entries = append(out.Entries, DirectoryEntry{e.Name(), e.IsDir(), link})
 	}
 	sort.Slice(out.Entries, func(i, j int) bool { return out.Entries[i].Name < out.Entries[j].Name })
 	return out, ctx.Err()
@@ -388,7 +401,11 @@ func (w *Workspace) Search(ctx context.Context, base, query string) (SearchResul
 				return out, ctx.Err()
 			}
 			name := path.Join(dirName, entry.Name())
-			if entry.Type()&os.ModeSymlink != 0 {
+			link, err := scopedEntryLink(entry)
+			if err != nil {
+				return out, err
+			}
+			if link {
 				continue
 			}
 			if entry.IsDir() {

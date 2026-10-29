@@ -18,7 +18,7 @@ func requireNativeWorkspace(t *testing.T) {
 	}
 }
 func TestUnsupportedWorkspaceAdmission(t *testing.T) {
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		t.Skip("unsupported-platform contract")
 	}
 	root := t.TempDir()

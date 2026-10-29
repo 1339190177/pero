@@ -10,6 +10,10 @@ go_library(
     ],
     importpath = "github.com/phodal/pero/harness/go/fstools",
     visibility = ["//visibility:public"],
+    deps = select({
+        "@rules_go//go/platform:windows": ["@org_golang_x_sys//windows"],
+        "//conditions:default": [],
+    }),
 )
 
 go_test(
@@ -18,6 +22,7 @@ go_test(
         "review_race_test.go",
         "scoped_test.go",
         "workspace_test.go",
+        "workspace_windows_test.go",
     ],
     embed = [":fstools"],
 )

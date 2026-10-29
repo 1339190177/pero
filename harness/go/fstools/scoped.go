@@ -31,6 +31,7 @@ type ScopedTextFiles struct {
 	files    map[string]scopedTextTarget
 	limit    int64
 	closed   bool
+	readOnly bool
 	// Internal fault injection for commit/readback boundary tests. Never set
 	// by tool arguments or by the public host construction API.
 	afterCommit func()
@@ -82,17 +83,21 @@ func scopedTextDigest(data []byte) string {
 // an untrusted pathname is replaced. Root/parent identity is rechecked before
 // reads and replacement; a redirected pathname never chooses a new target.
 func OpenScopedTextFiles(rootPath string, paths []string, maxBytes int64) (_ *ScopedTextFiles, err error) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+	return openScopedTextFiles(rootPath, paths, maxBytes, false)
+}
+
+func openScopedTextFiles(rootPath string, paths []string, maxBytes int64, readOnly bool) (_ *ScopedTextFiles, err error) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && !(runtime.GOOS == "windows" && readOnly) {
 		return nil, errors.New("scoped text replacement requires a supported descriptor-rooted Unix host")
 	}
 	if !filepath.IsAbs(rootPath) || filepath.Clean(rootPath) != rootPath || len(paths) == 0 || len(paths) > 32 || maxBytes < 1 || maxBytes > 1<<20 {
 		return nil, errors.New("invalid scoped text root, path count or byte limit")
 	}
-	canonical, err := filepath.EvalSymlinks(rootPath)
+	canonical, err := canonicalWorkspacePath(rootPath)
 	if err != nil || canonical != rootPath {
 		return nil, errors.New("scoped text root must be canonical and available")
 	}
-	before, err := os.Lstat(rootPath)
+	before, err := scopedPathInfo(rootPath)
 	if err != nil || !before.IsDir() {
 		return nil, errors.New("scoped text root is not a directory")
 	}
@@ -100,7 +105,7 @@ func OpenScopedTextFiles(rootPath string, paths []string, maxBytes int64) (_ *Sc
 	if err != nil {
 		return nil, err
 	}
-	scope := &ScopedTextFiles{root: root, rootPath: rootPath, identity: before, files: map[string]scopedTextTarget{}, limit: maxBytes}
+	scope := &ScopedTextFiles{root: root, rootPath: rootPath, identity: before, files: map[string]scopedTextTarget{}, limit: maxBytes, readOnly: readOnly}
 	defer func() {
 		if err != nil {
 			_ = scope.Close()
@@ -110,8 +115,9 @@ func OpenScopedTextFiles(rootPath string, paths []string, maxBytes int64) (_ *Sc
 	if err != nil || !os.SameFile(before, opened) {
 		return nil, errors.New("scoped text root changed while opening")
 	}
+	scope.identity = opened
 	for _, relative := range paths {
-		if relative == "." || relative == "" || path.Clean(relative) != relative || !filepath.IsLocal(relative) || strings.ContainsAny(relative, "\\:\x00") {
+		if relative == "." || relative == "" || path.Clean(relative) != relative || !filepath.IsLocal(relative) || strings.ContainsAny(relative, "\\:\x00") || !nativeRelativePath(relative) {
 			return nil, fmt.Errorf("invalid scoped relative path %q", relative)
 		}
 		if _, duplicate := scope.files[relative]; duplicate {
@@ -121,7 +127,7 @@ func OpenScopedTextFiles(rootPath string, paths []string, maxBytes int64) (_ *Sc
 		parts := strings.Split(relative, "/")
 		for i := 1; i < len(parts); i++ {
 			info, statErr := root.Lstat(strings.Join(parts[:i], "/"))
-			if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			if statErr != nil || !info.IsDir() || scopedLink(info) {
 				return nil, errors.New("scoped text parent must be an existing directory, not a symlink")
 			}
 		}
@@ -146,7 +152,7 @@ func (s *ScopedTextFiles) check(target scopedTextTarget) error {
 	if s.closed {
 		return errors.New("scoped text owner is closed")
 	}
-	current, err := os.Lstat(s.rootPath)
+	current, err := scopedPathInfo(s.rootPath)
 	if err != nil || !current.IsDir() || !os.SameFile(s.identity, current) {
 		return errors.New("scoped text root was replaced")
 	}
@@ -156,7 +162,7 @@ func (s *ScopedTextFiles) check(target scopedTextTarget) error {
 		parts := strings.Split(target.dir, "/")
 		for i := 1; i <= len(parts); i++ {
 			info, statErr := s.root.Lstat(strings.Join(parts[:i], "/"))
-			if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			if statErr != nil || !info.IsDir() || scopedLink(info) {
 				return errors.New("scoped text parent was redirected")
 			}
 		}
@@ -221,6 +227,9 @@ func (s *ScopedTextFiles) Read(ctx context.Context, relative string) (ScopedText
 func (s *ScopedTextFiles) Replace(ctx context.Context, relative, expectedDigest string, after []byte, authorize func(context.Context) error) (receipt ScopedTextReceipt, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.readOnly {
+		return ScopedTextReceipt{Path: relative, State: "not-applied"}, errors.New("scoped text selection is read-only")
+	}
 	after = append([]byte(nil), after...)
 	receipt = ScopedTextReceipt{Path: relative, BeforeDigest: expectedDigest, AfterDigest: scopedTextDigest(after), State: "not-applied"}
 	if authorize == nil || int64(len(after)) > s.limit || !validText(after) {

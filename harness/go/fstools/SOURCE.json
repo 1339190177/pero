@@ -21,24 +21,24 @@
     },
     {
       "destination": "scoped.go",
-      "sha256": "044cb6b7a8c5cb967011505d69ebd30cbeab404e787fe574d387d5d49583aaf7",
+      "sha256": "f360068585c72740449600319f2fb8f9c258c4621aee8b50ecc528b1bfc52b8a",
       "source_path": "go/harness/fstools/scoped.go",
       "source_blob_sha1": "7b8d9ee52dd3db09b5efb7c16bef305c95ffe78b",
-      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained; explicit skills adds read-only MatchesRoot identity check / deterministic fixture"
+      "changes": "scoped.go staging prefix and product Host wording renamed; remaining scoped algorithm and platform helpers retained; explicit skills adds read-only MatchesRoot identity check / deterministic fixture; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
     },
     {
       "destination": "scoped_open_unix.go",
-      "sha256": "e84468b0bdfa9077820fe91a96ed9bb1fca090c1b5c6ca21a2cf8e3509e8a185",
+      "sha256": "4aa78027a050306f9818e45b45989c87930272bb4bc010623b0324dd78872cf0",
       "source_path": "go/harness/fstools/scoped_open_unix.go",
       "source_blob_sha1": "c1e6287dd4d44ebfbd90a901a2db8732cb3435fe",
-      "changes": "source preserved"
+      "changes": "source preserved; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
     },
     {
       "destination": "scoped_open_windows.go",
-      "sha256": "67c59e3e44072b1943bb692900d6114f4616ea67a2425b9110bb95692b301b2b",
+      "sha256": "488f09015feec5bc9632243f9f6a3b5dc909a0586c9449070a731d55e56902ea",
       "source_path": "go/harness/fstools/scoped_open_windows.go",
       "source_blob_sha1": "7c2b2bcd859fd3d8701d4870a6eaf7a6834fcb45",
-      "changes": "source preserved"
+      "changes": "source preserved; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
     },
     {
       "destination": "scoped_test.go",
@@ -49,13 +49,18 @@
     },
     {
       "destination": "workspace.go",
-      "sha256": "d00c8f0b640e0670705025965fce957eb58c45c7f44872bad1f878dbb45d23be",
-      "changes": "new bounded workspace adapter or deterministic regression test"
+      "sha256": "a75f70177969ad2e7f6ef015a8a1072022e5d11fb2d54a0440c5c35524ad9f52",
+      "changes": "new bounded workspace adapter or deterministic regression test; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
     },
     {
       "destination": "workspace_test.go",
-      "sha256": "87b4c4815f6adc960f12171464894cf4aecc9bcd2300084d14a44e1bdabb74a5",
-      "changes": "new bounded workspace adapter or deterministic regression test"
+      "sha256": "fe33d776a60085729f0c73a666b9ba83fabd6b5b24c15460dc70eab40894712b",
+      "changes": "new bounded workspace adapter or deterministic regression test; add explicit Windows read-only handle capability and no-reparse/path/identity checks"
+    },
+    {
+      "destination": "workspace_windows_test.go",
+      "sha256": "73e0e6b34a1398b89cfa369d9f96f2f409682b3b02cc291115768a3698750fc8",
+      "changes": "new required native Windows bounded read/path/junction/identity contracts; temp files only"
     }
   ],
   "upstream_behavior_review": {
