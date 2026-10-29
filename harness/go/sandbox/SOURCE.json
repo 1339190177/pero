@@ -5,9 +5,28 @@
     "go/harness/sandbox/strict.go": "d7049a07d96120987e27b33b54e25865d577b42f",
     "go/harness/sandbox/local.go": "74f76c610dec837ffb9eb06b03557571d0b22dbe",
     "go/harness/sandbox/sandbox.go": "1e2c9a783b5d6224d4a030d5cfdd802f77578896",
-    "go/harness/permissionpresets/types.go": "dde38c9f701aaed10a563fa7e1a34f43c156a6de"
+    "go/harness/permissionpresets/types.go": "dde38c9f701aaed10a563fa7e1a34f43c156a6de",
+    "go/harness/sandbox/windows_runner.go": "cf329d3dd414f4b9dde12fd899116cd752a33908",
+    "go/harness/sandbox/windows_runner_windows.go": "0adf07386ad1648feb8ac791598059ac7ba828bd"
   },
   "adaptation": "strict.go retains native enforcement with host-independent POSIX profile construction; policy.go extracts minimal types/path escaping and supplies strict-only immutable provider. permissionpresets/types.go adapts independent sandbox/approval bundle only; excludes full-access, mutable selector and product services.",
   "license_notice": "Source files carry no license header; no root LICENSE exists at this exact ref. Original source comments preserved. Reuse explicitly authorized by repository user; no inferred open-source license or third-party license claim. Existing dependency notices untouched.",
-  "cross_platform_adaptation": "Pure profile mount destinations use POSIX path traversal even when host is Windows; real native execution remains supported only by declared backends. Existing local guards are retained."
+  "cross_platform_adaptation": "Strict remains Linux/Darwin only. Windows ACL requires separate trusted backend selection and reports partial with read/network isolation false. Native Windows tests are opt-in and require an approved disposable environment.",
+  "windows_adaptation": {
+    "official_repository": "https://github.com/deepseek-ai/deepseek-harness",
+    "official_ref": "f3803c96974ad4a94195fb97e5c637e9c2a3afe3",
+    "references": {
+      "packages/sandbox/sandbox-windows-acl/src/acl.ts": "82f7030b6779df4c5d20f921df510def3e5f1f46",
+      "packages/sandbox/sandbox-windows-acl/src/token.ts": "25e06ae3f4f586c825b34a54ff382b5fdce3685e",
+      "packages/subprocess/win32-process/src/process.ts": "34ced076c13ad8c7e52a1cf3fb0ea235358adea5"
+    },
+    "license": "Official DSH MIT notice included in DEEPSEEK_FILES_LICENSE.txt; Point reuse remains authorized under the existing notice above.",
+    "changes": [
+      "Explicit partial-only backend, never a strict fallback.",
+      "Reuse Point deterministic capability identity, Go token and suspended Job spawning; align DSH token flags/Low integrity and atomic capability allow + container-only ambient-delete deny + Low labels.",
+      "Keep Point same-logon named mutex (not DSH cross-logon lock-file scope); no additional writable roots or product policy/service imports.",
+      "Parent EOF control pipe, handle allowlist and observed Job-empty cleanup precede temp revocation; cleanup failures surface as runner infrastructure failures.",
+      "Reject workspace reparse/hardlink aliases; canonical temp outside workspace; standing workspace security edits remain, private temp grants revoke before deletion."
+    ]
+  }
 }

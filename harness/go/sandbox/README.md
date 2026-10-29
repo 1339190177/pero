@@ -47,3 +47,77 @@ not successful confinement. On a supported deployment it checks an allowed write
 outside read/write denial, and inability to connect to a listening host loopback
 port. Darwin runtime enforcement has NOT been tested here. A production deployment
 must pass these native checks with its exact trusted mounts before activation.
+
+## Explicit Windows partial backend
+
+`Config{Backend: BackendWindowsACL, Mode: ReadOnly|WorkspaceWrite}` is a separate
+Windows-only opt-in. Empty/default or `BackendStrict` never chooses it. The CLI
+presets are `windows-acl-read-only` and `windows-acl-workspace-write`; they require
+an explicit absolute PowerShell 7 executable, `--enable-shell`, a workspace and
+`--approval=ask`. Runtime mounts are rejected, not treated as read confinement.
+Windows native composition registers **only `shell`**; descriptor-rooted file
+operations remain unavailable rather than being replaced by weaker pathname I/O.
+
+The result is **`enforcement: partial`, `readIsolated: false`,
+`networkIsolated: false`**. Reads, network, console/IPC and ambient permissions are
+not a strict boundary. Even read-only is a write-restricted token, not a promise
+of zero writes everywhere: Everyone/logon rights on already-Low objects can still
+apply. Do not expose host-readable secrets. This does not provide VM, resource or
+full filesystem isolation, and partial shell calls never get strict native
+approval descriptors or automatic approval.
+
+The Go backend reuses Point's capability SIDs, restricted token and Job Object
+lifecycle, and aligns the pinned official DSH protections:
+
+- `DISABLE_MAX_PRIVILEGE | WRITE_RESTRICTED`, Low token integrity, and a default
+  DACL that prefers the private temp capability (workspace next; Everyone for
+  read-only). Read-only carries neither workspace nor temp capability.
+- A workspace-write grant atomically adds the capability allow, an Everyone
+  **container-only** `FILE_DELETE_CHILD` deny, and inheritable Low no-write-up
+  label. Exact matching checks all three, repairing older capability-only grants.
+  The directory deny intentionally prevents directory FullControl opens; regular
+  files do not inherit that meaningless delete-child bit.
+- Stable workspace grants and Low labels **persist after execution**, as in DSH.
+  This is a real security-descriptor change to the selected workspace and its
+  inheriting children; provision only an explicitly authorized owned workspace.
+  It is not rolled back as though a saved DACL snapshot were safe to restore.
+- Private temp is a fresh disjoint canonical directory with its own capability.
+  Revocation is registered before grant application and merges out only that
+  capability, clearing Low only when no other capability grant remains. The
+  shared directory deny stays; the temporary tree is then removed.
+- Spawn suspended, attach to a kill-on-close Job, then resume. Only NUL stdin and
+  output handles reach the candidate, not token/Job/control handles. Parent EOF
+  cancels the Job; normal completion also terminates surviving descendants and
+  observes an empty Job before temp cleanup. A forced runner kill can leave temp
+  security edits/residue; shell reports cleanup uncertainty rather than success.
+
+The caller owns ancestor directories and must exclude concurrent external tree
+mutation during validation/launch. Reparse points and hardlink aliases in the
+workspace are rejected. Grant serialization retains Point's per-path **same-logon
+named mutex**, not DSH's cross-logon lock-file semantics. This iteration does not
+add shared cross-logon provisioning or additional writable roots. The probe runs
+only a fixed read-only self-child and never modifies workspace ACLs before shell
+approval; failed setup never launches candidate code unconfined.
+
+### Windows verification
+
+Ordinary tests do not mutate Windows security descriptors. The explicit
+`PERO_REQUIRE_WINDOWS_ACL=1` gate runs only on the disposable Windows Actions
+runner; all ACL/integrity changes are confined to test-owned temporary trees,
+never the checkout. Missing backend support fails that gate, not a successful
+skip. The matrix checks Low token/ACL state and weak-grant repair, read-only
+downgrade, permitted workspace writes/deletes, denied outside writes and
+parent-delete bypass, deliberately permitted outside reads/loopback networking,
+sibling private-temp isolation, temp revocation, descendant cleanup, and the
+actual PowerShell shell cancellation/approval composition, and the built ACP CLI
+through a synthetic loopback provider and approve/reject flow. Additional
+fixtures prove Medium Everyone-Modify writes are blocked by Low integrity,
+foreign Low-labelled roots resist deletion, canonical junction/temp overlap and
+hardlinks fail before grants, and forced runner death kills descendants while
+explicitly leaving unreclaimed temp residue for host cleanup.
+
+Linux unit/race checks and Windows cross-compilation do **not** establish native
+Windows enforcement. The positive Windows CI result for the exact commit is
+required before calling this backend runtime-verified. Other DSH services,
+AppContainer/network restrictions, Windows file tools and full upstream parity
+are outside this change.
