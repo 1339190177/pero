@@ -261,28 +261,44 @@ impl Workbench {
                             let project_id = string(task, "project_id").to_string();
                             let workspace_key = string(task, "workspace_key").to_string();
                             let agent_id = string(task, "agent_id").to_string();
-                            let path = self.project_catalog().into_iter()
+                            let path = self
+                                .project_catalog()
+                                .into_iter()
                                 .find(|project| project.contains_task(&project_id))
-                                .and_then(|project| project.workspace).unwrap_or_default();
-                            el.child(Button::new("task-local-execution").outline().small()
-                                .label(self.t(if self.local_execution.setup.configuration.is_none() {
-                                    "worker.local.enable"
-                                } else {
-                                    "worker.local.title"
-                                }))
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    this.navigation = 5;
-                                    if this.local_execution.setup.configuration.is_none() {
-                                        this.local_execution.project_id = project_id.clone();
-                                        this.local_execution.agent_id = agent_id.clone();
-                                        this.local_execution.path = path.clone();
-                                        this.local_execution.workspace_key.update(cx, |input, cx| {
-                                            input.set_value(workspace_key.clone(), window, cx)
-                                        });
-                                        this.local_execution.editing = true;
-                                    }
-                                    cx.notify();
-                                })))
+                                .and_then(|project| project.workspace)
+                                .unwrap_or_default();
+                            el.child(
+                                Button::new("task-local-execution")
+                                    .outline()
+                                    .small()
+                                    .label(self.t(
+                                        if self.local_execution.setup.configuration.is_none() {
+                                            "worker.local.enable"
+                                        } else {
+                                            "worker.local.title"
+                                        },
+                                    ))
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.navigation = 5;
+                                        if this.local_execution.setup.configuration.is_none() {
+                                            this.local_execution.project_id = project_id.clone();
+                                            this.local_execution.agent_id = agent_id.clone();
+                                            this.local_execution.path = path.clone();
+                                            this.local_execution.workspace_key.update(
+                                                cx,
+                                                |input, cx| {
+                                                    input.set_value(
+                                                        workspace_key.clone(),
+                                                        window,
+                                                        cx,
+                                                    )
+                                                },
+                                            );
+                                            this.local_execution.editing = true;
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
                         },
                     )
                     .when(client && !claimed, |el| {

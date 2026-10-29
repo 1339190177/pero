@@ -514,7 +514,8 @@ impl Workbench {
             .min_w_0()
             .p(px(24.))
             .flex()
-            .flex_col().items_start()
+            .flex_col()
+            .items_start()
             .gap(px(12.))
             .child(
                 div()
@@ -532,40 +533,40 @@ impl Workbench {
                     .as_ref()
                     .is_some_and(|project| project.workspace.is_some()),
                 |el| {
-                    el.child(Input::new(&self.project_binding).aria_label(self.t("project.binding")).accessibility_id("project.binding").w(px(320.)).max_w_full())
-                        .child(
-                            Button::new("save-project-binding")
-                                .primary()
-                                .small()
-                                .label(self.t(match self.preferences_status {
-                                    crate::settings_menu::PreferenceSaveState::Saving => {
-                                        "project.saving"
-                                    }
-                                    crate::settings_menu::PreferenceSaveState::Saved => {
-                                        "project.saved"
-                                    }
-                                    crate::settings_menu::PreferenceSaveState::Idle => {
-                                        "project.save"
-                                    }
-                                }))
-                                .disabled(
-                                    self.preferences_status
-                                        == crate::settings_menu::PreferenceSaveState::Saving,
-                                )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    let Some(workspace) = this
-                                        .current_project()
-                                        .and_then(|project| project.workspace)
-                                    else {
-                                        return;
-                                    };
-                                    let id =
-                                        this.project_binding.read(cx).value().trim().to_string();
-                                    let mut preferences = this.preferences.clone();
-                                    preferences.bind(workspace, id);
-                                    this.save_preferences(preferences, cx);
-                                })),
-                        )
+                    el.child(
+                        Input::new(&self.project_binding)
+                            .aria_label(self.t("project.binding"))
+                            .accessibility_id("project.binding")
+                            .w(px(320.))
+                            .max_w_full(),
+                    )
+                    .child(
+                        Button::new("save-project-binding")
+                            .primary()
+                            .small()
+                            .label(self.t(match self.preferences_status {
+                                crate::settings_menu::PreferenceSaveState::Saving => {
+                                    "project.saving"
+                                }
+                                crate::settings_menu::PreferenceSaveState::Saved => "project.saved",
+                                crate::settings_menu::PreferenceSaveState::Idle => "project.save",
+                            }))
+                            .disabled(
+                                self.preferences_status
+                                    == crate::settings_menu::PreferenceSaveState::Saving,
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let Some(workspace) =
+                                    this.current_project().and_then(|project| project.workspace)
+                                else {
+                                    return;
+                                };
+                                let id = this.project_binding.read(cx).value().trim().to_string();
+                                let mut preferences = this.preferences.clone();
+                                preferences.bind(workspace, id);
+                                this.save_preferences(preferences, cx);
+                            })),
+                    )
                 },
             )
             .when(

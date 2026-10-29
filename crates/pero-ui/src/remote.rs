@@ -30,7 +30,10 @@ pub(crate) struct RemoteState {
 
 impl RemoteState {
     pub fn new(window: &mut Window, cx: &mut Context<Workbench>) -> Self {
-        let search = cx.new(|cx| InputState::new(window, cx).placeholder(pero_contracts::i18n::text("en","project.search_tasks")));
+        let search = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(pero_contracts::i18n::text("en", "project.search_tasks"))
+        });
         let title = cx.new(|cx| InputState::new(window, cx));
         let prompt = cx.new(|cx| {
             EditorState::new(window, cx)
@@ -48,7 +51,7 @@ impl RemoteState {
         for input in [&search, &title, &workspace] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
-        subscriptions.push(cx.subscribe(&project, |_,_,_: &InputEvent,cx| cx.notify()));
+        subscriptions.push(cx.subscribe(&project, |_, _, _: &InputEvent, cx| cx.notify()));
         for input in [&prompt, &acceptance] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
@@ -212,14 +215,16 @@ pub(crate) fn remote_event_summary(event: &Value) -> String {
 impl Workbench {
     pub fn receive_remote(&mut self, event: &HostEvent, cx: &mut Context<Self>) -> bool {
         if event.kind == "remote_open" {
-            if !self.show_local_execution_onboarding() { self.navigation = 3; }
+            if !self.show_local_execution_onboarding() {
+                self.navigation = 3;
+            }
             self.selected_project = None;
             self.project_tab = crate::projects::ProjectTab::Tasks;
             self.remote.connection.editing = false;
             self.remote.public_contributions = false;
             self.sync_follow(cx);
             if event.text != "desktop_login" {
-                self.command(json!({"action":"remote_refresh"}),cx);
+                self.command(json!({"action":"remote_refresh"}), cx);
             }
             cx.notify();
             return true;
@@ -256,7 +261,10 @@ impl Workbench {
         if !self.remote.seen_connection && self.remote.configured() {
             self.remote.seen_connection = true;
             if !self.show_local_execution_onboarding()
-                && self.navigation == 1 && self.active_chat.is_none() && self.selected_project.is_none() {
+                && self.navigation == 1
+                && self.active_chat.is_none()
+                && self.selected_project.is_none()
+            {
                 self.navigation = 3;
             }
             self.sync_follow(cx);

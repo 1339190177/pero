@@ -16,7 +16,10 @@ impl Workbench {
             .tasks()
             .iter()
             .filter(|task| {
-                (all_projects || project.as_ref().is_some_and(|project|project.contains_task(string(task,"project_id"))))
+                (all_projects
+                    || project
+                        .as_ref()
+                        .is_some_and(|project| project.contains_task(string(task, "project_id"))))
                     && self.remote.task_visible(task)
                     && self.task_status.matches(phase(task))
                     && (query.is_empty() || string(task, "title").to_lowercase().contains(&query))
