@@ -191,7 +191,7 @@ impl Workbench {
     }
 
     pub(crate) fn content_tabs(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let current = self.navigation.current();
         div()
             .id("workspace-tabs")
@@ -200,8 +200,8 @@ impl Workbench {
             .flex()
             .items_center()
             .border_b_1()
-            .border_color(p.color("border"))
-            .bg(p.color("bg"))
+            .border_color(p.border)
+            .bg(p.bg)
             .child(
                 div()
                     .id("workspace-tab-scroll")
@@ -241,9 +241,9 @@ impl Workbench {
                                     .small()
                                     .flex_1()
                                     .min_w_0()
-                                    .h(px(W::CONTROL))
+                                    .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                     .justify_start()
-                                    .text_size(px(W::TEXT))
+                                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
                                     .icon(
                                         Icon::default()
                                             .size(px(W::ICON))
@@ -262,7 +262,7 @@ impl Workbench {
                                     .ghost()
                                     .small()
                                     .w(px(26.))
-                                    .h(px(W::CONTROL))
+                                    .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                                     .icon(Icon::default().path("icons/x.svg"))
                                     .tooltip(self.t("workspace.close_tab"))
                                     .accessibility_label(format!(
@@ -283,7 +283,7 @@ impl Workbench {
                             .ghost()
                             .small()
                             .w(px(32.))
-                            .h(px(W::CONTROL))
+                            .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                             .icon(Icon::default().path("icons/layout-grid.svg"))
                             .tooltip(self.t("apps.back"))
                             .accessibility_label(self.t("apps.back"))
@@ -302,7 +302,7 @@ impl Workbench {
                         Button::new("workspace-chat-toggle")
                             .ghost()
                             .small()
-                            .h(px(W::CONTROL))
+                            .h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                             .mr(px(8.))
                             .icon(Icon::default().path(if self.chat_dock_visible() {
                                 "icons/panel-right-close.svg"
@@ -330,7 +330,7 @@ impl Workbench {
         window: &Window,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("workspace-chat-panel")
             .flex()
@@ -341,7 +341,7 @@ impl Workbench {
             .flex_shrink_0()
             .relative()
             .border_l_1()
-            .border_color(p.color("border"))
+            .border_color(p.border)
             .child(self.chat.clone())
             .when(!narrow, |el| {
                 el.child(
@@ -352,7 +352,7 @@ impl Workbench {
                         .aria_label(self.t("workspace.resize_chat"))
                         .aria_numeric_value(self.preferences.layout.chat_width().into())
                         .when(self.chat_resize_focus.is_focused(window), |el| {
-                            el.bg(p.color("focus"))
+                            el.bg(p.focus)
                         })
                         .absolute()
                         .top_0()

@@ -169,7 +169,7 @@ impl Workbench {
     }
 
     pub(crate) fn projects_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         div()
             .id("projects")
             .flex_1()
@@ -185,7 +185,7 @@ impl Workbench {
                     .child(
                         div()
                             .flex_1()
-                            .text_size(px(26.))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title))
                             .font_weight(FontWeight::BOLD)
                             .child(self.t("nav.projects")),
                     )
@@ -202,7 +202,7 @@ impl Workbench {
                 div()
                     .mt(px(20.))
                     .border_t_1()
-                    .border_color(p.color("border"))
+                    .border_color(p.border)
                     .child(
                         Button::new("all-project-tasks")
                             .ghost()
@@ -230,7 +230,7 @@ impl Workbench {
                             div()
                                 .py(px(14.))
                                 .border_b_1()
-                                .border_color(p.color("border"))
+                                .border_color(p.border)
                                 .flex()
                                 .items_center()
                                 .gap(px(12.))
@@ -248,8 +248,8 @@ impl Workbench {
                                             div()
                                                 .mt(px(4.))
                                                 .truncate()
-                                                .text_size(px(12.))
-                                                .text_color(p.color("text-muted"))
+                                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                                .text_color(p.text_muted)
                                                 .child(path),
                                         ),
                                 )
@@ -272,7 +272,7 @@ impl Workbench {
         narrow: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let project = self.current_project(cx);
         let name = project
             .as_ref()
@@ -296,7 +296,7 @@ impl Workbench {
                     .flex_shrink_0()
                     .child(
                         div()
-                            .text_size(px(26.))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title))
                             .font_weight(FontWeight::BOLD)
                             .child(name),
                     )
@@ -305,8 +305,8 @@ impl Workbench {
                             div()
                                 .mt(px(4.))
                                 .truncate()
-                                .text_size(px(12.))
-                                .text_color(p.color("text-muted"))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                .text_color(p.text_muted)
                                 .child(path),
                         )
                     })
@@ -316,7 +316,7 @@ impl Workbench {
                             .flex()
                             .gap(px(16.))
                             .border_b_1()
-                            .border_color(p.color("border"))
+                            .border_color(p.border)
                             .children(ProjectTab::ALL.into_iter().enumerate().map(|(i, tab)| {
                                 Button::new(("project-tab", i))
                                     .ghost()
@@ -353,7 +353,7 @@ impl Workbench {
     }
 
     fn project_sources(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let project = self.current_project(cx);
         let repositories = self
             .remote
@@ -402,7 +402,7 @@ impl Workbench {
                 el.child(
                     div()
                         .py(px(24.))
-                        .text_color(p.color("text-muted"))
+                        .text_color(p.text_muted)
                         .child(self.t("project.no_sources")),
                 )
             })
@@ -410,7 +410,7 @@ impl Workbench {
                 div()
                     .py(px(16.))
                     .border_b_1()
-                    .border_color(p.color("border"))
+                    .border_color(p.border)
                     .child(format!(
                         "{}/{}",
                         string(repo, "owner"),
@@ -419,8 +419,8 @@ impl Workbench {
                     .child(
                         div()
                             .mt(px(4.))
-                            .text_size(px(12.))
-                            .text_color(p.color("text-muted"))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                            .text_color(p.text_muted)
                             .child(string(repo, "roadmap_path").to_string()),
                     )
             }))
@@ -439,7 +439,7 @@ impl Workbench {
     }
 
     fn project_execution(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let project = self.current_project(cx);
         let workers = self
             .remote
@@ -467,7 +467,7 @@ impl Workbench {
                     .child(self.t("project.workspace")),
             )
             .child(
-                div().mt(px(8.)).text_color(p.color("text-muted")).child(
+                div().mt(px(8.)).text_color(p.text_muted).child(
                     project
                         .as_ref()
                         .and_then(|project| project.workspace.clone())
@@ -484,7 +484,7 @@ impl Workbench {
                 el.child(
                     div()
                         .py(px(16.))
-                        .text_color(p.color("text-muted"))
+                        .text_color(p.text_muted)
                         .child(self.t("project.no_workers")),
                 )
             })
@@ -492,13 +492,13 @@ impl Workbench {
                 div()
                     .py(px(12.))
                     .border_b_1()
-                    .border_color(p.color("border"))
+                    .border_color(p.border)
                     .child(string(worker, "name").to_string())
             }))
             .child(
                 div()
                     .mt(px(24.))
-                    .text_color(p.color("text-muted"))
+                    .text_color(p.text_muted)
                     .whitespace_normal()
                     .child(self.t("project.environment_limit")),
             )
@@ -517,7 +517,7 @@ impl Workbench {
     }
 
     fn project_settings(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let project = self.current_project(cx);
         div()
             .flex_1()
@@ -534,7 +534,7 @@ impl Workbench {
             )
             .child(
                 div()
-                    .text_color(p.color("text-muted"))
+                    .text_color(p.text_muted)
                     .whitespace_normal()
                     .child(self.t("project.binding_hint")),
             )
@@ -602,7 +602,7 @@ impl Workbench {
     }
 
     pub(crate) fn insights_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let sessions = self
             .chat
             .read(cx)
@@ -646,7 +646,7 @@ impl Workbench {
             .p(px(24.))
             .child(
                 div()
-                    .text_size(px(26.))
+                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title))
                     .font_weight(FontWeight::BOLD)
                     .child(self.t("nav.insights")),
             )
@@ -654,7 +654,7 @@ impl Workbench {
                 el.child(
                     div()
                         .py(px(28.))
-                        .text_color(p.color("text-muted"))
+                        .text_color(p.text_muted)
                         .child(self.t("insights.empty")),
                 )
             })

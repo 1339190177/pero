@@ -16,6 +16,7 @@ pub(super) fn click<A: 'static>(
 pub(super) struct Ui<'a> {
     pub palette: &'a Palette,
     pub locale: &'a str,
+    pub typography: pero_theme::ResolvedTypography,
 }
 impl Ui<'_> {
     pub fn t(self, key: &str) -> &'static str {
@@ -26,7 +27,7 @@ impl Ui<'_> {
             .element()
             .size(px(19.))
             .flex_shrink_0()
-            .text_color(self.palette.color("text-muted"))
+            .text_color(self.palette.text_muted)
     }
     pub fn badge(&self, label: impl Into<SharedString>, kind: &str) -> Div {
         let p = self.palette;
@@ -40,7 +41,7 @@ impl Ui<'_> {
             .px(px(10.))
             .py(px(3.))
             .rounded(px(6.))
-            .text_size(px(12.))
+            .text_size(px(pero_theme::TextRole::Caption.pixels(self.typography.ui)))
             .font_weight(FontWeight::BOLD)
             .bg(p.color(bg))
             .text_color(p.color(fg))

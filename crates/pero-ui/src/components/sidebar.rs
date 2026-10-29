@@ -71,7 +71,7 @@ fn recent_row(
     let button = Button::new(("recent-work", index))
         .ghost()
         .small()
-        .h(px(W::ROW))
+        .h(px(ui.typography.row_height()))
         .justify_start()
         .child(div().flex_1())
         .selected(row.active)
@@ -112,8 +112,8 @@ fn recent_row(
                     Button::new(("recent-delete", index))
                         .ghost()
                         .small()
-                        .w(px(W::CONTROL))
-                        .h(px(W::CONTROL))
+                        .w(px(ui.typography.control_height()))
+                        .h(px(ui.typography.control_height()))
                         .icon(Icon::default().path("icons/x.svg"))
                         .tooltip(ui.t("chat.delete"))
                         .accessibility_label(format!("{}, {}", ui.t("chat.delete"), title))
@@ -125,7 +125,7 @@ fn recent_row(
                     Button::new(("recent-delete-cancel", index))
                         .ghost()
                         .small()
-                        .h(px(W::CONTROL))
+                        .h(px(ui.typography.control_height()))
                         .label(ui.t("chat.delete_cancel"))
                         .on_click(click(on_action, cancel)),
                 )
@@ -133,7 +133,7 @@ fn recent_row(
                     Button::new(("recent-delete-confirm", index))
                         .outline()
                         .small()
-                        .h(px(W::CONTROL))
+                        .h(px(ui.typography.control_height()))
                         .label(ui.t("chat.delete_confirm"))
                         .accessibility_label(format!(
                             "{}, {}",
@@ -146,7 +146,7 @@ fn recent_row(
     });
     div()
         .w_full()
-        .h(px(W::ROW))
+        .h(px(ui.typography.row_height()))
         .flex()
         .items_center()
         .overflow_hidden()
@@ -171,10 +171,10 @@ pub(crate) fn sidebar(
         .flex_shrink_0()
         .flex()
         .flex_col()
-        .bg(p.color("bg"))
-        .text_size(px(W::TEXT))
+        .bg(p.bg)
+        .text_size(px(pero_theme::TextRole::Body.pixels(ui.typography.ui)))
         .border_r_1()
-        .border_color(p.color("border"))
+        .border_color(p.border)
         .p(px(W::INSET))
         .gap(px(W::GAP))
         .child(
@@ -194,7 +194,7 @@ pub(crate) fn sidebar(
                 .ghost()
                 .small()
                 .w_full()
-                .h(px(W::ROW))
+                .h(px(ui.typography.row_height()))
                 .justify_start()
                 .child(div().flex_1())
                 .icon(Icon::default().path("icons/folder.svg"))
@@ -212,7 +212,7 @@ pub(crate) fn sidebar(
         .child(
             div()
                 .py(px(6.))
-                .child(Input::new(props.search).h(px(W::CONTROL)).prefix(ui.icon("search").size(px(W::ICON))).w_full()),
+                .child(Input::new(props.search).h(px(ui.typography.control_height())).prefix(ui.icon("search").size(px(W::ICON))).w_full()),
         )
         .child(
             div()
@@ -247,7 +247,7 @@ pub(crate) fn sidebar(
                                                 .ghost()
                                                 .small()
                                                 .w(px(26.))
-                                                .h(px(W::ROW))
+                                                .h(px(ui.typography.row_height()))
                                                 .icon(Icon::default().path(if group.collapsed {
                                                     "icons/chevron-right.svg"
                                                 } else {
@@ -273,7 +273,7 @@ pub(crate) fn sidebar(
                                                 .small()
                                                 .flex_1()
                                                 .min_w_0()
-                                                .h(px(W::ROW))
+                                                .h(px(ui.typography.row_height()))
                                                 .justify_start()
                                                 .child(div().flex_1())
                                                 .label(group.name)
@@ -295,8 +295,8 @@ pub(crate) fn sidebar(
                                                     div()
                                                         .px(px(8.))
                                                         .py(px(8.))
-                                                        .text_size(px(12.))
-                                                        .text_color(p.color("text-muted"))
+                                                        .text_size(px(pero_theme::TextRole::Caption.pixels(ui.typography.ui)))
+                                                        .text_color(p.text_muted)
                                                         .child(ui.t("project.no_recent")),
                                                 )
                                             },
@@ -313,8 +313,8 @@ pub(crate) fn sidebar(
                                 div()
                                     .px(px(8.))
                                     .py(px(5.))
-                                    .text_size(px(12.))
-                                    .text_color(p.color("text-muted"))
+                                    .text_size(px(pero_theme::TextRole::Caption.pixels(ui.typography.ui)))
+                                    .text_color(p.text_muted)
                                     .child(ui.t("project.unassigned")),
                             )
                             .children(
@@ -331,7 +331,7 @@ pub(crate) fn sidebar(
             div()
                 .pt(px(8.))
                 .border_t_1()
-                .border_color(p.color("border"))
+                .border_color(p.border)
                 .flex()
                 .flex_col()
                 .gap(px(2.))
@@ -340,7 +340,7 @@ pub(crate) fn sidebar(
                         .ghost()
                         .small()
                         .w_full()
-                        .h(px(W::ROW))
+                        .h(px(ui.typography.row_height()))
                         .justify_start()
                         .child(div().flex_1())
                         .icon(Icon::default().path("icons/layout-list.svg"))
@@ -357,7 +357,7 @@ pub(crate) fn sidebar(
                         .ghost()
                         .small()
                         .w_full()
-                        .h(px(W::ROW))
+                        .h(px(ui.typography.row_height()))
                         .justify_start()
                         .child(div().flex_1())
                         .icon(Icon::default().path("icons/file-code.svg"))
@@ -375,8 +375,8 @@ pub(crate) fn sidebar(
                 div()
                     .px(px(8.))
                     .py(px(6.))
-                    .text_size(px(12.))
-                    .text_color(p.color("warning"))
+                    .text_size(px(pero_theme::TextRole::Caption.pixels(ui.typography.ui)))
+                    .text_color(p.warning)
                     .child(ui.t("status.disconnected")),
             )
         })
@@ -384,7 +384,7 @@ pub(crate) fn sidebar(
             div()
                 .pt(px(8.))
                 .border_t_1()
-                .border_color(p.color("border"))
+                .border_color(p.border)
                 .child(settings),
         )
 }

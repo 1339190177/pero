@@ -147,7 +147,7 @@ impl Workbench {
     }
 
     fn local_roadmap_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let agents = self.chat.read(cx).agents.clone();
         let agent_index = self.chat.read(cx).agent_index;
         let workspace = self
@@ -192,8 +192,8 @@ impl Workbench {
                     .child(
                         div()
                             .flex_1()
-                            .text_size(px(12.))
-                            .text_color(p.color("text-muted"))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                            .text_color(p.text_muted)
                             .child(if loading {
                                 self.t("roadmap.loading").into()
                             } else {
@@ -268,7 +268,7 @@ impl Workbench {
                                 el.child(
                                     div()
                                         .py(px(20.))
-                                        .text_color(p.color("text-muted"))
+                                        .text_color(p.text_muted)
                                         .child(self.t("roadmap.empty")),
                                 )
                             })
@@ -277,7 +277,7 @@ impl Workbench {
                                 div()
                                     .py(px(4.))
                                     .border_b_1()
-                                    .border_color(p.color("border"))
+                                    .border_color(p.border)
                                     .child(
                                         Button::new(("local-roadmap-item", line))
                                             .ghost()
@@ -310,8 +310,8 @@ impl Workbench {
                                                             .w_full()
                                                             .truncate()
                                                             .mt(px(3.))
-                                                            .text_size(px(12.))
-                                                            .text_color(p.color("text-muted"))
+                                                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                                            .text_color(p.text_muted)
                                                             .child(format!(
                                                                 "{} · L{}",
                                                                 item.headings.join(" / "),
@@ -366,7 +366,7 @@ impl Workbench {
                         .child(
                             div()
                                 .mt(px(16.))
-                                .text_size(px(22.))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Title))
                                 .font_weight(FontWeight::BOLD)
                                 .whitespace_normal()
                                 .child(item.title.clone()),
@@ -374,8 +374,8 @@ impl Workbench {
                         .child(
                             div()
                                 .mt(px(8.))
-                                .text_size(px(12.))
-                                .text_color(p.color("text-muted"))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                .text_color(p.text_muted)
                                 .whitespace_normal()
                                 .child(format!("{} · L{}", item.headings.join(" / "), item.line)),
                         )
@@ -389,7 +389,7 @@ impl Workbench {
                             el.child(
                                 div()
                                     .mt(px(16.))
-                                    .text_color(p.color("text-muted"))
+                                    .text_color(p.text_muted)
                                     .child(self.t("roadmap.source_completed")),
                             )
                         })
@@ -447,7 +447,7 @@ impl Workbench {
                                 },
                             )
                             .when_some(session, |el, chat| {
-                                el.child(div().mt(px(12.)).text_color(p.color("text-muted")).child(
+                                el.child(div().mt(px(12.)).text_color(p.text_muted).child(
                                     self.t(match chat.as_str() {
                                         "running" | "connecting" => "roadmap.running",
                                         "idle" => "roadmap.finished",
