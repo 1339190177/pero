@@ -35,7 +35,7 @@ not configured. Setup and invocation instructions live in [Bazel quality gates](
 
 Run Electron suites one at a time. They use hidden real Electron windows by default;
 `PERO_TEST_HEADED=1` opts into foreground acceptance. Linux still requires X11/Xvfb;
-the CI desktop job runs workbench and tool-call suites in a separate Xvfb display.
+the CI desktop job runs workbench, tool-call and native App Use suites in a separate Xvfb display.
 See [background test setup](../../tests/README.md#后台桌面测试). Chromium IME automation checks composition events. It does not certify a physical macOS input method, a signed package, or real tool execution. The ordinary fixture agent emits scripted ACP output without executing commands. Its explicit contribution scenario writes a file only in the disposable prepared checkout; the real-provider contribution mode uses actual Codex tools.
 
 Connector screenshots/results are in `test-results/connector/fixture/` and
@@ -75,3 +75,5 @@ acceptance: [workspace.md](workspace.md).
 
 Workspace navigation ownership and pure layout refactor:
 [workspace-architecture.md](workspace-architecture.md).
+
+Agent → App tools, task grants and panel evidence: [App Use](app-use.md).

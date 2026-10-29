@@ -21,8 +21,9 @@ the full suite then passed, including an ACP fixture file effect, source
 preservation, held Cloud requests and recovery. No application behavior changed.
 The feature's existing record is [local ROADMAP](2026-10-29-local-roadmap.md).
 
-Native display acceptance uses an isolated desktop/Xvfb with
-`PERO_TEST_HEADED=1`. The graphics probe explicitly opts into this mode in CI.
+App Use visual suites require an actual visible native window by product rule.
+They now reject background execution before launching Electron and require an
+isolated desktop/Xvfb with `PERO_TEST_HEADED=1`; the capture rule is preserved.
 
 A separate real-Host startup and deep-link check observed the same macOS front
 application before and after; Electron remained invisible and unfocused while

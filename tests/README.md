@@ -29,6 +29,10 @@ SwiftShader WebGL2，供无 GPU 的 runner 使用。Linux 隐藏模式仍需 X11
 同样要求 `PERO_TEST_HEADED=1`；graphics CI 已显式设置。release smoke 继续
 使用其仅限独立 CI runner 的原有入口。
 
+`app-use.mjs` 与 `app-use-workbench.mjs` 验证真实截图和隐藏窗口拒绝规则，要求
+`PERO_TEST_HEADED=1`，默认会在启动 Electron 前拒绝运行。用独立 VM/runner 的
+桌面或 Linux Xvfb 执行，保持产品原有的“隐藏窗口不能捕获”规则。
+
 后台结果覆盖各套件既有的应用链路；原生窗口激活、物理输入法、系统弹窗和真实
 硬件 GPU 需在相应平台单独验收。fixture、真实 provider 和安装包的边界保持各
 套件原有定义。套件仍顺序运行，独立 profile 不代表所有系统资源都已隔离。
@@ -120,3 +124,20 @@ App 文档保留、拖动和键盘调整聊天宽度、Host 偏好重启恢复�
 遮挡，以及明暗和窄窗。它不会调用真实模型；结果与截图在
 `test-results/workspace/`。构建前置条件和边界见
 [Workspace 验证记录](../docs/fitness/workspace.md)。
+
+## App Use
+
+`PERO_TEST_HEADED=1 npm run test:app-use` runs the task/SDK behavior tests, the official MCP client
+contract, strict-CSP cross-origin browser checks, then actual Workbench and App
+Product Electron fixtures in sequence. Build Host, Web, Desktop and Virtual Cell
+assets first. It sends no real model request. Captures and results are written to
+`test-results/app-use*`. The Product suite also proves frozen Composer refs,
+image annotation/undo, explicit-file grants, automatic declared writes, Agent-policy denial and
+PNG/receipt hash consistency. Workbench checks that a delayed context result
+returns to its original draft after a conversation switch. Only Agent-originated
+permission requests appear; Desktop adds no second approval.
+
+`npm run test:app-use:real` opts into one read-only live Codex prompt against the
+actual App. It uses the installed provider login, writes evidence under
+`test-results/app-use-real`, and stays outside the default deterministic suite.
+See `docs/fitness/app-use.md` for acceptance boundaries.
