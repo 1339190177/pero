@@ -13,6 +13,7 @@ pub(crate) struct RemoteState {
     seen_connection: bool,
     pub creating: bool,
     pub(crate) submitting: bool,
+    pub search: Entity<InputState>,
     pub title: Entity<InputState>,
     pub prompt: Entity<EditorState>,
     pub acceptance: Entity<EditorState>,
@@ -29,6 +30,7 @@ pub(crate) struct RemoteState {
 
 impl RemoteState {
     pub fn new(window: &mut Window, cx: &mut Context<Workbench>) -> Self {
+        let search = cx.new(|cx| InputState::new(window, cx).placeholder(pero_contracts::i18n::text("en","project.search_tasks")));
         let title = cx.new(|cx| InputState::new(window, cx));
         let prompt = cx.new(|cx| {
             EditorState::new(window, cx)
@@ -43,9 +45,10 @@ impl RemoteState {
         let project = cx.new(|cx| InputState::new(window, cx).default_value("default"));
         let workspace = cx.new(|cx| InputState::new(window, cx).default_value("default"));
         let mut subscriptions = vec![];
-        for input in [&title, &project, &workspace] {
+        for input in [&search, &title, &workspace] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
+        subscriptions.push(cx.subscribe(&project, |_,_,_: &InputEvent,cx| cx.notify()));
         for input in [&prompt, &acceptance] {
             subscriptions.push(cx.subscribe(input, |_, _, _: &InputEvent, cx| cx.notify()));
         }
@@ -55,6 +58,7 @@ impl RemoteState {
             data: json!({"configured":false,"loading":false,"tasks":[],"workers":[],"detail":null}),
             creating: false,
             submitting: false,
+            search,
             title,
             prompt,
             acceptance,
@@ -63,7 +67,7 @@ impl RemoteState {
             agent: None,
             confirm_cancel: None,
             form_error: None,
-            filter: 0,
+            filter: 2,
             technical: false,
             public_contributions: false,
             _subscriptions: subscriptions,
@@ -124,7 +128,7 @@ impl RemoteState {
             "title":self.title.read(cx).value().as_ref(),"prompt":self.prompt.read(cx).value().as_ref(),
             "acceptance":self.acceptance.read(cx).value().as_ref(),
             "project":self.project.read(cx).value().as_ref(),"workspace":self.workspace.read(cx).value().as_ref(),
-            "agent":self.agent,"form_error":self.form_error,"filter":self.filter})
+            "agent":self.agent,"form_error":self.form_error,"filter":self.filter,"search":self.search.read(cx).value().as_ref()})
     }
 }
 
@@ -223,6 +227,7 @@ impl Workbench {
             .as_bool()
             .unwrap_or(false);
         self.remote.data = event.data.clone();
+        self.reconcile_project_selection();
         if !self.remote.loading() {
             self.task_more_pending = false;
         }
@@ -231,7 +236,7 @@ impl Workbench {
             self.contribution.data = Default::default();
         } else if self.remote.client() && !self.contribution.requested {
             self.contribution.requested = true;
-            self.remote.public_contributions = was_authenticating || self.remote.data["identity"]["projects"].as_array().is_some_and(Vec::is_empty);
+            self.remote.public_contributions = false;
             self.command(json!({"action":"remote_contribution_refresh"}), cx);
         }
         if was_authenticating

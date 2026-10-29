@@ -1,393 +1,335 @@
 use super::*;
-use crate::cloud::Group;
 
 impl Workbench {
     pub(crate) fn remote_list(&self, narrow: bool, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::projects::TaskStatusFilter;
         let p = self.palettes.get(self.dark);
-        let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
         let loading = self.remote.loading();
+        let query = self.remote.search.read(cx).value().to_lowercase();
+        let unbound = self
+            .current_project()
+            .is_some_and(|project| project.shared_id.is_none());
+        let project = self.current_project();
+        let all_projects = self.selected_project.is_none();
         let visible = self
             .remote
             .tasks()
             .iter()
-            .filter(|task| self.remote.task_visible(task))
+            .filter(|task| {
+                (all_projects || project.as_ref().is_some_and(|project|project.contains_task(string(task,"project_id"))))
+                    && self.remote.task_visible(task)
+                    && self.task_status.matches(phase(task))
+                    && (query.is_empty() || string(task, "title").to_lowercase().contains(&query))
+            })
             .collect::<Vec<_>>();
-        let segmented = |id: &'static str,
-                         items: Vec<(
-            String,
-            bool,
-            Box<dyn Fn(&mut Workbench, &mut Context<Workbench>)>,
-        )>,
-                         cx: &mut Context<Self>| {
-            div()
-                .flex()
-                .gap(px(2.))
-                .p(px(2.))
-                .rounded(px(6.))
-                .bg(p.color("surface-muted"))
-                .children(
-                    items
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, (label, on, action))| {
-                            Button::new((id, i))
-                                .ghost()
-                                .xsmall()
-                                .label(label)
-                                .toggled(on)
-                                .disabled(loading)
-                                .when(on, |b| b.bg(p.color("surface")))
-                                .on_click(cx.listener(move |this, _, _, cx| action(this, cx)))
-                        }),
+        let toolbar = div()
+            .px(px(24.))
+            .py(px(12.))
+            .flex()
+            .items_center()
+            .gap(px(8.))
+            .child(
+                div().flex_1().min_w_0().child(
+                    Input::new(&self.remote.search)
+                        .prefix(self.icon("search"))
+                        .w_full(),
+                ),
+            )
+            .child(
+                Button::new("remote-refresh")
+                    .ghost()
+                    .small()
+                    .label(self.t(if loading {
+                        "remote.refreshing"
+                    } else {
+                        "remote.refresh"
+                    }))
+                    .disabled(loading)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.command(json!({"action":"remote_refresh"}), cx)
+                    })),
+            )
+            .when(self.remote.operator(), |el| {
+                el.child(
+                    Button::new("remote-new")
+                        .primary()
+                        .small()
+                        .icon(IconName::Plus)
+                        .label(self.t("remote.new"))
+                        .disabled(loading || unbound)
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.start_remote_form(window, cx)),
+                        ),
                 )
-        };
-        let client_filters = self.remote.client().then(|| {
-            segmented(
-                "remote-filter",
-                ["remote.available", "remote.mine", "filter.all"]
+            });
+        let filters = div()
+            .px(px(24.))
+            .pb(px(12.))
+            .flex()
+            .flex_wrap()
+            .gap(px(6.))
+            .children(
+                TaskStatusFilter::ALL
                     .into_iter()
                     .enumerate()
-                    .map(|(i, key)| {
-                        (
-                            self.t(key).to_string(),
-                            self.remote.filter == i,
-                            Box::new(move |this: &mut Workbench, cx: &mut Context<Workbench>| {
-                                this.remote.filter = i;
+                    .map(|(i, status)| {
+                        Button::new(("task-status", i))
+                            .ghost()
+                            .small()
+                            .label(self.t(status.label_key()))
+                            .toggled(self.task_status == status)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.task_status = status;
                                 cx.notify();
-                            })
-                                as Box<dyn Fn(&mut Workbench, &mut Context<Workbench>)>,
-                        )
-                    })
-                    .collect(),
-                cx,
-            )
-        });
-        let source_filters = (!self.remote.repositories().is_empty()).then(|| {
-            segmented(
-                "remote-source-filter",
-                [
-                    ("", "filter.all"),
-                    ("github", "remote.issues"),
-                    ("roadmap", "remote.roadmap"),
-                ]
-                .into_iter()
-                .map(|(kind, key)| {
-                    (
-                        self.t(key).to_string(),
-                        string(&self.remote.data, "source_kind") == kind,
-                        Box::new(move |this: &mut Workbench, cx: &mut Context<Workbench>| {
-                            this.command(
-                                json!({"action":"remote_filter","source_kind":kind,"tag":""}),
-                                cx,
-                            )
-                        })
-                            as Box<dyn Fn(&mut Workbench, &mut Context<Workbench>)>,
-                    )
-                })
-                .collect(),
-                cx,
-            )
-        });
-        let mut rows: Vec<AnyElement> = vec![];
-        let mut index = 0usize;
-        for group in Group::ALL {
-            let tasks = visible
-                .iter()
-                .filter(|task| phase(task).group() == group)
-                .collect::<Vec<_>>();
-            if tasks.is_empty() {
-                continue;
-            }
-            rows.push(
-                div()
-                    .flex()
-                    .justify_between()
-                    .px(px(16.))
-                    .pt(px(14.))
-                    .pb(px(6.))
-                    .text_size(px(12.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(p.color("text-muted"))
-                    .child(self.t(group.label_key()))
-                    .child(tasks.len().to_string())
-                    .into_any_element(),
+                            }))
+                    }),
             );
-            for task in tasks {
-                rows.push(self.task_row(task, index, selected, cx).into_any_element());
-                index += 1;
-            }
-        }
+        let sources = div()
+            .px(px(24.))
+            .pb(px(10.))
+            .flex()
+            .flex_wrap()
+            .gap(px(6.))
+            .when(self.remote.client(), |el| {
+                el.children(
+                    ["remote.available", "remote.mine", "filter.all"]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, key)| {
+                            Button::new(("remote-filter", i))
+                                .ghost()
+                                .xsmall()
+                                .label(self.t(key))
+                                .toggled(self.remote.filter == i)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.remote.filter = i;
+                                    cx.notify();
+                                }))
+                        }),
+                )
+            })
+            .when(!self.remote.repositories().is_empty(), |el| {
+                el.children(
+                    [
+                        ("", "filter.all"),
+                        ("github", "remote.issues"),
+                        ("roadmap", "remote.roadmap"),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, (kind, key))| {
+                        Button::new(("remote-source-filter", i))
+                            .ghost()
+                            .xsmall()
+                            .label(self.t(key))
+                            .toggled(string(&self.remote.data, "source_kind") == kind)
+                            .disabled(loading)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.command(
+                                    json!({"action":"remote_filter","source_kind":kind,"tag":""}),
+                                    cx,
+                                )
+                            }))
+                    }),
+                )
+            });
+        let header = div()
+            .h(px(38.))
+            .px(px(12.))
+            .flex()
+            .items_center()
+            .gap(px(12.))
+            .bg(p.color("surface-muted"))
+            .text_size(px(12.))
+            .text_color(p.color("text-muted"))
+            .child(div().flex_1().child(self.t("cloud.col.task")))
+            .child(div().w(px(105.)).child(self.t("cloud.col.status")))
+            .when(!narrow, |el| {
+                el.child(div().w(px(100.)).child(self.t("field.agent")))
+                    .child(div().w(px(150.)).child(self.t("project.execution_target")))
+            });
+        let scroll = div()
+            .id("remote-task-scroll")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .track_scroll(&self.task_scroll)
+            .on_scroll(cx.listener(|this, _, _, cx| this.request_more_tasks(cx)))
+            .px(px(24.))
+            .pb(px(16.))
+            .child(header)
+            .when(visible.is_empty(), |el| {
+                el.child(
+                    div()
+                        .py(px(32.))
+                        .text_color(p.color("text-muted"))
+                        .whitespace_normal()
+                        .child(self.t(if loading {
+                            "remote.loading"
+                        } else if unbound {
+                            "project.no_binding"
+                        } else {
+                            "remote.no_matching_tasks"
+                        }))
+                        .when(unbound, |el| {
+                            el.child(
+                                div().mt(px(12.)).child(
+                                    Button::new("link-task-project")
+                                        .outline()
+                                        .small()
+                                        .label(self.t("project.binding"))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.project_tab =
+                                                crate::projects::ProjectTab::Settings;
+                                            cx.notify();
+                                        })),
+                                ),
+                            )
+                        }),
+                )
+            })
+            .children(
+                visible
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, task)| self.task_row(task, i, narrow, cx).into_any_element()),
+            )
+            .when(self.remote.data["has_more"] == true, |el| {
+                el.child(
+                    div().py(px(12.)).child(
+                        Button::new("remote-load-more")
+                            .ghost()
+                            .small()
+                            .label(self.t(if loading {
+                                "remote.loading"
+                            } else {
+                                "project.more_tasks"
+                            }))
+                            .disabled(loading || self.task_more_pending)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.task_more_pending = true;
+                                this.command(json!({"action":"remote_more"}), cx);
+                            })),
+                    ),
+                )
+            });
         div()
             .id("remote-list")
-            .h_full()
+            .w_full()
+            .flex_1()
+            .min_w_0()
             .min_h_0()
             .flex()
             .flex_col()
-            .flex_shrink_0()
-            .when(narrow, |el| el.flex_1())
-            .when(!narrow, |el| el.w(px(360.)).border_r_1().border_color(p.color("border")))
-            .child(
-                div()
-                    .px(px(16.))
-                    .pt(px(16.))
-                    .pb(px(12.))
-                    .flex()
-                    .flex_col()
-                    .gap(px(10.))
-                    .border_b_1()
-                    .border_color(p.color("border"))
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap(px(6.))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .text_size(px(20.))
-                                    .font_weight(FontWeight::BOLD)
-                                    .child(self.t("nav.tasks")),
-                            )
-                            .when(
-                                self.remote.operator()
-                                    && self.remote.data["github"]["configured"].as_bool().unwrap_or(false),
-                                |el| {
-                                    let running = self.remote.data["github"]["running"].as_bool().unwrap_or(false);
-                                    el.child(
-                                        Button::new("remote-sync")
-                                            .ghost()
-                                            .small()
-                                            .label(self.t(if running { "remote.syncing_issues" } else { "remote.sync_issues" }))
-                                            .disabled(loading || running)
-                                            .on_click(cx.listener(|this, _, _, cx| {
-                                                this.command(json!({"action":"remote_sync_issues"}), cx)
-                                            })),
-                                    )
-                                },
-                            )
-                            .child(
-                                Button::new("remote-refresh")
-                                    .ghost()
-                                    .small()
-                                    .label(self.t(if loading { "remote.refreshing" } else { "remote.refresh" }))
-                                    .disabled(loading)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.command(json!({"action":"remote_refresh"}), cx)
-                                    })),
-                            )
-                            .when(self.remote.operator(), |el| {
-                                el.child(
-                                    Button::new("remote-new")
-                                        .primary()
-                                        .small()
-                                        .icon(Icon::default().path("icons/plus.svg"))
-                                        .label(self.t("remote.new"))
-                                        .disabled(loading)
-                                        .on_click(cx.listener(|this, _, window, cx| this.start_remote_form(window, cx))),
-                                )
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(p.color("text-muted"))
-                            .truncate()
-                            .child(self.scope_label()),
-                    )
-                    .when(client_filters.is_some() || source_filters.is_some(), |el| {
-                        el.child(
-                            div()
-                                .flex()
-                                .flex_wrap()
-                                .gap(px(8.))
-                                .children(client_filters)
-                                .children(source_filters),
-                        )
-                    })
-                    .when(!string(&self.remote.data, "tag").is_empty(), |el| {
-                        el.child(
-                            div().child(
-                                Button::new("remote-clear-tag")
-                                    .outline()
-                                    .xsmall()
-                                    .label(format!("#{} ×", string(&self.remote.data, "tag")))
-                                    .accessibility_label(self.t("remote.clear_tag"))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        let kind = string(&this.remote.data, "source_kind").to_string();
-                                        this.command(json!({"action":"remote_filter","source_kind":kind,"tag":""}), cx)
-                                    })),
-                            ),
-                        )
-                    }),
+            .child(toolbar)
+            .child(filters)
+            .when(
+                self.remote.client() || !self.remote.repositories().is_empty(),
+                |el| el.child(sources),
             )
-            .child(
-                div()
-                    .id("remote-task-scroll")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .track_scroll(&self.task_scroll)
-                    .on_scroll(cx.listener(|this, _, _, cx| this.request_more_tasks(cx)))
-                    .pb(px(8.))
-                    .when(visible.is_empty(), |el| {
-                        el.child(
-                            div()
-                                .px(px(16.))
-                                .py(px(32.))
-                                .flex()
-                                .flex_col()
-                                .items_center()
-                                .gap(px(6.))
-                                .text_color(p.color("text-muted"))
-                                .whitespace_normal()
-                                .child(self.t(if loading {
-                                    "remote.loading"
-                                } else if self.remote.client() {
-                                    "remote.no_matching_tasks"
-                                } else {
-                                    "remote.empty"
-                                })),
-                        )
-                    })
-                    .children(rows)
-                    .when(
-                        !visible.is_empty()
-                            && self.remote.data["has_more"].as_bool().unwrap_or(false)
-                            && (loading || self.task_more_pending),
-                        |el| {
-                            el.child(
-                                div()
-                                    .id("remote-task-more")
-                                    .px(px(16.))
-                                    .py(px(12.))
-                                    .text_size(px(12.))
-                                    .text_color(p.color("text-muted"))
-                                    .child(self.t("remote.loading")),
-                            )
-                        },
+            .when(!string(&self.remote.data, "tag").is_empty(), |el| {
+                el.child(
+                    div().px(px(24.)).pb(px(8.)).child(
+                        Button::new("remote-clear-tag")
+                            .outline()
+                            .xsmall()
+                            .label(format!("#{} ×", string(&self.remote.data, "tag")))
+                            .accessibility_label(self.t("remote.clear_tag"))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let kind = string(&this.remote.data, "source_kind").to_string();
+                                this.command(
+                                    json!({"action":"remote_filter","source_kind":kind,"tag":""}),
+                                    cx,
+                                );
+                            })),
                     ),
-            )
+                )
+            })
+            .child(scroll)
     }
 
     pub(crate) fn task_row(
         &self,
         task: &Value,
         i: usize,
-        selected: &str,
+        narrow: bool,
         cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    ) -> Button {
         let p = self.palettes.get(self.dark);
         let id = string(task, "id").to_string();
         let title = string(task, "title").to_string();
-        let phase = phase(task);
-        let chosen = id == selected && !self.remote.creating;
-        let owner = if self.remote.mine(task) {
-            self.t("remote.mine").to_string()
-        } else {
-            string(&task["claimed_by"], "name").to_string()
-        };
-        let worker = string(&task["run"], "worker_id");
-        let meta = [source_label(task), owner]
-            .into_iter()
-            .filter(|t| !t.is_empty())
-            .collect::<Vec<_>>()
-            .join(" · ");
-        let tags = task_tags(task)
-            .iter()
-            .filter_map(Value::as_str)
-            .take(3)
-            .map(|tag| format!("#{tag}"))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let (status, status_color) = match phase {
-            Phase::Running if !worker.is_empty() => (
-                Some(
-                    self.t("cloud.note.running_on")
-                        .replace("{worker}", &self.worker_name(worker)),
-                ),
-                "text-muted",
-            ),
-            Phase::Running => (Some(self.t("cloud.body.running").to_string()), "text-muted"),
-            Phase::Queued => (Some(self.t("cloud.note.queued").to_string()), "warning"),
-            Phase::Failed | Phase::Reconcile => {
-                (Some(self.t("cloud.note.failed").to_string()), "error")
-            }
-            Phase::Succeeded => (Some(self.t("cloud.note.succeeded").to_string()), "success"),
-            _ if source_changed(task) => (
-                Some(self.t("cloud.note.source_changed").to_string()),
-                "warning",
-            ),
-            _ => (None, "text-muted"),
-        };
-        // Heading paths stay in the detail and the accessible name. A row is the
-        // title plus one status line; tags only appear when there is no status.
-        let mut parts = Vec::new();
-        if let Some(status) = status.clone() {
-            parts.push(status);
-        }
-        if !meta.is_empty() {
-            parts.push(meta.clone());
-        }
-        if status.is_none() && !tags.is_empty() {
-            parts.push(tags.clone());
-        }
-        let secondary = parts.join(" · ");
+        let state = phase(task);
         let context = source_context(task);
-        let label = format!("{title}\n{} · {secondary}", self.t(phase.label_key()));
-        let label = if context.is_empty() {
-            label
+        let source = source_label(task);
+        let worker = string(&task["run"], "worker_id");
+        let target = if worker.is_empty() {
+            string(task, "workspace_key").to_string()
         } else {
-            format!("{label}\n{context}")
+            self.worker_name(worker)
         };
-        let depth = observed_source(task)["depth"].as_u64().unwrap_or(0).min(3) as f32;
-        div()
-            .id(("remote-task", i))
+        let label = format!("{} · {}\n{}", title, self.t(state.label_key()), context);
+        Button::new(("remote-task", i))
+            .ghost()
             .w_full()
-            .min_w_0()
-            .pl(px(16. + depth * 10.))
-            .pr(px(16.))
-            .py(px(10.))
-            .flex()
-            .flex_col()
-            .gap(px(4.))
-            .cursor_pointer()
-            .border_l_2()
-            .border_color(p.color(if chosen { "action" } else { "surface" }))
-            .when(chosen, |el| el.bg(p.color("accent-soft")))
-            .when(!chosen, |el| el.hover(|el| el.bg(p.color("surface-muted"))))
-            .role(Role::Button)
-            .aria_label(label)
+            .h(px(56.))
+            .rounded_none()
+            .px(px(12.))
+            .border_b_1()
+            .border_color(p.color("border"))
+            .accessibility_label(label)
             .child(
                 div()
                     .w_full()
-                    .truncate()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(title),
-            )
-            .child(
-                div()
                     .flex()
                     .items_center()
-                    .gap(px(8.))
-                    .min_w_0()
-                    .child(phase_tag(p, self.t(phase.label_key()), phase.tone()))
+                    .gap(px(12.))
                     .child(
                         div()
                             .flex_1()
                             .min_w_0()
-                            .truncate()
+                            .child(
+                                div()
+                                    .truncate()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(title),
+                            )
+                            .when(!source.is_empty(), |el| {
+                                el.child(
+                                    div()
+                                        .mt(px(4.))
+                                        .truncate()
+                                        .text_size(px(11.))
+                                        .text_color(p.color("text-muted"))
+                                        .child(source),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .w(px(105.))
                             .text_size(px(12.))
-                            .text_color(p.color(status_color))
-                            .child(secondary),
-                    ),
+                            .text_color(p.color(tone_colors(state.tone()).1))
+                            .child(self.t(state.label_key())),
+                    )
+                    .when(!narrow, |el| {
+                        el.child(
+                            div()
+                                .w(px(100.))
+                                .truncate()
+                                .text_size(px(12.))
+                                .child(string(task, "agent_id").to_string()),
+                        )
+                        .child(
+                            div()
+                                .w(px(150.))
+                                .truncate()
+                                .text_size(px(12.))
+                                .text_color(p.color("text-muted"))
+                                .child(target),
+                        )
+                    }),
             )
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.remote.creating = false;
-                this.remote.confirm_cancel = None;
-                this.remote.data["selected_task_id"] = json!(id);
-                this.command(json!({"action":"remote_select","task_id":id}), cx);
-            }))
+            .on_click(cx.listener(move |this, _, _, cx| this.open_task(id.clone(), cx)))
     }
 
     pub(crate) fn follow_task_pages(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -409,15 +351,19 @@ impl Workbench {
     }
 
     fn task_list_mounted(&self, window: &Window) -> bool {
-        if self.navigation != 3 || !self.remote.configured() || self.remote.connection.editing {
+        if self.navigation != 3
+            || self.project_tab != crate::projects::ProjectTab::Tasks
+            || !self.remote.configured()
+            || self.remote.connection.editing
+        {
             return false;
         }
         if self.remote.client() && self.remote.public_contributions {
             return false;
         }
-        let width: f32 = window.viewport_size().width.into();
+        let _ = window;
         let selected = self.remote.data["selected_task_id"].as_str().unwrap_or("");
-        !(width < 1050. && (self.remote.creating || !selected.is_empty()))
+        !self.remote.creating && selected.is_empty()
     }
 
     fn task_scroll_wants_more(&self) -> bool {
