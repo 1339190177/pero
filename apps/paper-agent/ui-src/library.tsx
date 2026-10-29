@@ -65,7 +65,7 @@ export function ImportPanel({ api, t, active, onAdded, onClose, onError }: { api
         {warnings.map((warning, index) => <Feedback key={index}>{warning}</Feedback>)}
         {results?.length === 0 && <Feedback>{t('noMatches')}</Feedback>}
         <ol className="pa-search-results">{results?.map(item => <li key={`${item.source}:${item.id}`}>
-          <div><small>{item.source} · {item.id}</small><h3>{item.title}</h3>{!!item.authors?.length && <p className="pa-muted">{item.authors.slice(0, 4).join(', ')}</p>}{item.abstract && <p className="pa-search-abstract">{item.abstract}</p>}</div>
+          <div><h3>{item.title}</h3><small>{item.source}</small>{!!item.authors?.length && <p className="pa-muted">{item.authors.slice(0, 4).join(', ')}</p>}{item.abstract && <p className="pa-search-abstract">{item.abstract}</p>}</div>
           <Button disabled={!!adding} onClick={() => void add({ id: item.id, source: item.source }, `${item.source}:${item.id}`)}>{adding === `${item.source}:${item.id}` ? t('loading') : t('addShort')}</Button>
         </li>)}</ol>
       </TabsContent>
@@ -90,8 +90,7 @@ export function PaperList({ papers, selecting, selected, readingId, locked, onSe
     <ul className="pa-library-list">{visible.map(paper => <li key={paper.id} data-current={readingId === paper.id}>
       {selecting && <Checkbox checked={selected.includes(paper.id)} disabled={locked || selected.length >= 5 && !selected.includes(paper.id)} aria-label={`${t('usePaper')}: ${paper.title}`} onCheckedChange={checked => onSelect(paper.id, checked)}/>}
       <div><Button variant="ghost" onClick={() => onRead(paper)} aria-current={readingId === paper.id ? 'true' : undefined}><span>{paper.title}</span></Button>
-        <small>{paper.source} · {t(paper.contentKind === 'abstract' ? 'abstract' : paper.contentKind === 'report' ? 'sourceReport' : 'fullText')}</small></div>
+        <small>{t(paper.contentKind === 'abstract' ? 'abstract' : paper.contentKind === 'report' ? 'sourceReport' : 'fullText')}</small></div>
     </li>)}</ul>
-    {!papers.length && <EmptyState heading={t('papers')} description={t('emptyLibraryCopy')}/>}
   </>;
 }

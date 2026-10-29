@@ -239,6 +239,7 @@ impl Workbench {
                 self.contribution.data["local"]["thread_id"].as_str() == Some(chat.id.as_str())
             });
         self.chat.update(cx, |chat, cx| {
+            if !visible { chat.set_visible(false, cx); }
             chat.set_scope(scope, cx);
             chat.set_visible(visible, cx);
             chat.show_return_to_review = show_return;

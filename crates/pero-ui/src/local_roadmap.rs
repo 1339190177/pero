@@ -135,11 +135,8 @@ impl Workbench {
         let goal = item.text.clone();
         self.new_chat(cx);
         let thread_id = self.chat.update(cx, |panel, cx| {
-            let chat = panel.chats.last_mut().expect("new roadmap chat");
-            chat.queued = Some(prompt);
-            let id = chat.id.clone();
-            panel.connect_chat(cx);
-            id
+            panel.submit_prompt(prompt, vec![], cx);
+            panel.chats[panel.active_chat.expect("new roadmap chat")].id.clone()
         });
         self.local_roadmap.sessions.push(RoadmapSession {
             workspace,

@@ -84,6 +84,8 @@ pub struct Tool {
     #[serde(skip)]
     pub reader: Option<Entity<ContentReader>>,
     #[serde(skip)]
+    pub(crate) toggle_bounds: crate::view_bounds::ViewBounds,
+    #[serde(skip)]
     pub view: Option<Entity<StreamText>>,
 }
 
@@ -95,10 +97,10 @@ impl Tool {
             if self.document.is_none() && self.view.is_none() {
                 self.view = Some(cx.new(|cx| StreamText::new(&self.content, cx)));
             }
-        } else {
-            self.view = None;
-            self.reader = None;
         }
+        // Closing a presentation must retain its selection, folds and search.
+        // Unmounted entities do not render; new results are still materialized
+        // only after the user opens them.
     }
 }
 
@@ -109,6 +111,31 @@ impl Tool {
 pub enum StreamItem {
     Message(usize),
     Tool(usize),
+}
+
+#[derive(Clone)]
+pub struct ComposerDraft {
+    pub content: gpui_kit::component::input::InputContent,
+    pub references: std::collections::HashMap<String, pero_contracts::context::ContextReference>,
+}
+
+impl ComposerDraft {
+    /// Restore the submitted draft before any input typed while preparation was pending.
+    pub fn prepend_to(mut self, tail: Self) -> Self {
+        if tail.content.text().is_empty() { return self; }
+        let offset = self.content.text().len() + 1;
+        let mut content = gpui_kit::component::input::InputContent::new(format!("{}\n{}", self.content.text(), tail.content.text()));
+        for span in self.content.tokens() {
+            content = content.with_token(span.range(), span.token().clone()).expect("retained draft token");
+        }
+        for span in tail.content.tokens() {
+            let range = span.range();
+            content = content.with_token(range.start + offset..range.end + offset, span.token().clone()).expect("shifted draft token");
+        }
+        self.content = content;
+        self.references.extend(tail.references);
+        self
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -126,6 +153,8 @@ pub struct Conversation {
     pub timeline: Vec<StreamItem>,
     pub queued: Option<String>,
     pub queued_contexts: Vec<pero_contracts::context::ContextReference>,
+    #[serde(skip)]
+    pub queued_draft: Option<ComposerDraft>,
     pub capabilities: pero_contracts::composer_capabilities::AgentCapabilities,
     pub commands: Vec<pero_contracts::composer_capabilities::AgentCommand>,
     #[serde(skip)]
@@ -168,6 +197,7 @@ impl Conversation {
             timeline: vec![],
             queued: None,
             queued_contexts: vec![],
+            queued_draft: None,
             capabilities: Default::default(),
             commands: vec![],
             draft: gpui_kit::component::input::InputContent::new(""),
@@ -181,6 +211,15 @@ impl Conversation {
             pending_setting: None,
             error: None,
         }
+    }
+
+    pub fn can_retarget(&self) -> bool {
+        self.state.can_retarget(!self.messages.is_empty(), self.queued.is_some())
+    }
+
+    pub fn can_submit(&self) -> bool {
+        self.state.can_submit() && self.queued.is_none()
+            && self.pending_model.is_none() && self.pending_setting.is_none()
     }
 
     pub fn busy(&self) -> bool {
@@ -250,6 +289,7 @@ impl Conversation {
                             cancelled: false,
                             document: None,
                             reader: None,
+                            toggle_bounds: Default::default(),
                             view: None,
                         });
                         self.tools.len() - 1

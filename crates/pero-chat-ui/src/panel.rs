@@ -67,11 +67,12 @@ pub struct ChatPanel {
     pub show_return_to_review: bool,
     pub(crate) pending_prompts: Vec<ComposerInsertion>,
     pub scope: Option<pero_contracts::AppChatScope>,
-    scope_selection: HashMap<Option<pero_contracts::AppChatScope>, String>,
+    pub(crate) scope_selection: HashMap<Option<pero_contracts::AppChatScope>, String>,
     input_locale: String,
     pub(crate) replayed: bool,
     pub(crate) visible: bool,
     pub(crate) next_request: u64,
+    pub(crate) retired_chats: HashMap<String, String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -141,6 +142,7 @@ impl ChatPanel {
             replayed: false,
             visible: true,
             next_request: 0,
+            retired_chats: HashMap::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -220,6 +222,10 @@ impl ChatPanel {
     pub fn set_visible(&mut self, visible: bool, cx: &mut Context<Self>) {
         if self.visible != visible {
             self.visible = visible;
+            if visible {
+                if self.active_chat.is_none() && self.replayed { self.new_draft(cx); }
+                else { self.prepare_chat(cx); }
+            }
             self.sync_follow(cx);
             cx.notify();
         }
@@ -254,6 +260,7 @@ impl ChatPanel {
             "ready" => {
                 self.connected = true;
                 self.error = None;
+                self.prepare_chat(cx);
             }
             "disconnected" => {
                 self.connected = false;
@@ -307,6 +314,7 @@ impl ChatPanel {
             "modelMenu":self.model_menu,"deletingChat":self.deleting_chat,
             "completion":{"open":self.composer_state.open,"loading":self.composer_state.loading,"error":self.composer_state.error,
                 "selected":self.composer_state.selected,"items":self.composer_picker_items().iter().map(|i|&i.label).collect::<Vec<_>>()},
+            "toolBounds":self.chats.iter().flat_map(|chat|chat.tools.iter().map(move |tool|json!({"chat":chat.id,"tool":tool.id,"bounds":tool.toggle_bounds.snapshot()}))).collect::<Vec<_>>(),
             "contentReaders":self.chats.iter().flat_map(|chat|chat.tools.iter()).filter_map(|tool|tool.reader.as_ref().map(|reader|reader.read(cx).snapshot(cx))).collect::<Vec<_>>(),
             "toolViews":self.chats.iter().map(|c|c.tools.iter().filter(|t|t.view.is_some()).count()).collect::<Vec<_>>(),
             "scroll":{"y":f32::from(self.chat_scroll.offset().y),"max":f32::from(self.chat_scroll.max_offset().y)},

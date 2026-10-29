@@ -95,7 +95,7 @@ try {
     await reopenPdf({ frame, saved: savedPdf });
     checks.push('PDF rendering, pointer selection, crop, matrix, navigation and restart');
   } else {
-  await expect(frame.getByRole('heading', { name: 'Start with a research question' })).toBeVisible();
+  await expect(frame.getByRole('heading', { name: 'Add a paper to start reading' })).toBeVisible();
   expect(await fixtureTurns()).toHaveLength(0);
   await page.screenshot({ path: resolve(out, 'empty.png') });
   await frame.getByRole('button', { name: 'Load synthetic example', exact: true }).click();
@@ -158,10 +158,10 @@ try {
   await expect(frame.getByRole('region', { name: 'Evidence matrix', exact: true })).toContainText('Synthetic fixture only');
   await expect(frame.locator('.pa-matrix td[data-status="missing"]').first()).toContainText('Not provided');
   await expect(frame.locator('.pa-matrix')).toContainText('Synthetic W2');
-  await frame.getByRole('button', { name: 'Scope · Citation evidence 1', exact: true }).click();
+  await frame.getByRole('button', { name: 'Scope Citation evidence 1', exact: true }).click();
   await expect(frame.getByRole('complementary', { name: 'Citation evidence', exact: true }).locator('mark')).toBeVisible();
   await frame.getByRole('button', { name: 'Close', exact: true }).last().press('Escape');
-  await expect(frame.getByRole('button', { name: 'Scope · Citation evidence 1', exact: true })).toBeFocused();
+  await expect(frame.getByRole('button', { name: 'Scope Citation evidence 1', exact: true })).toBeFocused();
   await frame.locator('.pa-scientific .pa-inline-citation').first().click();
   await expect(frame.getByRole('complementary', { name: 'Citation evidence', exact: true }).locator('mark')).toBeVisible();
   await frame.getByRole('complementary', { name: 'Citation evidence', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
@@ -246,22 +246,22 @@ try {
   await expect.poll(async () => frame.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await page.screenshot({ path: resolve(out, 'narrow.png') });
   await frame.locator('.pa-matrix').scrollIntoViewIfNeeded();
-  await frame.getByRole('button', { name: 'Scope · 引用证据 1', exact: true }).click();
+  await frame.getByRole('button', { name: 'Scope 引用证据 1', exact: true }).click();
   await expect(frame.getByRole('complementary', { name: '引用证据', exact: true }).locator('mark')).toBeVisible();
   await page.screenshot({ path: resolve(out, 'narrow-matrix-evidence.png') });
   await frame.getByRole('complementary', { name: '引用证据', exact: true }).getByRole('button', { name: '关闭', exact: true }).press('Escape');
-  await expect(frame.getByRole('button', { name: 'Scope · 引用证据 1', exact: true })).toBeFocused();
+  await expect(frame.getByRole('button', { name: 'Scope 引用证据 1', exact: true })).toBeFocused();
   await page.screenshot({ path: resolve(out, 'narrow-matrix.png') });
   checks.push('live dark theme, Chinese locale and narrow window without horizontal document overflow');
 
   await frame.getByRole('tab', { name: /^收藏/ }).click();
   await frame.locator('[data-favorite-work="W2"] .pa-saved-actions>summary').click();
-  await frame.getByRole('button', { name: '查看发现来源', exact: true }).first().click();
+  await frame.getByRole('button', { name: '查看来源', exact: true }).first().click();
   await expect(frame.locator('.pa-discovery')).toContainText('Synthetic W2');
   await expect.poll(async () => frame.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await frame.getByRole('button', { name: '后续引用', exact: true }).click();
   await expect(frame.locator('.pa-discovery [data-work-id="W2"]')).toHaveCount(0);
-  await frame.getByRole('button', { name: '查看发现来源', exact: true }).first().click();
+  await frame.getByRole('button', { name: '查看来源', exact: true }).first().click();
   await expect(frame.locator('.pa-discovery [data-work-id="W2"]')).toBeVisible();
   await page.screenshot({ path: resolve(out, 'discovery-dark-narrow.png') });
   await app.evaluate(({ Menu, BrowserWindow }) => { Menu.getApplicationMenu().getMenuItemById('locale-en').click(); BrowserWindow.getAllWindows()[0].setSize(1488, 1086); });

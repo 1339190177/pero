@@ -63,22 +63,20 @@ export function Discovery({ api, opening, library, locked, selected, onRefresh, 
   return <section className="pa-discovery" aria-label={t('discover')}>
     <Toolbar actions={seedTitle && <Button variant="ghost" onClick={() => onReturn(batch?.seedId ?? seed!.id)}>{t('backToSeed')}</Button>}><h1>{seedTitle ?? t('discover')}</h1></Toolbar>
     <details className="pa-exploration-history"><summary>{t('explorationHistory')}</summary>
-    <Select label={t('explorationHistory')} value={batch?.id ?? ''} disabled={busy} onChange={id => { if (id) void reopen(id); }} options={[{ value: '', label: t('chooseExploration') }, ...(library.discoveries ?? []).map(item => ({ value: item.id, label: `${item.seedTitle} · ${t(item.relation)} · ${item.page}` }))]}/></details>
+    <Select label={t('explorationHistory')} value={batch?.id ?? ''} disabled={busy} onChange={id => { if (id) void reopen(id); }} options={[{ value: '', label: t('chooseExploration') }, ...(library.discoveries ?? []).map(item => ({ value: item.id, label: `${item.seedTitle} / ${t(item.relation)} / ${item.page}` }))]}/></details>
     <Toolbar>{(['related', 'references', 'citing'] as const).map(key => <Button key={key} variant={key === relation ? 'primary' : 'ghost'} aria-pressed={key === relation} disabled={busy || !!action || (!seed && !batch)} onClick={() => void load(key, 1, batch?.work.id ?? last.current.workId)}>{t(key)}</Button>)}</Toolbar>
-    <p className="pa-kicker">{t('discoveryPublic')}</p>
     {error && <Feedback kind="error"><span>{error}</span><Button onClick={() => void (retryHistory.current ? reopen(retryHistory.current) : load(last.current.relation, last.current.page, last.current.workId))}>{t('retry')}</Button></Feedback>}
     {notice && <p role="status" className="pa-discovery-notice">{notice}</p>}
-    {busy ? <p role="status">{t('loading')}</p> : choices ? <div><h2>{t('confirmSeed')}</h2><p className="pa-muted">{t('confirmSeedCopy')}</p>{!choices.length && <p>{t('seedNotFoundCopy')}</p>}<ul className="pa-discovery-results">{choices.map(p => <li key={p.id}><h3>{p.title}</h3><p>{p.authors.join(', ')} · {p.publicationDate}</p><Toolbar><a href={p.url} target="_blank" rel="noreferrer">{t('original')}</a><Button onClick={() => void load(relation, 1, p.id)}>{t('useMatchingPaper')}</Button></Toolbar></li>)}</ul></div>
+    {busy ? <p role="status">{t('loading')}</p> : choices ? <div><h2>{t('confirmSeed')}</h2><p className="pa-muted">{t('confirmSeedCopy')}</p>{!choices.length && <p>{t('seedNotFoundCopy')}</p>}<ul className="pa-discovery-results">{choices.map(p => <li key={p.id}><h3>{p.title}</h3><p className="pa-document-meta"><span>{p.authors.join(', ')}</span><span>{p.publicationDate}</span></p><Toolbar><a href={p.url} target="_blank" rel="noreferrer">{t('original')}</a><Button onClick={() => void load(relation, 1, p.id)}>{t('useMatchingPaper')}</Button></Toolbar></li>)}</ul></div>
       : batch && !error ? <>
-        <details className="pa-retrieval-details"><summary>{t('retrievalDetails')}</summary><p>OpenAlex · {batch.work.title} · {batch.fetchedAt}</p></details>
+        <details className="pa-retrieval-details"><summary>{t('retrievalDetails')}</summary><p>OpenAlex</p><p>{batch.work.title}</p><p>{batch.fetchedAt}</p></details>
         {!batch.items.length && <EmptyState heading={t('noDiscovery')} description={t('tryOtherRelation')}/>}
         <ul className="pa-discovery-results">{batch.items.map(paper => {
           const saved = (library.favorites ?? []).some(f => f.paper.id === paper.id);
           const reading = library.papers.find(p => p.source === 'openalex' && p.sourceId === paper.id);
           const included = !!reading && selected.includes(reading.id);
           return <li key={paper.id} data-work-id={paper.id}>
-            <p className="pa-kicker">{paper.publicationDate?.slice(0, 4) || '—'} · {paper.citations} {t('citationCount')}</p>
-            <h2><button type="button" className="pa-discovery-title" disabled={!!action || !paper.abstract.trim()} onClick={() => void act(paper, false)}>{paper.title}</button></h2><p className="pa-muted">{paper.authors.join(', ')}</p>
+            <h2><button type="button" className="pa-discovery-title" disabled={!!action || !paper.abstract.trim()} onClick={() => void act(paper, false)}>{paper.title}</button></h2><p className="pa-document-meta"><span>{paper.publicationDate?.slice(0, 4) || '—'}</span><span>{paper.citations} {t('citationCount')}</span></p><p className="pa-muted">{paper.authors.join(', ')}</p>
             {paper.abstract ? <p className="pa-discovery-preview">{paper.abstract}</p> : <p className="pa-muted">{t('noDiscoveryAbstract')}</p>}
             <Toolbar>
               <Button disabled={!!action || saved} onClick={() => void act(paper, false, true)}>{saved ? t('favorited') : action === paper.id ? t('loading') : t('favorite')}</Button>

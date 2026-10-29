@@ -145,7 +145,7 @@ export default function PaperAgent() {
   return <div className="pa-workbench" data-research={showResearch} {...appObjectProps('paper-agent')}>
     <header className="pa-workbench-toolbar">
       <div className="pa-toolbar-title">{t('papers')}</div>
-      <div className="pa-actions" ref={addTrigger}><Button onClick={() => setAdding(true)}><Icon name="plus"/>{t('add')}</Button><Button variant="ghost" aria-pressed={showResearch} onClick={() => setShowResearch(value => !value)}>{t('showResearch')}{task.working && <span role="status"> · {task.status === 'needs_input' ? t('needsAttention') : t('running')}</span>}</Button></div>
+      <div className="pa-actions" ref={addTrigger}><Button onClick={() => setAdding(true)}><Icon name="plus"/>{t('add')}</Button><Button variant="ghost" aria-pressed={showResearch} onClick={() => setShowResearch(value => !value)}>{t('showResearch')}{task.working && <span role="status"> {task.status === 'needs_input' ? t('needsAttention') : t('running')}</span>}</Button></div>
     </header>
     {error && <div className="pa-global-error"><Feedback kind="error"><span>{error}</span><Button variant="ghost" onClick={() => setError('')}>{t('dismiss')}</Button></Feedback></div>}
     <div className="pa-layout">
@@ -157,18 +157,18 @@ export default function PaperAgent() {
           </TabsContent>
           <TabsContent value="favorites" forceMount><ul className="pa-report-list">{(library.favorites ?? []).map(favorite => <li key={favorite.id} data-favorite-work={favorite.paper.id}>
             <Button variant="ghost" disabled={!favorite.paper.abstract.trim()} onClick={() => void readFavorite(favorite)}>{favorite.paper.title}</Button>
-            <details className="pa-saved-actions"><summary>{t('details')}</summary><small>{t(favorite.relation)} · {favorite.seedTitle}</small>
+            <details className="pa-saved-actions"><summary>{t('details')}</summary><small>{t(favorite.relation)} / {favorite.seedTitle}</small>
             <Button variant="ghost" disabled={locked || task.repair || !favorite.paper.abstract.trim() || library.papers.some(p => p.source === 'openalex' && p.sourceId === favorite.paper.id && selected.includes(p.id))} onClick={() => void readFavorite(favorite, true)}>{t('addToMatrix')}</Button>
             <Button variant="ghost" onClick={() => { setDiscoveryOpening({ historyId: favorite.batchId }); setAdding(false); setView('discovery'); }}>{t('viewDiscovery')}</Button>
             <a href={favorite.paper.url} target="_blank" rel="noreferrer">{t('original')}</a></details>
           </li>)}</ul>{!library.favorites?.length && <p className="pa-muted">{t('noFavorites')}</p>}</TabsContent>
           <TabsContent value="reports" forceMount><ul className="pa-report-list">{library.reports.map(report => <li key={report.id}><Button variant="ghost" disabled={locked} onClick={() => { setError(''); void task.openReport(report.id); }}>{report.title}</Button></li>)}</ul>{!library.reports.length && <p className="pa-muted">{t('noReport')}</p>}</TabsContent>
         </Tabs>
-        <footer className="pa-library-footer"><small>{t('selected')} {selected.length}/5</small><Button variant="ghost" onClick={() => { setError(''); void refresh().catch(onError); }}><Icon name="refresh"/>{t('refresh')}</Button></footer>
+        <footer className="pa-library-footer">{showResearch && <small>{t('selected')} {selected.length}/5</small>}<Button variant="ghost" onClick={() => { setError(''); void refresh().catch(onError); }}><Icon name="refresh"/>{t('refresh')}</Button></footer>
       </aside>
       <main className="pa-stage">
         <div className="pa-import-mount" hidden={!adding}><ImportPanel api={api} t={t} active={adding && info.active} onAdded={added} onError={onError} onClose={() => { setAdding(false); addTrigger.current?.querySelector('button')?.focus(); }}/></div>
-        <div className="pa-stage-content" hidden={adding}>{!library.papers.length && !reading && !loading ? <section className="pa-start"><span className="pa-start-number">01</span><h1>{t('emptyLibrary')}</h1><p>{t('emptyLibraryCopy')}</p><div className="pa-actions"><Button variant="primary" onClick={() => setAdding(true)}>{t('add')}</Button><Button onClick={() => void example()}>{t('example')}</Button></div><small>{t('exampleCopy')}</small></section>
+        <div className="pa-stage-content" hidden={adding}>{!library.papers.length && !reading && !loading ? <section className="pa-start"><h1>{t('emptyLibrary')}</h1><div className="pa-actions"><Button variant="primary" onClick={() => setAdding(true)}>{t('add')}</Button><Button onClick={() => void example()}>{t('example')}</Button></div></section>
           : <Tabs value={view} onValueChange={value => { setView(value); closeEvidence(); }} className="pa-stage-tabs">
             <div className="pa-stage-toolbar"><TabsList><TabsTrigger value="source">{t('reader')}</TabsTrigger><TabsTrigger value="discovery">{t('discover')}</TabsTrigger><TabsTrigger value="report">{t('report')}</TabsTrigger>{!!library.matrixCount && <TabsTrigger value="matrix">{t('matrix')}</TabsTrigger>}{!!task.report?.experiments?.length && <TabsTrigger value="experiments">{t('experiments')}</TabsTrigger>}</TabsList>
               {task.report && view === 'report' && <div className="pa-actions pa-export"><Button variant="ghost" onClick={() => void exportReport('markdown')}>{t('exportMarkdown')}</Button><Button variant="ghost" onClick={() => void exportReport('json')}>{t('exportJson')}</Button><Button variant="ghost" onClick={() => window.print()}>{t('print')}</Button></div>}
@@ -187,7 +187,7 @@ export default function PaperAgent() {
         {!agent.available && <p className="pa-muted">{t('noAgent')} <Button variant="ghost" onClick={() => void agent.refresh().catch(onError)}>{t('refresh')}</Button></p>}
         <div className="pa-run-actions">{task.pending ? <Button variant="primary" disabled={task.busy} onClick={() => begin(true)}>{t('retryStart')}</Button> : task.working ? <Button disabled={task.busy || task.status === 'cancelling'} onClick={() => void task.cancel()}>{task.status === 'cancelling' ? t('cancelling') : t('cancel')}</Button> : <Button variant="primary" disabled={!canPrepare || !agent.available || !agentId} onClick={() => begin(true)}><Icon name="play"/>{task.busy ? t('preparing') : t('start')}</Button>}
         </div>
-        <details className="pa-research-options"><summary>{t('researchOptions')}{agentId && ` · ${agent.agents.find(item => item.id === agentId)?.name ?? agentId}`}</summary>
+        <details className="pa-research-options"><summary>{t('researchOptions')}</summary>
         <label className="pa-checkbox-label"><Checkbox checked={verifyCode} disabled={locked} onCheckedChange={setVerifyCode}/>{t('verifyCode')}</label>
         {verifyCode && <Field label={t('boundary')}>{props => <Textarea {...props} rows={4} maxLength={4000} disabled={locked} value={verificationPlan} onChange={event => setVerificationPlan(event.target.value)} placeholder={t('boundaryPlaceholder')}/>}</Field>}
         <Select label={t('agent')} value={agentId} onChange={setAgentId} disabled={locked || !agent.available} options={agent.agents.filter(item => item.available).length ? agent.agents.filter(item => item.available).map(item => ({ value: item.id, label: item.name })) : [{ value: '', label: t('noAgentChoice') }]}/>

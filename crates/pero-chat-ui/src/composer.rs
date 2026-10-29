@@ -35,6 +35,7 @@ impl ChatPanel {
         let model_pending =
             chat.is_some_and(|chat| chat.pending_model.is_some() || chat.pending_setting.is_some());
         let selected_agent = agent.clone();
+        let agent_available = self.agents.iter().any(|choice| choice.id == agent && choice.available);
         let agent_choices = self.agents.clone();
         let agent_workbench = cx.entity().downgrade();
         let context_workbench = cx.entity().downgrade();
@@ -291,31 +292,19 @@ impl ChatPanel {
                             .icon(Icon::default().path("icons/terminal.svg"))
                             .label(agent.clone())
                             .tooltip(self.t("composer.acp"))
-                            .dropdown_caret(chat.is_none_or(|chat| chat.state == SessionState::Draft))
-                            .disabled(chat.is_some_and(|chat| chat.state != SessionState::Draft))
+                            .dropdown_caret(chat.is_none_or(|chat| chat.can_retarget()))
+                            .disabled(chat.is_some_and(|chat| !chat.can_retarget()))
                             .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
                                 agent_choices.iter().enumerate().fold(
                                     menu.min_w(px(W::MENU_WIDTH)).check_side(Side::Right),
                                     |menu, (i, choice)| {
-                                        let agent = choice.id.clone();
                                         let workbench = agent_workbench.clone();
                                         menu.item(
                                             PopupMenuItem::new(choice.name.clone())
                                                 .checked(choice.id == selected_agent)
                                                 .disabled(!choice.available)
                                                 .on_click(move |_, _, cx| {
-                                                    let _ = workbench.update(cx, |this, cx| {
-                                                        this.agent_index = i;
-                                                        if let Some(chat) = this
-                                                            .active_chat
-                                                            .and_then(|i| this.chats.get_mut(i))
-                                                        {
-                                                            if chat.state == SessionState::Draft {
-                                                                chat.agent = agent.clone();
-                                                            }
-                                                        }
-                                                        cx.notify();
-                                                    });
+                                                    let _ = workbench.update(cx, |this, cx| this.select_agent(i, cx));
                                                 }),
                                         )
                                     },
@@ -324,29 +313,29 @@ impl ChatPanel {
                     )
                     .children(model_picker)
                     .children(self.session_setting_controls("thought_level", cx))
-                    .when(chat.is_none_or(|chat| chat.state == SessionState::Draft), |el| {
+                    .when(chat.is_none_or(|chat| chat.can_retarget()), |el| {
                         el.child(
                             Button::new("workspace-picker")
                                 .ghost()
                                 .small().h(px(W::CONTROL))
                                 .icon(IconName::Folder)
                                 .label(workspace)
-                                .disabled(chat.is_some_and(|c| c.state != SessionState::Draft))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.command(json!({"action":"choose_workspace"}), cx)
                                 })),
                         )
                     })
-                    .when(chat.is_some_and(|c| c.state == SessionState::Draft), |el| {
+                    .when(chat.is_some_and(|c| c.state == SessionState::Closed && c.can_retarget()), |el| {
                         el.child(
-                            Button::new("connect-chat")
+                            Button::new("retry-chat")
                                 .outline()
                                 .small().h(px(W::CONTROL))
-                                .label(self.t("chat.connect"))
-                                .on_click(cx.listener(|this, _, _, cx| this.connect_chat(cx))),
+                                .label(self.t("chat.retry"))
+                                .disabled(!self.connected)
+                                .on_click(cx.listener(|this, _, _, cx| this.retry_chat(cx))),
                         )
                     })
-                    .when(busy, |el| {
+                    .when(chat.is_some_and(|c| c.state == SessionState::Running || c.state == SessionState::Stopping || c.queued.is_some()), |el| {
                         el.child(
                             Button::new("stop-agent")
                                 .outline()
@@ -362,7 +351,7 @@ impl ChatPanel {
                                 })),
                         )
                     })
-                    .when(!busy, |el| {
+                    .when(chat.is_none_or(|c| !matches!(c.state, SessionState::Running | SessionState::Stopping) && c.queued.is_none()), |el| {
                         el.child(
                             Button::new("send-chat")
                                 .primary()
@@ -371,13 +360,13 @@ impl ChatPanel {
                                 .label(self.t("probe.send"))
                                 .disabled(
                                     !self.connected
-                                        || model_pending
+                                        || !agent_available
                                         || self.composer_state.loading
                                             && self.composer_state.resolve_range.is_some()
                                         || self.composer.read(cx).value().trim().is_empty()
                                             && self.attachments.is_empty()
                                         || chat.is_some_and(|c| {
-                                            !c.state.can_submit()
+                                            !c.can_submit()
                                         }),
                                 )
                                 .on_click(

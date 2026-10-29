@@ -6,9 +6,9 @@ import type { Citation } from './documents';
 export function EvidenceMatrix({ matrix, intent, onCite, t }: {
   matrix: Report['matrix']; intent: Intent; onCite(value: Citation): void; t: Translator;
 }) {
-  if (!matrix) return <p className="pa-muted pa-matrix-empty">{t('noMatrix')}</p>;
+  if (!matrix) return null;
   return <section className="pa-matrix">
-    <h2>{t('matrix')}</h2><p className="pa-kicker">{t('matrixScope')}</p>
+    <h2>{t('matrix')}</h2>
     <div className="pa-table-scroll" tabIndex={0} role="region" aria-label={t('matrix')}><table>
       <thead><tr><th scope="col">{t('papers')}</th>{matrix.columns.map(column => <th scope="col" key={column.id}>{column.label}</th>)}</tr></thead>
       <tbody>{intent.papers.map((paper, index) => <tr key={paper.id}>
@@ -16,9 +16,9 @@ export function EvidenceMatrix({ matrix, intent, onCite, t }: {
         {matrix.columns.map(column => {
           const cell = matrix.cells.find(cell => cell.paperId === paper.id && cell.columnId === column.id);
           return <td key={column.id} data-status={cell?.status ?? 'missing'}>
-            <span className="pa-kicker">{t(cell?.status === 'supported' ? 'supported' : cell?.status === 'conflict' ? 'conflict' : 'missing')}</span>
+            {cell?.status !== 'supported' && <span>{t(cell?.status === 'conflict' ? 'conflict' : 'missing')}</span>}
             {cell?.value && <p>{cell.value}</p>}
-            <div className="pa-cell-evidence">{cell?.evidence.map((ref, i) => <button className="pa-inline-citation" type="button" key={i} aria-label={`${column.label} · ${t('evidence')} ${i + 1}`} onClick={() => onCite(ref)}>{t('evidence')} {i + 1}</button>)}</div>
+            <div className="pa-cell-evidence">{cell?.evidence.map((ref, i) => <button className="pa-inline-citation" type="button" key={i} aria-label={`${column.label} ${t('evidence')} ${i + 1}`} onClick={() => onCite(ref)}>[{i + 1}]</button>)}</div>
           </td>;
         })}
       </tr>)}</tbody>
