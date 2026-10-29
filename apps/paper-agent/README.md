@@ -17,8 +17,8 @@ npm run dev:paper
 This builds and opens an isolated development profile at
 `target/apps-preview-paper-agent`. Open **Add papers** to search alphaXiv,
 OpenAlex, bioRxiv or PubMed, read a supported ID/URL, or import text/Markdown.
-**Load synthetic example** explicitly imports a labelled example without
-starting an Agent. Opening the App never starts research.
+Open a paper to enter reading mode. The top bar contains Back, title, PDF
+navigation, zoom and **Ask**. Opening the App never starts research.
 
 Existing profiles seed builtins only once. To add this App to an existing
 profile, use **Apps → Install from folder**, choose this built directory and
@@ -38,11 +38,12 @@ opening a PDF shows the installation command. The Host does not install packages
 
 ## PDF reading
 
-Open an arXiv or bioRxiv/medRxiv paper and choose **PDF**. The App downloads the
+Open an arXiv or bioRxiv/medRxiv paper. The App downloads the
 original (up to 16 MiB / 500 pages), saves its SHA-256 and renders the saved bytes
 with EmbedPDF/PDFium. WASM is bundled locally and external font fallback is off.
-Select text to highlight or discuss it; **Capture area** saves a source image.
-**Annotations** opens saved quotations, notes and images, including copy/download.
+Select text to highlight or attach it to a question. The PDF context menu
+(right-click or Shift+F10) offers **Capture area**, **Annotations**, page text and
+text view. Annotations retain quotations, notes, images and copy/download.
 **Add to matrix** places a saved annotation under a named comparison field.
 The matrix's page links return to the exact saved PDF and region after restart.
 
@@ -53,7 +54,10 @@ figure captures are rendered by the backend from the saved original. These check
 establish source location, not scientific validity. Repeated report quotations
 offer each matching page rather than silently selecting one occurrence.
 
-Choose **Ask this PDF** to ask a question about the saved full text. The App
+Choose **Ask** to open a conversation beside the PDF; close it to return to
+full-width reading. Cmd/Ctrl+J toggles the panel. Page, zoom, scroll and selection
+are retained; on narrow screens the Agent overlays the document. Ask a question
+about the saved full text. The App
 splits PDF text into overlapping page-local passages, ranks them with local BM25,
 and freezes up to 12 passages (19,200 characters), their PDF versions and the
 exact answer prompt. The existing Host Agent generates a sourced answer. Every
@@ -61,8 +65,9 @@ PDF answer section needs an exact quotation and a valid passage ID; unmatched
 quotes are rejected and retained for repair. Clicking a citation opens the saved
 PDF version, scrolls to the quotation and highlights its text rectangles.
 
-**Search full PDF text** also works with 1–5 selected papers once their PDFs are
-saved. If no query terms match, the App asks for source-language keywords;
+**Research settings** contains source selection, **Search full PDF text**,
+code verification and Agent selection. Full-text questions support 1–5 papers;
+their PDFs are saved before the research input is frozen. If no query terms match, the App asks for source-language keywords;
 unrelated text is not substituted. Retrieval uses local SQLite FTS5/BM25, without
 embedding search or model query expansion; cross-language and low-recall queries
 can miss relevant material. Absence from the selected passages is not evidence of
@@ -123,8 +128,8 @@ independent acceptance decision.
    saves the input without execution. Inputs are capped at 80,000 selected
    characters and the Host's 128,000-byte frozen context budget. Changes require
    a new request identity. A selected passage can be added to the question;
-   when the SDK provides App chat it can also fill an unsent Host chat draft.
-3. **Start research** explicitly starts an available Host Agent in the displayed
+   the selected passage stays attached to the unsent question until removed.
+3. Sending a question explicitly starts an available Host Agent in the configured
    Host workspace. The manifest's `agent` grant is checked by the Host on each
    operation. The Host owns the ACP process, journal, approvals, authentication
    and cancellation. Handle requests for input or approval in the corresponding
@@ -202,7 +207,7 @@ separate manually curated matrix are described above; OCR is not included.
 
 ## Continue discovery
 
-Open a saved paper and click **Discover**. The current paper remains the explicit
+Return to the library and click **Discover** beside a saved paper. The current paper remains the explicit
 seed. **Related papers**, **References**, and **Citing papers** query OpenAlex's
 `related_works`, `referenced_works`, and `cites:<work-id>` respectively. Related
 results are a similarity relation, not an assertion that one paper supports another.
@@ -213,15 +218,15 @@ Results retain authors, publication date, citation count, abstract and original
 link. Each successful exploration stores its seed snapshot, matched work, relation,
 page, provider and retrieval time. History reopens stored results without fetching
 them again. Return to seed keeps the original paper available; reading a candidate
-and clicking Discover explicitly starts a new exploration.
+and choosing Discover in the library explicitly starts a new exploration.
 
 **Save** bookmarks a candidate, including metadata-only records, without changing
 the current research selection. A work is saved once, retaining its first discovery
 source; other paths remain in exploration history. Saved candidates survive restart.
 
-**Add to matrix research** saves an abstract snapshot and adds the seed and candidate
+**Compare** saves an abstract snapshot and selects the seed and candidate
 to the comparison selection (maximum five papers). It adds a comparison instruction
-and prepares a fresh research. Click **Start research** to generate the new matrix
+and opens a fresh question in the conversation. Send it to generate the new matrix
 using the existing Host Agent. Existing saved reports remain immutable. A record
 without an abstract can be saved or opened externally; comparison requires readable
 source text. This flow does not fetch an arbitrary publisher PDF or invent evidence.
@@ -235,3 +240,17 @@ all App document kinds retain the existing 200-record storage limit.
 Interaction references: [ResearchRabbit's single-paper exploration](https://www.researchrabbit.ai/articles/guide-to-using-researchrabbit)
 and [Litmaps' seed-based discovery](https://docs.litmaps.com/en/articles/9092911-search-for-articles-with-litmaps).
 No product code from either service was copied. See [discovery verification](../../docs/fitness/paper-discovery.md).
+
+
+## Reading-first workspace
+
+The library owns import, local search, discovery and saved candidates. Reading
+has no permanent paper list, document tabs or settings panel. Ask contains
+previous questions and saved answers for the current paper, with matrices,
+experiments and exports inline when present. Opening history does not rerun an
+Agent. Advanced settings and invalid-output repair remain available on demand.
+Each submitted question is its own frozen research run; previous generated
+answers are not implicitly treated as new evidence.
+
+The existing PDF renderer, annotations, research execution and exact citation
+resolver are reused. See [reading-first design](../../docs/design-docs/paper-reading-first.md).

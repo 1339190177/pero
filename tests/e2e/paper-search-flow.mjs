@@ -36,6 +36,7 @@ export async function exerciseLocalSearch({ frame, page, app, out }) {
   await expect(search.locator('[data-search-hit]').first()).toBeVisible();
   await search.locator('[data-search-hit]').first().getByRole('button').click();
   await expect(frame.getByRole('heading', { name: 'Synthetic reading · a reproducible citation example', exact: true })).toBeVisible();
+  await frame.getByRole('button', { name: 'Back to library', exact: true }).click();
   await search.getByRole('button', { name: 'Clear search', exact: true }).click();
   await expect(input).toBeFocused();
   await expect(frame.locator('.pa-library-list')).toBeVisible();
@@ -51,7 +52,6 @@ export async function exercisePdfSearch({ frame, page, out, realPdf }) {
   const targetPage = await hit.getAttribute('data-search-page');
   await hit.getByRole('button').click();
   const viewer = frame.getByRole('region', { name: 'PDF reader', exact: true });
-  await expect(viewer.getByRole('spinbutton', { name: 'Page', exact: true })).toHaveValue(targetPage);
+  await expect(frame.locator('.pa-reading-bar').getByRole('spinbutton', { name: 'Page', exact: true })).toHaveValue(targetPage);
   await page.screenshot({ path: resolve(out, 'local-search-pdf.png') });
-  await search.getByRole('button', { name: 'Clear search', exact: true }).click();
 }

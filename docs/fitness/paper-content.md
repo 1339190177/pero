@@ -171,3 +171,47 @@ Loaded CSS SHA-256: `eddfb9834eaee028727bb170c5f1a6dfe091cb9cb6d21ce095eb6ff3787
 Retrieval is lexical: no embeddings, translation, OCR, or iterative query
 expansion. Exact quotes establish provenance, not support for every generated
 claim. Real model answer quality and cross-platform packaging remain unverified.
+
+## Reading-first workspace (2026-10-29)
+
+Implemented [the reading-first design](../design-docs/paper-reading-first.md) in
+this App. The default reading interface is its 44px top bar and document. Ask
+opens an optional conversation; the library owns importing and discovery.
+Reports, prior questions, matrices, experiments and exports remain accessible
+inside that conversation. Advanced settings are explicit. Existing persisted
+records and backend contracts are retained.
+
+The App keeps the live PDF viewer mounted across Ask open/close and same-file
+citation jumps. It fixes the current zoom before resizing the reading area.
+Selection actions expose highlighting and question context; right-click or
+Shift+F10 exposes secondary PDF tools. The narrow conversation overlays the
+reader, makes its background inert and contains keyboard focus. Closing returns
+focus to Ask. Importing/searching/submitting uses explicit API actions because
+the App iframe does not grant native form submission.
+
+Validation on macOS development Desktop:
+
+- 20 Python tests, App TypeScript/build and repository `npm run check` passed.
+- All 13 updated Desktop scenario groups passed with synthetic PDF bytes and
+  again with the saved 15-page arXiv paper. No unexpected browser errors.
+- The suite imports text through the actual UI; verifies library search,
+  discovery, comparison, answer rendering, rejected quotes and repair, exports,
+  cancellation, dark/Chinese/narrow layouts, PDF pointer selection, selected-text
+  question context, highlight/crop, native image clipboard, manual matrices,
+  exact PDF citations and recovery after Desktop restart without Agent replay.
+- It marks the live rendered page to verify that Ask and same-file citation
+  navigation retain that viewer, and checks that zoom and selection survive
+  opening/closing the Agent. At 1440x900 the PDF fits the reading viewport;
+  the 44px document and conversation headers align.
+
+Evidence: `test-results/paper-agent/result.json` and
+`test-results/paper-agent-real/result.json`; `reading-first-1440.png`,
+`pdf-answer-citation.png`, `pdf-dark-narrow.png`, `conversation-reopened.png`.
+Loaded JS SHA-256: `b5448317282b9480b845b54a5aad4cfa9a0f0aec748a083b437e027ed82f72bc`.
+Loaded CSS SHA-256: `48e6e239c0149029e2793cd2d65fc716fb50d2766e8b34db64bff75981225cb0`.
+
+The reported passes explicitly select the deterministic ACP fixture. They prove
+Host execution wiring and source navigation, not real-model answer quality.
+Each question remains an independent frozen research run; the conversation is
+its presentation and history. Full screen-reader, cross-platform and packaged
+release acceptance remain outside these development checks.
