@@ -65,7 +65,7 @@ mod rendering {
             let first = tools[0];
             let key = format!("{conversation_id}/{}", first.id);
             let open = self.expanded_tools.contains(&key);
-            let p = self.palettes.get(self.dark);
+            let p = &pero_theme::UiAppearance::global(cx).palette.clone();
             let failed = tools
                 .iter()
                 .any(|tool| tool.status == "failed" && !tool.cancelled);
@@ -150,35 +150,31 @@ mod rendering {
                         .ghost()
                         .small()
                         .w_full()
-                        .h(px(W::ROW))
+                        .h(px(pero_theme::UiAppearance::global(cx).typography.row_height()))
                         .px(px(4.))
                         .justify_start()
                         .accessibility_label(format!("{summary}. {disclosure}"))
                         .toggled(open)
                         .tooltip(summary.clone())
                         .child(self.icon(if open { "chevron-down" } else { "chevron-right" })
-                            .size(px(12.)).flex_shrink_0().text_color(p.color("text-muted")))
+                            .size(px(12.)).flex_shrink_0().text_color(p.text_muted))
                         .child(self.icon(if failed { "alert-circle" } else if running { "clock" } else { icon })
                             .size(px(W::ICON))
-                            .text_color(p.color(if failed { "error" } else { "text-muted" })))
+                            .text_color(if failed { p.error } else { p.text_muted }))
                         .child(
                             div()
                                 .flex_1()
                                 .min_w_0()
                                 .truncate()
-                                .text_size(px(W::TEXT))
-                                .text_color(p.color("text-muted"))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
+                                .text_color(p.text_muted)
                                 .child(summary.clone()),
                         )
                         .when_some(status, |el, status| {
                             el.child(
                                 div()
-                                    .text_size(px(W::TEXT_SMALL))
-                                    .text_color(p.color(if failed {
-                                        "error"
-                                    } else {
-                                        "text-muted"
-                                    }))
+                                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                    .text_color(if failed { p.error } else { p.text_muted })
                                     .child(self.t(status)),
                             )
                         })
@@ -205,7 +201,7 @@ mod rendering {
                             .ml(px(10.))
                             .pl(px(22.))
                             .border_l_1()
-                            .border_color(p.color("border"))
+                            .border_color(p.border)
                             .children(tools.iter().enumerate().map(|(index, tool)| {
                                 div()
                                     .id(("tool-detail", index))
@@ -215,12 +211,12 @@ mod rendering {
                                     .flex_col()
                                     .gap(px(6.))
                                     .when(tools.len() > 1 || tool.title != summary, |el| {
-                                        el.child(div().text_size(px(W::TEXT)).child(tool.title.clone()))
+                                        el.child(div().text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body)).child(tool.title.clone()))
                                     })
                                     .children(tool.locations.iter().map(|path| {
                                         div()
-                                            .text_size(px(W::TEXT_SMALL))
-                                            .text_color(p.color("text-muted"))
+                                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                            .text_color(p.text_muted)
                                             .child(path.clone())
                                     }))
                                     .when_some(tool.document.as_ref().filter(|_| tool.reader.is_none()), |el, document| {
@@ -242,7 +238,7 @@ mod rendering {
                                     })
                                     .children(tool.output.iter().enumerate().filter_map(
                                         |(part, item)| {
-                                            self.structured_tool_output(row, index, part, item)
+                                            self.structured_tool_output(row, index, part, item, cx)
                                         },
                                     ))
                             })),
@@ -253,8 +249,8 @@ mod rendering {
                         div()
                             .ml(px(24.))
                             .mb(px(2.))
-                            .text_size(px(W::TEXT))
-                            .text_color(p.color("error"))
+                            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
+                            .text_color(p.error)
                             .child(failure),
                     )
                 })
@@ -267,15 +263,16 @@ mod rendering {
             tool: usize,
             part: usize,
             item: &Value,
+            cx: &App,
         ) -> Option<AnyElement> {
-            let p = self.palettes.get(self.dark);
+            let p = &pero_theme::UiAppearance::global(cx).palette.clone();
             match item["type"].as_str()? {
                 "diff" => {
                     let mut element = div().flex().flex_col().gap(px(5.));
                     if let Some(path) = item["path"].as_str() {
                         element = element.child(
                             div()
-                                .text_size(px(W::TEXT))
+                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
                                 .font_weight(FontWeight::BOLD)
                                 .child(path.to_string()),
                         );
@@ -288,8 +285,8 @@ mod rendering {
                             element = element
                                 .child(
                                     div()
-                                        .text_size(px(W::TEXT_SMALL))
-                                        .text_color(p.color("text-muted"))
+                                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                        .text_color(p.text_muted)
                                         .child(self.t(label)),
                                 )
                                 .child(
@@ -300,9 +297,9 @@ mod rendering {
                                         .max_h(px(240.))
                                         .overflow_y_scroll()
                                         .p(px(8.))
-                                        .bg(p.color("surface-muted"))
+                                        .bg(p.surface_muted)
                                         .font_family("JetBrains Mono")
-                                        .text_size(px(W::TEXT))
+                                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
                                         .child(text.to_string()),
                                 );
                         }
@@ -314,8 +311,8 @@ mod rendering {
                         .flex()
                         .items_center()
                         .gap(px(6.))
-                        .text_size(px(W::TEXT_SMALL))
-                        .text_color(p.color("text-muted"))
+                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                        .text_color(p.text_muted)
                         .child(self.icon("terminal").size(px(13.)))
                         .child(format!(
                             "{} · {}",
@@ -329,8 +326,8 @@ mod rendering {
                 "content" if item["content"]["type"] == "text" => None,
                 kind => Some(
                     div()
-                        .text_size(px(W::TEXT_SMALL))
-                        .text_color(p.color("text-muted"))
+                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                        .text_color(p.text_muted)
                         .child(format!("{} · {kind}", self.t("chat.tool_other")))
                         .into_any_element(),
                 ),

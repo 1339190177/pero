@@ -74,7 +74,7 @@ impl ChatPanel {
                 let workbench = cx.entity().downgrade();
                 Button::new(("session-setting", index))
                     .ghost()
-                    .small().h(px(W::CONTROL))
+                    .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                     .label(label)
                     .when(category == "thought_level", |button| {
                         button.icon(Icon::default().path("icons/lightbulb.svg"))
@@ -136,7 +136,7 @@ impl ChatPanel {
         Some(
             Button::new("session-permissions")
                 .ghost()
-                .small().h(px(W::CONTROL))
+                .small().h(px(pero_theme::UiAppearance::global(cx).typography.control_height()))
                 .icon(Icon::default().path("icons/shield.svg"))
                 .when_some(mode_label, |button, label| button.label(label))
                 .accessibility_label(tooltip.clone())

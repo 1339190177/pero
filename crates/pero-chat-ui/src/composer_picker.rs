@@ -17,7 +17,7 @@ pub struct PickerItem {
 
 impl ChatPanel {
     pub fn composer_picker_view(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let p = self.palettes.get(self.dark);
+        let p = &pero_theme::UiAppearance::global(cx).palette.clone();
         let items = self.composer_picker_items();
         let selected = self.composer_state.selected;
         div()
@@ -29,11 +29,11 @@ impl ChatPanel {
             .max_w(px(560.))
             .mb(px(4.))
             .border_1()
-            .border_color(p.color("border"))
+            .border_color(p.border)
             .rounded(px(W::RADIUS))
-            .bg(p.color("surface"))
-            .text_color(p.color("text"))
-            .text_size(px(W::TEXT))
+            .bg(p.surface)
+            .text_color(p.text)
+            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
             .occlude()
             .on_mouse_down_out(cx.listener(|this, _, _, cx| {
                 this.close_composer_picker(cx);
@@ -46,7 +46,7 @@ impl ChatPanel {
                     .px(px(10.))
                     .py(px(5.))
                     .border_b_1()
-                    .border_color(p.color("border"))
+                    .border_color(p.border)
                     .child(
                         div()
                             .flex_1()
@@ -69,7 +69,7 @@ impl ChatPanel {
                     div()
                         .px(px(12.))
                         .py(px(12.))
-                        .text_color(p.color("text-muted"))
+                        .text_color(p.text_muted)
                         .child(self.t("composer.loading")),
                 )
             })
@@ -78,7 +78,7 @@ impl ChatPanel {
                     div()
                         .px(px(12.))
                         .py(px(10.))
-                        .text_color(p.color("error"))
+                        .text_color(p.error)
                         .child(error.clone()),
                 )
             })
@@ -91,7 +91,7 @@ impl ChatPanel {
                         div()
                             .px(px(12.))
                             .py(px(12.))
-                            .text_color(p.color("text-muted"))
+                            .text_color(p.text_muted)
                             .child(self.t("composer.empty")),
                     )
                 },
@@ -114,8 +114,8 @@ impl ChatPanel {
                                         .px(px(8.))
                                         .pt(px(7.))
                                         .pb(px(3.))
-                                        .text_size(px(W::TEXT_SMALL))
-                                        .text_color(p.color("text-muted"))
+                                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                        .text_color(p.text_muted)
                                         .child(item.group.clone()),
                                 )
                             })
@@ -132,8 +132,8 @@ impl ChatPanel {
                                     .py(px(W::GAP))
                                     .rounded(px(W::RADIUS))
                                     .cursor_pointer()
-                                    .when(index == selected, |el| el.bg(p.color("accent-soft")))
-                                    .hover(|el| el.bg(p.color("surface-muted")))
+                                    .when(index == selected, |el| el.bg(p.accent_soft))
+                                    .hover(|el| el.bg(p.surface_muted))
                                     .on_mouse_down(MouseButton::Left, |_, window, _| {
                                         window.prevent_default()
                                     })
@@ -144,7 +144,7 @@ impl ChatPanel {
                                         Icon::default()
                                             .path(item.icon)
                                             .small()
-                                            .text_color(p.color("text-muted")),
+                                            .text_color(p.text_muted),
                                     )
                                     .child(
                                         div()
@@ -158,8 +158,8 @@ impl ChatPanel {
                                             div()
                                                 .max_w(relative(0.5))
                                                 .truncate()
-                                                .text_size(px(W::TEXT_SMALL))
-                                                .text_color(p.color("text-muted"))
+                                                .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                                                .text_color(p.text_muted)
                                                 .child(item.detail.clone()),
                                         )
                                     }),
@@ -171,9 +171,9 @@ impl ChatPanel {
                     .px(px(12.))
                     .py(px(5.))
                     .border_t_1()
-                    .border_color(p.color("border"))
-                    .text_size(px(W::TEXT_SMALL))
-                    .text_color(p.color("text-muted"))
+                    .border_color(p.border)
+                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
+                    .text_color(p.text_muted)
                     .child(self.t("composer.keyboard_hint")),
             )
     }

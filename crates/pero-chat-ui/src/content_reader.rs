@@ -146,12 +146,12 @@ impl ContentReader {
         let properties = preview.shape == PreviewShape::Properties;
         let mut element = div()
             .id(("content-row", index))
-            .h(px(30.))
+            .h(px(pero_theme::UiAppearance::global(cx).typography.row_height()))
             .flex()
             .items_center()
             .border_b_1()
             .border_color(cx.theme().border)
-            .text_size(px(12.))
+            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
             .child(
                 div()
                     .w(px(48.))
@@ -268,7 +268,7 @@ impl Render for ContentReader {
             .child(div().flex_1())
             .child(
                 div()
-                    .text_size(px(11.))
+                    .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
                     .text_color(cx.theme().muted_foreground)
                     .child(format!("{} B", self.document.bytes)),
             )
@@ -313,7 +313,7 @@ impl Render for ContentReader {
         } else {
             match &self.preview {
                 Err(error) => {
-                    view = view.child(div().p(px(12.)).text_size(px(12.)).child(error.clone()))
+                    view = view.child(div().p(px(12.)).text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption)).child(error.clone()))
                 }
                 Ok(preview) if preview.rows.is_empty() => {
                     view = view.child(div().p(px(12.)).child(self.t("content.empty")))
@@ -329,7 +329,7 @@ impl Render for ContentReader {
                         .flex()
                         .h(px(28.))
                         .flex_shrink_0()
-                        .text_size(px(12.))
+                        .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
                         .child(div().w(px(48.)).flex_shrink_0().child("#"))
                         .children(
                             (!properties)
