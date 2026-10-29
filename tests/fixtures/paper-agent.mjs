@@ -35,8 +35,12 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
       const quote = papers[0].content.split('\n').find(value => value.trim() && !value.startsWith('#'));
       const report = {
         schema: 'pero.paper-agent-report.v1', intentId, title: 'Synthetic research report',
-        sections: [{ heading: 'Fixture evidence', content: 'This deterministic fixture checks source matching and report persistence. It is not a real model research result.',
+        sections: [{ heading: 'Fixture evidence', content: 'This **deterministic fixture** checks [source evidence](evidence:1).\n\n| Scope | Result |\n| --- | --- |\n| Synthetic | Not a research result |\n\nInline $x^2$ and block math:\n\n$$\nE = mc^2\n$$\n\n```python\nprint("synthetic only")\n```',
+
           paperIds: [papers[0].id], evidence: [{ paperId: papers[0].id, quote: prompt.includes('paper-fixture-invalid') ? 'This invented quote is absent from the frozen source.' : quote }] }],
+        matrix: { columns: [{ id: 'scope', label: 'Scope' }, { id: 'data', label: 'Dataset' }], cells: [
+          { paperId: papers[0].id, columnId: 'scope', status: 'supported', value: 'Synthetic fixture only', evidence: [{ paperId: papers[0].id, quote }] },
+        ] },
         experiments: [], limitations: 'Synthetic fixture only. No model request or scientific experiment was performed. Scientific acceptance is unverified.',
       };
       send({ method: 'session/update', params: { sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: JSON.stringify(report) } } } });

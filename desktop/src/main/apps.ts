@@ -144,7 +144,7 @@ export class DesktopApps {
       if (!file.startsWith(assets + sep) || !(await stat(file)).isFile()) return new Response('Not found', { status: 404 });
       const response = await net.fetch(pathToFileURL(file).href);
       const headers = new Headers(response.headers);
-      headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors pero://workbench");
+      headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors pero://workbench");
       headers.set('Cache-Control', 'no-store');
       headers.set('X-Content-Type-Options', 'nosniff');
       return new Response(response.body, { status: response.status, headers });

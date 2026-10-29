@@ -136,6 +136,7 @@ export function mountAppSurfaces(command: (value: object) => Promise<void>, onCh
         if (!frames.has(identity)) {
           const element = document.createElement('iframe');
           element.title = value.name;
+          element.allow = 'clipboard-write';
           element.sandbox.add('allow-scripts', 'allow-same-origin', 'allow-downloads', 'allow-popups');
           const frame: Frame = { element, name: value.name, panel: value.panel, ready: false, failed: false, dispose: () => {}, timer: setTimeout(() => {
             frame.failed = true;
