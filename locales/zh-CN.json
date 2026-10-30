@@ -623,5 +623,21 @@
   "content.copy_cell": "复制单元格",
   "content.expand_value": "展开值",
   "content.locate_source": "定位源码",
-  "content.row_count": "{shown} / {total} 行"
+  "content.row_count": "{shown} / {total} 行",
+  "computer.title": "电脑操作",
+  "computer.enable": "启用电脑操作",
+  "computer.hint": "允许当前会话查看和操作其他应用窗口，操作遵循 Agent 会话审批。",
+  "computer.permissions": "打开权限设置",
+  "computer.accessibility": "辅助功能",
+  "computer.screen_recording": "屏幕录制",
+  "computer.granted": "已授予",
+  "computer.not_detected": "未检测到",
+  "computer.unsupported": "此平台不提供该权限检查",
+  "computer.ready": "已启用",
+  "computer.running": "正在操作应用…",
+  "computer.disabled": "已关闭",
+  "computer.loading": "正在检查原生连接…",
+  "computer.refresh": "刷新",
+  "computer.stop": "停止",
+  "computer.stop_hint": "紧急停止：Command/Ctrl+Shift+Esc。"
 }
