@@ -29,3 +29,13 @@ Kit Input and step buttons, with `FontSize` owning the bounds. Web's default
 dialog confirmation closed Settings on Enter before the input event could save;
 Settings disables that confirmation behavior. These failures are exercised by
 real keyboard/input and native-window checks in the appearance evidence.
+
+## 2026-10-30 source table follow-up
+
+Adopting Kit's actual DataTable exposed table-specific theme tokens that were
+still using Kit defaults: the dark body was black and header labels had low
+contrast. The existing appearance installer now maps table surface, header,
+footer, hover, selection and row borders from the resolved Pero palette through
+`Theme::update`. The source reader does not install a separate widget theme.
+Actual light/dark/minimum-width screenshots are part of the content-reader
+acceptance. This follow-up does not close the other native appearance gates.

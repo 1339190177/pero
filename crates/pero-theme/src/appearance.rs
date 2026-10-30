@@ -252,6 +252,16 @@ impl ResolvedAppearance {
             c.selection = p.accent_soft;
             c.list_active = p.accent_soft;
             c.list_hover = p.surface_muted;
+            c.table = p.surface;
+            c.table_head = p.surface_muted;
+            c.table_head_foreground = p.text;
+            c.table_foot = p.surface_muted;
+            c.table_foot_foreground = p.text;
+            c.table_even = p.surface_muted;
+            c.table_hover = p.surface_muted;
+            c.table_active = p.accent_soft;
+            c.table_active_border = p.focus;
+            c.table_row_border = p.border;
             c.sidebar = p.bg;
             c.sidebar_foreground = p.text;
             c.sidebar_border = p.border;
