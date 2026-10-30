@@ -3,7 +3,7 @@ import { Button, Checkbox, EmptyState, Feedback, Field, Input, Select, Tabs, Tab
 import type { Api, Paper, SearchItem } from './types';
 import type { Translator } from './i18n';
 
-export function ImportPanel({ api, t, active, onAdded, onClose, onError }: { api: Api; active: boolean; t: Translator; onAdded(paper: Paper, focus: boolean): Promise<void>; onClose(): void; onError(error: unknown): void }) {
+export function ImportPanel({ api, t, active, onAdded, onClose, onError, onImportPdf, importingPdf }: { api: Api; active: boolean; onImportPdf(file: File): Promise<void>; importingPdf: boolean; t: Translator; onAdded(paper: Paper, focus: boolean): Promise<void>; onClose(): void; onError(error: unknown): void }) {
   const [tab, setTab] = useState('search'), [query, setQuery] = useState(''), [source, setSource] = useState('all');
   const [results, setResults] = useState<SearchItem[] | null>(null), [warnings, setWarnings] = useState<string[]>([]);
   const [busy, setBusy] = useState(false), [adding, setAdding] = useState('');
@@ -51,6 +51,7 @@ export function ImportPanel({ api, t, active, onAdded, onClose, onError }: { api
     setContent(text); if (!title) setTitle(selected.name.replace(/\.[^.]+$/, ''));
   }
   return <section className="pa-import" ref={panel} aria-label={t('add')}>
+    <label className="pa-file pa-pdf-import">{t('importPdf')}<input aria-label={t('importPdf')} type="file" accept="application/pdf,.pdf" disabled={importingPdf} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void onImportPdf(file); }}/></label>
     <Tabs value={tab} onValueChange={setTab}>
       <TabsList><TabsTrigger value="search">{t('search')}</TabsTrigger><TabsTrigger value="import">{t('import')}</TabsTrigger></TabsList>
       <TabsContent value="search" forceMount>
