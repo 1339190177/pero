@@ -32,11 +32,12 @@ redact secure controls from an AX tree.
 
 The structure follows Cua's separate `platform-macos`, `platform-windows` and
 `platform-linux` implementations. The pinned source and design reference are in
-[computer/SOURCE.json](computer/SOURCE.json); the Point platform source is built
-into the executable, while Cua's daemon, tools and authorization system are not
+[computer/SOURCE.json](computer/SOURCE.json); the Point native dependency closure is checked in under
+`computer/vendor/point/` and built into the executable, while Cua's daemon, tools and authorization system are not
 shipped. See [computer/NOTICE.md](computer/NOTICE.md).
 
 Build with `npm run build:computer`; a package contains only the resulting native
-executable, source metadata and notice, and needs no source checkout at runtime.
+executable, source metadata and notice, and needs no Point checkout or credentials at build time or runtime.
+Cargo registry dependencies remain pinned by `computer/Cargo.lock`.
 See [acceptance and platform limits](../docs/fitness/computer-use.md) for the
 commands and evidence actually run.

@@ -94,9 +94,11 @@ Source inspection used Point `a1b915005` and Cua `cbe3991f`:
 
 References: Point ADR 0065, `computer/README.md`,
 `browser/contracts/computer-use-xpc-v1.json`; Cua Driver README and embedding
-guide. The build extracts the pinned computer workspace into ignored `target/`;
-`use/computer/SOURCE.json` and its notice record provenance. No upstream
-source file is copied into Pero's tracked source tree.
+guide. The five-crate native dependency closure is copied into tracked
+`use/computer/vendor/point/`; `SOURCE.json`, its notice and the vendor README
+record provenance and module-only adaptations. Cargo uses local paths. Builds
+require no Point credentials, checkout or extraction cache; public registry
+dependencies remain locked in `use/computer/Cargo.lock`.
 
 ## Runtime and ownership
 

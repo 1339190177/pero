@@ -13,6 +13,49 @@ reference. The [platform matrix](../../use/README.md) records supported delivery
 and observation kinds, including the X11/Wayland and keyboard-layout limits.
 Paper Agent and appearance work in this shared checkout are separate concerns.
 
+## Clean source build repair, 2026-10-30
+
+The original build fetched private `phodal/point` into ignored `target/`.
+Local acceptance reused that extracted source and missed the clean-runner
+authentication prerequisite. The native dependency closure is now tracked in
+`use/computer/vendor/point/`; the build uses local Cargo paths and never fetches
+Point. `SOURCE.json` and the vendor README retain the revision, crate selection
+and module adaptations. Each copied code file stays below 1000 lines.
+
+`node tests/build/computer-source.mjs` copies only build sources/manifests and
+contract locale inputs into an empty temporary directory, denies Point access
+through Git configuration, sets the old source override to a nonexistent path,
+then runs the actual locked native test/build entry point. It also checks that
+no legacy Point checkout or extraction cache was created.
+
+The isolated build passes on macOS, including an archive of committed source
+at `04db03c` with concurrent working-tree changes excluded. In a new Linux aarch64 container, starting
+with an empty Cargo registry cache, this also passes:
+
+```sh
+xvfb-run -a node tests/build/computer-source.mjs --x11
+```
+
+That command runs the existing Tk/XTest acceptance against the executable
+built in the temporary source directory: screenshot, click, text, key, scroll,
+drag, unmapped text refusal and stale observation refusal all pass. The Linux
+CI step now uses this command; the three native CI lanes retain tests, Clippy
+and a normal build. The isolated container was removed and its VM stopped.
+
+Native macOS Clippy and cross-target Clippy for Windows GNU and Linux musl pass
+with `--locked --all-targets -- -D warnings`. The copied five-crate workspace's
+tests pass on macOS; platform-only live tests remain ignored as upstream defines.
+Source comparison confirms only the documented manifest/module organization
+changes relative to the pinned upstream source. The native lockfile is unchanged.
+
+An additional macOS GUI rerun stopped before input at guard-window activation;
+the foreground process was `loginwindow`, and both owned fixtures recorded zero
+input effects. Both fixtures were closed. This does not renew the earlier GUI
+acceptance below. Hosted CI for the repair remains pending until these commits
+are pushed; local checks are not a hosted CI result. The
+[build incident](../issues/2026-10-30-computer-use-private-build-dependency.md)
+records the cause and resolution.
+
 ## Implemented boundary
 
 TypeSpec owns observation/action values and private runtime transport. Generated
