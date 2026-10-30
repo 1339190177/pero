@@ -80,8 +80,10 @@ simulated result alone.
   and hidden macOS WebKit receipts are in [Web view acceptance](../fitness/web-documents.md).
   Two-page visibility, overlays and teardown are covered. This does not supply
   MCP Apps, inline HTML admission, restart recovery or full browser parity.
-- MCP Apps, advanced table/editor operations, unified extensible content icons
-  and the Data Agent workflow remain unimplemented. Cross-platform package,
+- Table sorting/filtering, column resizing, keyboard cell copy and source mapping
+  are implemented with Kit DataTable; details are in [reader acceptance](../fitness/content-reader.md).
+  Cell ranges, advanced editor operations, MCP Apps, unified extensible content
+  icons and the Data Agent workflow remain incomplete. Cross-platform package,
   physical native UI and assistive-technology proof is pending.
 
 ## Current delivery status
@@ -97,8 +99,8 @@ simulated result alone.
 | App SDK | Actual Virtual Cell result opens completely and returns to retained App | Rich standalone Web reader and other source kinds |
 | Icons | Existing shared action catalog plus Web tab/control icons | Unified content/language mappings and extension admission |
 | Editor | Existing exact copy/search/selection and source editor | Regex/whole-word search, structural folds and source navigation |
-| Data projections | Existing source-backed record/table preview | Sort/filter/resize/cell-copy and stable source mappings |
-| Performance | Full functionality retained and actual 1 MiB probes | Shared indexes, worker work, repeated cold/warm interaction distributions |
+| Data projections | Kit virtualized table, exact sort/filter, column resize, single-cell keyboard copy and original ranges | Cell ranges, transformed export and dataset/Agent consumption |
+| Performance | Per-reader preview reuse and thirty-switch 1 MiB measurements; all operation long tasks recorded | Cross-reader indexes, worker work and cold-start/selection interaction budgets |
 | Data Agent | Virtual Cell computation and source handoff are verified separately | Dataset schema/grain/provenance, selection context and real Agent consumption |
 | Platform/accessibility | macOS hidden Electron, native engine and native compilation | Physical focus/IME, screen reader and installed Windows/Linux/macOS evidence |
 
