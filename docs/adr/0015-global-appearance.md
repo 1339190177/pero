@@ -105,7 +105,7 @@ The left side is a keyboard-accessible tree. Appearance children select a
 section anchor in one continuous page, rather than separate routes. Search
 filters both navigation and sections. Theme and accent use compact dropdown
 menus. Font sizes use editable inputs and domain-owned step actions, with
-inheritance beside the value. Large repeated previews and read-only font-family
+inheritance beside the field label. Large repeated previews and read-only font-family
 rows are omitted. Inputting an unchanged inherited value does not create an
 override; invalid input does not change active preferences, including on blur.
 Category/search state is transient UI state and does not introduce another

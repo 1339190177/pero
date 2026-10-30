@@ -30,6 +30,22 @@ dialog confirmation closed Settings on Enter before the input event could save;
 Settings disables that confirmation behavior. These failures are exercised by
 real keyboard/input and native-window checks in the appearance evidence.
 
+The next compact-layout check found that the Web dialog's generic scrolling
+body let Settings grow past the viewport. Its own scroll handle therefore had
+no scroll range, and category selection could leave the target below the
+clipped surface. Settings uses the bounded dialog content slot; the regression
+check now proves viewport containment and a real edit of the scrolled-to field.
+Escape handling also explicitly consumes a cleared search so the enclosing
+dialog cannot close on the same action. See the interaction refinement in the
+appearance verification record.
+
+The user also reported that the whole workbench remained too spacious. The
+shared geometry now uses compact rows/controls, a shorter tab strip and smaller
+page/section insets across navigation, forms and shared Chat. Single-line input
+frames use the shared style rather than the multiline-only height setter.
+Usage details remain in a popover on the composer toolbar. No font preference
+or appearance persistence behavior changes in this density correction.
+
 ## 2026-10-30 source table follow-up
 
 Adopting Kit's actual DataTable exposed table-specific theme tokens that were
