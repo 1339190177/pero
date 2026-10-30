@@ -174,6 +174,10 @@ impl ContentDocument {
         &self.source
     }
 
+    pub fn shares_source(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.source, &other.source)
+    }
+
     pub fn text(&self, range: &Range<usize>) -> &str {
         &self.source[range.clone()]
     }

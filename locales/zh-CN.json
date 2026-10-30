@@ -614,5 +614,13 @@
   "web.loading": "正在加载…",
   "web.close_address": "关闭地址栏",
   "web.unavailable": "此网页视图不可用，请重新打开地址。",
-  "web.address": "网页地址"
+  "web.address": "网页地址",
+  "content.field": "字段",
+  "content.value": "值",
+  "content.filter": "过滤行…",
+  "content.no_rows": "没有匹配的行，请修改或清除过滤条件。",
+  "content.copy_cell": "复制单元格",
+  "content.expand_value": "展开值",
+  "content.locate_source": "定位源码",
+  "content.row_count": "{shown} / {total} 行"
 }

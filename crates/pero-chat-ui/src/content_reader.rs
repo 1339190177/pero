@@ -9,11 +9,9 @@ use gpui_kit::{
     prelude::*,
     *,
 };
-use pero_contracts::content_document::{
-    ContentDocument, ContentFormat, PreviewShape, StructuredPreview,
-};
+use pero_contracts::content_document::{ContentDocument, ContentFormat, StructuredPreview};
 use pero_contracts::content_origin::ContentOrigin;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 gpui_kit::actions!(content_document, [SaveDocument]);
 #[derive(Clone)]
 pub enum ReaderAction {
@@ -52,7 +50,9 @@ pub struct ContentReader {
     saving: bool,
     file_error: Option<String>,
     discard: Option<DiscardAction>,
-    preview: Result<StructuredPreview, String>,
+    preview: Result<Arc<StructuredPreview>, String>,
+    table: Option<Entity<crate::content_table::ContentTable>>,
+    table_subscription: Option<Subscription>,
     preview_document: ContentDocument,
     markdown: Option<Entity<crate::stream::StreamText>>,
     markdown_subscription: Option<Subscription>,
@@ -82,7 +82,7 @@ impl ContentReader {
             KeyBinding::new("cmd-s", SaveDocument, None),
             KeyBinding::new("ctrl-s", SaveDocument, None),
         ]);
-        let preview = document.preview();
+        let preview = document.preview().map(Arc::new);
         let source = !matches!(
             document.format,
             ContentFormat::Json | ContentFormat::JsonLines | ContentFormat::Markdown
@@ -123,6 +123,8 @@ impl ContentReader {
             file_error: None,
             discard: None,
             preview,
+            table: None,
+            table_subscription: None,
             markdown,
             markdown_subscription: None,
             preview_scroll: ScrollHandle::new(),
@@ -137,6 +139,7 @@ impl ContentReader {
             bounds: Default::default(),
             focus_handle: cx.focus_handle(),
         };
+        this.sync_table(window, cx);
         if source {
             this.open_source(None, window, cx);
         }
@@ -155,6 +158,11 @@ impl ContentReader {
         if self.search_open {
             self.search_input
                 .update(cx, |input, cx| input.focus(window, cx));
+        } else if !self.source && self.table.is_some() {
+            self.table
+                .as_ref()
+                .unwrap()
+                .update(cx, |table, cx| table.focus(window, cx));
         } else if let Some(editor) = &self.editor {
             editor.update(cx, |editor, cx| editor.focus(window, cx));
         } else {
@@ -171,6 +179,7 @@ impl ContentReader {
     pub fn snapshot(&self, cx: &App) -> serde_json::Value {
         serde_json::json!({"bounds":self.bounds.snapshot(),"id":self.document.id,"revision":self.document.revision,"bytes":self.document.bytes,
             "dirty":self.dirty,"saving":self.saving,"fileError":self.file_error,"confirmClose":self.discard.is_some(),"editable":self.editable(),"markdown":self.markdown.is_some(),"workspace":self.placement==ReaderPlacement::Workspace,"source":self.source,"editor":self.editor.is_some(),"rows":self.preview.as_ref().map(|p|p.rows.len()).ok(),
+            "table":self.table.as_ref().map(|table|table.read(cx).snapshot(cx)),
             "columns":self.preview.as_ref().map(|p|p.columns.len()).ok(),"error":self.preview.as_ref().err(),
             "selection":self.editor.as_ref().map(|e|e.read(cx).selected_range()),
             "search":self.editor.as_ref().map(|e| {let s=e.read(cx).search_session();serde_json::json!({"open":self.search_open,"query":s.query,"matches":s.matcher.len(),"current":s.matcher.current()})}),
@@ -210,7 +219,7 @@ impl ContentReader {
         self.file_error = None;
         self.discard = None;
         self.replace(document, cx);
-        self.show_preview(cx);
+        self.show_preview(window, cx);
         if !matches!(
             self.document.format,
             ContentFormat::Markdown | ContentFormat::Json | ContentFormat::JsonLines
@@ -276,15 +285,21 @@ impl ContentReader {
             cx.notify();
         }
     }
-    fn show_preview(&mut self, cx: &mut Context<Self>) {
+    fn show_preview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.dirty && self.preview_document.shares_source(&self.document) {
+            self.source = false;
+            cx.notify();
+            return;
+        }
         let draft = self.editor.as_ref().filter(|_| self.dirty).map(|editor| {
             self.document
                 .header()
                 .into_document(editor.read(cx).text().to_string())
         });
-        let document = draft.as_ref().unwrap_or(&self.document);
+        let document = draft.unwrap_or_else(|| self.document.clone());
         self.preview_document = document.clone();
-        self.preview = self.preview_document.preview();
+        self.preview = self.preview_document.preview().map(Arc::new);
+        self.sync_table(window, cx);
         self.path.clear();
         if let Some(markdown) = &self.markdown {
             markdown.update(cx, |view, cx| view.replace(document.source(), cx));
@@ -367,7 +382,10 @@ impl ContentReader {
             && document.origin == self.document.origin
             && document.revision == self.document.revision
         {
-            if self.document.title!=document.title {self.document=document;cx.notify();}
+            if self.document.title != document.title {
+                self.document = document;
+                cx.notify();
+            }
             return;
         }
         self.document = document;
@@ -386,7 +404,8 @@ impl ContentReader {
                         return;
                     }
                     this.preview_document = this.document.clone();
-                    this.preview = this.preview_document.preview();
+                    this.preview = this.preview_document.preview().map(Arc::new);
+                    this.sync_table(window, cx);
                     if matches!(this.document.format, ContentFormat::Markdown) {
                         if let Some(view) = &this.markdown {
                             view.update(cx, |view, cx| view.replace(this.document.source(), cx));
@@ -408,89 +427,56 @@ impl ContentReader {
                             editor.set_value(this.document.source().to_owned(), window, cx)
                         });
                     }
-                    if matches!(this.document.format,ContentFormat::Code(_)|ContentFormat::Text) {this.open_source(None,window,cx);}
+                    if matches!(
+                        this.document.format,
+                        ContentFormat::Code(_) | ContentFormat::Text
+                    ) {
+                        this.open_source(None, window, cx);
+                    }
                     cx.notify();
                 })
             });
         });
     }
 
-    fn row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
-        let preview = self
-            .preview
-            .as_ref()
-            .expect("rows only exist in a valid preview");
-        let row = &preview.rows[index];
-        let properties = preview.shape == PreviewShape::Properties;
-        let mut element = div()
-            .id(("content-row", index))
-            .h(px(pero_theme::UiAppearance::global(cx)
-                .typography
-                .row_height()))
-            .flex()
-            .items_center()
-            .border_b_1()
-            .border_color(cx.theme().border)
-            .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Caption))
-            .child(
-                div()
-                    .w(px(48.))
-                    .flex_shrink_0()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(row.line.to_string()),
-            );
-        if properties {
-            element = element.child(
-                div()
-                    .w(px(160.))
-                    .flex_shrink_0()
-                    .truncate()
-                    .child(preview.columns[index].clone()),
-            );
+    fn sync_table(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Ok(preview) = &self.preview else {
+            self.table = None;
+            self.table_subscription = None;
+            return;
+        };
+        if let Some(table) = &self.table {
+            table.update(cx, |table, cx| {
+                table.replace(self.preview_document.clone(), preview.clone(), window, cx)
+            });
+        } else {
+            let table = cx.new(|cx| {
+                crate::content_table::ContentTable::new(
+                    self.preview_document.clone(),
+                    preview.clone(),
+                    self.locale.clone(),
+                    window,
+                    cx,
+                )
+            });
+            self.table_subscription = Some(cx.subscribe_in(
+                &table,
+                window,
+                |this, _, event: &crate::content_table::OpenCell, window, cx| {
+                    let range = &event.0;
+                    if this.preview_document.text(range).starts_with(['{', '[']) {
+                        this.preview = this.preview_document.project(range.clone()).map(Arc::new);
+                        this.path.push(range.clone());
+                        this.sync_table(window, cx);
+                        this.copied = false;
+                        cx.notify();
+                    } else {
+                        this.open_source(Some(range.clone()), window, cx);
+                    }
+                },
+            ));
+            self.table = Some(table);
         }
-        for (column, cell) in row.cells.iter().enumerate() {
-            let range = cell.clone();
-            let raw = range.as_ref().map(|r| self.preview_document.text(r));
-            let nested = raw.is_some_and(|value| value.starts_with(['{', '[']));
-            let text = raw
-                .map(|s| s.chars().take(160).collect::<String>())
-                .unwrap_or_else(|| self.t("content.missing").into());
-            element = element.child(
-                Button::new(("content-cell", column))
-                    .ghost()
-                    .small()
-                    .w(px(if properties { 420. } else { 180. }))
-                    .flex_shrink_0()
-                    .justify_start()
-                    .label(text)
-                    .disabled(range.is_none())
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        if let Some(range) = &range {
-                            if nested {
-                                this.preview = this.preview_document.project(range.clone());
-                                this.path.push(range.clone());
-                                this.copied = false;
-                                cx.notify();
-                            } else {
-                                this.open_source(Some(range.clone()), window, cx);
-                            }
-                        }
-                    })),
-            );
-        }
-        // Later records may introduce columns; absence is a distinct virtual cell.
-        if !properties {
-            for column in row.cells.len()..preview.columns.len() {
-                element = element.child(
-                    div()
-                        .w(px(180.))
-                        .flex_shrink_0()
-                        .child(self.t("content.missing"))
-                        .id(("missing", column)),
-                );
-            }
-        }
-        element.into_any_element()
     }
 }
 
@@ -533,8 +519,8 @@ impl Render for ContentReader {
                         .small()
                         .label(self.t("content.preview"))
                         .toggled(!self.source)
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.show_preview(cx);
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.show_preview(window, cx);
                         })),
                 )
             })
@@ -565,12 +551,17 @@ impl Render for ContentReader {
                         .ghost()
                         .small()
                         .label(self.t("content.back"))
-                        .on_click(cx.listener(|this, _, _, cx| {
+                        .on_click(cx.listener(|this, _, window, cx| {
                             this.path.pop();
-                            this.preview = this.path.last().map_or_else(
-                                || this.preview_document.preview(),
-                                |range| this.preview_document.project(range.clone()),
-                            );
+                            this.preview = this
+                                .path
+                                .last()
+                                .map_or_else(
+                                    || this.preview_document.preview(),
+                                    |range| this.preview_document.project(range.clone()),
+                                )
+                                .map(Arc::new);
+                            this.sync_table(window, cx);
                             cx.notify();
                         })),
                 )
@@ -837,65 +828,10 @@ impl Render for ContentReader {
                             .child(error.clone()),
                     )
                 }
-                Ok(preview) if preview.rows.is_empty() => {
-                    view = view.child(div().p(px(12.)).child(self.t("content.empty")))
-                }
-                Ok(preview) => {
-                    let properties = preview.shape == PreviewShape::Properties;
-                    let width = if properties {
-                        640.
-                    } else {
-                        48. + 180. * preview.columns.len().max(1) as f32
-                    };
-                    let header = div()
-                        .flex()
-                        .h(px(28.))
-                        .flex_shrink_0()
-                        .text_size(
-                            pero_theme::UiAppearance::global(cx)
-                                .text(pero_theme::TextRole::Caption),
-                        )
-                        .child(div().w(px(48.)).flex_shrink_0().child("#"))
-                        .children(
-                            (!properties)
-                                .then_some(&preview.columns)
-                                .into_iter()
-                                .flatten()
-                                .map(|name| {
-                                    div()
-                                        .w(px(180.))
-                                        .flex_shrink_0()
-                                        .truncate()
-                                        .child(name.clone())
-                                }),
-                        );
-                    let count = preview.rows.len();
-                    view = view.child(
-                        div()
-                            .id("content-grid")
-                            .overflow_x_scroll()
-                            .flex_1()
-                            .min_h_0()
-                            .child(
-                                div()
-                                    .w(px(width))
-                                    .h_full()
-                                    .flex()
-                                    .flex_col()
-                                    .child(header)
-                                    .child(
-                                        uniform_list(
-                                            "content-rows",
-                                            count,
-                                            cx.processor(|this, range: Range<usize>, _, cx| {
-                                                range.map(|i| this.row(i, cx)).collect::<Vec<_>>()
-                                            }),
-                                        )
-                                        .flex_1()
-                                        .min_h_0(),
-                                    ),
-                            ),
-                    );
+                Ok(_) => {
+                    if let Some(table) = &self.table {
+                        view = view.child(table.clone());
+                    }
                 }
             }
         }
