@@ -4,12 +4,12 @@ import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { computerFixture, waitFor as poll } from '../fixtures/computer-app.mjs';
+import { computerFixture, computerEvidenceDirectory, waitFor as poll } from '../fixtures/computer-app.mjs';
 
 if (process.env.PERO_COMPUTER_NATIVE !== '1' || process.platform !== 'darwin') throw new Error('Run with PERO_COMPUTER_NATIVE=1 on macOS');
 const root=resolve(import.meta.dirname,'../..');
 const run=await mkdtemp(resolve(root,'target/computer-acceptance-'));
-const out=resolve(root,'test-results/computer');await mkdir(out,{recursive:true});
+const out=computerEvidenceDirectory(root);await mkdir(out,{recursive:true});
 await build({entryPoints:[resolve(root,'desktop/src/main/computer.ts')],outfile:resolve(run,'computer.mjs'),bundle:true,platform:'node',format:'esm'});
 const { DesktopComputer }=await import(resolve(run,'computer.mjs'));
 const states=[];

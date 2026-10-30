@@ -1,11 +1,12 @@
 // Actual Electron/Host settings, keyboard controls and recovery, isolated profile.
 import { expect } from '@playwright/test';
 import { electron, focusPage } from './electron.mjs';
+import { computerEvidenceDirectory } from '../fixtures/computer-app.mjs';
 import { openSettings } from './sidebar-controls.mjs';
 import { mkdir, mkdtemp, readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-const root=resolve(import.meta.dirname,'../..'),temp=await mkdtemp(resolve(tmpdir(),'pero-computer-ui-')),out=resolve(root,'test-results/computer');
+const root=resolve(import.meta.dirname,'../..'),temp=await mkdtemp(resolve(tmpdir(),'pero-computer-ui-')),out=computerEvidenceDirectory(root);
 await mkdir(out,{recursive:true});await mkdir(resolve(temp,'config'));
 const settings=resolve(temp,'config/settings.json');
 await writeFile(settings,JSON.stringify({computer_use:{enabled:false},other:{preserve:true},workbench:{appearance:'light',projects:[]}}));

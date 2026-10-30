@@ -5,6 +5,8 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+export const computerEvidenceDirectory = root => resolve(process.env.PERO_COMPUTER_RESULTS || resolve(root, 'target/computer-verification'));
+
 export async function waitFor(condition, description = 'native fixture effect', timeout = 10_000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {

@@ -30,4 +30,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-computer-use
-          path: test-results/computer/
+          path: target/computer-verification/
