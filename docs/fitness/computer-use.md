@@ -100,7 +100,9 @@ receipts and stop/restart handle invalidation. The foreground extension also pas
 drag. The captured app reports counter 2, text `Verified` and pixel scroll -120;
 background-phase assertions independently preserve the guard application and
 foreground owner. The initial package split at `abbc401` passed all three native
-jobs in [Computer Use run 40990868154](https://github.com/phodal/pero/actions/runs/40990868154). No fresh real-model or signed-package
+jobs in [Computer Use run 40990868154](https://github.com/phodal/pero/actions/runs/40990868154).
+The final control-identity follow-up at `168f6bc` also passes macOS, Windows and
+Linux in [run 40991729096](https://github.com/phodal/pero/actions/runs/40991729096). No fresh real-model or signed-package
 run is claimed. AT-SPI/native Wayland and Windows live GUI remain separate
 coverage work; see [Cua adapter assessment](../design-docs/computer-use-cua-adapter.md).
 
