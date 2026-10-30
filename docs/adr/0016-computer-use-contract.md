@@ -84,7 +84,8 @@ Source inspection used Point `a1b915005` and Cua `cbe3991f`:
   of a single interchangeable runtime.
 - Point Rust's core also contains environment/file/clock access, Point policy
   and a small JSON parser. Those do not belong in Pero's contract. The native
-  adapter uses its platform backend without the Point service/CLI/policy.
+  adapter uses its platform backend and native compatibility predicates. Point's
+  service, CLI and policy-gate wiring are not used as Pero's authority.
 - Point CLI element indices live in one process; independent CLI invocations
   cannot preserve them. Cua also retains runtime/session state. The adapter must
   keep the corresponding native instance alive and map references there.
