@@ -39,3 +39,8 @@ footer, hover, selection and row borders from the resolved Pero palette through
 `Theme::update`. The source reader does not install a separate widget theme.
 Actual light/dark/minimum-width screenshots are part of the content-reader
 acceptance. This follow-up does not close the other native appearance gates.
+
+Kit paints a selected-cell overlay after its contents. An opaque accent fill
+therefore covered the value. The table selection token now uses translucent
+focus ink; the separate focus border keeps selection visible without masking
+text. This is specific to Kit's overlay semantics, not a second palette.

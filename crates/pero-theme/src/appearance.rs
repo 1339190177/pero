@@ -259,7 +259,8 @@ impl ResolvedAppearance {
             c.table_foot_foreground = p.text;
             c.table_even = p.surface_muted;
             c.table_hover = p.surface_muted;
-            c.table_active = p.accent_soft;
+            // Kit paints cell selection above its text, so this is a translucent overlay.
+            c.table_active = Hsla { a:0.18, ..p.focus };
             c.table_active_border = p.focus;
             c.table_row_border = p.border;
             c.sidebar = p.bg;
