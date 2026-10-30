@@ -213,7 +213,7 @@ impl Workbench {
         let current = self.navigation.current();
         div()
             .id("workspace-tabs")
-            .h(px(W::TAB))
+            .h(px(W::TAB.max(pero_theme::UiAppearance::global(cx).typography.row_height() + 4.)))
             .flex_shrink_0()
             .flex()
             .items_center()
@@ -235,7 +235,7 @@ impl Workbench {
                         let select = item.clone();
                         let close = item.clone();
                         div()
-                            .min_w(px(120.))
+                            .min_w(px(100.))
                             .max_w(px(220.))
                             .h_full()
                             .bg(p.color(if current == Some(item) {

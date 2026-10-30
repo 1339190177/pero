@@ -24,7 +24,7 @@ impl Workbench {
     }
 
     pub fn icon(&self, name: &str) -> Svg {
-        pero_chat_ui::assets::UiIcon::named(name).element().size(px(19.)).flex_shrink_0()
+        pero_chat_ui::assets::UiIcon::named(name).element().size(px(pero_theme::WorkbenchStyle::ICON)).flex_shrink_0()
     }
 
     fn sidebar(&self, width: f32, cx: &mut Context<Self>) -> Stateful<Div> {
@@ -212,7 +212,7 @@ impl Workbench {
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
-            .p(px(20.))
+            .p(px(pero_theme::WorkbenchStyle::PAGE))
             .children(self.events.iter().map(|event| {
                 div()
                     .py(px(8.))
@@ -332,6 +332,8 @@ impl Render for Workbench {
             .text_color(p.text)
 
             .text_size(pero_theme::UiAppearance::global(cx).text(pero_theme::TextRole::Body))
+            .font_weight(FontWeight::NORMAL)
+            .line_height(relative(1.3))
             .child(self.sidebar(sidebar_width, cx))
             .child(
                 div()
