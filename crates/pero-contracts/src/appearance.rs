@@ -172,10 +172,10 @@ impl TextRole {
 }
 impl ResolvedTypography {
     pub fn row_height(self) -> f32 {
-        30. * self.ui / 14.
+        (self.ui * 1.4).ceil().max(20.) + 4.
     }
     pub fn control_height(self) -> f32 {
-        28. * self.ui / 14.
+        self.row_height()
     }
 }
 

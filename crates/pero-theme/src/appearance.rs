@@ -1,6 +1,6 @@
 use crate::{AccentColor, ResolvedTypography, TextRole};
 use gpui_kit::{
-    component::{Theme, ThemeMode},
+    component::{Sizable, Theme, ThemeMode, input::Input},
     *,
 };
 use pero_contracts::workbench::WorkbenchPreferences;
@@ -12,11 +12,21 @@ pub struct WorkbenchStyle;
 
 impl WorkbenchStyle {
     pub const ICON: f32 = 16.;
-    pub const TAB: f32 = 38.;
+    pub const TAB: f32 = 30.;
     pub const RADIUS: f32 = 4.;
     pub const GAP: f32 = 4.;
-    pub const INSET: f32 = 8.;
+    pub const INSET: f32 = 6.;
+    pub const PAGE: f32 = 12.;
+    pub const SECTION: f32 = 12.;
     pub const MENU_WIDTH: f32 = 240.;
+
+    /// Input's inherent `h` only sizes multiline editors; style the frame too.
+    pub fn input(input: Input, cx: &App) -> Input {
+        let typography = UiAppearance::global(cx).typography;
+        Styled::h(input.small(), px(typography.control_height()))
+            .text_size(px(typography.ui))
+            .line_height(relative(1.3))
+    }
 }
 
 #[derive(Clone, Deserialize)]
