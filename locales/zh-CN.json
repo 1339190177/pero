@@ -577,6 +577,7 @@
   "settings.interface_font": "界面字体",
   "settings.chat_font": "聊天字体",
   "settings.code_font": "代码字体",
+  "settings.search_results": "搜索结果",
   "settings.search": "搜索设置…",
   "settings.no_results": "没有匹配的设置",
   "settings.font_family": "字体",

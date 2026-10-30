@@ -577,6 +577,7 @@
   "settings.interface_font": "Interface font",
   "settings.chat_font": "Chat font",
   "settings.code_font": "Code font",
+  "settings.search_results": "Search results",
   "settings.search": "Search settings…",
   "settings.no_results": "No matching settings",
   "settings.font_family": "Font family",
