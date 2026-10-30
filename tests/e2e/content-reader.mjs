@@ -340,6 +340,10 @@ try {
   await phase('table-sort');await page.mouse.click(tableBounds.x+214,tableBounds.y+14);
   await expect.poll(async()=>(await reader()).table.firstRows[0]).toBe(1010);
   expect((await reader()).table.selectedCell).toBe(null);
+  tableBounds=await grid();await page.mouse.click(tableBounds.x+100,tableBounds.y+42);await page.keyboard.press('Enter');
+  await expect.poll(async()=>(await reader()).source).toBe(true);
+  expect((await reader()).cursor.line).toBe(1010);
+  await mode(false);expect((await reader()).table.firstRows[0]).toBe(1010);
   await filterRows('no matching value');await expect.poll(async()=>(await reader()).table.visibleRows).toBe(0);
   await page.screenshot({scale:'css',path:resolve(out,'filtered-empty.png')});
   await filterRows('');await expect.poll(async()=>(await reader()).table.visibleRows).toBe(8000);
