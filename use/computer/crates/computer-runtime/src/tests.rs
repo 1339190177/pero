@@ -1,5 +1,5 @@
 use super::*;
-use computer_core::{ObservedControl, Window, WindowBounds};
+use computer_core::{ControlId, ObservedControl, Window, WindowBounds};
 use pero_contracts::{computer_runtime::*, computer_use::*};
 use std::{cell::RefCell, rc::Rc};
 
@@ -61,7 +61,7 @@ impl DesktopDriver for OwnedDesktop {
             bounds: Some(self.0.borrow().bounds),
             elements: vec![
                 ObservedControl {
-                    index: 1,
+                    index: ControlId(1),
                     role: "Button".into(),
                     label: "Increment".into(),
                     value: String::new(),

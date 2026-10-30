@@ -99,7 +99,8 @@ text, selection chord, pixel click/scroll/drag, preserved background focus,
 receipts and stop/restart handle invalidation. The foreground extension also passes an actual element click and foreground
 drag. The captured app reports counter 2, text `Verified` and pixel scroll -120;
 background-phase assertions independently preserve the guard application and
-foreground owner. Hosted CI for this package refactor is pending until pushed. No fresh real-model or signed-package
+foreground owner. The initial package split at `abbc401` passed all three native
+jobs in [Computer Use run 40990868154](https://github.com/phodal/pero/actions/runs/40990868154). No fresh real-model or signed-package
 run is claimed. AT-SPI/native Wayland and Windows live GUI remain separate
 coverage work; see [Cua adapter assessment](../design-docs/computer-use-cua-adapter.md).
 

@@ -1,6 +1,6 @@
 //! Windows UIA, WGC/PrintWindow and explicit foreground input.
 use crate::{bridge, profile};
-use computer_core::{Window, WindowBounds};
+use computer_core::{ControlId, Window, WindowBounds};
 use computer_runtime::{DesktopDriver, WindowObservation, error};
 use pero_contracts::{computer_runtime::*, computer_use::*};
 use point_computer_backend::backend::{ComputerUseBackend, LaunchPermit};
@@ -97,7 +97,7 @@ impl DesktopDriver for Desktop {
             };
             snap.elements
                 .iter()
-                .find(|e| element_id.as_str() == format!("element-{}", e.index))
+                .find(|e| element_id.as_str() == ControlId(e.index).reference().as_str())
         };
         let location = |anchor: &ComputerAnchor| -> Result<(f64, f64), ComputerError> {
             match anchor {

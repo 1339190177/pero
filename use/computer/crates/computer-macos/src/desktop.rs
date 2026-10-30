@@ -1,7 +1,7 @@
 //! macOS AX, ScreenCaptureKit and window-scoped input implementation.
 use crate::{bridge, profile};
 use crate::{capture, scroll, window_input};
-use computer_core::{Window, WindowBounds};
+use computer_core::{ControlId, Window, WindowBounds};
 use computer_runtime::{DesktopDriver, WindowObservation, error};
 use pero_contracts::{computer_runtime::*, computer_use::*};
 use point_computer_backend::backend::{ComputerUseBackend, LaunchPermit};
@@ -122,10 +122,9 @@ impl DesktopDriver for Desktop {
             let ComputerAnchor::Element { element_id } = anchor else {
                 return None;
             };
-            observation
-                .elements
-                .iter()
-                .find(|element| element_id.as_str() == format!("element-{}", element.index))
+            observation.elements.iter().find(|element| {
+                element_id.as_str() == ControlId(element.index).reference().as_str()
+            })
         };
         let point = |point: ComputerPoint| -> Result<(f64, f64), ComputerError> {
             let bounds = window.bounds;
